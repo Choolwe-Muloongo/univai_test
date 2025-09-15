@@ -15,11 +15,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Logo } from '@/components/icons/logo';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Role = 'student' | 'admin' | 'lecturer' | 'employer';
+type StudentType = 'student-ict' | 'student-business';
 
 const testUsers = {
-    student: { email: 'student@univai.edu', password: 'password123' },
+    'student-ict': { email: 'student.ict@univai.edu', password: 'password123', schoolId: 'ict' },
+    'student-business': { email: 'student.business@univai.edu', password: 'password123', schoolId: 'business' },
     admin: { email: 'admin@univai.edu', password: 'password123' },
     lecturer: { email: 'lecturer@univai.edu', password: 'password123' },
     employer: { email: 'employer@univai.edu', password: 'password123' },
@@ -28,29 +31,67 @@ const testUsers = {
 export default function LoginPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Role>('student');
+  const [studentType, setStudentType] = useState<StudentType>('student-ict');
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    localStorage.setItem('userRole', activeTab);
     
-    switch (activeTab) {
-        case 'admin':
-            router.push('/admin/dashboard');
-            break;
-        case 'lecturer':
-            router.push('/lecturer/dashboard');
-            break;
-        case 'employer':
-            router.push('/employer/dashboard');
-            break;
-        case 'student':
-        default:
-            router.push('/dashboard');
-            break;
+    if(activeTab === 'student') {
+        localStorage.setItem('userRole', 'student');
+        localStorage.setItem('userSchoolId', testUsers[studentType].schoolId);
+        router.push('/dashboard');
+    } else {
+        localStorage.setItem('userRole', activeTab);
+        localStorage.removeItem('userSchoolId'); // Non-students don't have a school
+        
+        switch (activeTab) {
+            case 'admin':
+                router.push('/admin/dashboard');
+                break;
+            case 'lecturer':
+                router.push('/lecturer/dashboard');
+                break;
+            case 'employer':
+                router.push('/employer/dashboard');
+                break;
+            default:
+                router.push('/dashboard');
+                break;
+        }
     }
   };
 
-  const renderLoginForm = (role: Role) => (
+  const renderStudentLoginForm = () => (
+    <form onSubmit={handleLogin}>
+        <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Student Profile</Label>
+              <Select value={studentType} onValueChange={(value) => setStudentType(value as StudentType)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a student profile" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student-ict">ICT Student (BSc CompSci)</SelectItem>
+                  <SelectItem value="student-business">Business Student (MBA)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor={`${studentType}-email`}>Email</Label>
+                <Input id={`${studentType}-email`} type="email" value={testUsers[studentType].email} readOnly />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor={`${studentType}-password`}>Password</Label>
+                <Input id={`${studentType}-password`} type="password" value={testUsers[studentType].password} readOnly />
+            </div>
+        </CardContent>
+        <CardFooter>
+            <Button className="w-full" type="submit">Login as Student</Button>
+        </CardFooter>
+    </form>
+  )
+
+  const renderGenericLoginForm = (role: Exclude<Role, 'student'>) => (
     <form onSubmit={handleLogin}>
         <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -88,16 +129,16 @@ export default function LoginPage() {
                 <CardDescription>Login to your account as a {activeTab}</CardDescription>
             </CardHeader>
             <TabsContent value="student" forceMount className={activeTab === 'student' ? '' : 'hidden'}>
-                {renderLoginForm('student')}
+                {renderStudentLoginForm()}
             </TabsContent>
             <TabsContent value="admin" forceMount className={activeTab === 'admin' ? '' : 'hidden'}>
-                {renderLoginForm('admin')}
+                {renderGenericLoginForm('admin')}
             </TabsContent>
             <TabsContent value="lecturer" forceMount className={activeTab === 'lecturer' ? '' : 'hidden'}>
-                {renderLoginForm('lecturer')}
+                {renderGenericLoginForm('lecturer')}
             </TabsContent>
             <TabsContent value="employer" forceMount className={activeTab === 'employer' ? '' : 'hidden'}>
-                {renderLoginForm('employer')}
+                {renderGenericLoginForm('employer')}
             </TabsContent>
         </Card>
       </Tabs>

@@ -1,5 +1,7 @@
+'use client';
 import { ArrowRight, BookOpen, GraduationCap, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 import {
   Card,
@@ -9,7 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { courses } from '@/lib/data';
+import { courses, type Course } from '@/lib/data';
 
 const aiTools = [
   {
@@ -27,7 +29,22 @@ const aiTools = [
 ];
 
 export function QuickLinks() {
-  const currentCourse = courses[0];
+  const [currentCourse, setCurrentCourse] = useState<Course | null>(null);
+
+  useEffect(() => {
+    const schoolId = localStorage.getItem('userSchoolId');
+    if (schoolId) {
+      const course = courses.find(c => c.schoolId === schoolId);
+      setCurrentCourse(course || courses[0]);
+    } else {
+      setCurrentCourse(courses[0]);
+    }
+  }, []);
+
+  if (!currentCourse) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <Card>

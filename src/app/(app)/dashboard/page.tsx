@@ -1,3 +1,5 @@
+'use client';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -7,13 +9,32 @@ import {
 } from '@/components/ui/card';
 import { ProgressChart } from '@/components/dashboard/progress-chart';
 import { QuickLinks } from '@/components/dashboard/quick-links';
-import { courses, schools } from '@/lib/data';
+import { courses, schools, type Course, type School } from '@/lib/data';
 import { GraduationCap } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 export default function DashboardPage() {
-  const studentCourse = courses[0];
-  const studentSchool = schools.find(s => s.id === studentCourse.schoolId);
+  const [studentCourse, setStudentCourse] = useState<Course | null>(null);
+  const [studentSchool, setStudentSchool] = useState<School | null>(null);
+
+  useEffect(() => {
+    const schoolId = localStorage.getItem('userSchoolId');
+    if (schoolId) {
+      const course = courses.find(c => c.schoolId === schoolId);
+      const school = schools.find(s => s.id === schoolId);
+      setStudentCourse(course || null);
+      setStudentSchool(school || null);
+    } else {
+        // Default for non-student roles or if not found
+        setStudentCourse(courses[0]);
+        setStudentSchool(schools.find(s => s.id === courses[0].schoolId) || null);
+    }
+  }, []);
+
+  if (!studentCourse || !studentSchool) {
+    // You can add a loading state here
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

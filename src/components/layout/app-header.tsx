@@ -19,6 +19,8 @@ import { useEffect, useState } from 'react';
 
 const roleDetails = {
   student: { name: 'Student', email: 'student@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student' },
+  'student-ict': { name: 'ICT Student', email: 'student.ict@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-ict' },
+  'student-business': { name: 'Business Student', email: 'student.business@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-business' },
   admin: { name: 'Admin', email: 'admin@univai.edu', avatar: 'https://i.pravatar.cc/80?u=admin' },
   lecturer: { name: 'Lecturer', email: 'lecturer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=lecturer' },
   employer: { name: 'Employer', email: 'employer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=employer' },
@@ -30,11 +32,17 @@ export function AppHeader() {
 
   useEffect(() => {
     const role = localStorage.getItem('userRole') || 'student';
-    setUser(roleDetails[role as keyof typeof roleDetails] || roleDetails.student);
+    const schoolId = localStorage.getItem('userSchoolId');
+    let userKey = role;
+    if (role === 'student' && schoolId) {
+        userKey = `student-${schoolId}`;
+    }
+    setUser(roleDetails[userKey as keyof typeof roleDetails] || roleDetails.student);
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('userRole');
+    localStorage.removeItem('userSchoolId');
     router.push('/login');
   };
 
