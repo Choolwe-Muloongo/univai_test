@@ -64,15 +64,28 @@ export default function CourseDetailPage({ params }: { params: { id: string } })
       <div className="lg:col-span-1">
         <Card className="sticky top-24">
           <CardHeader>
-            <CardTitle>Ready to test your knowledge?</CardTitle>
+            <CardTitle>Get Started</CardTitle>
             <CardDescription>
-              Take the final exam to complete the course and earn your certificate.
+              Enroll in this course to start learning and track your progress.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <Button size="lg" className="w-full" asChild>
-              <Link href={`/courses/${course.id}/exam`}>Start Exam</Link>
+              <Link href={`/courses/${course.id}/exam`}>Enroll Now</Link>
             </Button>
+            <Card className='mt-4'>
+                <CardHeader>
+                    <CardTitle>Ready to test your knowledge?</CardTitle>
+                    <CardDescription>
+                    Take the final exam to complete the course and earn your certificate.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button size="lg" className="w-full" asChild>
+                    <Link href={`/courses/${course.id}/exam`}>Start Exam</Link>
+                    </Button>
+                </CardContent>
+            </Card>
           </CardContent>
         </Card>
       </div>
