@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "A computer science lecture hall",
+      "imageUrl": "https://picsum.photos/seed/cs101/600/400",
+      "imageHint": "computer science"
+    },
+    {
+      "id": "2",
+      "description": "A nurse attending to a patient",
+      "imageUrl": "https://picsum.photos/seed/nur201/600/400",
+      "imageHint": "nursing healthcare"
+    },
+    {
+      "id": "3",
+      "description": "A modern business meeting",
+      "imageUrl": "https://picsum.photos/seed/bus301/600/400",
+      "imageHint": "business meeting"
+    },
+    {
+      "id": "4",
+      "description": "Mechanical gears and cogs",
+      "imageUrl": "https://picsum.photos/seed/eng401/600/400",
+      "imageHint": "engineering gears"
+    },
+    {
+      "id": "5",
+      "description": "Children playing in a classroom",
+      "imageUrl": "https://picsum.photos/seed/edu110/600/400",
+      "imageHint": "children classroom"
+    }
+  ]
 }
