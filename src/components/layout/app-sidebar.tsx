@@ -7,6 +7,10 @@ import {
   Home,
   Lightbulb,
   Users,
+  Shield,
+  LayoutDashboard,
+  Building,
+  UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -18,21 +22,53 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
 
-const links = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/courses', label: 'Courses', icon: GraduationCap },
-  { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
-  { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
-  { href: '/community', label: 'Community', icon: Users },
-  { href: '/jobs', label: 'Job Board', icon: Briefcase },
-];
+type NavLink = {
+    href: string;
+    label: string;
+    icon: React.ElementType;
+}
+
+const allLinks: { [key: string]: NavLink[] } = {
+  student: [
+    { href: '/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/courses', label: 'Courses', icon: GraduationCap },
+    { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
+    { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
+    { href: '/community', label: 'Community', icon: Users },
+    { href: '/jobs', label: 'Job Board', icon: Briefcase },
+  ],
+  admin: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/courses', label: 'Manage Courses', icon: GraduationCap },
+    { href: '/community', label: 'Manage Community', icon: Users },
+    { href: '/jobs', label: 'Manage Jobs', icon: Briefcase },
+    { href: '#', label: 'System Health', icon: Shield },
+  ],
+  lecturer: [
+      { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/courses', label: 'My Courses', icon: GraduationCap },
+      { href: '#', label: 'Student Progress', icon: UserCheck },
+      { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
+      { href: '/community', label: 'Community', icon: Users },
+  ],
+  employer: [
+    { href: '/employer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/jobs', label: 'Job Listings', icon: Briefcase },
+    { href: '#', label: 'Company Profile', icon: Building },
+  ]
+};
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const [links, setLinks] = useState<NavLink[]>([]);
+
+  useEffect(() => {
+    const role = localStorage.getItem('userRole') || 'student';
+    setLinks(allLinks[role] || allLinks.student);
+  }, [pathname]);
 
   return (
     <>
@@ -48,7 +84,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={link.href}>
               <Link href={link.href} legacyBehavior passHref>
                 <SidebarMenuButton
-                  isActive={pathname.startsWith(link.href)}
+                  isActive={pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href) && link.href.split('/').length > 1)}
                   tooltip={link.label}
                   className="justify-start"
                 >
