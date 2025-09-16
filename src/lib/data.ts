@@ -87,7 +87,7 @@ export const schools: School[] = [
 export const courses: Course[] = [
   {
     id: 'cs101',
-    title: 'BSc in Software Development and Emerging Technologies',
+    title: 'Bachelor of Science in Software Development and Emerging Technologies',
     description: 'Foundational concepts of computing, including algorithms, data structures, and software engineering.',
     schoolId: 'ict',
     progress: 75,
@@ -130,7 +130,7 @@ export const courses: Course[] = [
 export const program: Program = {
     id: 'cs101',
     title: 'Bachelor of Science in Software Development and Emerging Technologies',
-    description: 'This program provides a comprehensive foundation in computer science, covering key concepts from programming and algorithms to software engineering and artificial intelligence. Students will gain hands-on experience through practical projects and labs, preparing them for a successful career in the tech industry.',
+    description: 'This program provides a comprehensive foundation in computer science, ready for global careers. Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs. Target Students: Aspiring software developers, future blockchain and AI specialists, and digital entrepreneurs. Outcome: Graduates can build scalable, secure, and innovative tech solutions.',
     schoolId: 'ict',
     progress: 75,
     imageId: '1',
