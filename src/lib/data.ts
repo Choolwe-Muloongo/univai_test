@@ -87,7 +87,7 @@ export const schools: School[] = [
 export const courses: Course[] = [
   {
     id: 'cs101',
-    title: 'BSc Computer Science',
+    title: 'BSc in Software Development and Emerging Technologies',
     description: 'Foundational concepts of computing, including algorithms, data structures, and software engineering.',
     schoolId: 'ict',
     progress: 75,
@@ -129,7 +129,7 @@ export const courses: Course[] = [
 
 export const program: Program = {
     id: 'cs101',
-    title: 'BSc in Computer Science',
+    title: 'Bachelor of Science in Software Development and Emerging Technologies',
     description: 'This program provides a comprehensive foundation in computer science, covering key concepts from programming and algorithms to software engineering and artificial intelligence. Students will gain hands-on experience through practical projects and labs, preparing them for a successful career in the tech industry.',
     schoolId: 'ict',
     progress: 75,

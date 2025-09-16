@@ -9,7 +9,7 @@ const transactions = [
     {
         id: 'txn1',
         type: 'reward',
-        description: 'Program Completion Reward: BSc Computer Science',
+        description: 'Program Completion Reward: BSc in Software Development and Emerging Technologies',
         amount: '+ 100 AFTA',
         date: '2024-05-20',
     },
