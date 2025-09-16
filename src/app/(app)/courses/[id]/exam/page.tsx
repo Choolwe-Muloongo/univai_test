@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Camera, CheckCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
+import Link from 'next/link';
 
 
 const allQuestions = [
@@ -73,6 +74,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [examResultId, setExamResultId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -122,12 +124,15 @@ export default function ExamPage({ params }: { params: { id: string } }) {
             userId = userRole;
         }
 
-      await addDoc(collection(db, "examResults"), {
+      const docRef = await addDoc(collection(db, "examResults"), {
         userId: userId,
         courseId: course.id,
+        courseTitle: course.title,
+        studentName: 'ICT Student', // Placeholder name
         score: Math.round((finalScore / questions.length) * 100),
         completedAt: serverTimestamp(),
       });
+      setExamResultId(docRef.id);
     } catch (error) {
       console.error("Error saving exam result: ", error);
       toast({
@@ -168,8 +173,13 @@ export default function ExamPage({ params }: { params: { id: string } }) {
                 {isSaving ? 'Saving result...' : <><CheckCircle className='w-4 h-4 text-green-500'/> Result saved securely.</>}
             </div>
           </CardContent>
-          <CardFooter>
-            <Button className="w-full" onClick={() => router.push('/dashboard')}>
+          <CardFooter className="flex-col gap-4">
+            {examResultId && (
+              <Button className="w-full" asChild>
+                  <Link href={`/certificate/${examResultId}`}>View Certificate</Link>
+              </Button>
+            )}
+            <Button className="w-full" variant="outline" onClick={() => router.push('/dashboard')}>
               Back to Dashboard
             </Button>
           </CardFooter>
