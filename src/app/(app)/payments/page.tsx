@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Check, Star, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 
 const freemiumFeatures = [
@@ -27,7 +26,6 @@ const premiumFeatures = [
 
 export default function PaymentsPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,18 +34,7 @@ export default function PaymentsPage() {
 
 
   const handleUpgrade = () => {
-    // Simulate payment and role upgrade
-    localStorage.setItem('userRole', 'premium-student');
-    // Assign a school for the new premium student for demo purposes
-    localStorage.setItem('userSchoolId', 'ict');
-    
-    toast({
-      title: 'Upgrade Successful!',
-      description: 'Welcome to Premium. You now have access to all features.',
-    });
-
-    // Reload the page to reflect the new role and sidebar links
-    window.location.reload();
+    router.push('/checkout');
   };
 
   const isFreemium = userRole === 'freemium-student';

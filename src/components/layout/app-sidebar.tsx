@@ -15,6 +15,7 @@ import {
   BadgeCheck,
   Wallet,
   Landmark,
+  CreditCard,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -51,6 +52,7 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/courses', label: 'Courses', icon: GraduationCap },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/payments', label: 'Upgrade', icon: Landmark },
+    { href: '/checkout', label: 'Checkout', icon: CreditCard },
   ],
   student: [ // Fallback for original student role
     { href: '/dashboard', label: 'Dashboard', icon: Home },
