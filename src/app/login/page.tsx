@@ -1,3 +1,4 @@
+// src/app/login/page.tsx
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -86,13 +87,30 @@ export default function LoginPage() {
                 <Input id={`${studentType}-password`} type="password" value={testUsers[studentType].password} readOnly />
             </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex-col gap-4">
             <Button className="w-full" type="submit">Login as Student</Button>
+            <p className="text-sm text-muted-foreground">
+                New student? <Link href="/register" className="font-semibold text-primary hover:underline">Create an account</Link>
+            </p>
         </CardFooter>
     </form>
   )
 
-  const renderGenericLoginForm = (role: Exclude<Role, 'student'>) => (
+  const renderGenericLoginForm = (role: Exclude<Role, 'student'>) => {
+    let footerText;
+    switch(role) {
+        case 'lecturer':
+            footerText = <p className="text-sm text-muted-foreground">Not a consultant yet? <Link href="/lecturer/profile" className="font-semibold text-primary hover:underline">Apply here</Link></p>;
+            break;
+        case 'employer':
+            footerText = <p className="text-sm text-muted-foreground">New employer? <Link href="/register" className="font-semibold text-primary hover:underline">Register here</Link></p>;
+            break;
+        case 'admin':
+            footerText = null;
+            break;
+    }
+    
+    return (
     <form onSubmit={handleLogin}>
         <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -104,17 +122,18 @@ export default function LoginPage() {
                 <Input id={`${role}-password`} type="password" value={testUsers[role].password} readOnly />
             </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex-col gap-4">
             <Button className="w-full" type="submit">Login as {role.charAt(0).toUpperCase() + role.slice(1)}</Button>
+            {footerText}
         </CardFooter>
     </form>
-  )
+  )};
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className='absolute top-8 left-8 flex items-center gap-2 text-lg font-semibold text-primary'>
         <Logo className="size-8" />
-        UnivAI
+        <Link href="/">UnivAI</Link>
       </div>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Role)} className="w-full max-w-md">
         <TabsList className="grid w-full grid-cols-4">
@@ -141,11 +160,6 @@ export default function LoginPage() {
             <TabsContent value="employer" forceMount className={activeTab === 'employer' ? '' : 'hidden'}>
                 {renderGenericLoginForm('employer')}
             </TabsContent>
-            <CardFooter className="flex-col gap-4">
-                 <p className="text-sm text-muted-foreground">
-                    New student? <Link href="/register" className="text-primary hover:underline">Create an account</Link>
-                </p>
-            </CardFooter>
         </Card>
       </Tabs>
     </div>
