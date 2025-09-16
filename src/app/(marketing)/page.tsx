@@ -53,6 +53,7 @@ const premiumFeatures = [
   { text: 'Verified Certificate upon completion', included: true },
   { text: 'Full community access (posting, messaging)', included: true },
   { text: 'Full access to Career & Job Hub', included: true },
+  { text: 'Eligible for AFTACOIN rewards', included: true },
 ];
 
 export default function HomePage() {
@@ -132,7 +133,7 @@ export default function HomePage() {
                 Start for free and upgrade when you're ready to unlock your full potential.
               </p>
             </div>
-            <div className="mt-12 grid grid-cols-1 items-center gap-8 md:grid-cols-2">
+            <div className="mt-12 grid grid-cols-1 items-start gap-8 md:grid-cols-2">
                  <Card className="border-2">
                     <CardHeader>
                         <CardTitle className="text-2xl">Freemium</CardTitle>
@@ -178,6 +179,10 @@ export default function HomePage() {
                             </li>
                         ))}
                         </ul>
+                        <div className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-primary">
+                          <Star className="h-5 w-5 flex-shrink-0" />
+                          <p><span className='font-semibold'>Earn a Reward:</span> 40% of your fee ($100) will be rewarded to your wallet as AFTACOIN upon program completion.</p>
+                        </div>
                     </CardContent>
                     <CardFooter>
                         <Button className="w-full" size="lg" asChild>
