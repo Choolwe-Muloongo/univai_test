@@ -43,7 +43,7 @@ export function AppHeader() {
   const handleLogout = () => {
     localStorage.removeItem('userRole');
     localStorage.removeItem('userSchoolId');
-    router.push('/login');
+    router.push('/');
   };
 
   const isStudent = userRole?.includes('student');
