@@ -20,6 +20,7 @@ import {
   Trophy,
   FlaskConical,
   Settings,
+  BookMarked,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -84,9 +85,8 @@ const allLinks: { [key: string]: NavLink[] } = {
   lecturer: [
       { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/lecturer/profile', label: 'Profile', icon: User },
-      { href: '/program', label: 'My Program', icon: GraduationCap },
+      { href: '/lecturer/dashboard', label: 'Course Management', icon: BookMarked },
       { href: '#', label: 'Student Progress', icon: UserCheck },
-      { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
       { href: '/community', label: 'Community', icon: Users },
       { href: '/research', label: 'Research Hub', icon: FlaskConical },
   ],
