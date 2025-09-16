@@ -10,7 +10,8 @@ import {
   Shield,
   LayoutDashboard,
   Building,
-  UserCheck
+  UserCheck,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -49,6 +50,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   ],
   lecturer: [
       { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/lecturer/profile', label: 'Profile', icon: User },
       { href: '/courses', label: 'My Courses', icon: GraduationCap },
       { href: '#', label: 'Student Progress', icon: UserCheck },
       { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },

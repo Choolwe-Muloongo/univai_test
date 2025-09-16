@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { BookOpen, UserCheck, MessageSquare } from 'lucide-react';
+import { BookOpen, UserCheck, MessageSquare, ArrowRight } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -69,7 +69,7 @@ export default function LecturerDashboardPage() {
                     </CardContent>
                     <CardFooter>
                        <Button asChild>
-                           <Link href={`/courses/${course.id}`}>Manage Course</Link>
+                           <Link href={`/lecturer/courses/${course.id}`}>Manage Course <ArrowRight className="ml-2 h-4 w-4" /></Link>
                        </Button>
                     </CardFooter>
                 </Card>
