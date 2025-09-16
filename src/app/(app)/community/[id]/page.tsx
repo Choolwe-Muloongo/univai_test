@@ -1,7 +1,7 @@
 // src/app/(app)/community/[id]/page.tsx
 'use client'
 
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { discussions } from '@/lib/data';
 import {
   Card,
@@ -18,8 +18,10 @@ import { Separator } from '@/components/ui/separator';
 import { CornerDownRight, MessageSquare, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 
-export default function DiscussionDetailPage({ params }: { params: { id: string } }) {
-  const discussion = discussions.find((d) => d.id === params.id);
+export default function DiscussionDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const discussion = discussions.find((d) => d.id === id);
 
   if (!discussion) {
     notFound();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useParams } from 'next/navigation';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 
@@ -64,9 +64,11 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 
-export default function ExamPage({ params }: { params: { id: string } }) {
+export default function ExamPage() {
   const router = useRouter();
-  const course = courses.find((c) => c.id === params.id);
+  const params = useParams();
+  const id = params.id as string;
+  const course = courses.find((c) => c.id === id);
   
   const [questions, setQuestions] = useState(allQuestions.slice(0, 3));
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);

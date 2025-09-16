@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { useActionState, useRef, useState, useTransition } from 'react';
 
 import {
@@ -102,9 +102,11 @@ function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
 }
 
 
-export default function CourseDetailPage({ params }: { params: { id: string } }) {
-  const course = courses.find((c) => c.id === params.id);
-  const courseLessons = lessons[params.id] || [];
+export default function CourseDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const course = courses.find((c) => c.id === id);
+  const courseLessons = lessons[id] || [];
   const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
 
   if (!course) {

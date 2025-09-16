@@ -1,6 +1,6 @@
 // src/app/(app)/lecturer/courses/[id]/page.tsx
 'use client';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import Image from 'next/image';
 
 import {
@@ -29,9 +29,11 @@ const studentResults = [
     { name: 'David', score: null, progress: 20 },
 ];
 
-export default function LecturerCourseManagementPage({ params }: { params: { id: string } }) {
-  const course = courses.find((c) => c.id === params.id);
-  const courseLessons = lessons[params.id] || [];
+export default function LecturerCourseManagementPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const course = courses.find((c) => c.id === id);
+  const courseLessons = lessons[id] || [];
   const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
 
   if (!course) {
