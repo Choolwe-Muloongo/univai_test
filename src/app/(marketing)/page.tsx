@@ -4,6 +4,7 @@ import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Check, Star, ArrowRight, BookOpen, Lightbulb, FlaskConical, Briefcase, Users, GraduationCap, X } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const features = [
   {
@@ -68,6 +69,7 @@ export default function HomePage() {
             <Link href="#pricing" className="text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
           </nav>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <Button variant="ghost" asChild>
                 <Link href="/login">Login</Link>
             </Button>
