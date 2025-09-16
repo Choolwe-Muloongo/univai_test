@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AiTutorWidget } from '@/components/layout/ai-tutor-widget';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
               {children}
             </main>
+            <AiTutorWidget />
           </div>
         </SidebarInset>
       </div>
