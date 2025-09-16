@@ -4,11 +4,6 @@ import { AiTutorWidget } from '@/components/layout/ai-tutor-widget';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  // Check if the path is the verification page
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/verify')) {
-    return <>{children}</>;
-  }
-  
   return (
     <SidebarProvider>
       <div className="flex min-h-svh bg-background text-foreground">

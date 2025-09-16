@@ -139,7 +139,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className='absolute top-8 left-8 flex items-center gap-2 text-lg font-semibold text-primary'>
         <Logo className="size-8" />
-        <Link href="/login">UnivAI</Link>
+        <Link href="/">UnivAI</Link>
       </div>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Role)} className="w-full max-w-md">
         <TabsList className="grid w-full grid-cols-4">
