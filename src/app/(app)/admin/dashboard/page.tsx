@@ -77,7 +77,9 @@ export default function AdminDashboardPage() {
                         <p className="text-sm text-muted-foreground">Verify and approve new lecturer applications.</p>
                     </CardContent>
                     <CardFooter>
-                       <Button variant="outline">View Applications <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                       <Button variant="outline" asChild>
+                            <Link href="/admin/consultants">View Applications <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                        </Button>
                     </CardFooter>
                 </Card>
             </CardContent>

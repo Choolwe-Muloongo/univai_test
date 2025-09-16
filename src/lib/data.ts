@@ -36,6 +36,18 @@ export type Discussion = {
   timestamp: string;
 };
 
+export type ConsultantApplication = {
+  id: string;
+  name: string;
+  department: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  avatar: string;
+  documents: {
+    cv: string;
+    id: string;
+  };
+};
+
 export const schools: School[] = [
   { id: 'edu', name: 'School of Education' },
   { id: 'ict', name: 'School of ICT' },
@@ -120,4 +132,23 @@ export const discussions: Discussion[] = [
   { id: 'd1', title: 'Best resources for learning React?', author: 'Jane Doe', avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026704d', snippet: 'I\'m new to frontend development and trying to pick up React. What are the best tutorials or courses you\'d recommend? Any advice is appreciated!', comments: 12, timestamp: '2 hours ago' },
   { id: 'd2', title: 'Tips for clinical rotations in nursing school', author: 'John Smith', avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026705d', snippet: 'My first clinical rotation is coming up and I\'m feeling nervous. Does anyone have advice on how to make the most of it and what to expect?', comments: 8, timestamp: '1 day ago' },
   { id: 'd3', title: 'Group project for BUS301 - Strategic Marketing', author: 'Emily White', avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026706d', snippet: 'Looking for 2 more members for our group project. We are planning to analyze a tech startup\'s marketing strategy. DM me if interested!', comments: 5, timestamp: '3 days ago' },
+];
+
+export const consultantApplications: ConsultantApplication[] = [
+  {
+    id: 'app1',
+    name: 'Dr. Evelyn Reed',
+    department: 'School of ICT',
+    status: 'Pending',
+    avatar: 'https://i.pravatar.cc/80?u=lecturer',
+    documents: { cv: '#', id: '#' },
+  },
+  {
+    id: 'app2',
+    name: 'Prof. Alan Turing',
+    department: 'School of Engineering',
+    status: 'Pending',
+    avatar: 'https://i.pravatar.cc/80?u=prof-turing',
+    documents: { cv: '#', id: '#' },
+  },
 ];

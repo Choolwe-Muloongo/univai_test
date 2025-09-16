@@ -49,6 +49,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   ],
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
     { href: '/courses', label: 'Manage Courses', icon: GraduationCap },
     { href: '/community', label: 'Manage Community', icon: Users },
     { href: '/jobs', label: 'Manage Jobs', icon: Briefcase },
@@ -97,7 +98,7 @@ export function AppSidebar() {
                 tooltip={link.label}
                 className="justify-start"
               >
-                <Link href={link.href}>
+                <Link href={link.href} className='flex items-center gap-2'>
                   <link.icon className="size-5" />
                   <span>{link.label}</span>
                 </Link>
