@@ -36,7 +36,7 @@ const studentResults = [
     { name: 'David', score: null, progress: 20 },
 ];
 
-function AIGeneratorButton({ icon, text }: { icon: React.ElementType, text: string }) {
+function AIGeneratorButton({ icon: Icon, text }: { icon: React.ElementType, text: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
@@ -47,7 +47,7 @@ function AIGeneratorButton({ icon, text }: { icon: React.ElementType, text: stri
         </>
       ) : (
         <>
-          <icon className="mr-2 h-4 w-4" />
+          <Icon className="mr-2 h-4 w-4" />
           {text}
         </>
       )}
