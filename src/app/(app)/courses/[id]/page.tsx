@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import {
   Accordion,
@@ -23,8 +24,7 @@ import {
 import { courses, lessons } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlayCircle, Code, FileDown, Rocket } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { PlayCircle, Code, FileDown, Rocket, Lock } from 'lucide-react';
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -33,77 +33,102 @@ export default function CourseDetailPage() {
   const courseLessons = lessons[id] || [];
   const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
+  }, []);
+
   if (!course) {
     notFound();
   }
 
+  const isFreemium = userRole === 'freemium-student';
+  const introductoryLessonCount = 2;
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-8">
-        <Card className='overflow-hidden'>
-            <CardContent>
-                 <div className="aspect-video bg-muted flex items-center justify-center relative">
-                     <Image src={placeholder?.imageUrl || `https://picsum.photos/seed/${course.id}/1200/400`} alt={course.title} fill className="object-cover" />
-                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                     <div className="absolute bottom-4 left-4 text-white">
-                        <h1 className="text-3xl font-extrabold tracking-tight">{course.title}</h1>
-                        <p className="text-lg text-white/90">Module Overview</p>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-       
-        <div>
-            <h2 className="text-2xl font-bold mb-4">Module Content</h2>
-            <div className="space-y-6">
-                {courseLessons.map((lesson, index) => (
-                    <Card key={lesson.id} className="overflow-hidden">
-                        <CardHeader>
-                            <CardTitle>
-                                <span className='text-primary font-bold mr-2'>0{index + 1}</span>
-                                {lesson.title}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Tabs defaultValue="video" className="w-full">
-                                <TabsList>
-                                    <TabsTrigger value="video"><PlayCircle className='mr-2'/> Video Lecture</TabsTrigger>
-                                    <TabsTrigger value="exercise"><Code className='mr-2'/> Coding Exercise</TabsTrigger>
-                                    <TabsTrigger value="resources"><FileDown className='mr-2'/> Resources</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="video" className="pt-4">
-                                   <div className="aspect-video bg-black rounded-md overflow-hidden">
-                                     {/* In a real app, this would be the lecturer-uploaded video */}
-                                     <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" controls className="w-full h-full" />
-                                   </div>
-                                </TabsContent>
-                                <TabsContent value="exercise" className='pt-4'>
-                                    <Card className='bg-muted/40 font-mono text-sm'>
-                                        <CardHeader>
-                                            <CardDescription className='font-sans'>
-                                                Complete the exercise below to test your understanding.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className='bg-black p-4 rounded-md text-green-400'>
-                                                <pre><code>{`# Python exercise for: ${lesson.title}\ndef hello_world():\n  # Your code here\n  print("Hello, World!")`}</code></pre>
-                                            </div>
-                                            <Button className='mt-4'>Run Code</Button>
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-                                <TabsContent value="resources" className='pt-4 space-y-3'>
-                                    <h3 className='font-semibold'>Downloadable Notes</h3>
-                                    <p className='text-muted-foreground'>{lesson.content}</p>
-                                    <Button variant='outline'><FileDown className='mr-2'/> Download Notes (PDF)</Button>
-                                </TabsContent>
-                            </Tabs>
-                        </CardContent>
-                    </Card>
-                ))}
+        <Card className="overflow-hidden">
+          <CardContent>
+            <div className="aspect-video bg-muted flex items-center justify-center relative">
+              <Image src={placeholder?.imageUrl || `https://picsum.photos/seed/${course.id}/1200/400`} alt={course.title} fill className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              <div className="absolute bottom-4 left-4 text-white">
+                <h1 className="text-3xl font-extrabold tracking-tight">{course.title}</h1>
+                <p className="text-lg text-white/90">Module Overview</p>
+              </div>
             </div>
-        </div>
+          </CardContent>
+        </Card>
 
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Module Content</h2>
+          <div className="space-y-6">
+            {courseLessons.map((lesson, index) => (
+              <Card key={lesson.id} className={`overflow-hidden ${isFreemium && index >= introductoryLessonCount ? 'bg-muted/50 border-dashed' : ''}`}>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center">
+                      <span className='text-primary font-bold mr-2'>0{index + 1}</span>
+                      {lesson.title}
+                    </span>
+                    {isFreemium && index >= introductoryLessonCount && (
+                      <Lock className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isFreemium && index >= introductoryLessonCount ? (
+                     <div className="text-center p-8">
+                        <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold">Content Locked</h3>
+                        <p className="text-muted-foreground mb-4">Upgrade to Premium to access this lesson and the full course.</p>
+                        <Button asChild>
+                            <Link href="/payments">Upgrade Now</Link>
+                        </Button>
+                    </div>
+                  ) : (
+                    <Tabs defaultValue="video" className="w-full">
+                      <TabsList>
+                        <TabsTrigger value="video"><PlayCircle className='mr-2' /> Video Lecture</TabsTrigger>
+                        <TabsTrigger value="exercise"><Code className='mr-2' /> Coding Exercise</TabsTrigger>
+                        <TabsTrigger value="resources"><FileDown className='mr-2' /> Resources</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="video" className="pt-4">
+                        <div className="aspect-video bg-black rounded-md overflow-hidden">
+                          {/* In a real app, this would be the lecturer-uploaded video */}
+                          <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" controls className="w-full h-full" />
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="exercise" className='pt-4'>
+                        <Card className='bg-muted/40 font-mono text-sm'>
+                          <CardHeader>
+                            <CardDescription className='font-sans'>
+                              Complete the exercise below to test your understanding.
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className='bg-black p-4 rounded-md text-green-400'>
+                              <pre><code>{`# Python exercise for: ${lesson.title}\ndef hello_world():\n  # Your code here\n  print("Hello, World!")`}</code></pre>
+                            </div>
+                            <Button className='mt-4'>Run Code</Button>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                      <TabsContent value="resources" className='pt-4 space-y-3'>
+                        <h3 className='font-semibold'>Downloadable Notes</h3>
+                        <p className='text-muted-foreground'>{lesson.content}</p>
+                        <Button variant='outline'><FileDown className='mr-2' /> Download Notes (PDF)</Button>
+                      </TabsContent>
+                    </Tabs>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="lg:col-span-1">
         <Card className="sticky top-24">
@@ -115,7 +140,7 @@ export default function CourseDetailPage() {
           </CardHeader>
           <CardContent>
             <Button size="lg" className="w-full" asChild>
-                <Link href={`/courses/${course.id}/exam`}>Start Final Exam</Link>
+              <Link href={`/courses/${course.id}/exam`}>Start Final Exam</Link>
             </Button>
           </CardContent>
         </Card>
