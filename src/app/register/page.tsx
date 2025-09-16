@@ -77,7 +77,7 @@ export default function RegisterPage() {
       console.error("Registration error:", error);
       const errorCode = error.code;
       if (errorCode === 'auth/email-already-in-use') {
-        setError('This email address is already in use.');
+        setError(<>This email address is already in use. <Link href="/login" className="font-semibold underline">Login here.</Link></>);
       } else if (errorCode === 'auth/weak-password') {
         setError('The password is too weak. It must be at least 6 characters long.');
       } else {
@@ -89,10 +89,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4 py-8">
-      <div className='absolute top-8 left-8 flex items-center gap-2 text-lg font-semibold text-primary'>
-        <Logo className="size-8" />
-        <Link href="/">UnivAI</Link>
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 py-8">
+      <div className='absolute left-4 top-4 md:left-8 md:top-8'>
+        <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
+          <Logo className="size-8" />
+          <span>UnivAI</span>
+        </Link>
       </div>
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
