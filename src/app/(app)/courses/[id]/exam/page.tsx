@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { notFound, useRouter } from 'next/navigation';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +20,9 @@ import { courses } from '@/lib/data';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera } from 'lucide-react';
+import { Camera, CheckCircle } from 'lucide-react';
+import { db } from '@/lib/firebase';
+
 
 const allQuestions = [
   {
@@ -68,6 +72,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const [score, setScore] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -104,15 +109,47 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  const handleNext = () => {
-    if (selectedOption === questions[currentQuestionIndex].answer) {
-      setScore(score + 1);
+  const saveExamResult = async (finalScore: number) => {
+    setIsSaving(true);
+    try {
+        const userRole = localStorage.getItem('userRole');
+        const userSchoolId = localStorage.getItem('userSchoolId');
+        let userId = 'anonymous';
+
+        if(userRole === 'student' && userSchoolId) {
+            userId = `student-${userSchoolId}`;
+        } else if (userRole) {
+            userId = userRole;
+        }
+
+      await addDoc(collection(db, "examResults"), {
+        userId: userId,
+        courseId: course.id,
+        score: Math.round((finalScore / questions.length) * 100),
+        completedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Error saving exam result: ", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "There was an error saving your exam result.",
+      });
+    } finally {
+        setIsSaving(false);
     }
+  };
+
+  const handleNext = () => {
+    const newScore = selectedOption === questions[currentQuestionIndex].answer ? score + 1 : score;
+    setScore(newScore);
+
     setSelectedOption(null);
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
       setIsFinished(true);
+      saveExamResult(newScore);
     }
   };
 
@@ -127,6 +164,9 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           <CardContent>
             <p className="text-4xl font-bold">Your Score: {Math.round((score / questions.length) * 100)}%</p>
             <p className="text-muted-foreground">You answered {score} out of {questions.length} questions correctly.</p>
+            <div className='mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground'>
+                {isSaving ? 'Saving result...' : <><CheckCircle className='w-4 h-4 text-green-500'/> Result saved securely.</>}
+            </div>
           </CardContent>
           <CardFooter>
             <Button className="w-full" onClick={() => router.push('/dashboard')}>
@@ -195,7 +235,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         <Card>
             <CardHeader>
                 <CardTitle>Activity Log</CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent>
                 <p className='text-sm text-muted-foreground'>AI monitoring is active. Your activity during the exam is being logged.</p>
             </CardContent>
