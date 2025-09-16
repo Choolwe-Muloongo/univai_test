@@ -90,7 +90,7 @@ export const courses: Course[] = [
     title: 'Bachelor of Science in Software Development and Emerging Technologies',
     description: 'Foundational concepts of computing, including algorithms, data structures, and software engineering.',
     schoolId: 'ict',
-    progress: 75,
+    progress: 15,
     imageId: '1',
   },
   {
@@ -132,22 +132,27 @@ export const program: Program = {
     title: 'Bachelor of Science in Software Development and Emerging Technologies',
     description: 'This program provides a comprehensive foundation in computer science, ready for global careers. Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs. Target Students: Aspiring software developers, future blockchain and AI specialists, and digital entrepreneurs. Outcome: Graduates can build scalable, secure, and innovative tech solutions.',
     schoolId: 'ict',
-    progress: 75,
+    progress: 15,
     imageId: '1',
     modules: [
-        { id: 'cs101-1', title: 'Introduction to Programming', description: 'Learn the fundamentals of programming using Python.', progress: 100 },
-        { id: 'cs101-2', title: 'Data Structures and Algorithms', description: 'Understand essential data structures and algorithms.', progress: 80 },
-        { id: 'cs101-3', title: 'Software Engineering Principles', description: 'Explore the methodologies of software development.', progress: 60 },
-        { id: 'cs101-4', title: 'Database Management Systems', description: 'Learn to design and manage databases.', progress: 40 },
-        { id: 'cs101-5', title: 'Introduction to AI', description: 'A brief overview of artificial intelligence concepts.', progress: 15 },
+        { id: 'cs101-sem1-1', title: 'Introduction to ICT and Digital Literacy', description: 'Overview of computers, networks, and digital systems.', progress: 100 },
+        { id: 'cs101-sem1-2', title: 'Fundamentals of Programming', description: 'Introduction to programming using Python.', progress: 80 },
+        { id: 'cs101-sem1-3', title: 'Mathematics for Computer Science I', description: 'Logic, sets, functions, and basic discrete math.', progress: 60 },
+        { id: 'cs101-sem1-4', title: 'Introduction to Artificial Intelligence', description: 'History and applications of AI.', progress: 40 },
+        { id: 'cs101-sem1-5', title: 'Professional Development & Ethics', description: 'Digital ethics, professionalism, and communication skills.', progress: 15 },
     ]
 }
 
 export const lessons: { [courseId: string]: Lesson[] } = {
   cs101: [
-    { id: 'l1', title: 'Introduction to Algorithms', content: 'An algorithm is a finite sequence of well-defined instructions, typically used to solve a class of specific problems or to perform a computation.' },
-    { id: 'l2', title: 'Data Structures', content: 'In computer science, a data structure is a data organization, management, and storage format that is usually chosen for efficient access to data.' },
-    { id: 'l3', title: 'Software Development Lifecycle', content: 'The SDLC aims to produce high-quality software that meets or exceeds customer expectations, reaches completion within times and cost estimates.' },
+    { id: 'l1-1', title: 'Digital Systems Overview', content: 'An overview of modern computer hardware, software, and networking components.' },
+    { id: 'l1-2', title: 'Cloud Collaboration', content: 'Hands-on skills using cloud storage and collaborative tools like Google Workspace or Microsoft 365.' },
+    { id: 'l2-1', title: 'Intro to Python', content: 'An algorithm is a finite sequence of well-defined instructions, typically used to solve a class of specific problems or to perform a computation.' },
+    { id: 'l2-2', title: 'Algorithms and Flowcharts', content: 'In computer science, a data structure is a data organization, management, and storage format that is usually chosen for efficient access to data.' },
+    { id: 'l3-1', title: 'Logic and Sets', content: 'Introduction to propositional logic, set theory, and their applications in computer science.' },
+    { id: 'l4-1', title: 'History of AI', content: 'Exploring the origins of AI and key milestones in its development.' },
+    { id: 'l4-2', title: 'Intro to Machine Learning', content: 'A brief overview of machine learning concepts, including supervised and unsupervised learning.' },
+    { id: 'l5-1', title: 'Digital Ethics', content: 'Understanding ethical issues in the digital world, including privacy, security, and intellectual property.' },
   ],
   nur201: [
     { id: 'l1', title: 'Patient Assessment', content: 'Comprehensive and holistic assessment of a patient is the first step of the nursing process.' },
