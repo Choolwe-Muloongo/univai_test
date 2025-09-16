@@ -130,7 +130,7 @@ export default function ExamPage() {
         userId: userId,
         courseId: course.id,
         courseTitle: course.title,
-        studentName: 'ICT Student', // Placeholder name
+        studentName: 'UnivAI Student', // Placeholder name
         score: Math.round((finalScore / questions.length) * 100),
         completedAt: serverTimestamp(),
       });

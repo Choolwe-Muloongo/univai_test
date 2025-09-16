@@ -1,4 +1,3 @@
-
 // src/app/(app)/program/page.tsx
 'use client';
 
@@ -9,13 +8,19 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { program } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { CheckCircle, Clock } from 'lucide-react';
+import { CheckCircle, Clock, BookOpen, ArrowRight } from 'lucide-react';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert'
 
 export default function ProgramPage() {
   const placeholder = PlaceHolderImages.find((p) => p.id === program.imageId);
@@ -37,6 +42,17 @@ export default function ProgramPage() {
           </div>
         </div>
       </div>
+
+       <Alert>
+        <BookOpen className="h-4 w-4" />
+        <AlertTitle className="font-semibold">Kickstart Your Journey!</AlertTitle>
+        <AlertDescription className="flex items-center justify-between">
+          <span>Let our AI create a personalized study plan to guide you through your program.</span>
+          <Button asChild>
+            <Link href="/study-plan">Generate Study Plan <ArrowRight className="ml-2 h-4 w-4"/></Link>
+          </Button>
+        </AlertDescription>
+      </Alert>
       
       <Card>
         <CardHeader>

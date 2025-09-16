@@ -82,11 +82,11 @@ export default function CheckoutPage() {
                     <h3 className="text-lg font-semibold">Billing Information</h3>
                      <div className="space-y-2">
                         <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" defaultValue="Freemium Student" required/>
+                        <Input id="name" defaultValue="UnivAI Student" required/>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" defaultValue="student.freemium@univai.edu" required/>
+                        <Input id="email" type="email" defaultValue="student@univai.edu" required/>
                     </div>
                 </div>
 
