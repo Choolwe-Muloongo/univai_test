@@ -2,7 +2,6 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,164 +9,231 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
+  CardFooter,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Logo } from '@/components/icons/logo';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 type Role = 'student' | 'admin' | 'lecturer' | 'employer';
 type StudentType = 'premium-student' | 'freemium-student';
 
 const testUsers = {
-    'premium-student': { email: 'student.premium@univai.edu', password: 'password123', schoolId: 'ict', role: 'premium-student' },
-    'freemium-student': { email: 'student.freemium@univai.edu', password: 'password123', schoolId: null, role: 'freemium-student' },
-    admin: { email: 'admin@univai.edu', password: 'password123', role: 'admin' },
-    lecturer: { email: 'lecturer@univai.edu', password: 'password123', role: 'lecturer' },
-    employer: { email: 'employer@univai.edu', password: 'password123', role: 'employer' },
-}
+  'premium-student': {
+    email: 'student.premium@univai.edu',
+    password: 'password123',
+    schoolId: 'ict',
+    role: 'premium-student',
+  },
+  'freemium-student': {
+    email: 'student.freemium@univai.edu',
+    password: 'password123',
+    schoolId: null,
+    role: 'freemium-student',
+  },
+  admin: { email: 'admin@univai.edu', password: 'password123', role: 'admin' },
+  lecturer: {
+    email: 'lecturer@univai.edu',
+    password: 'password123',
+    role: 'lecturer',
+  },
+  employer: {
+    email: 'employer@univai.edu',
+    password: 'password123',
+    role: 'employer',
+  },
+};
 
 export default function LoginPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Role>('student');
-  const [studentType, setStudentType] = useState<StudentType>('premium-student');
+  const [studentType, setStudentType] =
+    useState<StudentType>('premium-student');
+  const [otherRole, setOtherRole] = useState<
+    'admin' | 'lecturer' | 'employer'
+  >('admin');
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleStudentLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if(activeTab === 'student') {
-        const user = testUsers[studentType];
-        localStorage.setItem('userRole', user.role);
-        if (user.schoolId) {
-            localStorage.setItem('userSchoolId', user.schoolId);
-        } else {
-            localStorage.removeItem('userSchoolId');
-        }
-        router.push('/dashboard');
+    const user = testUsers[studentType];
+    localStorage.setItem('userRole', user.role);
+    if (user.schoolId) {
+      localStorage.setItem('userSchoolId', user.schoolId);
     } else {
-        const user = testUsers[activeTab as Exclude<Role, 'student'>];
-        localStorage.setItem('userRole', user.role);
-        localStorage.removeItem('userSchoolId');
-        
-        switch (activeTab) {
-            case 'admin':
-                router.push('/admin/dashboard');
-                break;
-            case 'lecturer':
-                router.push('/lecturer/dashboard');
-                break;
-            case 'employer':
-                router.push('/employer/dashboard');
-                break;
-            default:
-                router.push('/dashboard');
-                break;
-        }
+      localStorage.removeItem('userSchoolId');
+    }
+    router.push('/dashboard');
+  };
+
+  const handleOtherLogin = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const user = testUsers[otherRole];
+    localStorage.setItem('userRole', user.role);
+    localStorage.removeItem('userSchoolId');
+
+    switch (otherRole) {
+      case 'admin':
+        router.push('/admin/dashboard');
+        break;
+      case 'lecturer':
+        router.push('/lecturer/dashboard');
+        break;
+      case 'employer':
+        router.push('/employer/dashboard');
+        break;
+      default:
+        router.push('/dashboard');
+        break;
     }
   };
 
-  const renderStudentLoginForm = () => (
-    <form onSubmit={handleLogin}>
-        <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Select Student Profile</Label>
-              <Select value={studentType} onValueChange={(value) => setStudentType(value as StudentType)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a student profile" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="premium-student">Premium Student (Full Access)</SelectItem>
-                  <SelectItem value="freemium-student">Freemium Student (Limited Access)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor={`${studentType}-email`}>Email</Label>
-                <Input id={`${studentType}-email`} type="email" value={testUsers[studentType].email} readOnly />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor={`${studentType}-password`}>Password</Label>
-                <Input id={`${studentType}-password`} type="password" value={testUsers[studentType].password} readOnly />
-            </div>
-        </CardContent>
-        <CardFooter className="flex-col gap-4">
-            <Button className="w-full" type="submit">Login as Student</Button>
-            <p className="text-sm text-muted-foreground">
-                New student? <Link href="/register" className="font-semibold text-primary hover:underline">Create an account</Link>
-            </p>
-        </CardFooter>
-    </form>
-  )
-
-  const renderGenericLoginForm = (role: Exclude<Role, 'student'>) => {
-    let footerText;
-    switch(role) {
-        case 'lecturer':
-            footerText = <p className="text-sm text-muted-foreground">Not a consultant yet? <Link href="/lecturer/profile" className="font-semibold text-primary hover:underline">Apply here</Link></p>;
-            break;
-        case 'employer':
-            footerText = <p className="text-sm text-muted-foreground">New employer? <Link href="/register" className="font-semibold text-primary hover:underline">Register here</Link></p>;
-            break;
-        case 'admin':
-            footerText = null;
-            break;
-    }
-    
-    return (
-    <form onSubmit={handleLogin}>
-        <CardContent className="space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor={`${role}-email`}>Email</Label>
-                <Input id={`${role}-email`} type="email" value={testUsers[role].email} readOnly />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor={`${role}-password`}>Password</Label>
-                <Input id={`${role}-password`} type="password" value={testUsers[role].password} readOnly />
-            </div>
-        </CardContent>
-        <CardFooter className="flex-col gap-4">
-            <Button className="w-full" type="submit">Login as {role.charAt(0).toUpperCase() + role.slice(1)}</Button>
-            {footerText}
-        </CardFooter>
-    </form>
-  )};
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className='absolute top-8 left-8 flex items-center gap-2 text-lg font-semibold text-primary'>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="absolute left-8 top-8 flex items-center gap-2 text-lg font-semibold text-primary">
         <Logo className="size-8" />
         <Link href="/">UnivAI</Link>
       </div>
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Role)} className="w-full max-w-md">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="student">Student</TabsTrigger>
-          <TabsTrigger value="admin">Admin</TabsTrigger>
-          <TabsTrigger value="lecturer">Lecturer</TabsTrigger>
-          <TabsTrigger value="employer">Employer</TabsTrigger>
-        </TabsList>
-        
-        <Card className='mt-4'>
-            <CardHeader className='text-center'>
-                <CardTitle>Welcome to UnivAI</CardTitle>
-                <CardDescription>Login to your account as a {activeTab}</CardDescription>
-            </CardHeader>
-            <TabsContent value="student" forceMount className={activeTab === 'student' ? '' : 'hidden'}>
-                {renderStudentLoginForm()}
-            </TabsContent>
-            <TabsContent value="admin" forceMount className={activeTab === 'admin' ? '' : 'hidden'}>
-                {renderGenericLoginForm('admin')}
-            </TabsContent>
-            <TabsContent value="lecturer" forceMount className={activeTab === 'lecturer' ? '' : 'hidden'}>
-                {renderGenericLoginForm('lecturer')}
-            </TabsContent>
-            <TabsContent value="employer" forceMount className={activeTab === 'employer' ? '' : 'hidden'}>
-                {renderGenericLoginForm('employer')}
-            </TabsContent>
+
+      <div className="w-full max-w-md">
+        <Card className="mb-8">
+          <CardHeader className="text-center">
+            <CardTitle>Student Login</CardTitle>
+            <CardDescription>
+              Welcome back! Please log in to your account.
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleStudentLogin}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Student Profile</Label>
+                <Select
+                  value={studentType}
+                  onValueChange={value => setStudentType(value as StudentType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a student profile" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="premium-student">
+                      Premium Student (Full Access)
+                    </SelectItem>
+                    <SelectItem value="freemium-student">
+                      Freemium Student (Limited Access)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${studentType}-email`}>Email</Label>
+                <Input
+                  id={`${studentType}-email`}
+                  type="email"
+                  value={testUsers[studentType].email}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${studentType}-password`}>Password</Label>
+                <Input
+                  id={`${studentType}-password`}
+                  type="password"
+                  value={testUsers[studentType].password}
+                  readOnly
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex-col gap-4">
+              <Button className="w-full" type="submit">
+                Login as Student
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                New student?{' '}
+                <Link
+                  href="/register"
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Create an account
+                </Link>
+              </p>
+            </CardFooter>
+          </form>
         </Card>
-      </Tabs>
+
+        <Separator />
+
+        <div className="mt-8 text-center">
+          <p className="mb-4 text-muted-foreground">
+            Are you a staff member or partner?
+          </p>
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff & Partner Login</CardTitle>
+            </CardHeader>
+            <form onSubmit={handleOtherLogin}>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Select Your Role</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      type="button"
+                      variant={otherRole === 'admin' ? 'default' : 'outline'}
+                      onClick={() => setOtherRole('admin')}
+                    >
+                      Admin
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={otherRole === 'lecturer' ? 'default' : 'outline'}
+                      onClick={() => setOtherRole('lecturer')}
+                    >
+                      Lecturer
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={otherRole === 'employer' ? 'default' : 'outline'}
+                      onClick={() => setOtherRole('employer')}
+                    >
+                      Employer
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`${otherRole}-email`}>Email</Label>
+                  <Input
+                    id={`${otherRole}-email`}
+                    type="email"
+                    value={testUsers[otherRole].email}
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`${otherRole}-password`}>Password</Label>
+                  <Input
+                    id={`${otherRole}-password`}
+                    type="password"
+                    value={testUsers[otherRole].password}
+                    readOnly
+                  />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" type="submit">
+                  Login as{' '}
+                  {otherRole.charAt(0).toUpperCase() + otherRole.slice(1)}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
