@@ -19,6 +19,8 @@ export type ProgramModule = {
   title: string;
   description: string;
   progress: number;
+  semester: number;
+  isExamAvailable: boolean;
 };
 
 export type Program = {
@@ -153,18 +155,37 @@ export const program: Program = {
     progress: 15,
     imageId: '1',
     modules: [
-        { id: 'cs101-sem1-1', title: 'Introduction to ICT and Digital Literacy', description: 'Overview of computers, networks, and digital systems.', progress: 100 },
-        { id: 'cs101-sem1-2', title: 'Fundamentals of Programming', description: 'Introduction to programming using Python.', progress: 80 },
-        { id: 'cs101-sem1-3', title: 'Mathematics for Computer Science I', description: 'Logic, sets, functions, and basic discrete math.', progress: 60 },
-        { id: 'cs101-sem1-4', title: 'Introduction to Artificial Intelligence', description: 'History and applications of AI.', progress: 40 },
-        { id: 'cs101-sem1-5', title: 'Professional Development & Ethics', description: 'Digital ethics, professionalism, and communication skills.', progress: 15 },
-        { id: 'cs101-sem2-1', title: 'Web Development I (Frontend Basics)', description: 'HTML, CSS, JavaScript fundamentals. Building responsive websites.', progress: 0 },
-        { id: 'cs101-sem2-2', title: 'Database Systems I', description: 'Introduction to relational databases. SQL basics and Firebase Firestore integration.', progress: 0 },
-        { id: 'cs101-sem2-3', title: 'Software Engineering Principles', description: 'SDLC, Agile, and DevOps basics.', progress: 0 },
-        { id: 'cs101-sem2-4', title: 'Mathematics for Computer Science II', description: 'Probability, statistics, and linear algebra.', progress: 0 },
-        { id: 'cs101-sem2-5', title: 'Blockchain Fundamentals', description: 'Blockchain concepts, smart contracts, and AFTACOIN integration.', progress: 0 },
+        { id: 'cs101-sem1-1', title: 'Introduction to ICT and Digital Literacy', description: 'Overview of computers, networks, and digital systems.', progress: 100, semester: 1, isExamAvailable: true },
+        { id: 'cs101-sem1-2', title: 'Fundamentals of Programming', description: 'Introduction to programming using Python.', progress: 80, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem1-3', title: 'Mathematics for Computer Science I', description: 'Logic, sets, functions, and basic discrete math.', progress: 60, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem1-4', title: 'Introduction to Artificial Intelligence', description: 'History and applications of AI.', progress: 40, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem1-5', title: 'Professional Development & Ethics', description: 'Digital ethics, professionalism, and communication skills.', progress: 15, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem2-1', title: 'Web Development I (Frontend Basics)', description: 'HTML, CSS, JavaScript fundamentals. Building responsive websites.', progress: 0, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-2', title: 'Database Systems I', description: 'Introduction to relational databases. SQL basics and Firebase Firestore integration.', progress: 0, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-3', title: 'Software Engineering Principles', description: 'SDLC, Agile, and DevOps basics.', progress: 0, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-4', title: 'Mathematics for Computer Science II', description: 'Probability, statistics, and linear algebra.', progress: 0, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-5', title: 'Blockchain Fundamentals', description: 'Blockchain concepts, smart contracts, and AFTACOIN integration.', progress: 0, semester: 2, isExamAvailable: false },
     ]
 }
+
+export const semester1ExamQuestions = [
+    {
+      question: 'Which of these is NOT a core component of a computer system?',
+      options: ['CPU', 'RAM', 'Mouse', 'Hard Drive'],
+      answer: 'Mouse',
+    },
+    {
+      question: 'What does the `if` statement do in Python?',
+      options: ['Loops over a sequence', 'Defines a function', 'Makes a decision based on a condition', 'Prints output to the console'],
+      answer: 'Makes a decision based on a condition',
+    },
+    {
+        question: 'Which of the following is a key application of AI?',
+        options: ['Creating spreadsheets', 'Natural Language Processing', 'Sending emails', 'Basic arithmetic'],
+        answer: 'Natural Language Processing',
+      },
+];
+
 
 export const lessons: { [courseId: string]: Lesson[] } = {
   cs101: [
