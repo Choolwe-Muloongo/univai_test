@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 
 const roleDetails = {
@@ -60,6 +61,7 @@ export function AppHeader() {
         />
       </div>
       <div className="flex items-center gap-4">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Toggle notifications</span>
