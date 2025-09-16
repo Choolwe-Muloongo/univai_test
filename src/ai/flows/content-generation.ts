@@ -4,23 +4,12 @@
  * @fileOverview A flow for generating educational content like quizzes and exercises using AI.
  *
  * - generateCourseContent - A function that handles the content generation process.
- * - GenerateContentInput - The input type for the function.
- * - GenerateContentOutput - The return type for the function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-
-export const GenerateContentInputSchema = z.object({
-  topic: z.string().describe('The topic for which to generate content.'),
-  contentType: z.enum(['Quiz', 'Exercise']).describe('The type of content to generate.'),
-});
-export type GenerateContentInput = z.infer<typeof GenerateContentInputSchema>;
-
-export const GenerateContentOutputSchema = z.object({
-  content: z.string().describe('The generated content, formatted as a string. For quizzes, this should be a JSON string with questions and options.'),
-});
-export type GenerateContentOutput = z.infer<typeof GenerateContentOutputSchema>;
+import type { GenerateContentInput, GenerateContentOutput } from '@/app/(app)/actions';
+import { GenerateContentInputSchema, GenerateContentOutputSchema } from '@/app/(app)/actions';
 
 export async function generateCourseContent(
   input: GenerateContentInput
