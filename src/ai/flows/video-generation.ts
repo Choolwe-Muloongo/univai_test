@@ -11,7 +11,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import type { MediaPart } from 'genkit';
 
 const GenerateVideoLectureInputSchema = z.object({
   prompt: z.string().describe('The text prompt to generate the video from.'),
@@ -19,7 +18,7 @@ const GenerateVideoLectureInputSchema = z.object({
 export type GenerateVideoLectureInput = z.infer<typeof GenerateVideoLectureInputSchema>;
 
 const GenerateVideoLectureOutputSchema = z.object({
-  videoUrl: z.string().describe('The data URI of the generated video.'),
+  videoUrl: z.string().describe('The direct URL of the generated video.'),
 });
 export type GenerateVideoLectureOutput = z.infer<typeof GenerateVideoLectureOutputSchema>;
 
@@ -66,33 +65,16 @@ const generateVideoLectureFlow = ai.defineFlow(
       throw new Error('Failed to find the generated video in the operation result');
     }
 
-    const videoUrl = await convertVideoToDataUri(video.media);
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY environment variable is not set.');
+    }
+  
+    // Return the signed URL directly, appending the API key for access.
+    const videoUrl = `${video.media.url}&key=${apiKey}`;
     
     return {
       videoUrl: videoUrl,
     };
   }
 );
-
-
-async function convertVideoToDataUri(media: MediaPart): Promise<string> {
-    const fetch = (await import('node-fetch')).default;
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set.');
-    }
-  
-    const videoDownloadResponse = await fetch(
-      `${media.url}&key=${apiKey}`
-    );
-  
-    if (!videoDownloadResponse.ok || !videoDownloadResponse.body) {
-      throw new Error(`Failed to download video: ${videoDownloadResponse.statusText}`);
-    }
-  
-    const videoBuffer = await videoDownloadResponse.arrayBuffer();
-    const base64 = Buffer.from(videoBuffer).toString('base64');
-    const contentType = media.contentType || 'video/mp4';
-    
-    return `data:${contentType};base64,${base64}`;
-}
