@@ -1,7 +1,7 @@
 'use server';
 import { collection, getDocs, doc, writeBatch, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { type School, type Course, schools as allSchools, courses as allCourses } from "@/lib/data";
+import { type School, type Course } from "@/lib/data";
 import { revalidatePath } from "next/cache";
 
 // NOTE: In a real app, you'd have more robust validation
@@ -67,9 +67,11 @@ export async function addCourse(prevState: any, formData: FormData) {
 
 export async function getSchoolsAndCourses() {
     try {
-        // Using local data instead of firestore
-        const schools = allSchools;
-        const courses = allCourses;
+        const schoolsSnapshot = await getDocs(collection(db, "schools"));
+        const schools = schoolsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as School[];
+
+        const coursesSnapshot = await getDocs(collection(db, "courses"));
+        const courses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Course[];
         
         return { schools, courses };
     } catch (error) {

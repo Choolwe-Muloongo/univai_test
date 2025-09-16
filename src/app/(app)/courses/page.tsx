@@ -2,6 +2,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, app } from '@/lib/firebase';
 
 import {
   Card,
@@ -17,6 +20,8 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { getSchoolsAndCourses } from '../admin/actions';
 import { CourseCardSkeleton } from '@/components/ui/course-card-skeleton';
 
+const auth = getAuth(app);
+
 export default function CoursesPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
@@ -26,32 +31,48 @@ export default function CoursesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    const schoolId = localStorage.getItem('userSchoolId');
-    setUserRole(role);
-    setUserSchoolId(schoolId);
-
-    const fetchData = async () => {
-        setLoading(true);
-        const { schools, courses } = await getSchoolsAndCourses();
-        setAllSchools(schools);
-        setAllCourses(courses);
-
-        const isStudent = role === 'student' || role === 'premium-student';
-
-        if (isStudent && schoolId) {
-          setFilteredSchools(schools.filter((school) => school.id === schoolId));
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true);
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setUserRole(userData.role);
+          setUserSchoolId(userData.schoolId);
         } else {
-          setFilteredSchools(schools);
+          // Fallback for users created before firestore doc creation
+           const role = localStorage.getItem('userRole');
+           const schoolId = localStorage.getItem('userSchoolId');
+           setUserRole(role);
+           setUserSchoolId(schoolId);
         }
-        setLoading(false);
-    }
-    fetchData();
+      } else {
+        const role = localStorage.getItem('userRole');
+        const schoolId = localStorage.getItem('userSchoolId');
+        setUserRole(role);
+        setUserSchoolId(schoolId);
+      }
 
-  }, []);
+      const { schools, courses } = await getSchoolsAndCourses();
+      setAllSchools(schools);
+      setAllCourses(courses);
+
+      const isStudent = userRole === 'student' || userRole === 'premium-student';
+      if (isStudent && userSchoolId) {
+        setFilteredSchools(schools.filter((school) => school.id === userSchoolId));
+      } else {
+        setFilteredSchools(schools);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userRole, userSchoolId]);
+
 
   const isStudent = userRole === 'student' || userRole === 'premium-student';
-  const pageTitle = isStudent ? 'My School' : 'Courses';
+  const pageTitle = isStudent ? 'My School' : 'All Schools';
   const pageDescription = isStudent 
     ? 'Explore the program offered by your school.'
     : 'Explore programs from all our schools.';
