@@ -8,8 +8,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { GenerateContentInput, GenerateContentOutput } from '@/app/(app)/actions';
-import { GenerateContentInputSchema, GenerateContentOutputSchema } from '@/app/(app)/actions';
+import type { GenerateContentInput, GenerateContentOutput } from '@/lib/schemas';
+import { GenerateContentInputSchema, GenerateContentOutputSchema } from '@/lib/schemas';
 
 export async function generateCourseContent(
   input: GenerateContentInput

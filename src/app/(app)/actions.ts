@@ -5,6 +5,9 @@ import { generatePersonalizedStudyPlan } from '@/ai/flows/personalized-study-pla
 import { aiTutor } from '@/ai/flows/ai-tutoring';
 import { analyzeCode } from '@/ai/flows/code-analysis';
 import { generateVideoLecture } from '@/ai/flows/video-generation';
+import { generateCourseContent } from '@/ai/flows/content-generation';
+import { GenerateContentInputSchema } from '@/lib/schemas';
+
 
 const studyPlanSchema = z.object({
   learningHistory: z.string().min(10, { message: 'Please provide more details about your learning history.' }),
@@ -134,22 +137,6 @@ export async function generateVideoAction(prevState: any, formData: FormData) {
         };
       }
 }
-
-export const GenerateContentInputSchema = z.object({
-    topic: z.string().min(5, { message: 'Please provide a more detailed topic.' }),
-    contentType: z.enum(['Quiz', 'Exercise']),
-});
-export type GenerateContentInput = z.infer<typeof GenerateContentInputSchema>;
-
-export const GenerateContentOutputSchema = z.object({
-  content: z.string(),
-});
-export type GenerateContentOutput = z.infer<typeof GenerateContentOutputSchema>;
-
-
-// Import after schemas are defined
-import { generateCourseContent } from '@/ai/flows/content-generation';
-
 
 const contentGenerationSchema = GenerateContentInputSchema;
 
