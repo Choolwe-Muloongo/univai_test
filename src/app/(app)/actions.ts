@@ -5,6 +5,7 @@ import { generatePersonalizedStudyPlan } from '@/ai/flows/personalized-study-pla
 import { aiTutor } from '@/ai/flows/ai-tutoring';
 import { analyzeCode } from '@/ai/flows/code-analysis';
 import { generateVideoLecture } from '@/ai/flows/video-generation';
+import { generateCourseContent } from '@/ai/flows/content-generation';
 
 const studyPlanSchema = z.object({
   learningHistory: z.string().min(10, { message: 'Please provide more details about your learning history.' }),
@@ -131,6 +132,43 @@ export async function generateVideoAction(prevState: any, formData: FormData) {
             message: 'An error occurred while generating the video. Please try again later.', 
             errors: null,
             videoUrl: null
+        };
+      }
+}
+
+
+const contentGenerationSchema = z.object({
+    topic: z.string().min(5, { message: 'Please provide a more detailed topic.' }),
+    contentType: z.enum(['Quiz', 'Exercise']),
+});
+
+export async function generateContentAction(prevState: any, formData: FormData) {
+    const validatedFields = contentGenerationSchema.safeParse({
+        topic: formData.get('topic'),
+        contentType: formData.get('contentType'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+          message: 'Validation failed',
+          errors: validatedFields.error.flatten().fieldErrors,
+          content: null,
+        };
+      }
+    
+      try {
+        const result = await generateCourseContent(validatedFields.data);
+        return { 
+            message: 'Success', 
+            errors: null,
+            content: result.content,
+        };
+      } catch (error) {
+        console.error('Content generation error:', error);
+        return { 
+            message: 'An error occurred while generating content. Please try again later.', 
+            errors: null,
+            content: null
         };
       }
 }

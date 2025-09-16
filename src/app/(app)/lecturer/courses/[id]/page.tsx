@@ -4,15 +4,9 @@ import { useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { useActionState } from 'react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -23,12 +17,14 @@ import {
 } from '@/components/ui/card';
 import { courses, lessons } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Pencil, FileText, BarChart2, Wand2, Loader2, AlertCircle } from 'lucide-react';
+import { Pencil, FileText, Wand2, Loader2, AlertCircle, FileQuestion, Code, PlayCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { generateVideoAction } from '@/app/(app)/actions';
+import { generateVideoAction, generateContentAction } from '@/app/(app)/actions';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const studentResults = [
@@ -38,19 +34,20 @@ const studentResults = [
     { name: 'David', score: null, progress: 20 },
 ];
 
-function GenerateVideoButton() {
+function AIGeneratorButton({ icon, text }: { icon: React.ElementType, text: string }) {
   const { pending } = useFormStatus();
+  const Icon = icon;
   return (
     <Button type="submit" disabled={pending}>
       {pending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Generating Video...
+          Generating...
         </>
       ) : (
         <>
-          <Wand2 className="mr-2 h-4 w-4" />
-          Generate AI Lecture
+          <Icon className="mr-2 h-4 w-4" />
+          {text}
         </>
       )}
     </Button>
@@ -63,8 +60,7 @@ function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
   const [prompt, setPrompt] = useState(`A 5-second educational video about: ${lessonTitle}.`);
 
   return (
-    <div className='space-y-4 p-4 border-l-4 border-primary bg-muted/40'>
-      <h3 className='font-semibold'>AI Video Lecture Generation</h3>
+    <div className='space-y-4'>
       {state.videoUrl ? (
         <div className="aspect-video bg-black rounded-md overflow-hidden">
           <video src={state.videoUrl} controls className="w-full h-full" />
@@ -73,8 +69,8 @@ function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
          <div className="aspect-video bg-muted rounded-md flex items-center justify-center text-center p-4">
             <div className='max-w-md'>
                  <Wand2 className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                <h3 className='font-semibold text-lg'>Generate Lecture</h3>
-                <p className='text-muted-foreground text-sm'>Create a short video lecture for this topic using AI.</p>
+                <h3 className='font-semibold text-lg'>Generate Video Lecture</h3>
+                <p className='text-muted-foreground text-sm'>Create a short video lecture for this topic using AI by providing a detailed prompt.</p>
             </div>
         </div>
       )}
@@ -95,7 +91,134 @@ function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
             <p className="text-sm text-destructive">{state.errors.prompt}</p>
           )}
         </div>
-        <GenerateVideoButton />
+        <AIGeneratorButton icon={Wand2} text="Generate AI Lecture" />
+      </form>
+       {state.message && state.message !== 'Success' && (
+         <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Generation Failed</AlertTitle>
+            <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+      )}
+    </div>
+  );
+}
+
+function QuizGenerator({ lessonTitle }: { lessonTitle: string }) {
+  const initialState = { message: null, errors: null, content: null };
+  const [state, dispatch] = useActionState(generateContentAction, initialState);
+  const [topic, setTopic] = useState(lessonTitle);
+
+  const quiz = useMemo(() => {
+    if (state.content) {
+      try {
+        return JSON.parse(state.content);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }, [state.content]);
+
+  return (
+    <div className='space-y-4'>
+      {quiz ? (
+        <Card>
+            <CardHeader>
+                <CardTitle>{quiz.title}</CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+                {quiz.questions.map((q: any, index: number) => (
+                    <div key={index}>
+                        <p className='font-semibold'>{index + 1}. {q.question}</p>
+                        <ul className='list-disc pl-5 mt-2 space-y-1 text-muted-foreground'>
+                            {q.options.map((opt: string) => (
+                                <li key={opt} className={opt === q.answer ? 'text-primary font-medium' : ''}>{opt}</li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+      ) : (
+         <div className="aspect-video bg-muted rounded-md flex items-center justify-center text-center p-4">
+            <div className='max-w-md'>
+                 <FileQuestion className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                <h3 className='font-semibold text-lg'>Generate a Quiz</h3>
+                <p className='text-muted-foreground text-sm'>Create a multiple-choice quiz for this topic to test student understanding.</p>
+            </div>
+        </div>
+      )}
+
+      <form action={dispatch} className='space-y-4'>
+        <input type="hidden" name="contentType" value="Quiz" />
+        <div className="space-y-2">
+          <Label htmlFor="quiz-topic">Quiz Topic</Label>
+          <Input
+            id="quiz-topic"
+            name="topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            required
+          />
+           {state.errors?.topic && (
+            <p className="text-sm text-destructive">{state.errors.topic}</p>
+          )}
+        </div>
+        <AIGeneratorButton icon={Wand2} text="Generate Quiz" />
+      </form>
+       {state.message && state.message !== 'Success' && (
+         <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Generation Failed</AlertTitle>
+            <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+      )}
+    </div>
+  );
+}
+
+function ExerciseGenerator({ lessonTitle }: { lessonTitle: string }) {
+  const initialState = { message: null, errors: null, content: null };
+  const [state, dispatch] = useActionState(generateContentAction, initialState);
+  const [topic, setTopic] = useState(lessonTitle);
+
+  return (
+    <div className='space-y-4'>
+      {state.content ? (
+        <Card className='font-mono text-sm'>
+            <CardContent className='pt-6'>
+                 <div className='bg-black p-4 rounded-md text-green-400'>
+                    <pre><code>{state.content}</code></pre>
+                </div>
+            </CardContent>
+        </Card>
+      ) : (
+         <div className="aspect-video bg-muted rounded-md flex items-center justify-center text-center p-4">
+            <div className='max-w-md'>
+                 <Code className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                <h3 className='font-semibold text-lg'>Generate Coding Exercise</h3>
+                <p className='text-muted-foreground text-sm'>Create a simple Python coding exercise for students to practice this topic.</p>
+            </div>
+        </div>
+      )}
+
+      <form action={dispatch} className='space-y-4'>
+        <input type="hidden" name="contentType" value="Exercise" />
+        <div className="space-y-2">
+          <Label htmlFor="exercise-topic">Exercise Topic</Label>
+          <Input
+            id="exercise-topic"
+            name="topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            required
+          />
+           {state.errors?.topic && (
+            <p className="text-sm text-destructive">{state.errors.topic}</p>
+          )}
+        </div>
+        <AIGeneratorButton icon={Wand2} text="Generate Exercise" />
       </form>
        {state.message && state.message !== 'Success' && (
          <Alert variant="destructive">
@@ -109,12 +232,42 @@ function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
 }
 
 
+function AIContentSuite({ lessonTitle }: { lessonTitle: string }) {
+    return (
+        <Card className='border-primary border-2 shadow-primary/10'>
+            <CardHeader>
+                <CardTitle className='flex items-center gap-2'><Wand2 /> AI Content Creation Suite</CardTitle>
+                <CardDescription>Select a tool to generate content for the lesson: "{lessonTitle}"</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Tabs defaultValue="video">
+                    <TabsList className='grid w-full grid-cols-3'>
+                        <TabsTrigger value="video"><PlayCircle /> Video Lecture</TabsTrigger>
+                        <TabsTrigger value="quiz"><FileQuestion /> Quiz</TabsTrigger>
+                        <TabsTrigger value="exercise"><Code /> Exercise</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="video" className='pt-6'>
+                        <VideoGenerator lessonTitle={lessonTitle} />
+                    </TabsContent>
+                     <TabsContent value="quiz" className='pt-6'>
+                        <QuizGenerator lessonTitle={lessonTitle} />
+                    </TabsContent>
+                     <TabsContent value="exercise" className='pt-6'>
+                        <ExerciseGenerator lessonTitle={lessonTitle} />
+                    </TabsContent>
+                </Tabs>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function LecturerCourseManagementPage() {
   const params = useParams();
   const id = params.id as string;
   const course = courses.find((c) => c.id === id);
   const courseLessons = lessons[id] || [];
   const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
+  const [selectedLesson, setSelectedLesson] = useState<string | null>(courseLessons[0]?.title || null);
 
   if (!course) {
     notFound();
@@ -138,45 +291,32 @@ export default function LecturerCourseManagementPage() {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 items-start">
         <div className="lg:col-span-2 space-y-8">
-            <Card>
+             <Card>
                 <CardHeader>
-                    <CardTitle>Manage Content</CardTitle>
-                    <CardDescription>Use AI tools to update course descriptions and generate video lectures.</CardDescription>
+                    <CardTitle>Course Lessons</CardTitle>
+                    <CardDescription>Select a lesson below to manage its content with AI tools.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="course-description">Course Description</Label>
-                        <Textarea id="course-description" defaultValue={course.description} className="min-h-24"/>
-                    </div>
-                    <Button><Pencil className="mr-2 h-4 w-4" /> Update Description</Button>
+                <CardContent className='space-y-2'>
+                    {courseLessons.map((lesson) => (
+                        <Button
+                            key={lesson.id}
+                            variant={selectedLesson === lesson.title ? 'default' : 'outline'}
+                            onClick={() => setSelectedLesson(lesson.title)}
+                            className='w-full justify-start'
+                        >
+                           {lesson.title}
+                        </Button>
+                    ))}
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Course Lessons</CardTitle>
-                    <CardDescription>Add, edit, or generate content for each lesson.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Accordion type="single" collapsible className="w-full">
-                    {courseLessons.map((lesson) => (
-                        <AccordionItem value={lesson.id} key={lesson.id}>
-                        <AccordionTrigger className="text-base">{lesson.title}</AccordionTrigger>
-                        <AccordionContent className="space-y-4">
-                            <p className="text-base text-muted-foreground">{lesson.content}</p>
-                            <VideoGenerator lessonTitle={lesson.title} />
-                        </AccordionContent>
-                        </AccordionItem>
-                    ))}
-                    </Accordion>
-                </CardContent>
-            </Card>
+            {selectedLesson && <AIContentSuite lessonTitle={selectedLesson} />}
         </div>
 
         <div className="lg:col-span-1">
-            <Card>
+            <Card className="sticky top-24">
             <CardHeader>
                 <CardTitle>Student Results</CardTitle>
                 <CardDescription>
