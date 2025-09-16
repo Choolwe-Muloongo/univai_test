@@ -1,3 +1,4 @@
+
 export type School = {
   id: string;
   name: string;
@@ -127,7 +128,7 @@ export const courses: Course[] = [
 ];
 
 export const program: Program = {
-    id: 'prog1',
+    id: 'cs101',
     title: 'BSc in Computer Science',
     description: 'This program provides a comprehensive foundation in computer science, covering key concepts from programming and algorithms to software engineering and artificial intelligence. Students will gain hands-on experience through practical projects and labs, preparing them for a successful career in the tech industry.',
     schoolId: 'ict',
