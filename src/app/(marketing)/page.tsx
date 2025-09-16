@@ -196,16 +196,37 @@ export default function HomePage() {
       </main>
 
       <footer className="w-full border-t bg-muted">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 py-8 md:flex-row md:px-6">
-          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-            <Logo className="size-6" />
-            <span>UnivAI</span>
-          </div>
-          <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} UnivAI. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="#" className="text-muted-foreground hover:text-foreground">Privacy Policy</Link>
-            <Link href="#" className="text-muted-foreground hover:text-foreground">Terms of Service</Link>
-          </div>
+        <div className="container mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 px-4 py-8 md:px-6">
+            <div className="flex flex-col gap-2 items-start">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                    <Logo className="size-6" />
+                    <span>UnivAI</span>
+                </div>
+                <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} UnivAI. All rights reserved.</p>
+                <div className="flex items-center gap-4 text-sm">
+                    <Link href="#" className="text-muted-foreground hover:text-foreground">Privacy</Link>
+                    <Link href="#" className="text-muted-foreground hover:text-foreground">Terms</Link>
+                </div>
+            </div>
+            <div className="flex flex-col gap-2">
+                <h4 className="font-semibold">Students</h4>
+                <Link href="/login" className="text-muted-foreground text-sm hover:text-foreground">Student Login</Link>
+                <Link href="/register" className="text-muted-foreground text-sm hover:text-foreground">Register</Link>
+                <Link href="#features" className="text-muted-foreground text-sm hover:text-foreground">Features</Link>
+                <Link href="#pricing" className="text-muted-foreground text-sm hover:text-foreground">Pricing</Link>
+            </div>
+            <div className="flex flex-col gap-2">
+                <h4 className="font-semibold">Staff & Partners</h4>
+                <Link href="/login/lecturer" className="text-muted-foreground text-sm hover:text-foreground">Lecturer Login</Link>
+                <Link href="/login/admin" className="text-muted-foreground text-sm hover:text-foreground">Admin Login</Link>
+                <Link href="/login/employer" className="text-muted-foreground text-sm hover:text-foreground">Employer Login</Link>
+            </div>
+             <div className="flex flex-col gap-2">
+                <h4 className="font-semibold">Company</h4>
+                <Link href="#" className="text-muted-foreground text-sm hover:text-foreground">About</Link>
+                <Link href="#" className="text-muted-foreground text-sm hover:text-foreground">Blog</Link>
+                <Link href="#" className="text-muted-foreground text-sm hover:text-foreground">Contact</Link>
+            </div>
         </div>
       </footer>
     </div>

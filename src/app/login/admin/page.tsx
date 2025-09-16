@@ -1,0 +1,78 @@
+// src/app/login/admin/page.tsx
+'use client';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/icons/logo';
+import Link from 'next/link';
+
+const testUser = {
+  email: 'admin@univai.edu',
+  password: 'password123',
+  role: 'admin',
+};
+
+export default function AdminLoginPage() {
+  const router = useRouter();
+
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    localStorage.setItem('userRole', testUser.role);
+    localStorage.removeItem('userSchoolId');
+    router.push('/admin/dashboard');
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="absolute left-8 top-8 flex items-center gap-2 text-lg font-semibold text-primary">
+        <Logo className="size-8" />
+        <Link href="/">UnivAI</Link>
+      </div>
+
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle>Admin Login</CardTitle>
+            <CardDescription>
+              Access the administrative dashboard.
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={testUser.email}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={testUser.password}
+                  readOnly
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex-col gap-4">
+              <Button className="w-full" type="submit">
+                Login as Admin
+              </Button>
+               <p className="text-sm text-muted-foreground">
+                    <Link href="/login" className="font-semibold text-primary hover:underline">
+                        Are you a student?
+                    </Link>
+                </p>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
+    </div>
+  );
+}
