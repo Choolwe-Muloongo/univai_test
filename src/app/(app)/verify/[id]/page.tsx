@@ -107,9 +107,11 @@ export default function VerificationPage() {
             </div>
             <div className="flex items-center gap-2 pt-4">
               <Badge>Authentic</Badge>
-              <p className="text-xs text-muted-foreground">Verified by UnivAI Blockchain</p>
+              <p className="text-xs text-muted-foreground">Verified on AFTACOIN Blockchain</p>
             </div>
           </CardContent>
         )}
       </Card>
     </div>
+  );
+}

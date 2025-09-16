@@ -12,8 +12,8 @@ import {
   Building,
   UserCheck,
   User,
-  CheckBadgeIcon,
   BadgeCheck,
+  Wallet,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -40,6 +40,7 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/courses', label: 'Courses', icon: GraduationCap },
     { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
     { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
+    { href: '/wallet', label: 'My Wallet', icon: Wallet },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/jobs', label: 'Job Board', icon: Briefcase },
   ],

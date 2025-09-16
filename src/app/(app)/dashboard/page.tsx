@@ -6,12 +6,15 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from '@/components/ui/card';
 import { ProgressChart } from '@/components/dashboard/progress-chart';
 import { QuickLinks } from '@/components/dashboard/quick-links';
 import { courses, schools, type Course, type School } from '@/lib/data';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, Wallet, ArrowRight } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const [studentCourse, setStudentCourse] = useState<Course | null>(null);
@@ -76,8 +79,25 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-1 space-y-6">
         <QuickLinks />
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">My Wallet</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">1,250 AFTA</div>
+                <p className="text-xs text-muted-foreground">AFTACOIN Balance</p>
+            </CardContent>
+            <CardFooter>
+                 <Button asChild className="w-full" variant="outline">
+                    <Link href="/wallet">
+                    View Wallet <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
       </div>
     </div>
   );
