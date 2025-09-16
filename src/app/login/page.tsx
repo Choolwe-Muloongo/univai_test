@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Logo } from '@/components/icons/logo';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
 
 type Role = 'student' | 'admin' | 'lecturer' | 'employer';
 type StudentType = 'student-ict' | 'student-business';
@@ -140,6 +141,11 @@ export default function LoginPage() {
             <TabsContent value="employer" forceMount className={activeTab === 'employer' ? '' : 'hidden'}>
                 {renderGenericLoginForm('employer')}
             </TabsContent>
+            <CardFooter className="flex-col gap-4">
+                 <p className="text-sm text-muted-foreground">
+                    New student? <Link href="/register" className="text-primary hover:underline">Create an account</Link>
+                </p>
+            </CardFooter>
         </Card>
       </Tabs>
     </div>
