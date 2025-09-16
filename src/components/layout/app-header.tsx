@@ -20,10 +20,9 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import Link from 'next/link';
 
 
-const roleDetails = {
+const roleDetails: { [key: string]: { name: string, email: string, avatar: string } } = {
   'premium-student': { name: 'Premium Student', email: 'student.premium@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-premium' },
   'freemium-student': { name: 'Freemium Student', email: 'student.freemium@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-freemium' },
-  student: { name: 'Student', email: 'student@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student' },
   admin: { name: 'Admin', email: 'admin@univai.edu', avatar: 'https://i.pravatar.cc/80?u=admin' },
   lecturer: { name: 'Lecturer', email: 'lecturer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=lecturer' },
   employer: { name: 'Employer', email: 'employer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=employer' },
@@ -38,7 +37,7 @@ export function AppHeader() {
   useEffect(() => {
     const role = localStorage.getItem('userRole') || 'premium-student';
     setUserRole(role);
-    setUser(roleDetails[role as keyof typeof roleDetails] || roleDetails.student);
+    setUser(roleDetails[role as keyof typeof roleDetails] || { name: 'Student', email: 'student@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student' });
   }, []);
 
   const handleLogout = () => {
