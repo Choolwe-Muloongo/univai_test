@@ -86,7 +86,6 @@ const allLinks: { [key: string]: NavLink[] } = {
   lecturer: [
       { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/lecturer/profile', label: 'Profile', icon: User },
-      { href: '/lecturer/dashboard', label: 'Course Management', icon: BookMarked, key: 'lecturer-course-management' },
       { href: '#', label: 'Student Progress', icon: UserCheck },
       { href: '/community', label: 'Community', icon: Users },
       { href: '/research', label: 'Research Hub', icon: FlaskConical },

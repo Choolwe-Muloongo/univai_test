@@ -48,8 +48,8 @@ export default function LecturerDashboardPage() {
 
       <Card>
         <CardHeader>
-            <CardTitle>Your Courses</CardTitle>
-            <CardDescription>An overview of student progress in your courses.</CardDescription>
+            <CardTitle>Course Management</CardTitle>
+            <CardDescription>Select a course to manage its content, view progress, and interact with students.</CardDescription>
         </CardHeader>
         <CardContent className='space-y-6'>
             {managedCourses.map(course => (
