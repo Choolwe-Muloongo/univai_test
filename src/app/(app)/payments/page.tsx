@@ -1,7 +1,11 @@
 // src/app/(app)/payments/page.tsx
+'use client';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Check, Star, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
 
 const freemiumFeatures = [
   { text: 'Access to introductory modules of all courses', included: true },
@@ -22,6 +26,32 @@ const premiumFeatures = [
 ];
 
 export default function PaymentsPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUserRole(localStorage.getItem('userRole'));
+  }, []);
+
+
+  const handleUpgrade = () => {
+    // Simulate payment and role upgrade
+    localStorage.setItem('userRole', 'premium-student');
+    // Assign a school for the new premium student for demo purposes
+    localStorage.setItem('userSchoolId', 'ict');
+    
+    toast({
+      title: 'Upgrade Successful!',
+      description: 'Welcome to Premium. You now have access to all features.',
+    });
+
+    // Reload the page to reflect the new role and sidebar links
+    window.location.reload();
+  };
+
+  const isFreemium = userRole === 'freemium-student';
+
   return (
     <div className="space-y-8">
       <div>
@@ -50,8 +80,8 @@ export default function PaymentsPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full" size="lg">
-              Continue with Free Plan
+            <Button variant="outline" className="w-full" size="lg" disabled={!isFreemium}>
+              You are on this Plan
             </Button>
           </CardFooter>
         </Card>
@@ -85,7 +115,7 @@ export default function PaymentsPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button className="w-full" size="lg">
+            <Button className="w-full" size="lg" onClick={handleUpgrade} disabled={!isFreemium}>
               Upgrade to Premium
             </Button>
           </CardFooter>
