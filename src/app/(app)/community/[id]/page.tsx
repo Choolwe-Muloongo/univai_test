@@ -2,7 +2,7 @@
 'use client'
 
 import { notFound, useParams } from 'next/navigation';
-import { discussions } from '@/lib/data';
+import { discussions, type DiscussionComment } from '@/lib/data';
 import {
   Card,
   CardContent,
@@ -23,11 +23,32 @@ export default function DiscussionDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const discussion = discussions.find((d) => d.id === id);
+
+  // Component state
   const [isClient, setIsClient] = useState(false);
+  const [comments, setComments] = useState<DiscussionComment[]>(discussion?.comments || []);
+  const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const handlePostComment = () => {
+    if (!newComment.trim()) return;
+
+    const commentToAdd: DiscussionComment = {
+      id: `c${Date.now()}`,
+      author: 'Premium Student', // Placeholder for logged-in user
+      avatar: 'https://i.pravatar.cc/40?u=student-premium',
+      content: newComment,
+      timestamp: 'Just now',
+      upvotes: 0,
+    };
+
+    setComments([commentToAdd, ...comments]);
+    setNewComment('');
+  };
+
 
   if (!isClient) {
     // Render nothing or a skeleton on the server
@@ -64,9 +85,9 @@ export default function DiscussionDetailPage() {
           <div className="space-y-6">
             <h3 className="text-xl font-semibold flex items-center gap-2">
                 <MessageSquare className='w-5 h-5'/>
-                Comments ({discussion.comments.length})
+                Comments ({comments.length})
             </h3>
-            {discussion.comments.map((comment) => (
+            {comments.map((comment) => (
               <div key={comment.id} className="flex items-start gap-4">
                 <Avatar>
                   <AvatarImage src={comment.avatar} alt={comment.author} />
@@ -87,7 +108,7 @@ export default function DiscussionDetailPage() {
                 </div>
               </div>
             ))}
-             {discussion.comments.length === 0 && (
+             {comments.length === 0 && (
                 <p className='text-muted-foreground text-center py-4'>No comments yet. Be the first to reply!</p>
              )}
           </div>
@@ -98,8 +119,13 @@ export default function DiscussionDetailPage() {
                     <CornerDownRight className='w-5 h-5 text-muted-foreground'/>
                     <h4 className='text-lg font-semibold'>Leave a Reply</h4>
                 </div>
-                <Textarea placeholder="Write your comment here..." className='min-h-24'/>
-                <Button>Post Comment</Button>
+                <Textarea 
+                  placeholder="Write your comment here..." 
+                  className='min-h-24'
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                />
+                <Button onClick={handlePostComment}>Post Comment</Button>
             </div>
         </CardFooter>
       </Card>
