@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +34,7 @@ function SubmitButton() {
 
 export default function StudyPlanPage() {
   const initialState = { message: null, studyPlan: null, errors: null };
-  const [state, dispatch] = useFormState(generateStudyPlanAction, initialState);
+  const [state, dispatch] = useActionState(generateStudyPlanAction, initialState);
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-2">

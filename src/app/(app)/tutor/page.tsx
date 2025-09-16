@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ function SubmitButton() {
 
 export default function TutorPage() {
   const initialState = { message: null, answer: null, errors: null };
-  const [state, dispatch] = useFormState(aiTutorAction, initialState);
+  const [state, dispatch] = useActionState(aiTutorAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
