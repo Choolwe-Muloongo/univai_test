@@ -112,7 +112,7 @@ export default function LoginPage() {
             footerText = <p className="text-sm text-muted-foreground">New employer? <Link href="/register" className="font-semibold text-primary hover:underline">Register here</Link></p>;
             break;
         case 'admin':
-            footertext = null;
+            footerText = null;
             break;
     }
     
