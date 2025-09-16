@@ -56,7 +56,7 @@ export default function WalletPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardDescription>Total Balance</CardDescription>
-                        <CardTitle className="text-4xl">{balance} AFTA</CardTitle>
+                        <CardTitle className="text-4xl">{balance.toFixed(0)} AFTA</CardTitle>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Deposit</Button>

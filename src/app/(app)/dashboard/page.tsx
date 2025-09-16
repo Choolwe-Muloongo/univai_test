@@ -1,4 +1,3 @@
-
 // src/app/(app)/dashboard/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
@@ -43,8 +42,8 @@ export default function DashboardPage() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2">
-        <Card className='mb-6'>
+      <div className="lg:col-span-2 space-y-6">
+        <Card>
             <CardHeader>
                 <CardTitle>My Program</CardTitle>
                  <CardDescription>
@@ -81,8 +80,8 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Welcome Back, Student!</CardTitle>
-            <CardDescription>Here's your course progress overview.</CardDescription>
+            <CardTitle>Progress Overview</CardTitle>
+            <CardDescription>Here's a breakdown of your progress by module.</CardDescription>
           </CardHeader>
           <CardContent>
             <ProgressChart />
@@ -98,7 +97,7 @@ export default function DashboardPage() {
                 <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">1,250 AFTA</div>
+                <div className="text-2xl font-bold">925 AFTA</div>
                 <p className="text-xs text-muted-foreground">AFTACOIN Balance</p>
             </CardContent>
             <CardFooter>

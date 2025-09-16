@@ -8,11 +8,11 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { courses } from '@/lib/data';
+import { program } from '@/lib/data';
 
-const chartData = courses.map((course) => ({
-  course: course.title,
-  progress: course.progress,
+const chartData = program.modules.map((module) => ({
+  module: module.title,
+  progress: module.progress,
 }));
 
 const chartConfig = {
@@ -29,11 +29,11 @@ export function ProgressChart() {
         <BarChart data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
           <CartesianGrid vertical={false} />
           <XAxis
-            dataKey="course"
+            dataKey="module"
             tickLine={false}
             tickMargin={10}
             axisLine={false}
-            tickFormatter={(value) => value.slice(0, 3)}
+            tickFormatter={(value) => value.split(' ').map(c => c[0]).join('').slice(0, 4)}
           />
           <YAxis
             tickFormatter={(value) => `${value}%`}
