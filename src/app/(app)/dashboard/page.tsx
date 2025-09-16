@@ -20,10 +20,15 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const [studentCourse, setStudentCourse] = useState<Course | null>(null);
   const [studentSchool, setStudentSchool] = useState<School | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
+    const role = localStorage.getItem('userRole');
     const schoolId = localStorage.getItem('userSchoolId');
-    if (schoolId) {
+    const isStudent = role === 'student' || role === 'premium-student';
+
+    if (isStudent && schoolId) {
       const course = courses.find(c => c.schoolId === schoolId);
       const school = schools.find(s => s.id === schoolId);
       setStudentCourse(course || null);
@@ -35,7 +40,7 @@ export default function DashboardPage() {
     }
   }, []);
 
-  if (!studentCourse || !studentSchool) {
+  if (!isClient || !studentCourse || !studentSchool) {
     // You can add a loading state here
     return <div>Loading...</div>;
   }

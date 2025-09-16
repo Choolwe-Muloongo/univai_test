@@ -26,15 +26,18 @@ export default function CoursesPage() {
     setUserRole(role);
     setUserSchoolId(schoolId);
 
-    if (role === 'student' && schoolId) {
+    const isStudent = role === 'student' || role === 'premium-student';
+
+    if (isStudent && schoolId) {
       setFilteredSchools(schools.filter((school) => school.id === schoolId));
     } else {
       setFilteredSchools(schools);
     }
   }, []);
 
-  const pageTitle = userRole === 'student' ? 'My School' : 'Courses';
-  const pageDescription = userRole === 'student' 
+  const isStudent = userRole === 'student' || userRole === 'premium-student';
+  const pageTitle = isStudent ? 'My School' : 'Courses';
+  const pageDescription = isStudent 
     ? 'Explore the program offered by your school.'
     : 'Explore programs from all our schools.';
 
