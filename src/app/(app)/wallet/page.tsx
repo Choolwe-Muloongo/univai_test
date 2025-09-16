@@ -9,34 +9,40 @@ const transactions = [
     {
         id: 'txn1',
         type: 'reward',
-        description: 'Course Completion: BSc Computer Science',
-        amount: '+ 500 AFTA',
+        description: 'Program Completion Reward: BSc Computer Science',
+        amount: '+ 100 AFTA',
         date: '2024-05-20',
     },
     {
         id: 'txn2',
-        type: 'reward',
-        description: 'Exam High Score: Intro to Algorithms',
-        amount: '+ 100 AFTA',
-        date: '2024-05-15',
+        type: 'spend',
+        description: 'Annual Tuition Fee 2024',
+        amount: '- 250 AFTA',
+        date: '2024-01-15',
     },
     {
         id: 'txn3',
-        type: 'spend',
-        description: 'Job Application Fee',
-        amount: '- 10 AFTA',
-        date: '2024-05-12',
+        type: 'reward',
+        description: 'Exam High Score: Intro to Algorithms',
+        amount: '+ 50 AFTA',
+        date: '2024-05-15',
     },
      {
         id: 'txn4',
         type: 'reward',
         description: 'Peer-to-Peer Tutoring Session',
-        amount: '+ 50 AFTA',
+        amount: '+ 25 AFTA',
         date: '2024-05-10',
     },
 ]
 
 export default function WalletPage() {
+    // A simple calculation to reflect the transactions
+    const balance = transactions.reduce((acc, tx) => {
+        const amount = parseFloat(tx.amount.replace(' AFTA', ''));
+        return acc + amount;
+    }, 1000); // Starting with a base balance for demo
+
     return (
         <div className="space-y-8">
             <div>
@@ -50,7 +56,7 @@ export default function WalletPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardDescription>Total Balance</CardDescription>
-                        <CardTitle className="text-4xl">1,250 AFTA</CardTitle>
+                        <CardTitle className="text-4xl">{balance} AFTA</CardTitle>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Deposit</Button>

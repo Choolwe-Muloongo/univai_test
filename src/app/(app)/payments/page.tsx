@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, Landmark, Globe, GraduationCap, RefreshCw } from 'lucide-react';
+import { ArrowRight, Landmark, Globe, GraduationCap, RefreshCw, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PaymentsPage() {
@@ -38,10 +38,14 @@ export default function PaymentsPage() {
                 <Card>
                     <CardHeader>
                         <CardDescription>Next Payment Due</CardDescription>
-                        <CardTitle>$2,500.00</CardTitle>
+                        <CardTitle>$250.00</CardTitle>
                     </CardHeader>
-                    <CardFooter>
+                    <CardFooter className='flex-col items-start gap-4'>
                         <p className="text-sm text-muted-foreground">Due Date: 2024-09-01</p>
+                        <div className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-primary">
+                            <Sparkles className="h-5 w-5" />
+                            <p><span className='font-semibold'>Earn a Reward:</span> 40% of your fee ($100) will be rewarded to your wallet as AFTACOIN upon program completion.</p>
+                        </div>
                     </CardFooter>
                 </Card>
                 <div className='flex gap-4'>
