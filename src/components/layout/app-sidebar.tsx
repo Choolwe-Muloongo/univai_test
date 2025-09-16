@@ -18,6 +18,7 @@ import {
   Landmark,
   CreditCard,
   Trophy,
+  FlaskConical,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -44,6 +45,7 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/program', label: 'My Program', icon: GraduationCap },
     { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
     { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
+    { href: '/virtual-lab', label: 'Virtual Lab', icon: FlaskConical },
     { href: '/wallet', label: 'My Wallet', icon: Wallet },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/community', label: 'Community', icon: Users },
@@ -61,6 +63,7 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/program', label: 'My Program', icon: GraduationCap },
     { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
     { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
+    { href: '/virtual-lab', label: 'Virtual Lab', icon: FlaskConical },
     { href: '/wallet', label: 'My Wallet', icon: Wallet },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/community', label: 'Community', icon: Users },

@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { generatePersonalizedStudyPlan } from '@/ai/flows/personalized-study-plan-generation';
 import { aiTutor } from '@/ai/flows/ai-tutoring';
+import { analyzeCode } from '@/ai/flows/code-analysis';
 
 const studyPlanSchema = z.object({
   learningHistory: z.string().min(10, { message: 'Please provide more details about your learning history.' }),
@@ -58,5 +59,43 @@ export async function aiTutorAction(prevState: any, formData: FormData) {
         return { message: 'Success', answer: result.answer, errors: null };
       } catch (error) {
         return { message: 'An error occurred while getting an answer.', answer: null, errors: null };
+      }
+}
+
+const codeAnalysisSchema = z.object({
+    code: z.string().min(10, { message: 'Please provide some code to analyze.' }),
+    language: z.string(),
+});
+
+export async function analyzeCodeAction(prevState: any, formData: FormData) {
+    const validatedFields = codeAnalysisSchema.safeParse({
+        code: formData.get('code'),
+        language: formData.get('language'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+          message: 'Validation failed',
+          errors: validatedFields.error.flatten().fieldErrors,
+          feedback: null,
+          correctedCode: null,
+        };
+      }
+    
+      try {
+        const result = await analyzeCode(validatedFields.data);
+        return { 
+            message: 'Success', 
+            errors: null,
+            feedback: result.feedback,
+            correctedCode: result.correctedCode,
+        };
+      } catch (error) {
+        return { 
+            message: 'An error occurred while analyzing the code.', 
+            errors: null,
+            feedback: null,
+            correctedCode: null
+        };
       }
 }
