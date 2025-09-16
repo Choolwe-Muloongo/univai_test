@@ -20,31 +20,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Link from 'next/link';
 
 type Role = 'student' | 'admin' | 'lecturer' | 'employer';
-type StudentType = 'student-ict' | 'student-business';
+type StudentType = 'student-premium' | 'student-freemium';
 
 const testUsers = {
-    'student-ict': { email: 'student.ict@univai.edu', password: 'password123', schoolId: 'ict' },
-    'student-business': { email: 'student.business@univai.edu', password: 'password123', schoolId: 'business' },
-    admin: { email: 'admin@univai.edu', password: 'password123' },
-    lecturer: { email: 'lecturer@univai.edu', password: 'password123' },
-    employer: { email: 'employer@univai.edu', password: 'password123' },
+    'student-premium': { email: 'student.premium@univai.edu', password: 'password123', schoolId: 'ict', role: 'premium-student' },
+    'student-freemium': { email: 'student.freemium@univai.edu', password: 'password123', schoolId: null, role: 'freemium-student' },
+    admin: { email: 'admin@univai.edu', password: 'password123', role: 'admin' },
+    lecturer: { email: 'lecturer@univai.edu', password: 'password123', role: 'lecturer' },
+    employer: { email: 'employer@univai.edu', password: 'password123', role: 'employer' },
 }
 
 export default function LoginPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Role>('student');
-  const [studentType, setStudentType] = useState<StudentType>('student-ict');
+  const [studentType, setStudentType] = useState<StudentType>('student-premium');
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if(activeTab === 'student') {
-        localStorage.setItem('userRole', 'student');
-        localStorage.setItem('userSchoolId', testUsers[studentType].schoolId);
+        const user = testUsers[studentType];
+        localStorage.setItem('userRole', user.role);
+        if (user.schoolId) {
+            localStorage.setItem('userSchoolId', user.schoolId);
+        } else {
+            localStorage.removeItem('userSchoolId');
+        }
         router.push('/dashboard');
     } else {
-        localStorage.setItem('userRole', activeTab);
-        localStorage.removeItem('userSchoolId'); // Non-students don't have a school
+        const user = testUsers[activeTab as Exclude<Role, 'student'>];
+        localStorage.setItem('userRole', user.role);
+        localStorage.removeItem('userSchoolId');
         
         switch (activeTab) {
             case 'admin':
@@ -73,8 +79,8 @@ export default function LoginPage() {
                   <SelectValue placeholder="Select a student profile" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="student-ict">ICT Student (BSc CompSci)</SelectItem>
-                  <SelectItem value="student-business">Business Student (MBA)</SelectItem>
+                  <SelectItem value="student-premium">Premium Student (Full Access)</SelectItem>
+                  <SelectItem value="student-freemium">Freemium Student (Limited Access)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

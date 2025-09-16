@@ -19,9 +19,9 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 
 const roleDetails = {
+  'premium-student': { name: 'Premium Student', email: 'student.premium@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-premium' },
+  'freemium-student': { name: 'Freemium Student', email: 'student.freemium@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-freemium' },
   student: { name: 'Student', email: 'student@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student' },
-  'student-ict': { name: 'ICT Student', email: 'student.ict@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-ict' },
-  'student-business': { name: 'Business Student', email: 'student.business@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-business' },
   admin: { name: 'Admin', email: 'admin@univai.edu', avatar: 'https://i.pravatar.cc/80?u=admin' },
   lecturer: { name: 'Lecturer', email: 'lecturer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=lecturer' },
   employer: { name: 'Employer', email: 'employer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=employer' },
@@ -32,13 +32,8 @@ export function AppHeader() {
   const [user, setUser] = useState({name: '', email: '', avatar: ''});
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole') || 'student';
-    const schoolId = localStorage.getItem('userSchoolId');
-    let userKey = role;
-    if (role === 'student' && schoolId) {
-        userKey = `student-${schoolId}`;
-    }
-    setUser(roleDetails[userKey as keyof typeof roleDetails] || roleDetails.student);
+    const role = localStorage.getItem('userRole') || 'premium-student';
+    setUser(roleDetails[role as keyof typeof roleDetails] || roleDetails.student);
   }, []);
 
   const handleLogout = () => {

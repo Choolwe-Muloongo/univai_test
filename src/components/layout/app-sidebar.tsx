@@ -36,7 +36,23 @@ type NavLink = {
 }
 
 const allLinks: { [key: string]: NavLink[] } = {
-  student: [
+  'premium-student': [
+    { href: '/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/program', label: 'My Program', icon: GraduationCap },
+    { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
+    { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
+    { href: '/wallet', label: 'My Wallet', icon: Wallet },
+    { href: '/payments', label: 'Payments', icon: Landmark },
+    { href: '/community', label: 'Community', icon: Users },
+    { href: '/jobs', label: 'Job Board', icon: Briefcase },
+  ],
+  'freemium-student': [
+    { href: '/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/courses', label: 'Courses', icon: GraduationCap },
+    { href: '/community', label: 'Community', icon: Users },
+    { href: '/payments', label: 'Upgrade', icon: Landmark },
+  ],
+  student: [ // Fallback for original student role
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/program', label: 'My Program', icon: GraduationCap },
     { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
@@ -75,8 +91,8 @@ export function AppSidebar() {
   const [links, setLinks] = useState<NavLink[]>([]);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole') || 'student';
-    setLinks(allLinks[role] || allLinks.student);
+    const role = localStorage.getItem('userRole') || 'premium-student';
+    setLinks(allLinks[role] || allLinks['premium-student']);
   }, [pathname]);
 
   return (
