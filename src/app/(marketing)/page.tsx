@@ -1,4 +1,4 @@
-// src/app/page.tsx
+// src/app/(marketing)/page.tsx
 import Link from 'next/link';
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
