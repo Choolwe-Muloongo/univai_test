@@ -117,7 +117,7 @@ export default function CourseDetailPage() {
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-8">
         <Card className='overflow-hidden'>
-            <CardContent className='p-0'>
+            <CardContent>
                  <div className="aspect-video bg-muted flex items-center justify-center relative">
                      <Image src={placeholder?.imageUrl || `https://picsum.photos/seed/${course.id}/1200/400`} alt={course.title} fill className="object-cover" />
                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -183,16 +183,11 @@ export default function CourseDetailPage() {
           <CardHeader>
             <CardTitle className='flex items-center gap-2'><Rocket /> Get Started</CardTitle>
             <CardDescription>
-              Begin your learning journey by enrolling or jump straight to the exam if you're ready.
+              Ready to test your knowledge? Jump straight to the exam.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <Button size="lg" className="w-full" asChild>
-              <Link href={`/courses/${course.id}/exam`}>Enroll in Module</Link>
-            </Button>
-            <Separator className='my-4'/>
-            <p className='text-sm text-center text-muted-foreground'>Ready to test your knowledge?</p>
-            <Button size="lg" variant='secondary' className="w-full" asChild>
                 <Link href={`/courses/${course.id}/exam`}>Start Final Exam</Link>
             </Button>
           </CardContent>

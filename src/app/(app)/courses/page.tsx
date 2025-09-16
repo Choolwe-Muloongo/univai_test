@@ -58,12 +58,8 @@ export default function CoursesPage() {
                   (p) => p.id === course.imageId
                 );
                 return (
-                  <Link
-                    href={`/courses/${course.id}`}
-                    key={course.id}
-                    className="group"
-                  >
-                    <Card className="h-full overflow-hidden transition-all group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10">
+                  <Card key={course.id} className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10">
+                    <Link href={`/courses/${course.id}`} className="flex h-full flex-col">
                       <CardHeader className="p-0">
                         <div className="relative h-48 w-full">
                           <Image
@@ -75,11 +71,11 @@ export default function CoursesPage() {
                           />
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6">
+                      <CardContent className="flex-1">
                         <CardTitle className="mb-2 text-xl">{course.title}</CardTitle>
                         <CardDescription>{course.description}</CardDescription>
                       </CardContent>
-                      <CardFooter className="p-6 pt-0">
+                      <CardFooter>
                         <div className="w-full">
                           <div className="mb-2 flex justify-between text-sm text-muted-foreground">
                             <span>Progress</span>
@@ -88,8 +84,8 @@ export default function CoursesPage() {
                           <Progress value={course.progress} className="h-2" />
                         </div>
                       </CardFooter>
-                    </Card>
-                  </Link>
+                    </Link>
+                  </Card>
                 );
               })}
           </div>

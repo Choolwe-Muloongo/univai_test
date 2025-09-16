@@ -37,11 +37,7 @@ const transactions = [
 ]
 
 export default function WalletPage() {
-    // A simple calculation to reflect the transactions
-    const balance = transactions.reduce((acc, tx) => {
-        const amount = parseFloat(tx.amount.replace(' AFTA', ''));
-        return acc + amount;
-    }, 1000); // Starting with a base balance for demo
+    const balance = 925; // Static balance
 
     return (
         <div className="space-y-8">
@@ -56,7 +52,7 @@ export default function WalletPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardDescription>Total Balance</CardDescription>
-                        <CardTitle className="text-4xl">{balance.toFixed(0)} AFTA</CardTitle>
+                        <CardTitle className="text-4xl">{balance} AFTA</CardTitle>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Deposit</Button>
@@ -83,12 +79,12 @@ export default function WalletPage() {
                                         <TableRow key={tx.id}>
                                             <TableCell className="font-medium">{tx.description}</TableCell>
                                             <TableCell>
-                                                 <Badge variant={tx.type === 'reward' ? 'default' : 'secondary'} className="capitalize">
-                                                    {tx.type === 'reward' ? <ArrowDownLeft className="mr-1 h-3 w-3 text-green-400"/> : <ArrowUpRight className="mr-1 h-3 w-3 text-red-400"/>}
+                                                 <Badge variant={tx.type === 'reward' ? 'default' : 'destructive'} className="capitalize">
+                                                    {tx.type === 'reward' ? <ArrowDownLeft className="mr-1 h-3 w-3"/> : <ArrowUpRight className="mr-1 h-3 w-3"/>}
                                                     {tx.type}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className={`text-right font-semibold ${tx.type === 'reward' ? 'text-green-500' : 'text-destructive'}`}>{tx.amount}</TableCell>
+                                            <TableCell className={`text-right font-semibold ${tx.amount.startsWith('+') ? 'text-green-500' : 'text-destructive'}`}>{tx.amount}</TableCell>
                                             <TableCell>{tx.date}</TableCell>
                                         </TableRow>
                                     ))}
