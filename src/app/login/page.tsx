@@ -20,11 +20,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Link from 'next/link';
 
 type Role = 'student' | 'admin' | 'lecturer' | 'employer';
-type StudentType = 'student-premium' | 'student-freemium';
+type StudentType = 'premium-student' | 'freemium-student';
 
 const testUsers = {
-    'student-premium': { email: 'student.premium@univai.edu', password: 'password123', schoolId: 'ict', role: 'premium-student' },
-    'student-freemium': { email: 'student.freemium@univai.edu', password: 'password123', schoolId: null, role: 'freemium-student' },
+    'premium-student': { email: 'student.premium@univai.edu', password: 'password123', schoolId: 'ict', role: 'premium-student' },
+    'freemium-student': { email: 'student.freemium@univai.edu', password: 'password123', schoolId: null, role: 'freemium-student' },
     admin: { email: 'admin@univai.edu', password: 'password123', role: 'admin' },
     lecturer: { email: 'lecturer@univai.edu', password: 'password123', role: 'lecturer' },
     employer: { email: 'employer@univai.edu', password: 'password123', role: 'employer' },
@@ -33,7 +33,7 @@ const testUsers = {
 export default function LoginPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Role>('student');
-  const [studentType, setStudentType] = useState<StudentType>('student-premium');
+  const [studentType, setStudentType] = useState<StudentType>('premium-student');
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -79,8 +79,8 @@ export default function LoginPage() {
                   <SelectValue placeholder="Select a student profile" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="student-premium">Premium Student (Full Access)</SelectItem>
-                  <SelectItem value="student-freemium">Freemium Student (Limited Access)</SelectItem>
+                  <SelectItem value="premium-student">Premium Student (Full Access)</SelectItem>
+                  <SelectItem value="freemium-student">Freemium Student (Limited Access)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

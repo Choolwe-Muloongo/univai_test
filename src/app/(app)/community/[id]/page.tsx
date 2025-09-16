@@ -17,11 +17,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { CornerDownRight, MessageSquare, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function DiscussionDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const discussion = discussions.find((d) => d.id === id);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    // Render nothing or a skeleton on the server
+    return null;
+  }
 
   if (!discussion) {
     notFound();

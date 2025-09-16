@@ -1,6 +1,6 @@
 // src/app/(app)/admin/consultants/page.tsx
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,12 @@ import { consultantApplications as initialApplications } from '@/lib/data';
 
 export default function ConsultantsApprovalPage() {
   const [applications, setApplications] = useState(initialApplications);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
 
   const handleApprove = (id: string) => {
     setApplications(apps => apps.map(app => app.id === id ? { ...app, status: 'Approved' } : app));
@@ -18,6 +24,10 @@ export default function ConsultantsApprovalPage() {
   const handleDeny = (id: string) => {
     setApplications(apps => apps.map(app => app.id === id ? { ...app, status: 'Rejected' } : app));
   };
+
+  if (!isClient) {
+    return null;
+  }
 
   const pendingApplications = applications.filter(app => app.status === 'Pending');
 

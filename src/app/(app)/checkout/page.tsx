@@ -31,8 +31,9 @@ export default function CheckoutPage() {
         description: 'Welcome to Premium. You now have access to all features.',
         });
         
-        // Reload to update sidebar and redirect to dashboard
-        window.location.href = '/dashboard';
+        setIsProcessing(false);
+        // Navigate to dashboard
+        router.push('/dashboard');
     }, 2000);
   };
 
@@ -82,11 +83,11 @@ export default function CheckoutPage() {
                     <h3 className="text-lg font-semibold">Billing Information</h3>
                      <div className="space-y-2">
                         <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" defaultValue="UnivAI Student" required/>
+                        <Input id="name" defaultValue="Premium Student" required/>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" defaultValue="student@univai.edu" required/>
+                        <Input id="email" type="email" defaultValue="student.premium@univai.edu" required/>
                     </div>
                 </div>
 

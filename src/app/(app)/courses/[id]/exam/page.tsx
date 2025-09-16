@@ -55,6 +55,7 @@ const allQuestions = [
 
 // Fisher-Yates shuffle algorithm
 const shuffleArray = <T,>(array: T[]): T[] => {
+  if (typeof window === 'undefined') return array;
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -81,9 +82,11 @@ export default function ExamPage() {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
 
   useEffect(() => {
+    setIsClient(true);
     setQuestions(shuffleArray(allQuestions).slice(0, 3));
 
     const getCameraPermission = async () => {
@@ -109,6 +112,10 @@ export default function ExamPage() {
   }, [toast]);
 
 
+  if (!isClient) {
+    return null;
+  }
+  
   if (!course) {
     notFound();
   }
