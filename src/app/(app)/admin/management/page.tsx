@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { type School, type Course } from '@/lib/data';
-import { getSchoolsAndCourses, addSchool, addCourse, removeSchool, removeCourse } from './actions';
+import { getSchoolsAndCourses, addSchool, addCourse, removeSchool, removeCourse } from '../actions';
 import { useFormStatus } from 'react-dom';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
