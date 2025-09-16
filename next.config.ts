@@ -29,10 +29,22 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https'
+        protocol: 'https',
+        hostname: 'i.pravatar.cc',
+        port: '',
+        pathname: '/**',
+      },
+       {
+        protocol: 'https',
+        hostname: 'api.qrserver.com',
+        port: '',
+        pathname: '/**',
       }
     ]
-  }
+  },
+  experimental: {
+    allowedDevOrigins: ['https://*.cloudworkstations.dev'],
+  },
 };
 
 export default nextConfig;
