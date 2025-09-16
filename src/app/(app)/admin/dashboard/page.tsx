@@ -52,20 +52,20 @@ export default function AdminDashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle>Content Management</CardTitle>
-                <CardDescription>Add, edit, or approve platform content.</CardDescription>
+                <CardTitle>Platform Management</CardTitle>
+                <CardDescription>Add, edit, or approve platform content and users.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Manage Courses</CardTitle>
+                        <CardTitle>Manage Content</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">Review and update course materials and curricula.</p>
+                        <p className="text-sm text-muted-foreground">Add/remove schools and programs.</p>
                     </CardContent>
                     <CardFooter>
                         <Button variant="outline" asChild>
-                           <Link href="/courses">Go to Courses <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                           <Link href="/admin/management">Go to Content <ArrowRight className="ml-2 h-4 w-4" /></Link>
                        </Button>
                     </CardFooter>
                 </Card>

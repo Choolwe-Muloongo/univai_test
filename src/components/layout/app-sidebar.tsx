@@ -19,6 +19,7 @@ import {
   CreditCard,
   Trophy,
   FlaskConical,
+  Settings,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -72,8 +73,8 @@ const allLinks: { [key: string]: NavLink[] } = {
   ],
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/management', label: 'Content Management', icon: Settings },
     { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
-    { href: '/courses', label: 'Manage Courses', icon: GraduationCap },
     { href: '/community', label: 'Manage Community', icon: Users },
     { href: '/jobs', label: 'Manage Jobs', icon: Briefcase },
     { href: '#', label: 'System Health', icon: Shield },
@@ -117,7 +118,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={link.href}>
               <Link href={link.href}>
                 <SidebarMenuButton
-                  isActive={pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href) && link.href.split('/').length > 1)}
+                  isActive={pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href) && link.href.split('/').length > 2)}
                   tooltip={link.label}
                   className="justify-start"
                 >

@@ -141,12 +141,25 @@ export default function LecturerCourseManagementPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
             <Card>
-                <CardHeader className='flex-row items-center justify-between'>
-                    <CardTitle>Course Content</CardTitle>
-                    <Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit Content</Button>
+                <CardHeader>
+                    <CardTitle>Manage Content</CardTitle>
+                    <CardDescription>Use AI tools to update course descriptions and generate video lectures.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="course-description">Course Description</Label>
+                        <Textarea id="course-description" defaultValue={course.description} className="min-h-24"/>
+                    </div>
+                    <Button><Pencil className="mr-2 h-4 w-4" /> Update Description</Button>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Course Lessons</CardTitle>
+                    <CardDescription>Add, edit, or generate content for each lesson.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className='mb-4 text-muted-foreground'>{course.description}</p>
                     <Accordion type="single" collapsible className="w-full">
                     {courseLessons.map((lesson) => (
                         <AccordionItem value={lesson.id} key={lesson.id}>
@@ -158,15 +171,6 @@ export default function LecturerCourseManagementPage() {
                         </AccordionItem>
                     ))}
                     </Accordion>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className='flex-row items-center justify-between'>
-                    <CardTitle>Assessments & Exams</CardTitle>
-                    <Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit Exams</Button>
-                </CardHeader>
-                <CardContent>
-                    <p className='text-muted-foreground'>Review and modify the exams and assignments for this course.</p>
                 </CardContent>
             </Card>
         </div>
