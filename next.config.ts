@@ -44,6 +44,11 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     allowedDevOrigins: ['https://*.cloudworkstations.dev'],
+    serverActions: {
+      bodySizeLimit: '2mb',
+      // Increase timeout for slow video generation
+      timeout: 120,
+    },
   },
 };
 

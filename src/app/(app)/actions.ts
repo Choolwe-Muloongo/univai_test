@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { generatePersonalizedStudyPlan } from '@/ai/flows/personalized-study-plan-generation';
 import { aiTutor } from '@/ai/flows/ai-tutoring';
 import { analyzeCode } from '@/ai/flows/code-analysis';
+import { generateVideoLecture } from '@/ai/flows/video-generation';
 
 const studyPlanSchema = z.object({
   learningHistory: z.string().min(10, { message: 'Please provide more details about your learning history.' }),
@@ -96,6 +97,40 @@ export async function analyzeCodeAction(prevState: any, formData: FormData) {
             errors: null,
             feedback: null,
             correctedCode: null
+        };
+      }
+}
+
+const videoGenerationSchema = z.object({
+    prompt: z.string().min(10, { message: 'Please provide a more detailed prompt for the video.' }),
+});
+
+export async function generateVideoAction(prevState: any, formData: FormData) {
+    const validatedFields = videoGenerationSchema.safeParse({
+        prompt: formData.get('prompt'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+          message: 'Validation failed',
+          errors: validatedFields.error.flatten().fieldErrors,
+          videoUrl: null,
+        };
+      }
+    
+      try {
+        const result = await generateVideoLecture(validatedFields.data);
+        return { 
+            message: 'Success', 
+            errors: null,
+            videoUrl: result.videoUrl,
+        };
+      } catch (error) {
+        console.error('Video generation error:', error);
+        return { 
+            message: 'An error occurred while generating the video. Please try again later.', 
+            errors: null,
+            videoUrl: null
         };
       }
 }
