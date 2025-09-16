@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { CornerDownRight, MessageSquare } from 'lucide-react';
+import { CornerDownRight, MessageSquare, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DiscussionDetailPage({ params }: { params: { id: string } }) {
@@ -59,12 +59,18 @@ export default function DiscussionDetailPage({ params }: { params: { id: string 
                   <AvatarImage src={comment.avatar} alt={comment.author} />
                   <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div>
+                <div className='flex-1'>
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{comment.author}</p>
                     <p className="text-xs text-muted-foreground">{comment.timestamp}</p>
                   </div>
                   <p className="text-muted-foreground">{comment.content}</p>
+                   <div className="flex items-center gap-2 mt-2">
+                    <Button variant="ghost" size="sm" className="flex items-center gap-1 text-muted-foreground hover:text-primary">
+                      <ThumbsUp className="h-4 w-4" />
+                      <span>{comment.upvotes}</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}

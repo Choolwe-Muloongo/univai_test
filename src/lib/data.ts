@@ -50,6 +50,7 @@ export type DiscussionComment = {
     avatar: string;
     content: string;
     timestamp: string;
+    upvotes: number;
 }
 
 export type Discussion = {
@@ -178,8 +179,8 @@ export const discussions: Discussion[] = [
     avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026704d', 
     snippet: 'I\'m new to frontend development and trying to pick up React. What are the best tutorials or courses you\'d recommend? Any advice is appreciated! I\'ve looked at the official docs, but I find them a bit dense. Looking for something more project-based.', 
     comments: [
-        {id: 'c1', author: 'John Smith', avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026705d', content: 'I highly recommend the Scrimba course on React. It\'s very interactive and you build projects along the way.', timestamp: '1 hour ago'},
-        {id: 'c2', author: 'Emily White', avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026706d', content: 'Egghead.io has some great, concise video tutorials if you prefer that format.', timestamp: '45 minutes ago'}
+        {id: 'c1', author: 'John Smith', avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026705d', content: 'I highly recommend the Scrimba course on React. It\'s very interactive and you build projects along the way.', timestamp: '1 hour ago', upvotes: 12},
+        {id: 'c2', author: 'Emily White', avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026706d', content: 'Egghead.io has some great, concise video tutorials if you prefer that format.', timestamp: '45 minutes ago', upvotes: 5}
     ], 
     timestamp: '2 hours ago' 
   },
