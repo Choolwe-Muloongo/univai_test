@@ -3,8 +3,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { notFound, useParams } from 'next/navigation';
-import { useActionState, useRef, useState, useTransition } from 'react';
+import { useParams } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
 import {
   Accordion,
@@ -23,84 +23,8 @@ import {
 import { courses, lessons } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlayCircle, Code, FileDown, Rocket, Wand2, Loader2, AlertCircle } from 'lucide-react';
+import { PlayCircle, Code, FileDown, Rocket } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { generateVideoAction } from '@/app/(app)/actions';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { useFormStatus } from 'react-dom';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-
-
-function GenerateVideoButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Generating Video...
-        </>
-      ) : (
-        <>
-          <Wand2 className="mr-2 h-4 w-4" />
-          Generate AI Lecture
-        </>
-      )}
-    </Button>
-  );
-}
-
-function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
-  const initialState = { message: null, errors: null, videoUrl: null };
-  const [state, dispatch] = useActionState(generateVideoAction, initialState);
-  const [prompt, setPrompt] = useState(`A 5-second educational video about: ${lessonTitle}.`);
-
-  return (
-    <div className='space-y-4'>
-      {state.videoUrl ? (
-        <div className="aspect-video bg-black rounded-md overflow-hidden">
-          <video src={state.videoUrl} controls className="w-full h-full" />
-        </div>
-      ) : (
-        <div className="aspect-video bg-muted rounded-md flex items-center justify-center text-center p-4">
-            <div className='max-w-md'>
-                 <Wand2 className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                <h3 className='font-semibold text-lg'>AI Video Lecture</h3>
-                <p className='text-muted-foreground text-sm'>Generate a short video lecture for this topic using AI.</p>
-            </div>
-        </div>
-      )}
-
-      <form action={dispatch} className='space-y-4'>
-        <div className="space-y-2">
-          <Label htmlFor="prompt">Video Prompt</Label>
-          <Textarea
-            id="prompt"
-            name="prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., A cinematic shot of a an old car driving down a deserted road at sunset."
-            className="min-h-20"
-            required
-          />
-           {state.errors?.prompt && (
-            <p className="text-sm text-destructive">{state.errors.prompt}</p>
-          )}
-        </div>
-        <GenerateVideoButton />
-      </form>
-      {state.message && state.message !== 'Success' && (
-         <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Generation Failed</AlertTitle>
-            <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      )}
-    </div>
-  );
-}
-
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -143,12 +67,15 @@ export default function CourseDetailPage() {
                         <CardContent>
                             <Tabs defaultValue="video" className="w-full">
                                 <TabsList>
-                                    <TabsTrigger value="video"><PlayCircle className='mr-2'/> AI Video Lecture</TabsTrigger>
+                                    <TabsTrigger value="video"><PlayCircle className='mr-2'/> Video Lecture</TabsTrigger>
                                     <TabsTrigger value="exercise"><Code className='mr-2'/> Coding Exercise</TabsTrigger>
                                     <TabsTrigger value="resources"><FileDown className='mr-2'/> Resources</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="video" className="pt-4">
-                                   <VideoGenerator lessonTitle={lesson.title} />
+                                   <div className="aspect-video bg-black rounded-md overflow-hidden">
+                                     {/* In a real app, this would be the lecturer-uploaded video */}
+                                     <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" controls className="w-full h-full" />
+                                   </div>
                                 </TabsContent>
                                 <TabsContent value="exercise" className='pt-4'>
                                     <Card className='bg-muted/40 font-mono text-sm'>
