@@ -12,13 +12,17 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { courses, schools, type School } from '@/lib/data';
+import { type School, type Course } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { getSchoolsAndCourses } from '../admin/actions';
 
 export default function CoursesPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
+  const [allSchools, setAllSchools] = useState<School[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [filteredSchools, setFilteredSchools] = useState<School[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -26,13 +30,23 @@ export default function CoursesPage() {
     setUserRole(role);
     setUserSchoolId(schoolId);
 
-    const isStudent = role === 'student' || role === 'premium-student';
+    const fetchData = async () => {
+        setLoading(true);
+        const { schools, courses } = await getSchoolsAndCourses();
+        setAllSchools(schools);
+        setAllCourses(courses);
 
-    if (isStudent && schoolId) {
-      setFilteredSchools(schools.filter((school) => school.id === schoolId));
-    } else {
-      setFilteredSchools(schools);
+        const isStudent = role === 'student' || role === 'premium-student';
+
+        if (isStudent && schoolId) {
+          setFilteredSchools(schools.filter((school) => school.id === schoolId));
+        } else {
+          setFilteredSchools(schools);
+        }
+        setLoading(false);
     }
+    fetchData();
+
   }, []);
 
   const isStudent = userRole === 'student' || userRole === 'premium-student';
@@ -40,6 +54,10 @@ export default function CoursesPage() {
   const pageDescription = isStudent 
     ? 'Explore the program offered by your school.'
     : 'Explore programs from all our schools.';
+
+  if (loading) {
+    return <div>Loading courses...</div>
+  }
 
   return (
     <div className="space-y-8">
@@ -54,7 +72,7 @@ export default function CoursesPage() {
         <section key={school.id}>
           <h2 className="mb-4 text-2xl font-semibold tracking-tight">{school.name}</h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {courses
+            {allCourses
               .filter((course) => course.schoolId === school.id)
               .map((course) => {
                 const placeholder = PlaceHolderImages.find(
@@ -82,9 +100,9 @@ export default function CoursesPage() {
                         <div className="w-full">
                           <div className="mb-2 flex justify-between text-sm text-muted-foreground">
                             <span>Progress</span>
-                            <span>{course.progress}%</span>
+                            <span>{course.progress || 0}%</span>
                           </div>
-                          <Progress value={course.progress} className="h-2" />
+                          <Progress value={course.progress || 0} className="h-2" />
                         </div>
                       </CardFooter>
                     </Link>

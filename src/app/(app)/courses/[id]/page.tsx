@@ -7,12 +7,6 @@ import { useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -21,24 +15,81 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { courses, lessons } from '@/lib/data';
+import { type Course, type Lesson } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlayCircle, Code, FileDown, Rocket, Lock } from 'lucide-react';
+import { PlayCircle, Code, FileText, Rocket, Lock } from 'lucide-react';
+import { getCourseAndLessons } from './actions';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function CourseSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="lg:col-span-2 space-y-8">
+        <Card>
+          <CardContent>
+            <Skeleton className="aspect-video w-full" />
+          </CardContent>
+        </Card>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </div>
+       <div className="lg:col-span-1">
+        <Card className="sticky top-24">
+          <CardHeader>
+             <Skeleton className="h-6 w-3/4" />
+             <Skeleton className="h-4 w-1/2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-12 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 
 export default function CourseDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const course = courses.find((c) => c.id === id);
-  const courseLessons = lessons[id] || [];
-  const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
+  
+  const [course, setCourse] = useState<Course | null>(null);
+  const [courseLessons, setCourseLessons] = useState<Lesson[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
     setUserRole(role);
-  }, []);
+    
+    async function fetchData() {
+        if (!id) return;
+        setLoading(true);
+        try {
+            const { course, lessons } = await getCourseAndLessons(id);
+            setCourse(course);
+            setCourseLessons(lessons);
+        } catch (error) {
+            console.error(error);
+            // Handle not found or other errors
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchData();
+
+  }, [id]);
+  
+  const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
+
+  if (loading) {
+    return <CourseSkeleton />;
+  }
 
   if (!course) {
     notFound();
@@ -94,33 +145,59 @@ export default function CourseDetailPage() {
                       <TabsList>
                         <TabsTrigger value="video"><PlayCircle className='mr-2' /> Video Lecture</TabsTrigger>
                         <TabsTrigger value="exercise"><Code className='mr-2' /> Coding Exercise</TabsTrigger>
-                        <TabsTrigger value="resources"><FileDown className='mr-2' /> Resources</TabsTrigger>
+                        <TabsTrigger value="quiz"><FileText className='mr-2' /> Quiz</TabsTrigger>
                       </TabsList>
                       <TabsContent value="video" className="pt-4">
-                        <div className="aspect-video bg-black rounded-md overflow-hidden">
-                          {/* In a real app, this would be the lecturer-uploaded video */}
-                          <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" controls className="w-full h-full" />
-                        </div>
+                        {lesson.videoUrl ? (
+                            <div className="aspect-video bg-black rounded-md overflow-hidden">
+                                <video src={lesson.videoUrl} controls className="w-full h-full" />
+                            </div>
+                        ) : (
+                            <div className="aspect-video bg-muted rounded-md flex items-center justify-center">
+                                <p className="text-muted-foreground">No video lecture available yet.</p>
+                            </div>
+                        )}
                       </TabsContent>
                       <TabsContent value="exercise" className='pt-4'>
-                        <Card className='bg-muted/40 font-mono text-sm'>
-                          <CardHeader>
-                            <CardDescription className='font-sans'>
-                              Complete the exercise below to test your understanding.
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className='bg-black p-4 rounded-md text-green-400'>
-                              <pre><code>{`# Python exercise for: ${lesson.title}\ndef hello_world():\n  # Your code here\n  print("Hello, World!")`}</code></pre>
+                        {lesson.exercise ? (
+                             <Card className='bg-muted/40 font-mono text-sm'>
+                                <CardContent className='pt-6'>
+                                    <div className='bg-black p-4 rounded-md text-green-400'>
+                                    <pre><code>{lesson.exercise}</code></pre>
+                                    </div>
+                                    <Button className='mt-4'>Run Code</Button>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <div className="aspect-video bg-muted rounded-md flex items-center justify-center">
+                                <p className="text-muted-foreground">No exercise available yet.</p>
                             </div>
-                            <Button className='mt-4'>Run Code</Button>
-                          </CardContent>
-                        </Card>
+                        )}
                       </TabsContent>
-                      <TabsContent value="resources" className='pt-4 space-y-3'>
-                        <h3 className='font-semibold'>Downloadable Notes</h3>
-                        <p className='text-muted-foreground'>{lesson.content}</p>
-                        <Button variant='outline'><FileDown className='mr-2' /> Download Notes (PDF)</Button>
+                      <TabsContent value="quiz" className='pt-4 space-y-3'>
+                         {lesson.quiz ? (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>{lesson.quiz.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent className='space-y-4'>
+                                    {lesson.quiz.questions.map((q: any, index: number) => (
+                                        <div key={index}>
+                                            <p className='font-semibold'>{index + 1}. {q.question}</p>
+                                            <ul className='list-disc pl-5 mt-2 space-y-1 text-muted-foreground'>
+                                                {q.options.map((opt: string) => (
+                                                    <li key={opt} className={opt === q.answer ? 'text-primary font-medium' : ''}>{opt}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                         ) : (
+                            <div className="aspect-video bg-muted rounded-md flex items-center justify-center">
+                                <p className="text-muted-foreground">No quiz available yet.</p>
+                            </div>
+                         )}
                       </TabsContent>
                     </Tabs>
                   )}

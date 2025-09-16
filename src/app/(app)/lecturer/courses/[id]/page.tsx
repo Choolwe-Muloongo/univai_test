@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { useActionState } from 'react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
@@ -15,16 +15,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { courses, lessons } from '@/lib/data';
+import { type Course, type Lesson } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Pencil, FileText, Wand2, Loader2, AlertCircle, FileQuestion, Code, PlayCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { generateVideoAction, generateContentAction } from '@/app/(app)/actions';
+import { generateVideoAction, generateContentAction, updateLessonContent } from '@/app/(app)/actions';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getCourseAndLessons } from '@/app/(app)/courses/[id]/actions';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 const studentResults = [
@@ -36,7 +38,6 @@ const studentResults = [
 
 function AIGeneratorButton({ icon, text }: { icon: React.ElementType, text: string }) {
   const { pending } = useFormStatus();
-  const Icon = icon;
   return (
     <Button type="submit" disabled={pending}>
       {pending ? (
@@ -46,7 +47,7 @@ function AIGeneratorButton({ icon, text }: { icon: React.ElementType, text: stri
         </>
       ) : (
         <>
-          <Icon className="mr-2 h-4 w-4" />
+          <icon className="mr-2 h-4 w-4" />
           {text}
         </>
       )}
@@ -54,10 +55,16 @@ function AIGeneratorButton({ icon, text }: { icon: React.ElementType, text: stri
   );
 }
 
-function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
+function VideoGenerator({ courseId, lessonId, lessonTitle }: { courseId: string, lessonId: string, lessonTitle: string }) {
   const initialState = { message: null, errors: null, videoUrl: null };
   const [state, dispatch] = useActionState(generateVideoAction, initialState);
   const [prompt, setPrompt] = useState(`A 5-second educational video about: ${lessonTitle}.`);
+
+  useEffect(() => {
+    if (state.videoUrl) {
+      updateLessonContent(courseId, lessonId, { videoUrl: state.videoUrl });
+    }
+  }, [state.videoUrl, courseId, lessonId]);
 
   return (
     <div className='space-y-4'>
@@ -104,7 +111,7 @@ function VideoGenerator({ lessonTitle }: { lessonTitle: string }) {
   );
 }
 
-function QuizGenerator({ lessonTitle }: { lessonTitle: string }) {
+function QuizGenerator({ courseId, lessonId, lessonTitle }: { courseId: string, lessonId: string, lessonTitle: string }) {
   const initialState = { message: null, errors: null, content: null };
   const [state, dispatch] = useActionState(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
@@ -112,13 +119,17 @@ function QuizGenerator({ lessonTitle }: { lessonTitle: string }) {
   const quiz = useMemo(() => {
     if (state.content) {
       try {
-        return JSON.parse(state.content);
+        const parsedQuiz = JSON.parse(state.content);
+         if(parsedQuiz) {
+            updateLessonContent(courseId, lessonId, { quiz: parsedQuiz });
+        }
+        return parsedQuiz;
       } catch (e) {
         return null;
       }
     }
     return null;
-  }, [state.content]);
+  }, [state.content, courseId, lessonId]);
 
   return (
     <div className='space-y-4'>
@@ -178,10 +189,16 @@ function QuizGenerator({ lessonTitle }: { lessonTitle: string }) {
   );
 }
 
-function ExerciseGenerator({ lessonTitle }: { lessonTitle: string }) {
+function ExerciseGenerator({ courseId, lessonId, lessonTitle }: { courseId: string, lessonId: string, lessonTitle: string }) {
   const initialState = { message: null, errors: null, content: null };
   const [state, dispatch] = useActionState(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
+
+  useEffect(() => {
+    if (state.content) {
+      updateLessonContent(courseId, lessonId, { exercise: state.content });
+    }
+  }, [state.content, courseId, lessonId]);
 
   return (
     <div className='space-y-4'>
@@ -232,12 +249,12 @@ function ExerciseGenerator({ lessonTitle }: { lessonTitle: string }) {
 }
 
 
-function AIContentSuite({ lessonTitle }: { lessonTitle: string }) {
+function AIContentSuite({ courseId, lesson }: { courseId: string, lesson: Lesson }) {
     return (
         <Card className='border-primary border-2 shadow-primary/10'>
             <CardHeader>
                 <CardTitle className='flex items-center gap-2'><Wand2 /> AI Content Creation Suite</CardTitle>
-                <CardDescription>Select a tool to generate content for the lesson: "{lessonTitle}"</CardDescription>
+                <CardDescription>Select a tool to generate content for the lesson: "{lesson.title}"</CardDescription>
             </CardHeader>
             <CardContent>
                 <Tabs defaultValue="video">
@@ -247,13 +264,13 @@ function AIContentSuite({ lessonTitle }: { lessonTitle: string }) {
                         <TabsTrigger value="exercise"><Code /> Exercise</TabsTrigger>
                     </TabsList>
                     <TabsContent value="video" className='pt-6'>
-                        <VideoGenerator lessonTitle={lessonTitle} />
+                        <VideoGenerator courseId={courseId} lessonId={lesson.id} lessonTitle={lesson.title} />
                     </TabsContent>
                      <TabsContent value="quiz" className='pt-6'>
-                        <QuizGenerator lessonTitle={lessonTitle} />
+                        <QuizGenerator courseId={courseId} lessonId={lesson.id} lessonTitle={lesson.title} />
                     </TabsContent>
                      <TabsContent value="exercise" className='pt-6'>
-                        <ExerciseGenerator lessonTitle={lessonTitle} />
+                        <ExerciseGenerator courseId={courseId} lessonId={lesson.id} lessonTitle={lesson.title} />
                     </TabsContent>
                 </Tabs>
             </CardContent>
@@ -264,14 +281,55 @@ function AIContentSuite({ lessonTitle }: { lessonTitle: string }) {
 export default function LecturerCourseManagementPage() {
   const params = useParams();
   const id = params.id as string;
-  const course = courses.find((c) => c.id === id);
-  const courseLessons = lessons[id] || [];
-  const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
-  const [selectedLesson, setSelectedLesson] = useState<string | null>(courseLessons[0]?.title || null);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [courseLessons, setCourseLessons] = useState<Lesson[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const selectedLesson = useMemo(() => courseLessons.find(l => l.id === selectedLessonId), [courseLessons, selectedLessonId]);
+
+  useEffect(() => {
+    async function fetchData() {
+        if (!id) return;
+        setLoading(true);
+        try {
+            const { course, lessons } = await getCourseAndLessons(id);
+            setCourse(course);
+            setCourseLessons(lessons);
+            if (lessons.length > 0) {
+              setSelectedLessonId(lessons[0].id)
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchData();
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-48 w-full" />
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 items-start">
+          <div className="lg:col-span-2 space-y-8">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-96 w-full" />
+          </div>
+          <div className="lg:col-span-1">
+            <Skeleton className="h-80 w-full" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!course) {
     notFound();
   }
+  
+  const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
 
   return (
     <div className="space-y-8">
@@ -296,23 +354,25 @@ export default function LecturerCourseManagementPage() {
              <Card>
                 <CardHeader>
                     <CardTitle>Course Lessons</CardTitle>
-                    <CardDescription>Select a lesson below to manage its content with AI tools.</CardDescription>
+                    <CardDescription>Select a lesson below to manage its content with AI tools. If no lessons exist, create them in the admin content management section.</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-2'>
-                    {courseLessons.map((lesson) => (
+                    {courseLessons.length > 0 ? courseLessons.map((lesson) => (
                         <Button
                             key={lesson.id}
-                            variant={selectedLesson === lesson.title ? 'default' : 'outline'}
-                            onClick={() => setSelectedLesson(lesson.title)}
+                            variant={selectedLessonId === lesson.id ? 'default' : 'outline'}
+                            onClick={() => setSelectedLessonId(lesson.id)}
                             className='w-full justify-start'
                         >
                            {lesson.title}
                         </Button>
-                    ))}
+                    )) : (
+                      <p className='text-muted-foreground text-center p-4'>No lessons found for this course.</p>
+                    )}
                 </CardContent>
             </Card>
 
-            {selectedLesson && <AIContentSuite lessonTitle={selectedLesson} />}
+            {selectedLesson && <AIContentSuite courseId={id} lesson={selectedLesson} />}
         </div>
 
         <div className="lg:col-span-1">

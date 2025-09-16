@@ -7,6 +7,8 @@ import { analyzeCode } from '@/ai/flows/code-analysis';
 import { generateVideoLecture } from '@/ai/flows/video-generation';
 import { generateCourseContent } from '@/ai/flows/content-generation';
 import { GenerateContentInputSchema } from '@/lib/schemas';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 
 const studyPlanSchema = z.object({
@@ -169,4 +171,16 @@ export async function generateContentAction(prevState: any, formData: FormData) 
             content: null
         };
       }
+}
+
+
+export async function updateLessonContent(courseId: string, lessonId: string, data: Record<string, any>) {
+  try {
+    const lessonRef = doc(db, 'courses', courseId, 'lessons', lessonId);
+    await updateDoc(lessonRef, data);
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating lesson:", error);
+    return { success: false, error: "Failed to update lesson content." };
+  }
 }

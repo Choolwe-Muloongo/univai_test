@@ -10,7 +10,7 @@ export type Course = {
   title: string;
   description: string;
   schoolId: string;
-  progress: number;
+  progress?: number;
   imageId: string;
 };
 
@@ -38,6 +38,9 @@ export type Lesson = {
   id: string;
   title: string;
   content: string;
+  videoUrl?: string;
+  exercise?: string;
+  quiz?: any;
 };
 
 export type Job = {
@@ -198,40 +201,23 @@ export const semester1ExamQuestions = [
 
 export const lessons: { [courseId: string]: Lesson[] } = {
   cs101: [
-    { id: 'cs101-sem1-1-l1', title: 'Digital Systems Overview', content: 'An overview of modern computer hardware, software, and networking components.' },
-    { id: 'cs101-sem1-1-l2', title: 'Cloud Collaboration', content: 'Hands-on skills using cloud storage and collaborative tools like Google Workspace or Microsoft 365.' },
-    { id: 'cs101-sem1-2-l1', title: 'Intro to Python', content: 'Learn the fundamentals of the Python programming language, including variables, data types, and control flow.' },
-    { id: 'cs101-sem1-2-l2', title: 'Algorithms and Flowcharts', content: 'Understand how to design algorithms and represent them using flowcharts for problem-solving.' },
-    { id: 'cs101-sem1-3-l1', title: 'Logic and Sets', content: 'Introduction to propositional logic, set theory, and their applications in computer science.' },
-    { id: 'cs101-sem1-4-l1', title: 'History of AI', content: 'Exploring the origins of AI and key milestones in its development.' },
-    { id: 'cs101-sem1-4-l2', title: 'Intro to Machine Learning', content: 'A brief overview of machine learning concepts, including supervised and unsupervised learning.' },
-    { id: 'cs101-sem1-5-l1', title: 'Digital Ethics', content: 'Understanding ethical issues in the digital world, including privacy, security, and intellectual property.' },
-    { id: 'cs101-sem2-1-l1', title: 'HTML Fundamentals', content: 'Learn the structure of web pages using HTML.' },
-    { id: 'cs101-sem2-1-l2', title: 'CSS for Styling', content: 'Discover how to style websites with CSS to create visually appealing layouts.' },
-    { id: 'cs101-sem2-1-l3', title: 'JavaScript for Interactivity', content: 'Introduction to JavaScript for adding dynamic behavior to web pages.' },
-    { id: 'cs101-sem2-2-l1', title: 'Relational Database Concepts', content: 'Understanding tables, keys, and relationships in relational databases.' },
-    { id: 'cs101-sem2-2-l2', title: 'Basic SQL Queries', content: 'Learn to retrieve and manipulate data using SQL commands like SELECT, INSERT, UPDATE, and DELETE.' },
-    { id: 'cs101-sem2-2-l3', title: 'Introduction to Firebase Firestore', content: 'An overview of NoSQL databases using Google\'s Firebase Firestore.' },
-    { id: 'cs101-sem2-3-l1', title: 'Software Development Life Cycle (SDLC)', content: 'Learn about the different phases of the SDLC, from planning to deployment.' },
-    { id: 'cs101-sem2-3-l2', title: 'Agile Methodologies', content: 'An introduction to Agile principles and frameworks like Scrum.' },
-    { id: 'cs101-sem2-4-l1', title: 'Introduction to Probability', content: 'Learn the basic concepts of probability and its importance in computer science.' },
-    { id: 'cs101-sem2-4-l2', title: 'Statistics for Data Science', content: 'An overview of statistical methods used in data analysis.' },
-    { id: 'cs101-sem2-5-l1', title: 'What is Blockchain?', content: 'A high-level overview of blockchain technology and its core concepts.' },
-    { id: 'cs101-sem2-5-l2', title: 'Introduction to Smart Contracts', content: 'Learn what smart contracts are and how they are used on a blockchain.' },
+    { id: 'l1-cs101', title: 'Digital Systems Overview', content: 'An overview of modern computer hardware, software, and networking components.' },
+    { id: 'l2-cs101', title: 'Cloud Collaboration', content: 'Hands-on skills using cloud storage and collaborative tools like Google Workspace or Microsoft 365.' },
+    { id: 'l3-cs101', title: 'Intro to Python', content: 'Learn the fundamentals of the Python programming language, including variables, data types, and control flow.' },
   ],
   nur201: [
-    { id: 'l1', title: 'Patient Assessment', content: 'Comprehensive and holistic assessment of a patient is the first step of the nursing process.' },
-    { id: 'l2', title: 'Pharmacology Basics', content: 'Understanding how drugs affect the body is crucial for safe medication administration.' },
+    { id: 'l1-nur201', title: 'Patient Assessment', content: 'Comprehensive and holistic assessment of a patient is the first step of the nursing process.' },
+    { id: 'l2-nur201', title: 'Pharmacology Basics', content: 'Understanding how drugs affect the body is crucial for safe medication administration.' },
   ],
   bus301: [
-    { id: 'l1', title: 'Strategic Marketing', content: 'Developing and implementing marketing strategies to achieve business objectives.' },
-    { id: 'l2', title: 'Financial Accounting', content: 'The process of recording, summarizing, and reporting a company\'s business transactions.' },
+    { id: 'l1-bus301', title: 'Strategic Marketing', content: 'Developing and implementing marketing strategies to achieve business objectives.' },
+    { id: 'l2-bus301', title: 'Financial Accounting', content: 'The process of recording, summarizing, and reporting a company\'s business transactions.' },
   ],
   eng401: [
-    { id: 'l1', title: 'Thermodynamics', content: 'The branch of physical science that deals with the relations between heat and other forms of energy.' },
+    { id: 'l1-eng401', title: 'Thermodynamics', content: 'The branch of physical science that deals with the relations between heat and other forms of energy.' },
   ],
   edu110: [
-    { id: 'l1', title: 'Child Psychology', content: 'Understanding the cognitive and emotional development of children.' },
+    { id: 'l1-edu110', title: 'Child Psychology', content: 'Understanding the cognitive and emotional development of children.' },
   ],
 };
 

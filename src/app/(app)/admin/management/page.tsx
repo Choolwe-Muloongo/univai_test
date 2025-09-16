@@ -1,66 +1,78 @@
 // src/app/(app)/admin/management/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2 } from 'lucide-react';
-import { schools as initialSchools, courses as initialCourses, type School, type Course } from '@/lib/data';
+import { PlusCircle, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { type School, type Course } from '@/lib/data';
+import { getSchoolsAndCourses, addSchool, addCourse, removeSchool, removeCourse } from './actions';
+import { useFormStatus } from 'react-dom';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+
+function SubmitButton({ text }: { text: string }) {
+    const { pending } = useFormStatus();
+    return (
+        <Button type="submit" disabled={pending}>
+            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} {text}
+        </Button>
+    )
+}
+
+function RemoveButton({ action, id, children }: { action: (id: string) => Promise<any>, id: string, children: React.ReactNode }) {
+    const [isPending, setIsPending] = useState(false);
+    
+    const handleClick = async () => {
+        setIsPending(true);
+        await action(id);
+        setIsPending(false);
+    };
+
+    return (
+        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={handleClick} disabled={isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : children}
+        </Button>
+    )
+}
+
 
 export default function AdminManagementPage() {
-    const [schools, setSchools] = useState<School[]>(initialSchools);
-    const [courses, setCourses] = useState<Course[]>(initialCourses);
+    const [schools, setSchools] = useState<School[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [loading, setLoading] = useState(true);
     
-    // State for forms
-    const [newSchoolName, setNewSchoolName] = useState('');
-    const [newCourseTitle, setNewCourseTitle] = useState('');
-    const [newCourseSchoolId, setNewCourseSchoolId] = useState('');
-    const [newCourseDescription, setNewCourseDescription] = useState('');
+    // Form States
+    const [addSchoolState, addSchoolAction] = useActionState(addSchool, null);
+    const [addCourseState, addCourseAction] = useActionState(addCourse, null);
+    
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            const { schools, courses } = await getSchoolsAndCourses();
+            setSchools(schools);
+            setCourses(courses);
+            setLoading(false);
+        }
+        fetchData();
+    }, [addSchoolState, addCourseState]); // Refetch when new items are added
 
-    const handleAddSchool = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newSchoolName.trim()) return;
-
-        const newSchool: School = {
-            id: newSchoolName.toLowerCase().replace(/\s+/g, '-'),
-            name: newSchoolName,
-        };
-
-        setSchools([...schools, newSchool]);
-        setNewSchoolName('');
-    };
-
-    const handleAddCourse = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newCourseTitle.trim() || !newCourseSchoolId || !newCourseDescription.trim()) return;
-
-        const newCourse: Course = {
-            id: `${newCourseSchoolId}-${Math.floor(100 + Math.random() * 900)}`,
-            title: newCourseTitle,
-            description: newCourseDescription,
-            schoolId: newCourseSchoolId,
-            progress: 0,
-            imageId: `${Math.floor(1 + Math.random() * 5)}`, // Random image
-        };
-
-        setCourses([...courses, newCourse]);
-        setNewCourseTitle('');
-        setNewCourseDescription('');
-        setNewCourseSchoolId('');
-    };
-
-    const handleRemoveSchool = (id: string) => {
+    const handleRemoveSchool = async (id: string) => {
+        await removeSchool(id);
         setSchools(schools.filter(school => school.id !== id));
-        // Also remove courses associated with that school
         setCourses(courses.filter(course => course.schoolId !== id));
     };
 
-    const handleRemoveCourse = (id: string) => {
+    const handleRemoveCourse = async (id: string) => {
+        await removeCourse(id);
         setCourses(courses.filter(course => course.id !== id));
     };
+
+    if (loading) {
+        return <div>Loading content...</div>
+    }
 
 
     return (
@@ -78,21 +90,24 @@ export default function AdminManagementPage() {
                         <CardDescription>Add or remove schools from the platform.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <form onSubmit={handleAddSchool} className="flex gap-2">
-                            <Input
-                                placeholder="New school name"
-                                value={newSchoolName}
-                                onChange={(e) => setNewSchoolName(e.target.value)}
-                            />
-                            <Button type="submit"><PlusCircle className="mr-2 h-4 w-4" /> Add School</Button>
+                        <form action={addSchoolAction} className="flex gap-2">
+                            <Input name="schoolName" placeholder="New school name" required/>
+                            <SubmitButton text="Add School" />
                         </form>
-                        <div className="space-y-2 rounded-lg border p-2">
+                         {addSchoolState?.error && (
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>Error</AlertTitle>
+                                <AlertDescription>{addSchoolState.error}</AlertDescription>
+                            </Alert>
+                        )}
+                        <div className="space-y-2 rounded-lg border p-2 min-h-48">
                             {schools.map(school => (
                                 <div key={school.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                     <span>{school.name}</span>
-                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleRemoveSchool(school.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <RemoveButton action={handleRemoveSchool} id={school.id}>
+                                         <Trash2 className="h-4 w-4" />
+                                    </RemoveButton>
                                 </div>
                             ))}
                         </div>
@@ -106,10 +121,10 @@ export default function AdminManagementPage() {
                         <CardDescription>Add new programs to a selected school.</CardDescription>
                     </CardHeader>
                      <CardContent>
-                        <form onSubmit={handleAddCourse} className="space-y-4">
+                        <form action={addCourseAction} className="space-y-4">
                             <div className="space-y-2">
                                 <Label>Select School</Label>
-                                <Select onValueChange={setNewCourseSchoolId} value={newCourseSchoolId}>
+                                <Select name="schoolId" required>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a school" />
                                     </SelectTrigger>
@@ -120,21 +135,20 @@ export default function AdminManagementPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Program Title</Label>
-                                <Input 
-                                    placeholder="e.g., Bachelor of Arts in History"
-                                    value={newCourseTitle}
-                                    onChange={(e) => setNewCourseTitle(e.target.value)}
-                                />
+                                <Input name="courseTitle" placeholder="e.g., Bachelor of Arts in History" required />
                             </div>
                             <div className="space-y-2">
                                 <Label>Program Description</Label>
-                                <Input 
-                                    placeholder="A brief description of the program"
-                                    value={newCourseDescription}
-                                    onChange={(e) => setNewCourseDescription(e.target.value)}
-                                />
+                                <Input name="courseDescription" placeholder="A brief description of the program" required />
                             </div>
-                            <Button type="submit" className="w-full"><PlusCircle className="mr-2 h-4 w-4"/> Add Program</Button>
+                             {addCourseState?.error && (
+                                <Alert variant="destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertTitle>Error</AlertTitle>
+                                    <AlertDescription>{addCourseState.error}</AlertDescription>
+                                </Alert>
+                            )}
+                            <SubmitButton text="Add Program" />
                         </form>
                     </CardContent>
                 </Card>
@@ -155,9 +169,9 @@ export default function AdminManagementPage() {
                                             <p className='font-medium'>{course.title}</p>
                                             <p className='text-sm text-muted-foreground'>{course.description}</p>
                                         </div>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleRemoveCourse(course.id)}>
+                                         <RemoveButton action={handleRemoveCourse} id={course.id}>
                                             <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        </RemoveButton>
                                     </div>
                                 ))}
                                 {courses.filter(c => c.schoolId === school.id).length === 0 && (
