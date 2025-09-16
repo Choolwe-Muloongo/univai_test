@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -39,7 +38,7 @@ type NavLink = {
 const allLinks: { [key: string]: NavLink[] } = {
   student: [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/courses', label: 'Courses', icon: GraduationCap },
+    { href: '/program', label: 'My Program', icon: GraduationCap },
     { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
     { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
     { href: '/wallet', label: 'My Wallet', icon: Wallet },
@@ -94,7 +93,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={link.href}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href) && link.href.split('/').length > 1)}
+                isActive={pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href) && link.href.split('/').length > 1)}
                 tooltip={link.label}
                 className="justify-start"
               >

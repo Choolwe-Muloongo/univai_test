@@ -12,6 +12,24 @@ export type Course = {
   imageId: string;
 };
 
+export type ProgramModule = {
+  id: string;
+  title: string;
+  description: string;
+  progress: number;
+};
+
+export type Program = {
+  id: string;
+  title: string;
+  description: string;
+  schoolId: string;
+  progress: number;
+  imageId: string;
+  modules: ProgramModule[];
+};
+
+
 export type Lesson = {
   id: string;
   title: string;
@@ -98,6 +116,22 @@ export const courses: Course[] = [
     imageId: '5',
   },
 ];
+
+export const program: Program = {
+    id: 'prog1',
+    title: 'BSc in Computer Science',
+    description: 'This program provides a comprehensive foundation in computer science, covering key concepts from programming and algorithms to software engineering and artificial intelligence. Students will gain hands-on experience through practical projects and labs, preparing them for a successful career in the tech industry.',
+    schoolId: 'ict',
+    progress: 75,
+    imageId: '1',
+    modules: [
+        { id: 'cs101-1', title: 'Introduction to Programming', description: 'Learn the fundamentals of programming using Python.', progress: 100 },
+        { id: 'cs101-2', title: 'Data Structures and Algorithms', description: 'Understand essential data structures and algorithms.', progress: 80 },
+        { id: 'cs101-3', title: 'Software Engineering Principles', description: 'Explore the methodologies of software development.', progress: 60 },
+        { id: 'cs101-4', title: 'Database Management Systems', description: 'Learn to design and manage databases.', progress: 40 },
+        { id: 'cs101-5', title: 'Introduction to AI', description: 'A brief overview of artificial intelligence concepts.', progress: 15 },
+    ]
+}
 
 export const lessons: { [courseId: string]: Lesson[] } = {
   cs101: [

@@ -1,3 +1,4 @@
+// src/app/(app)/dashboard/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import {
@@ -45,6 +46,9 @@ export default function DashboardPage() {
         <Card className='mb-6'>
             <CardHeader>
                 <CardTitle>My Program</CardTitle>
+                 <CardDescription>
+                    Your central hub for course materials, progress, and modules.
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex items-center gap-4 mb-4">
@@ -64,9 +68,15 @@ export default function DashboardPage() {
                         <span>{studentCourse.progress}%</span>
                     </div>
                     <Progress value={studentCourse.progress} className="h-4" />
-                    <p className='text-xs text-muted-foreground text-right'>Your journey to graduation!</p>
                 </div>
             </CardContent>
+             <CardFooter>
+                 <Button asChild className="w-full">
+                    <Link href="/program">
+                    Go to My Program <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </CardFooter>
         </Card>
         <Card>
           <CardHeader>
