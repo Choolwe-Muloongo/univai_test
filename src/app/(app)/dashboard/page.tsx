@@ -11,39 +11,69 @@ import {
 } from '@/components/ui/card';
 import { ProgressChart } from '@/components/dashboard/progress-chart';
 import { QuickLinks } from '@/components/dashboard/quick-links';
-import { courses, schools, type Course, type School } from '@/lib/data';
-import { GraduationCap, Wallet, ArrowRight } from 'lucide-react';
+import { program, type Program } from '@/lib/data';
+import { GraduationCap, Wallet, ArrowRight, BookOpen } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const [studentCourse, setStudentCourse] = useState<Course | null>(null);
-  const [studentSchool, setStudentSchool] = useState<School | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     const role = localStorage.getItem('userRole');
-    const schoolId = localStorage.getItem('userSchoolId');
-    const isStudent = role === 'student' || role === 'premium-student';
-
-    if (isStudent && schoolId) {
-      const course = courses.find(c => c.schoolId === schoolId);
-      const school = schools.find(s => s.id === schoolId);
-      setStudentCourse(course || null);
-      setStudentSchool(school || null);
-    } else {
-        // Default for non-student roles or if not found
-        setStudentCourse(courses[0]);
-        setStudentSchool(schools.find(s => s.id === courses[0].schoolId) || null);
-    }
+    setUserRole(role);
   }, []);
 
-  if (!isClient || !studentCourse || !studentSchool) {
+  if (!isClient) {
     // You can add a loading state here
     return <div>Loading...</div>;
   }
+
+  const isFreemium = userRole === 'freemium-student';
+
+  if (isFreemium) {
+    return (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Welcome to UnivAI!</CardTitle>
+                        <CardDescription>
+                            Your journey to higher education starts here. Upgrade to Premium to enroll in a program.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                <BookOpen className="h-6 w-6 text-primary" />
+                            </div>
+                            <div>
+                                <p className="font-semibold text-lg">Explore Our Programs</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Browse our available schools and programs to find your fit.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button asChild className="w-full">
+                            <Link href="/courses">
+                            View All Courses <ArrowRight className="ml-2 h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+             <div className="lg:col-span-1 space-y-6">
+                <QuickLinks />
+            </div>
+        </div>
+    );
+  }
+
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -61,18 +91,18 @@ export default function DashboardPage() {
                         <GraduationCap className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                        <p className="font-semibold text-lg">{studentCourse.title}</p>
+                        <p className="font-semibold text-lg">{program.title}</p>
                         <p className="text-sm text-muted-foreground">
-                            {studentSchool?.name}
+                            School of ICT
                         </p>
                     </div>
                 </div>
                 <div className='space-y-2'>
                     <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Overall Progress</span>
-                        <span>{studentCourse.progress}%</span>
+                        <span>{program.progress}%</span>
                     </div>
-                    <Progress value={studentCourse.progress} className="h-4" />
+                    <Progress value={program.progress} className="h-4" />
                 </div>
             </CardContent>
              <CardFooter>

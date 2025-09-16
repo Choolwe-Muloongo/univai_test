@@ -56,7 +56,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   ],
   'freemium-student': [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/courses', label: 'Courses', icon: GraduationCap },
+    { href: '/program', label: 'My Program', icon: GraduationCap },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/payments', label: 'Upgrade', icon: CreditCard },
   ],
@@ -84,7 +84,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   lecturer: [
       { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/lecturer/profile', label: 'Profile', icon: User },
-      { href: '/courses', label: 'My Courses', icon: GraduationCap },
+      { href: '/program', label: 'My Program', icon: GraduationCap },
       { href: '#', label: 'Student Progress', icon: UserCheck },
       { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
       { href: '/community', label: 'Community', icon: Users },
