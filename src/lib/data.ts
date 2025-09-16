@@ -48,6 +48,15 @@ export type Job = {
   type: 'Full-time' | 'Internship';
 };
 
+export type ResearchOpportunity = {
+  id: string;
+  title: string;
+  company: string;
+  description: string;
+  field: string;
+};
+
+
 export type DiscussionComment = {
     id: string;
     author: string;
@@ -233,6 +242,12 @@ export const jobs: Job[] = [
   { id: 'j4', title: 'Frontend Developer', company: 'Innovate Solutions', location: 'Remote', type: 'Full-time' },
 ];
 
+export const researchOpportunities: ResearchOpportunity[] = [
+    { id: 'r1', title: 'AI in Medical Diagnosis', company: 'HealthFirst Hospital', description: 'Investigating the application of machine learning models to improve diagnostic accuracy in radiology.', field: 'Healthcare AI' },
+    { id: 'r2', title: 'Next-Gen UI/UX with AI', company: 'Innovate Solutions', description: 'Researching how generative AI can be used to create adaptive and personalized user interfaces.', field: 'Human-Computer Interaction' },
+    { id: 'r3', title: 'Decentralized Finance (DeFi) Protocols', company: 'AftaCoin', description: 'Analyzing the security and scalability of novel DeFi protocols on the blockchain.', field: 'Blockchain' },
+];
+
 export const discussions: Discussion[] = [
   { 
     id: 'd1', 
@@ -299,3 +314,5 @@ export const leaderboardData: LeaderboardStudent[] = [
     { id: 's4', rank: 4, name: 'Charlie Brown', avatar: 'https://i.pravatar.cc/80?u=charlie', school: 'School of ICT', points: 1050 },
     { id: 's5', rank: 5, name: 'Diana Miller', avatar: 'https://i.pravatar.cc/80?u=diana', school: 'School of Nursing', points: 980 },
 ]
+
+    

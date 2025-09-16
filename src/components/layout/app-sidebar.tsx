@@ -51,6 +51,7 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/jobs', label: 'Job Board', icon: Briefcase },
+    { href: '/research', label: 'Research Hub', icon: FlaskConical },
     { href: '/payments', label: 'Billing', icon: Landmark },
   ],
   'freemium-student': [
@@ -69,6 +70,7 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/jobs', label: 'Job Board', icon: Briefcase },
+    { href: '/research', label: 'Research Hub', icon: FlaskConical },
     { href: '/payments', label: 'Billing', icon: Landmark },
   ],
   admin: [
@@ -86,6 +88,7 @@ const allLinks: { [key: string]: NavLink[] } = {
       { href: '#', label: 'Student Progress', icon: UserCheck },
       { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
       { href: '/community', label: 'Community', icon: Users },
+      { href: '/research', label: 'Research Hub', icon: FlaskConical },
   ],
   employer: [
     { href: '/employer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -133,3 +136,5 @@ export function AppSidebar() {
     </>
   );
 }
+
+    
