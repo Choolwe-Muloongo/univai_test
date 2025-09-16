@@ -39,6 +39,7 @@ type NavLink = {
     href: string;
     label: string;
     icon: React.ElementType;
+    key?: string;
 }
 
 const allLinks: { [key: string]: NavLink[] } = {
@@ -85,7 +86,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   lecturer: [
       { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/lecturer/profile', label: 'Profile', icon: User },
-      { href: '/lecturer/dashboard', label: 'Course Management', icon: BookMarked },
+      { href: '/lecturer/dashboard', label: 'Course Management', icon: BookMarked, key: 'lecturer-course-management' },
       { href: '#', label: 'Student Progress', icon: UserCheck },
       { href: '/community', label: 'Community', icon: Users },
       { href: '/research', label: 'Research Hub', icon: FlaskConical },
@@ -118,7 +119,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarMenu>
           {links.map((link) => (
-            <SidebarMenuItem key={link.href}>
+            <SidebarMenuItem key={link.key || link.href}>
               <Link href={link.href}>
                 <SidebarMenuButton
                   isActive={pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href) && link.href.split('/').length > 2)}
@@ -136,5 +137,3 @@ export function AppSidebar() {
     </>
   );
 }
-
-    
