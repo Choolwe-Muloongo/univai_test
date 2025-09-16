@@ -91,17 +91,16 @@ export function AppSidebar() {
         <SidebarMenu>
           {links.map((link) => (
             <SidebarMenuItem key={link.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href) && link.href.split('/').length > 1)}
-                tooltip={link.label}
-                className="justify-start"
-              >
-                <Link href={link.href} className='flex items-center gap-2'>
+              <Link href={link.href}>
+                <SidebarMenuButton
+                  isActive={pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href) && link.href.split('/').length > 1)}
+                  tooltip={link.label}
+                  className="justify-start"
+                >
                   <link.icon className="size-5" />
                   <span>{link.label}</span>
-                </Link>
-              </SidebarMenuButton>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
