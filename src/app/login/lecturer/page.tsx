@@ -8,18 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import Link from 'next/link';
 
-const testUser = {
-  email: 'lecturer@univai.edu',
-  password: 'password123',
-  role: 'lecturer',
-};
-
 export default function LecturerLoginPage() {
   const router = useRouter();
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    localStorage.setItem('userRole', testUser.role);
+    localStorage.setItem('userRole', 'lecturer');
     localStorage.removeItem('userSchoolId');
     router.push('/lecturer/dashboard');
   };
@@ -46,8 +40,9 @@ export default function LecturerLoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  value={testUser.email}
-                  readOnly
+                  placeholder="lecturer@univai.edu"
+                  defaultValue="lecturer@univai.edu"
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -55,8 +50,8 @@ export default function LecturerLoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  value={testUser.password}
-                  readOnly
+                  defaultValue="password123"
+                  required
                 />
               </div>
             </CardContent>

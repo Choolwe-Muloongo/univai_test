@@ -8,18 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import Link from 'next/link';
 
-const testUser = {
-  email: 'admin@univai.edu',
-  password: 'password123',
-  role: 'admin',
-};
-
 export default function AdminLoginPage() {
   const router = useRouter();
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    localStorage.setItem('userRole', testUser.role);
+    // In a real app, you'd handle Firebase auth here.
+    // For this prototype, we'll simulate a login.
+    localStorage.setItem('userRole', 'admin');
     localStorage.removeItem('userSchoolId');
     router.push('/admin/dashboard');
   };
@@ -46,8 +42,9 @@ export default function AdminLoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  value={testUser.email}
-                  readOnly
+                  placeholder="admin@univai.edu"
+                  defaultValue="admin@univai.edu"
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -55,8 +52,8 @@ export default function AdminLoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  value={testUser.password}
-                  readOnly
+                  defaultValue="password123"
+                  required
                 />
               </div>
             </CardContent>
