@@ -2,26 +2,25 @@
 
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { type Course, type Lesson } from "@/lib/data";
+import { type Course, type Lesson, courses, lessons as allLessons } from "@/lib/data";
 
 export async function getCourseAndLessons(courseId: string): Promise<{ course: Course | null, lessons: Lesson[] }> {
     try {
-        const courseRef = doc(db, 'courses', courseId);
-        const courseSnap = await getDoc(courseRef);
-
-        if (!courseSnap.exists()) {
+        // Simulate fetching from a database by finding in our mock data
+        const course = courses.find(c => c.id === courseId) || null;
+        
+        if (!course) {
             return { course: null, lessons: [] };
         }
 
-        const course = { id: courseSnap.id, ...courseSnap.data() } as Course;
-
-        const lessonsRef = collection(db, 'courses', courseId, 'lessons');
-        const lessonsSnap = await getDocs(lessonsRef);
-        const lessons = lessonsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lesson));
+        // In a real app, lessons would be fetched from Firestore.
+        // For this demo, we'll use the hardcoded lessons if they exist.
+        const lessons = allLessons[courseId as keyof typeof allLessons] || [];
 
         return { course, lessons };
     } catch (error) {
         console.error("Error fetching course and lessons:", error);
-        throw new Error("Failed to fetch course data.");
+        // We're returning mock data, but keep the error handling structure
+        return { course: null, lessons: [] };
     }
 }
