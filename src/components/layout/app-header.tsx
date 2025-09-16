@@ -1,5 +1,6 @@
+// src/components/layout/app-header.tsx
 'use client';
-import { Bell, Search, LogOut } from 'lucide-react';
+import { Bell, Search, LogOut, User } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import Link from 'next/link';
 
 
 const roleDetails = {
@@ -29,10 +31,13 @@ const roleDetails = {
 
 export function AppHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState({name: '', email: '', avatar: ''});
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole') || 'premium-student';
+    setUserRole(role);
     setUser(roleDetails[role as keyof typeof roleDetails] || roleDetails.student);
   }, []);
 
@@ -41,6 +46,8 @@ export function AppHeader() {
     localStorage.removeItem('userSchoolId');
     router.push('/login');
   };
+
+  const isStudent = userRole?.includes('student');
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
@@ -80,7 +87,11 @@ export function AppHeader() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
+            { isStudent &&
+                <DropdownMenuItem asChild>
+                    <Link href="/profile"><User className="mr-2 h-4 w-4" />Profile</Link>
+                </DropdownMenuItem>
+            }
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>

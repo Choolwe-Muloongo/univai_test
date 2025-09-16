@@ -1,3 +1,4 @@
+// src/components/layout/app-sidebar.tsx
 'use client';
 
 import {
@@ -16,6 +17,7 @@ import {
   Wallet,
   Landmark,
   CreditCard,
+  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -43,16 +45,16 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
     { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
     { href: '/wallet', label: 'My Wallet', icon: Wallet },
-    { href: '/payments', label: 'Payments', icon: Landmark },
+    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/jobs', label: 'Job Board', icon: Briefcase },
+    { href: '/payments', label: 'Billing', icon: Landmark },
   ],
   'freemium-student': [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/courses', label: 'Courses', icon: GraduationCap },
     { href: '/community', label: 'Community', icon: Users },
-    { href: '/payments', label: 'Upgrade', icon: Landmark },
-    { href: '/checkout', label: 'Checkout', icon: CreditCard },
+    { href: '/payments', label: 'Upgrade', icon: CreditCard },
   ],
   student: [ // Fallback for original student role
     { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -60,9 +62,10 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
     { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
     { href: '/wallet', label: 'My Wallet', icon: Wallet },
-    { href: '/payments', label: 'Payments', icon: Landmark },
+    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/jobs', label: 'Job Board', icon: Briefcase },
+    { href: '/payments', label: 'Billing', icon: Landmark },
   ],
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },

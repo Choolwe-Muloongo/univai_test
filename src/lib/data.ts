@@ -1,3 +1,4 @@
+// src/lib/data.ts
 
 export type School = {
   id: string;
@@ -76,6 +77,23 @@ export type ConsultantApplication = {
   };
 };
 
+export type Badge = {
+    id: string;
+    title: string;
+    description: string;
+    icon: string;
+}
+
+export type LeaderboardStudent = {
+    id: string;
+    rank: number;
+    name: string;
+    avatar: string;
+    school: string;
+    points: number;
+}
+
+
 export const schools: School[] = [
   { id: 'edu', name: 'School of Education' },
   { id: 'ict', name: 'School of ICT' },
@@ -130,7 +148,7 @@ export const courses: Course[] = [
 export const program: Program = {
     id: 'cs101',
     title: 'Bachelor of Science in Software Development and Emerging Technologies',
-    description: 'Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs. Target Students: Aspiring software developers, future blockchain and AI specialists, and digital entrepreneurs. Outcome: Graduates can build scalable, secure, and innovative tech solutions, ready for global careers.',
+    description: "Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs. Target Students: Aspiring software developers, future blockchain and AI specialists, and digital entrepreneurs. Outcome: Graduates can build scalable, secure, and innovative tech solutions, ready for global careers.",
     schoolId: 'ict',
     progress: 15,
     imageId: '1',
@@ -245,3 +263,18 @@ export const consultantApplications: ConsultantApplication[] = [
     documents: { cv: '#', id: '#' },
   },
 ];
+
+export const badges: Badge[] = [
+    { id: 'b1', title: 'Module Master', description: 'Complete your first module.', icon: 'award' },
+    { id: 'b2', title: 'Top Performer', description: 'Achieve over 90% in an exam.', icon: 'star' },
+    { id: 'b3', title: 'Course Completer', description: 'Finish an entire course program.', icon: 'book' },
+    { id: 'b4', title: 'Community Helper', description: 'Receive 10 upvotes on a comment.', icon: 'users' },
+]
+
+export const leaderboardData: LeaderboardStudent[] = [
+    { id: 's1', rank: 1, name: 'Premium Student', avatar: 'https://i.pravatar.cc/80?u=student-premium', school: 'School of ICT', points: 1250 },
+    { id: 's2', rank: 2, name: 'Alice Johnson', avatar: 'https://i.pravatar.cc/80?u=alice', school: 'School of Business', points: 1180 },
+    { id: 's3', rank: 3, name: 'Bob Williams', avatar: 'https://i.pravatar.cc/80?u=bob', school: 'School of Engineering', points: 1120 },
+    { id: 's4', rank: 4, name: 'Charlie Brown', avatar: 'https://i.pravatar.cc/80?u=charlie', school: 'School of ICT', points: 1050 },
+    { id: 's5', rank: 5, name: 'Diana Miller', avatar: 'https://i.pravatar.cc/80?u=diana', school: 'School of Nursing', points: 980 },
+]
