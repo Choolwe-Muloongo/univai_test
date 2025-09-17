@@ -121,7 +121,7 @@ export default function ProgramPage() {
                         <Progress value={module.progress} className="h-2" />
                       </div>
                       <Button asChild className='mt-4'>
-                          <Link href={`/courses/${program.id}`}>Go to Module</Link>
+                          <Link href={`/courses/${module.id}`}>Go to Module</Link>
                       </Button>
                     </CardContent>
                   </Card>
