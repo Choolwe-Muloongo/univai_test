@@ -122,7 +122,7 @@ export const courses: Course[] = [
     title: 'Bachelor of Science in Software Development and Emerging Technologies',
     description: 'Foundational concepts of computing, including algorithms, data structures, and software engineering.',
     schoolId: 'ict',
-    progress: 15,
+    progress: 100,
     imageId: '1',
   },
   {
@@ -164,19 +164,19 @@ export const program: Program = {
     title: 'Bachelor of Science in Software Development and Emerging Technologies',
     description: "Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs. Target Students: Aspiring software developers, future blockchain and AI specialists, and digital entrepreneurs. Outcome: Graduates can build scalable, secure, and innovative tech solutions, ready for global careers.",
     schoolId: 'ict',
-    progress: 15,
+    progress: 100,
     imageId: '1',
     modules: [
         { id: 'cs101-sem1-1', title: 'Introduction to ICT and Digital Literacy', description: 'Overview of computers, networks, and digital systems.', progress: 100, semester: 1, isExamAvailable: true },
-        { id: 'cs101-sem1-2', title: 'Fundamentals of Programming', description: 'Introduction to programming using Python.', progress: 80, semester: 1, isExamAvailable: false },
-        { id: 'cs101-sem1-3', title: 'Mathematics for Computer Science I', description: 'Logic, sets, functions, and basic discrete math.', progress: 60, semester: 1, isExamAvailable: false },
-        { id: 'cs101-sem1-4', title: 'Introduction to Artificial Intelligence', description: 'History and applications of AI.', progress: 40, semester: 1, isExamAvailable: false },
-        { id: 'cs101-sem1-5', title: 'Professional Development & Ethics', description: 'Digital ethics, professionalism, and communication skills.', progress: 15, semester: 1, isExamAvailable: false },
-        { id: 'cs101-sem2-1', title: 'Web Development I (Frontend Basics)', description: 'HTML, CSS, JavaScript fundamentals. Building responsive websites.', progress: 0, semester: 2, isExamAvailable: false },
-        { id: 'cs101-sem2-2', title: 'Database Systems I', description: 'Introduction to relational databases. SQL basics and Firebase Firestore integration.', progress: 0, semester: 2, isExamAvailable: false },
-        { id: 'cs101-sem2-3', title: 'Software Engineering Principles', description: 'SDLC, Agile, and DevOps basics.', progress: 0, semester: 2, isExamAvailable: false },
-        { id: 'cs101-sem2-4', title: 'Mathematics for Computer Science II', description: 'Probability, statistics, and linear algebra.', progress: 0, semester: 2, isExamAvailable: false },
-        { id: 'cs101-sem2-5', title: 'Blockchain Fundamentals', description: 'Blockchain concepts, smart contracts, and AFTACOIN integration.', progress: 0, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem1-2', title: 'Fundamentals of Programming', description: 'Introduction to programming using Python.', progress: 100, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem1-3', title: 'Mathematics for Computer Science I', description: 'Logic, sets, functions, and basic discrete math.', progress: 100, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem1-4', title: 'Introduction to Artificial Intelligence', description: 'History and applications of AI.', progress: 100, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem1-5', title: 'Professional Development & Ethics', description: 'Digital ethics, professionalism, and communication skills.', progress: 100, semester: 1, isExamAvailable: false },
+        { id: 'cs101-sem2-1', title: 'Web Development I (Frontend Basics)', description: 'HTML, CSS, JavaScript fundamentals. Building responsive websites.', progress: 100, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-2', title: 'Database Systems I', description: 'Introduction to relational databases. SQL basics and Firebase Firestore integration.', progress: 100, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-3', title: 'Software Engineering Principles', description: 'SDLC, Agile, and DevOps basics.', progress: 100, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-4', title: 'Mathematics for Computer Science II', description: 'Probability, statistics, and linear algebra.', progress: 100, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-5', title: 'Blockchain Fundamentals', description: 'Blockchain concepts, smart contracts, and AFTACOIN integration.', progress: 100, semester: 2, isExamAvailable: false },
     ]
 }
 
