@@ -8,7 +8,7 @@ import { generateVideoLecture } from '@/ai/flows/video-generation';
 import { generateCourseContent } from '@/ai/flows/content-generation';
 import { GenerateContentInputSchema } from '@/lib/schemas';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 
 
 const studyPlanSchema = z.object({

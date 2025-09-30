@@ -1,6 +1,6 @@
 'use server';
 import { collection, getDocs, doc, writeBatch, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db } from "@/lib/firebase-client";
 import { type School, type Course } from "@/lib/data";
 import { revalidatePath } from "next/cache";
 

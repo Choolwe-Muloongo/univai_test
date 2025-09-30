@@ -198,6 +198,7 @@ export const semester1ExamQuestions = [
       },
 ];
 
+export type LessonWithCourseId = Lesson & { courseId: string };
 
 export const lessons: { [courseId: string]: Lesson[] } = {
   cs101: [
@@ -220,6 +221,17 @@ export const lessons: { [courseId: string]: Lesson[] } = {
     { id: 'l1-edu110', title: 'Child Psychology', content: 'Understanding the cognitive and emotional development of children.' },
   ],
 };
+
+/**
+ * Utility function to flatten the nested lessons object into a single array
+ * with the courseId added to each lesson object.
+ */
+export const flattenedLessons: LessonWithCourseId[] = Object.keys(lessons).flatMap(courseId => {
+    return lessons[courseId].map(lesson => ({
+        ...lesson,
+        courseId: courseId, // Add the courseId from the key
+    }));
+});
 
 export const jobs: Job[] = [
   { id: 'j1', title: 'Software Engineer Intern', company: 'TechCorp', location: 'Remote', type: 'Internship' },

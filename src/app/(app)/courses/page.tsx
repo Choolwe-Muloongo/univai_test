@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db, app } from '@/lib/firebase';
+import { db, app } from '@/lib/firebase-client';
 
 import {
   Card,

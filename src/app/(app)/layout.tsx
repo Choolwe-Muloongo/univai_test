@@ -7,6 +7,43 @@ import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { useEffect, useState } from 'react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+
+  useEffect(() => {
+    // Check for a flag/cookie/localStorage to avoid calling the API on every client-side navigation
+    // (This is an extra optimization, the API route already prevents duplicate seeding)
+    const hasAttemptedSeed = localStorage.getItem('hasAttemptedSeed');
+    
+    if (!hasAttemptedSeed) {
+      const seedDatabase = async () => {
+        try {
+          // Call the API route created in Step 2
+          const response = await fetch('/api/seed', { 
+            method: 'POST',
+            // Headers are often needed for POST requests in Route Handlers
+            headers: {
+                'Content-Type': 'application/json',
+            },
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok) {
+            console.log(data.message);
+            // Mark as attempted, even if it said 'already seeded'
+            localStorage.setItem('hasAttemptedSeed', 'true');
+          } else {
+            // Handle error response from API
+            console.error('Seeding failed:', data.message);
+          }
+        } catch (error) {
+          console.error('Network or unhandled error during seeding:', error);
+        }
+      };
+
+      seedDatabase();
+    }
+  }, []);
+
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {

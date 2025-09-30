@@ -49,6 +49,7 @@ const nextConfig: NextConfig = {
       timeout: 120,
     },
   },
+  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', '172.23.128.1'],
 };
 
 export default nextConfig;

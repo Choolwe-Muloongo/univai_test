@@ -1,7 +1,7 @@
 'use server';
 
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db } from "@/lib/firebase-client";
 import { type Course, type Lesson } from "@/lib/data";
 
 export async function getCourseAndLessons(courseId: string): Promise<{ course: Course | null, lessons: Lesson[] }> {

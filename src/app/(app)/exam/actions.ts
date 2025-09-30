@@ -2,7 +2,7 @@
 'use server';
 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-client';
 import { z } from 'zod';
 
 const ExamResultSchema = z.object({
