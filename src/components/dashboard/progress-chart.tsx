@@ -33,7 +33,7 @@ export function ProgressChart() {
             tickLine={false}
             tickMargin={10}
             axisLine={false}
-            tickFormatter={(value) => value.split(' ').map(c => c[0]).join('').slice(0, 4)}
+            tickFormatter={(value) => value.split(' ').map((c: any[]) => c[0]).join('').slice(0, 4)}
           />
           <YAxis
             tickFormatter={(value) => `${value}%`}

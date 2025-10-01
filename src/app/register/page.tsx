@@ -77,7 +77,9 @@ export default function RegisterPage() {
       console.error("Registration error:", error);
       const errorCode = error.code;
       if (errorCode === 'auth/email-already-in-use') {
-        setError(<>This email address is already in use. <Link href="/login" className="font-semibold underline">Login here.</Link></>);
+        //Argument of type 'Element' is not assignable to parameter of type 'SetStateAction<string | null>'
+        //setError(<>This email address is already in use. <Link href="/login" className="font-semibold underline">Login here.</Link></>);
+        setError('This email address is already in use.');
       } else if (errorCode === 'auth/weak-password') {
         setError('The password is too weak. It must be at least 6 characters long.');
       } else {
