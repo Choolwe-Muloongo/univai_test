@@ -14,7 +14,7 @@ const getQuestionsForSemester = (semesterId: string) => {
     return []; // Return empty for other semesters for now
 }
 
-export default async function SemesterExamPage( props : { params: { semesterId: string } }) {
+export default async function SemesterExamPage( props : { params: Promise<{ semesterId: string }> }) {
   const params = await props.params
   const { semesterId } = params;
   
