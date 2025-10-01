@@ -46,7 +46,9 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
       // Increase timeout for slow video generation
-      timeout: 120,
+      // Type error: Object literal may only specify known properties, and 'timeout' does not exist
+      // in type '{ bodySizeLimit?: SizeLimit | undefined; allowedOrigins?: string[] | undefined; }'.
+      //timeout: 120,
     },
   },
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', '172.23.128.1'],
