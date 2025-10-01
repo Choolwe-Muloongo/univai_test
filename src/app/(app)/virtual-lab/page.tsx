@@ -10,6 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Loader2, Sparkles, Wand2 } from 'lucide-react';
 
+interface BaseGeneratorState {
+  // message can be a string (error/success) or null initially
+  message: string | null; 
+  // errors can be an object map (for validation) or null
+  errors: { [key: string]: string[] | undefined } | null;
+}
+
+// Specific state for Quiz/Exercise Generators
+interface VirtualLabState extends BaseGeneratorState {
+  feedback: string | null;
+  correctedCode: string | null;
+}
+
 const exampleCode = `# Welcome to the Virtual Lab!
 # Paste your code here and get instant AI feedback.
 
@@ -42,7 +55,7 @@ function SubmitButton() {
 
 export default function VirtualLabPage() {
   const initialState = { message: null, errors: null, feedback: null, correctedCode: null };
-  const [state, dispatch] = useActionState(analyzeCodeAction, initialState);
+  const [state, dispatch] = useActionState<VirtualLabState, FormData>(analyzeCodeAction, initialState);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -18,6 +18,18 @@ import { aiTutorAction } from '@/app/(app)/actions';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
+interface BaseGeneratorState {
+  // message can be a string (error/success) or null initially
+  message: string | null; 
+  // errors can be an object map (for validation) or null
+  errors: { [key: string]: string[] | undefined } | null;
+}
+
+// Specific state for Quiz/Exercise Generators
+interface TutorState extends BaseGeneratorState {
+  answer: string | null;
+}
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -36,7 +48,7 @@ function SubmitButton() {
 
 export default function TutorPage() {
   const initialState = { message: null, answer: null, errors: null };
-  const [state, dispatch] = useActionState(aiTutorAction, initialState);
+  const [state, dispatch] = useActionState<TutorState, FormData>(aiTutorAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {

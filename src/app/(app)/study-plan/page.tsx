@@ -17,6 +17,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { generateStudyPlanAction } from '@/app/(app)/actions';
 import { Loader2 } from 'lucide-react';
 
+interface BaseGeneratorState {
+  // message can be a string (error/success) or null initially
+  message: string | null; 
+  // errors can be an object map (for validation) or null
+  errors: { [key: string]: string[] | undefined } | null;
+}
+
+// Specific state for Quiz/Exercise Generators
+interface StudyPlanState extends BaseGeneratorState {
+  studyPlan: string | null;
+}
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -35,7 +47,7 @@ function SubmitButton() {
 
 export default function StudyPlanPage() {
   const initialState = { message: null, studyPlan: null, errors: null };
-  const [state, dispatch] = useActionState(generateStudyPlanAction, initialState);
+  const [state, dispatch] = useActionState<StudyPlanState, FormData>(generateStudyPlanAction, initialState);
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
