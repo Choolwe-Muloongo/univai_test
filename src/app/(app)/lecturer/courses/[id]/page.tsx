@@ -36,6 +36,23 @@ const studentResults = [
     { name: 'David', score: null, progress: 20 },
 ];
 
+interface BaseGeneratorState {
+  // message can be a string (error/success) or null initially
+  message: string | null; 
+  // errors can be an object map (for validation) or null
+  errors: { [key: string]: string[] | undefined } | null;
+}
+
+// Specific state for the VideoGenerator
+interface VideoState extends BaseGeneratorState {
+  videoUrl: string | null;
+}
+
+// Specific state for Quiz/Exercise Generators
+interface ContentState extends BaseGeneratorState {
+  content: string | null;
+}
+
 function AIGeneratorButton({ icon: Icon, text }: { icon: React.ElementType, text: string }) {
   const { pending } = useFormStatus();
   return (
@@ -57,7 +74,7 @@ function AIGeneratorButton({ icon: Icon, text }: { icon: React.ElementType, text
 
 function VideoGenerator({ courseId, lessonId, lessonTitle }: { courseId: string, lessonId: string, lessonTitle: string }) {
   const initialState = { message: null, errors: null, videoUrl: null };
-  const [state, dispatch] = useActionState(generateVideoAction, initialState);
+  const [state, dispatch] = useActionState<VideoState, FormData>(generateVideoAction, initialState);
   const [prompt, setPrompt] = useState(`A 5-second educational video about: ${lessonTitle}.`);
 
   useEffect(() => {
@@ -113,7 +130,7 @@ function VideoGenerator({ courseId, lessonId, lessonTitle }: { courseId: string,
 
 function QuizGenerator({ courseId, lessonId, lessonTitle }: { courseId: string, lessonId: string, lessonTitle: string }) {
   const initialState = { message: null, errors: null, content: null };
-  const [state, dispatch] = useActionState(generateContentAction, initialState);
+  const [state, dispatch] = useActionState<ContentState, FormData>(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
 
   const quiz = useMemo(() => {
@@ -191,7 +208,8 @@ function QuizGenerator({ courseId, lessonId, lessonTitle }: { courseId: string, 
 
 function ExerciseGenerator({ courseId, lessonId, lessonTitle }: { courseId: string, lessonId: string, lessonTitle: string }) {
   const initialState = { message: null, errors: null, content: null };
-  const [state, dispatch] = useActionState(generateContentAction, initialState);
+  const [state, dispatch] = useActionState<ContentState, FormData>(generateContentAction, initialState);
+  //const [state, dispatch] = useActionState(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
 
   useEffect(() => {
