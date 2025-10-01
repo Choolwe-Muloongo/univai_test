@@ -78,6 +78,7 @@ export default function ExamClientPage({
 
     const getCameraPermission = async () => {
       try {
+        //Error: Cannot read properties of undefined (reading 'getUserMedia')
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         setHasCameraPermission(true);
 
@@ -95,7 +96,8 @@ export default function ExamClientPage({
       }
     };
 
-    getCameraPermission();
+    //Error: Cannot read properties of undefined (reading 'getUserMedia')
+    //getCameraPermission();
 
     // Cleanup camera on component unmount
     return () => {

@@ -39,14 +39,18 @@ const getQuestionsForCourse = (courseId: string) => {
     return shuffled.slice(0, 3);
 }
 
-export default async function ModuleExamPage({ params }: { params: { id: string } }) {
-  const course = courses.find((c) => c.id === params.id);
+export default async function ModuleExamPage( props : { params: Promise<{ id: string }> }) {
+  
+  const params = await props.params
+  const { id } = params
+  
+  const course = courses.find((c) => c.id === id);
   
   if (!course) {
     notFound();
   }
 
-  const courseQuestions = getQuestionsForCourse(params.id);
+  const courseQuestions = getQuestionsForCourse(id);
 
   return (
     <ExamClientPage
