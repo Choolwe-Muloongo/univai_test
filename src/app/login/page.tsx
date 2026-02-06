@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import Link from 'next/link';
+import { login } from '@/lib/api';
+import { useSession } from '@/components/providers/session-provider';
 
 type StudentType = 'premium-student' | 'freemium-student';
 
@@ -42,19 +44,15 @@ const testUsers = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refresh } = useSession();
   const [studentType, setStudentType] =
     useState<StudentType>('premium-student');
 
-  const handleStudentLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleStudentLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const user = testUsers[studentType];
-    localStorage.setItem('userRole', user.role);
-    if (user.schoolId) {
-      localStorage.setItem('userSchoolId', user.schoolId);
-    } else {
-      localStorage.removeItem('userSchoolId');
-    }
-    router.push('/dashboard');
+    await login(studentType);
+    await refresh();
+    router.push('/student/dashboard');
   };
 
   return (
@@ -118,6 +116,25 @@ export default function LoginPage() {
               <Button className="w-full" type="submit">
                 Login as Student
               </Button>
+              <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground">Demo credentials</p>
+                <p>Premium: student.premium@univai.edu / password123</p>
+                <p>Freemium: student.freemium@univai.edu / password123</p>
+              </div>
+              <div className="text-center text-xs text-muted-foreground">
+                Other portals:{' '}
+                <Link href="/login/lecturer" className="font-semibold text-primary hover:underline">
+                  Lecturer
+                </Link>
+                {' · '}
+                <Link href="/login/employer" className="font-semibold text-primary hover:underline">
+                  Employer
+                </Link>
+                {' · '}
+                <Link href="/login/admin" className="font-semibold text-primary hover:underline">
+                  Admin
+                </Link>
+              </div>
               <p className="text-sm text-muted-foreground">
                 New student?{' '}
                 <Link

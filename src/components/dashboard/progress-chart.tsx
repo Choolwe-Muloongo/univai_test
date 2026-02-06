@@ -8,12 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { program } from '@/lib/data';
-
-const chartData = program.modules.map((module) => ({
-  module: module.title,
-  progress: module.progress,
-}));
+import type { ProgramModule } from '@/lib/data';
 
 const chartConfig = {
   progress: {
@@ -22,7 +17,16 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function ProgressChart() {
+type ProgressChartProps = {
+  modules: ProgramModule[];
+};
+
+export function ProgressChart({ modules }: ProgressChartProps) {
+  const chartData = modules.map((module) => ({
+    module: module.title,
+    progress: module.progress,
+  }));
+
   return (
     <ChartContainer config={chartConfig} className="h-64 w-full">
       <ResponsiveContainer>

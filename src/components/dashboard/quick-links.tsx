@@ -14,13 +14,13 @@ const aiTools = [
   {
     title: 'Personalized Study Plan',
     description: 'Let AI build a plan just for you.',
-    href: '/study-plan',
+    href: '/student/study-plan',
     icon: BookOpen,
   },
   {
     title: 'AI Tutor',
     description: 'Get instant answers to your questions.',
-    href: '/tutor',
+    href: '/student/ai',
     icon: Lightbulb,
   },
 ];

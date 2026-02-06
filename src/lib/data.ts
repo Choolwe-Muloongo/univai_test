@@ -48,7 +48,8 @@ export type Job = {
   title: string;
   company: string;
   location: string;
-  type: 'Full-time' | 'Internship';
+  type: string;
+  description?: string;
 };
 
 export type ResearchOpportunity = {
@@ -162,7 +163,7 @@ export const courses: Course[] = [
 export const program: Program = {
     id: 'cs101',
     title: 'Bachelor of Science in Software Development and Emerging Technologies',
-    description: "Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs. Target Students: Aspiring software developers, future blockchain and AI specialists, and digital entrepreneurs. Outcome: Graduates can build scalable, secure, and innovative tech solutions, ready for global careers.",
+    description: "Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs. Target Students: Aspiring software developers, future AI and emerging tech specialists, and digital entrepreneurs. Outcome: Graduates can build scalable, secure, and innovative tech solutions, ready for global careers.",
     schoolId: 'ict',
     progress: 100,
     imageId: '1',
@@ -173,10 +174,10 @@ export const program: Program = {
         { id: 'cs101-sem1-4', title: 'Introduction to Artificial Intelligence', description: 'History and applications of AI.', progress: 100, semester: 1, isExamAvailable: false },
         { id: 'cs101-sem1-5', title: 'Professional Development & Ethics', description: 'Digital ethics, professionalism, and communication skills.', progress: 100, semester: 1, isExamAvailable: false },
         { id: 'cs101-sem2-1', title: 'Web Development I (Frontend Basics)', description: 'HTML, CSS, JavaScript fundamentals. Building responsive websites.', progress: 100, semester: 2, isExamAvailable: false },
-        { id: 'cs101-sem2-2', title: 'Database Systems I', description: 'Introduction to relational databases. SQL basics and Firebase Firestore integration.', progress: 100, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-2', title: 'Database Systems I', description: 'Introduction to relational databases. SQL basics and database integration.', progress: 100, semester: 2, isExamAvailable: false },
         { id: 'cs101-sem2-3', title: 'Software Engineering Principles', description: 'SDLC, Agile, and DevOps basics.', progress: 100, semester: 2, isExamAvailable: false },
         { id: 'cs101-sem2-4', title: 'Mathematics for Computer Science II', description: 'Probability, statistics, and linear algebra.', progress: 100, semester: 2, isExamAvailable: false },
-        { id: 'cs101-sem2-5', title: 'Blockchain Fundamentals', description: 'Blockchain concepts, smart contracts, and AFTACOIN integration.', progress: 100, semester: 2, isExamAvailable: false },
+        { id: 'cs101-sem2-5', title: 'Emerging Tech Fundamentals', description: 'Foundations of modern digital infrastructure and secure systems design.', progress: 100, semester: 2, isExamAvailable: false },
     ]
 }
 
@@ -243,7 +244,7 @@ export const jobs: Job[] = [
 export const researchOpportunities: ResearchOpportunity[] = [
     { id: 'r1', title: 'AI in Medical Diagnosis', company: 'HealthFirst Hospital', description: 'Investigating the application of machine learning models to improve diagnostic accuracy in radiology.', field: 'Healthcare AI' },
     { id: 'r2', title: 'Next-Gen UI/UX with AI', company: 'Innovate Solutions', description: 'Researching how generative AI can be used to create adaptive and personalized user interfaces.', field: 'Human-Computer Interaction' },
-    { id: 'r3', title: 'Decentralized Finance (DeFi) Protocols', company: 'AftaCoin', description: 'Analyzing the security and scalability of novel DeFi protocols on the blockchain.', field: 'Blockchain' },
+    { id: 'r3', title: 'Financial Infrastructure Protocols', company: 'AftaCoin', description: 'Analyzing the security and scalability of next-generation financial infrastructure protocols.', field: 'FinTech' },
 ];
 
 export const discussions: Discussion[] = [

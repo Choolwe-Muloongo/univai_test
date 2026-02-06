@@ -4,26 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { BotIcon } from '@/components/icons/bot';
-import { BookOpen, Lightbulb, Code, X, FlaskConical } from 'lucide-react';
+import { BookOpen, Lightbulb, Code, X } from 'lucide-react';
 import Link from 'next/link';
 
 const aiTools = [
   {
     title: 'AI Tutor',
     description: 'Get instant answers to your questions.',
-    href: '/tutor',
+    href: '/student/ai',
     icon: Lightbulb,
   },
   {
     title: 'Personalized Study Plan',
     description: 'Let AI build a plan just for you.',
-    href: '/study-plan',
+    href: '/student/study-plan',
     icon: BookOpen,
   },
   {
     title: 'Code Feedback',
     description: 'Instant feedback on coding tasks.',
-    href: '/virtual-lab',
+    href: '/student/virtual-lab',
     icon: Code,
   },
 ];

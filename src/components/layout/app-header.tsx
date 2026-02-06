@@ -1,6 +1,10 @@
 // src/components/layout/app-header.tsx
 'use client';
+
 import { Bell, Search, LogOut, User } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,39 +18,67 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
-import Link from 'next/link';
+import { logout } from '@/lib/api';
+import { useSession } from '@/components/providers/session-provider';
 
-
-const roleDetails: { [key: string]: { name: string, email: string, avatar: string } } = {
-  'premium-student': { name: 'Premium Student', email: 'student.premium@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-premium' },
-  'freemium-student': { name: 'Freemium Student', email: 'student.freemium@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student-freemium' },
+const roleDetails: { [key: string]: { name: string; email: string; avatar: string } } = {
+  'premium-student': {
+    name: 'Premium Student',
+    email: 'student.premium@univai.edu',
+    avatar: 'https://i.pravatar.cc/80?u=student-premium',
+  },
+  'freemium-student': {
+    name: 'Freemium Student',
+    email: 'student.freemium@univai.edu',
+    avatar: 'https://i.pravatar.cc/80?u=student-freemium',
+  },
   admin: { name: 'Admin', email: 'admin@univai.edu', avatar: 'https://i.pravatar.cc/80?u=admin' },
-  lecturer: { name: 'Lecturer', email: 'lecturer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=lecturer' },
-  employer: { name: 'Employer', email: 'employer@univai.edu', avatar: 'https://i.pravatar.cc/80?u=employer' },
+  lecturer: {
+    name: 'Lecturer',
+    email: 'lecturer@univai.edu',
+    avatar: 'https://i.pravatar.cc/80?u=lecturer',
+  },
+  employer: {
+    name: 'Employer',
+    email: 'employer@univai.edu',
+    avatar: 'https://i.pravatar.cc/80?u=employer',
+  },
 };
 
-export function AppHeader() {
+const roleRoutes: { [key: string]: { profile?: string; settings?: string } } = {
+  'premium-student': { profile: '/student/profile', settings: '/student/settings' },
+  'freemium-student': { profile: '/student/profile', settings: '/student/settings' },
+  student: { profile: '/student/profile', settings: '/student/settings' },
+  lecturer: { profile: '/lecturer/profile', settings: '/lecturer/settings' },
+  employer: { profile: '/employer/profile', settings: '/employer/settings' },
+  admin: { settings: '/admin/settings' },
+};
+
+export function AppHeader({ role }: { role?: string }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [user, setUser] = useState({name: '', email: '', avatar: ''});
+  const { session, refresh } = useSession();
+  const [user, setUser] = useState({ name: '', email: '', avatar: '' });
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole') || 'premium-student';
-    setUserRole(role);
-    setUser(roleDetails[role as keyof typeof roleDetails] || { name: 'Student', email: 'student@univai.edu', avatar: 'https://i.pravatar.cc/80?u=student' });
-  }, []);
+    const resolvedRole = role || session?.user?.role || 'premium-student';
+    setUserRole(resolvedRole);
+    const fallback = {
+      name: session?.user?.name || 'Student',
+      email: session?.user?.email || 'student@univai.edu',
+      avatar: 'https://i.pravatar.cc/80?u=student',
+    };
+    setUser(roleDetails[resolvedRole as keyof typeof roleDetails] || fallback);
+  }, [role, session]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userSchoolId');
-    router.push('/');
+  const handleLogout = async () => {
+    await logout();
+    await refresh();
+    router.push('/login');
   };
 
-  const isStudent = userRole?.includes('student');
+  const routes = roleRoutes[userRole || ''] || {};
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
@@ -80,18 +112,23 @@ export function AppHeader() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{user.name}</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user.email}
-                </p>
+                <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            { isStudent &&
-                <DropdownMenuItem asChild>
-                    <Link href="/profile"><User className="mr-2 h-4 w-4" />Profile</Link>
-                </DropdownMenuItem>
-            }
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            {routes.profile && (
+              <DropdownMenuItem asChild>
+                <Link href={routes.profile}>
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {routes.settings && (
+              <DropdownMenuItem asChild>
+                <Link href={routes.settings}>Settings</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />

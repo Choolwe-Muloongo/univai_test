@@ -21,6 +21,7 @@ import {
   FlaskConical,
   Settings,
   BookMarked,
+  ClipboardCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -36,76 +37,80 @@ import {
 import { useEffect, useState } from 'react';
 
 type NavLink = {
-    href: string;
-    label: string;
-    icon: React.ElementType;
-    key?: string;
-}
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  key?: string;
+};
 
 const allLinks: { [key: string]: NavLink[] } = {
   'premium-student': [
-    { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/program', label: 'My Program', icon: GraduationCap },
-    { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
-    { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
-    { href: '/virtual-lab', label: 'Virtual Lab', icon: FlaskConical },
-    { href: '/wallet', label: 'My Wallet', icon: Wallet },
-    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/community', label: 'Community', icon: Users },
-    { href: '/jobs', label: 'Job Board', icon: Briefcase },
-    { href: '/research', label: 'Research Hub', icon: FlaskConical },
-    { href: '/payments', label: 'Billing', icon: Landmark },
+    { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/student/program', label: 'My Program', icon: GraduationCap },
+    { href: '/student/study-plan', label: 'Study Plan', icon: BookOpen },
+    { href: '/student/ai', label: 'AI Tutor', icon: Lightbulb },
+    { href: '/student/virtual-lab', label: 'Virtual Lab', icon: FlaskConical },
+    { href: '/student/wallet', label: 'My Wallet', icon: Wallet },
+    { href: '/student/leaderboard', label: 'Leaderboard', icon: Trophy },
+    { href: '/student/community', label: 'Community', icon: Users },
+    { href: '/student/jobs', label: 'Job Board', icon: Briefcase },
+    { href: '/student/research', label: 'Research Hub', icon: FlaskConical },
+    { href: '/student/payments', label: 'Billing', icon: Landmark },
   ],
   'freemium-student': [
-    { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/program', label: 'My Program', icon: GraduationCap },
-    { href: '/community', label: 'Community', icon: Users },
-    { href: '/payments', label: 'Upgrade', icon: CreditCard },
+    { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/student/program', label: 'My Program', icon: GraduationCap },
+    { href: '/student/community', label: 'Community', icon: Users },
+    { href: '/student/payments', label: 'Upgrade', icon: CreditCard },
   ],
-  student: [ // Fallback for original student role
-    { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/program', label: 'My Program', icon: GraduationCap },
-    { href: '/study-plan', label: 'Study Plan', icon: BookOpen },
-    { href: '/tutor', label: 'AI Tutor', icon: Lightbulb },
-    { href: '/virtual-lab', label: 'Virtual Lab', icon: FlaskConical },
-    { href: '/wallet', label: 'My Wallet', icon: Wallet },
-    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/community', label: 'Community', icon: Users },
-    { href: '/jobs', label: 'Job Board', icon: Briefcase },
-    { href: '/research', label: 'Research Hub', icon: FlaskConical },
-    { href: '/payments', label: 'Billing', icon: Landmark },
+  student: [
+    { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+    { href: '/student/program', label: 'My Program', icon: GraduationCap },
+    { href: '/student/study-plan', label: 'Study Plan', icon: BookOpen },
+    { href: '/student/ai', label: 'AI Tutor', icon: Lightbulb },
+    { href: '/student/virtual-lab', label: 'Virtual Lab', icon: FlaskConical },
+    { href: '/student/wallet', label: 'My Wallet', icon: Wallet },
+    { href: '/student/leaderboard', label: 'Leaderboard', icon: Trophy },
+    { href: '/student/community', label: 'Community', icon: Users },
+    { href: '/student/jobs', label: 'Job Board', icon: Briefcase },
+    { href: '/student/research', label: 'Research Hub', icon: FlaskConical },
+    { href: '/student/payments', label: 'Billing', icon: Landmark },
   ],
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/admissions', label: 'Admissions', icon: ClipboardCheck },
     { href: '/admin/management', label: 'Content Management', icon: Settings },
     { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
-    { href: '/community', label: 'Manage Community', icon: Users },
-    { href: '/jobs', label: 'Manage Jobs', icon: Briefcase },
-    { href: '#', label: 'System Health', icon: Shield },
+    { href: '/admin/reports', label: 'Reports & Analytics', icon: BookMarked },
+    { href: '/admin/community', label: 'Manage Community', icon: Users },
+    { href: '/admin/jobs', label: 'Manage Jobs', icon: Briefcase },
+    { href: '/admin/system-health', label: 'System Health', icon: Shield },
   ],
   lecturer: [
-      { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/lecturer/profile', label: 'Profile', icon: User },
-      { href: '#', label: 'Student Progress', icon: UserCheck },
-      { href: '/community', label: 'Community', icon: Users },
-      { href: '/research', label: 'Research Hub', icon: FlaskConical },
+    { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/lecturer/courses', label: 'Courses', icon: BookOpen },
+    { href: '/lecturer/profile', label: 'Profile', icon: User },
+    { href: '/lecturer/progress', label: 'Student Progress', icon: UserCheck },
+    { href: '/lecturer/community', label: 'Community', icon: Users },
+    { href: '/lecturer/research', label: 'Research Hub', icon: FlaskConical },
   ],
   employer: [
     { href: '/employer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/jobs', label: 'Job Listings', icon: Briefcase },
-    { href: '#', label: 'Company Profile', icon: Building },
-    { href: '/verify/test', label: 'Verify Certificate', icon: BadgeCheck },
-  ]
+    { href: '/employer/jobs', label: 'Job Listings', icon: Briefcase },
+    { href: '/employer/research', label: 'Research', icon: FlaskConical },
+    { href: '/employer/profile', label: 'Company Profile', icon: Building },
+    { href: '/verify', label: 'Verify Credential', icon: BadgeCheck },
+  ],
 };
 
-export function AppSidebar() {
+export function AppSidebar({ role }: { role?: string }) {
   const pathname = usePathname();
   const [links, setLinks] = useState<NavLink[]>([]);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole') || 'premium-student';
-    setLinks(allLinks[role] || allLinks['premium-student']);
-  }, [pathname]);
+    const resolvedRole = role || 'premium-student';
+    setLinks(allLinks[resolvedRole] || allLinks['premium-student']);
+  }, [pathname, role]);
 
   return (
     <>
@@ -121,7 +126,12 @@ export function AppSidebar() {
             <SidebarMenuItem key={link.key || link.href}>
               <Link href={link.href}>
                 <SidebarMenuButton
-                  isActive={pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href) && link.href.split('/').length > 2)}
+                  isActive={
+                    pathname === link.href ||
+                    (link.href !== '/student/dashboard' &&
+                      pathname.startsWith(link.href) &&
+                      link.href.split('/').length > 2)
+                  }
                   tooltip={link.label}
                   className="justify-start"
                 >

@@ -7,16 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import Link from 'next/link';
+import { login } from '@/lib/api';
+import { useSession } from '@/components/providers/session-provider';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { refresh } = useSession();
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // In a real app, you'd handle Firebase auth here.
-    // For this prototype, we'll simulate a login.
-    localStorage.setItem('userRole', 'admin');
-    localStorage.removeItem('userSchoolId');
+    await login('admin');
+    await refresh();
     router.push('/admin/dashboard');
   };
 
@@ -63,6 +64,10 @@ export default function AdminLoginPage() {
               <Button className="w-full" type="submit">
                 Login as Admin
               </Button>
+              <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground">Demo credentials</p>
+                <p>admin@univai.edu / password123</p>
+              </div>
                <p className="text-sm text-muted-foreground">
                     <Link href="/login" className="font-semibold text-primary hover:underline">
                         Are you a student?

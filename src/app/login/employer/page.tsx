@@ -7,14 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import Link from 'next/link';
+import { login } from '@/lib/api';
+import { useSession } from '@/components/providers/session-provider';
 
 export default function EmployerLoginPage() {
   const router = useRouter();
+  const { refresh } = useSession();
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    localStorage.setItem('userRole', 'employer');
-    localStorage.removeItem('userSchoolId');
+    await login('employer');
+    await refresh();
     router.push('/employer/dashboard');
   };
 
@@ -61,6 +64,10 @@ export default function EmployerLoginPage() {
               <Button className="w-full" type="submit">
                 Login as Employer
               </Button>
+              <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground">Demo credentials</p>
+                <p>employer@univai.edu / password123</p>
+              </div>
                <p className="text-sm text-muted-foreground">
                     <Link href="/login" className="font-semibold text-primary hover:underline">
                         Are you a student?

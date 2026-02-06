@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
-import { ThemeProvider } from '@/components/theme-provider';
+import { SessionProvider } from '@/components/providers/session-provider';
 
 export const metadata: Metadata = {
   title: 'UnivAI',
@@ -24,7 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-          {children}
+          <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );
