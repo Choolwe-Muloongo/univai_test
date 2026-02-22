@@ -1,16 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
-
-const programStats = [
-  { name: 'BSc Software Development', enrollment: 520, completion: 72 },
-  { name: 'Diploma in Nursing', enrollment: 310, completion: 64 },
-  { name: 'MBA', enrollment: 220, completion: 59 },
-  { name: 'Mechanical Engineering', enrollment: 180, completion: 51 },
-];
 
 export default function AdminReportsPage() {
   return (
@@ -42,8 +34,8 @@ export default function AdminReportsPage() {
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$62,480</div>
-            <p className="text-xs text-muted-foreground">+12.4% vs last period</p>
+            <div className="text-2xl font-bold">--</div>
+            <p className="text-xs text-muted-foreground">Awaiting finance data</p>
           </CardContent>
         </Card>
         <Card>
@@ -51,8 +43,8 @@ export default function AdminReportsPage() {
             <CardTitle className="text-sm font-medium">Active Students</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2,485</div>
-            <p className="text-xs text-muted-foreground">+210 new this month</p>
+            <div className="text-2xl font-bold">--</div>
+            <p className="text-xs text-muted-foreground">Awaiting enrollment data</p>
           </CardContent>
         </Card>
         <Card>
@@ -60,7 +52,7 @@ export default function AdminReportsPage() {
             <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">64%</div>
+            <div className="text-2xl font-bold">--</div>
             <p className="text-xs text-muted-foreground">Target 70%</p>
           </CardContent>
         </Card>
@@ -69,8 +61,8 @@ export default function AdminReportsPage() {
             <CardTitle className="text-sm font-medium">Student NPS</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+41</div>
-            <p className="text-xs text-muted-foreground">Stable trend</p>
+            <div className="text-2xl font-bold">--</div>
+            <p className="text-xs text-muted-foreground">Survey data pending</p>
           </CardContent>
         </Card>
       </div>
@@ -99,18 +91,10 @@ export default function AdminReportsPage() {
           <CardDescription>Enrollment and completion trends by program.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {programStats.map((program) => (
-            <div key={program.name} className="space-y-2 rounded-lg border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{program.name}</p>
-                  <p className="text-sm text-muted-foreground">{program.enrollment} active students</p>
-                </div>
-                <Badge variant="secondary">{program.completion}% completion</Badge>
-              </div>
-              <Progress value={program.completion} />
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Program analytics will appear once reporting data is available.
+          </div>
+          <Progress value={0} />
         </CardContent>
       </Card>
     </div>

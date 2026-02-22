@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getResearchById } from '@/lib/api';
+import { getResearchApplications, getResearchById } from '@/lib/api';
 
 export default async function EmployerResearchDetailPage({
   params,
@@ -15,6 +15,7 @@ export default async function EmployerResearchDetailPage({
   if (!research) {
     notFound();
   }
+  const applications = await getResearchApplications(id);
 
   return (
     <div className="space-y-8">
@@ -50,22 +51,60 @@ export default async function EmployerResearchDetailPage({
             <CardDescription>Interest from the UnivAI community.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Applications</span>
-              <span>14</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Shortlisted</span>
-              <span>5</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Active Projects</span>
-              <span>2</span>
-            </div>
-            <Button className="w-full" variant="outline">Review Applications</Button>
+            {applications.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                Engagement metrics will appear once applications are received.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="font-semibold">{applications.length} applications</p>
+                {applications.slice(0, 3).map((app) => (
+                  <div key={app.id} className="rounded-lg border p-3 text-xs">
+                    <p className="font-semibold">{app.fullName}</p>
+                    <p className="text-muted-foreground">{app.email}</p>
+                    <p className="text-muted-foreground">Status: {app.status}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button className="w-full" variant="outline" asChild>
+              <Link href="#applications">Review Applications</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
+
+      <Card id="applications">
+        <CardHeader>
+          <CardTitle>Applications</CardTitle>
+          <CardDescription>Review candidate interest for this opportunity.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          {applications.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-4">
+              No applications yet.
+            </div>
+          ) : (
+            applications.map((app) => (
+              <div key={app.id} className="rounded-lg border p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{app.fullName}</p>
+                    <p className="text-xs text-muted-foreground">{app.email}</p>
+                  </div>
+                  <Badge variant="outline">{app.status}</Badge>
+                </div>
+                {app.experience && (
+                  <p className="mt-2 text-xs text-muted-foreground">Experience: {app.experience}</p>
+                )}
+                {app.availability && (
+                  <p className="text-xs text-muted-foreground">Availability: {app.availability}</p>
+                )}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

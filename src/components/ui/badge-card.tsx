@@ -1,6 +1,6 @@
 // src/components/ui/badge-card.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { type Badge as BadgeType } from '@/lib/data';
+import { type Badge as BadgeType } from '@/lib/api/types';
 import { Award, Star, Book, Users } from 'lucide-react';
 
 const iconMap = {
@@ -30,3 +30,4 @@ export function BadgeCard({ badge }: BadgeCardProps) {
         </Card>
     )
 }
+

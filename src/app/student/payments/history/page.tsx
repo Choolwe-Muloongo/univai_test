@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -6,14 +9,27 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-const invoices = [
-  { id: 'inv-101', label: 'Semester 2 Tuition', amount: '$2,500', status: 'Paid' },
-  { id: 'inv-102', label: 'Library Fee', amount: '$25', status: 'Paid' },
-  { id: 'inv-103', label: 'Lab Materials', amount: '$40', status: 'Pending' },
-];
+import { getPayments } from '@/lib/api';
+import type { Payment } from '@/lib/api/types';
 
 export default function PaymentsHistoryPage() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const data = await getPayments();
+      setPayments(data);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading payments...</p>;
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -23,24 +39,27 @@ export default function PaymentsHistoryPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Invoices</CardTitle>
+          <CardTitle>Payments</CardTitle>
           <CardDescription>Latest billing activity.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {invoices.map((invoice) => (
-            <div key={invoice.id} className="flex items-center justify-between rounded-lg border p-4">
+          {payments.map((payment) => (
+            <div key={payment.id} className="flex items-center justify-between rounded-lg border p-4">
               <div>
-                <p className="font-semibold">{invoice.label}</p>
-                <p className="text-sm text-muted-foreground">{invoice.id}</p>
+                <p className="font-semibold">Invoice #{payment.invoiceId}</p>
+                <p className="text-sm text-muted-foreground">{payment.paidAt ?? '---'}</p>
               </div>
               <div className="text-right">
-                <p className="font-semibold">{invoice.amount}</p>
-                <Badge variant={invoice.status === 'Paid' ? 'secondary' : 'outline'}>
-                  {invoice.status}
+                <p className="font-semibold">${payment.amount}</p>
+                <Badge variant={payment.status === 'completed' ? 'secondary' : 'outline'}>
+                  {payment.status.toUpperCase()}
                 </Badge>
               </div>
             </div>
           ))}
+          {payments.length === 0 && (
+            <p className="text-sm text-muted-foreground">No payment activity yet.</p>
+          )}
         </CardContent>
       </Card>
     </div>

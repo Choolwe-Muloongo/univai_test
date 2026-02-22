@@ -2,16 +2,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Briefcase, Users, PlusCircle, ArrowRight, FlaskConical } from 'lucide-react';
 import Link from 'next/link';
-import { getResearchOpportunities } from '@/lib/api';
-
-
-const postedJobs = [
-    {id: 'j1', title: 'Software Engineer Intern', applicants: 15, status: 'Open'},
-    {id: 'j4', title: 'Frontend Developer', applicants: 8, status: 'Open'}
-]
+import { getEmployerDashboard } from '@/lib/api';
 
 export default async function EmployerDashboardPage() {
-  const researchOpportunities = await getResearchOpportunities();
+  const dashboard = await getEmployerDashboard();
   return (
     <div className="space-y-8">
       <div className='flex justify-between items-center'>
@@ -41,8 +35,8 @@ export default async function EmployerDashboardPage() {
             <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">Your jobs are visible to students.</p>
+            <div className="text-2xl font-bold">{dashboard.stats.activeJobs.value}</div>
+            <p className="text-xs text-muted-foreground">{dashboard.stats.activeJobs.note}</p>
           </CardContent>
         </Card>
         <Card>
@@ -51,8 +45,8 @@ export default async function EmployerDashboardPage() {
                 <FlaskConical className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">{researchOpportunities.length}</div>
-                <p className="text-xs text-muted-foreground">Opportunities for students & lecturers.</p>
+                <div className="text-2xl font-bold">{dashboard.stats.activeResearch.value}</div>
+                <p className="text-xs text-muted-foreground">{dashboard.stats.activeResearch.note}</p>
             </CardContent>
         </Card>
         <Card>
@@ -61,8 +55,8 @@ export default async function EmployerDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">+5 new applicants today</p>
+            <div className="text-2xl font-bold">{dashboard.stats.totalApplicants.value}</div>
+            <p className="text-xs text-muted-foreground">{dashboard.stats.totalApplicants.note}</p>
           </CardContent>
         </Card>
       </div>
@@ -73,7 +67,7 @@ export default async function EmployerDashboardPage() {
                 <CardTitle>Your Job Postings</CardTitle>
             </CardHeader>
             <CardContent className='space-y-4'>
-                {postedJobs.map(job => (
+                {dashboard.postedJobs.map(job => (
                     <Card key={job.id}>
                         <CardHeader>
                             <CardTitle className='text-xl'>{job.title}</CardTitle>
@@ -91,12 +85,12 @@ export default async function EmployerDashboardPage() {
                 ))}
             </CardContent>
         </Card>
-         <Card>
+        <Card>
             <CardHeader>
                 <CardTitle>Your Research Postings</CardTitle>
             </CardHeader>
             <CardContent className='space-y-4'>
-                {researchOpportunities.map(opp => (
+                {dashboard.research.map(opp => (
                     <Card key={opp.id}>
                         <CardHeader>
                             <CardTitle className='text-xl'>{opp.title}</CardTitle>

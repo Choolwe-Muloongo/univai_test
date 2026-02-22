@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { BadgeCheck, Edit } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BadgeCard } from '@/components/ui/badge-card';
-import { type Badge as BadgeType } from '@/lib/data';
+import { type Badge as BadgeType } from '@/lib/api/types';
 import { getBadges } from '@/lib/api';
 import { useSession } from '@/components/providers/session-provider';
 
@@ -73,3 +73,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

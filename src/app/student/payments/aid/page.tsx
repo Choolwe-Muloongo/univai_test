@@ -1,14 +1,47 @@
+'use client';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-const scholarships = [
-  { id: 'aid-01', title: 'STEM Excellence Scholarship', amount: '$1,200', status: 'Approved' },
-  { id: 'aid-02', title: 'Community Impact Grant', amount: '$500', status: 'Pending' },
-];
+import { Textarea } from '@/components/ui/textarea';
+import { useEffect, useState } from 'react';
+import { createScholarshipApplication, getScholarshipApplications } from '@/lib/api';
+import type { ScholarshipApplication } from '@/lib/api/types';
+import { useToast } from '@/hooks/use-toast';
 
 export default function StudentFinancialAidPage() {
+  const { toast } = useToast();
+  const [applications, setApplications] = useState<ScholarshipApplication[]>([]);
+  const [statement, setStatement] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadApplications = async () => {
+    const data = await getScholarshipApplications();
+    setApplications(data);
+  };
+
+  useEffect(() => {
+    loadApplications();
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!statement.trim()) return;
+    setSubmitting(true);
+    try {
+      const created = await createScholarshipApplication({ statement: statement.trim() });
+      setApplications((prev) => [created, ...prev]);
+      setStatement('');
+      toast({ title: 'Application submitted', description: 'Our team will review your request.' });
+    } catch (error: any) {
+      toast({
+        title: 'Submission failed',
+        description: error?.message ?? 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -27,15 +60,19 @@ export default function StudentFinancialAidPage() {
           <CardDescription>These awards reduce your tuition balance.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {scholarships.map((award) => (
-            <div key={award.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">{award.title}</p>
-                <p className="text-sm text-muted-foreground">{award.amount}</p>
-              </div>
-              <Badge variant={award.status === 'Approved' ? 'secondary' : 'outline'}>{award.status}</Badge>
+          {applications.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              No awards available yet. Approved scholarships will appear here.
             </div>
-          ))}
+          ) : (
+            applications.map((app) => (
+              <div key={app.id} className="rounded-lg border p-4 text-sm">
+                <p className="font-semibold">Scholarship Request</p>
+                <p className="text-xs text-muted-foreground">Status: {app.status}</p>
+                <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{app.statement}</p>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
@@ -45,9 +82,20 @@ export default function StudentFinancialAidPage() {
           <CardDescription>Share your story and submit supporting documents.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button className="w-full">Start Application</Button>
+          <div className="space-y-3">
+            <Textarea
+              placeholder="Explain why you need support and any financial constraints."
+              className="min-h-[120px]"
+              value={statement}
+              onChange={(event) => setStatement(event.target.value)}
+            />
+            <Button className="w-full" onClick={handleSubmit} disabled={submitting || !statement.trim()}>
+              Start Application
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+

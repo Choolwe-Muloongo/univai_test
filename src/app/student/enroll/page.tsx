@@ -1,16 +1,62 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { getEnrollment, getInvoices } from '@/lib/api';
+import type { EnrollmentData, Invoice } from '@/lib/api/types';
+import { useSession } from '@/components/providers/session-provider';
 
-const steps = [
-  { title: 'Confirm Profile', status: 'Completed' },
-  { title: 'Select Semester Modules', status: 'Pending' },
-  { title: 'Tuition Payment', status: 'Pending' },
-  { title: 'Enrollment Confirmation', status: 'Locked' },
-];
+type Step = {
+  title: string;
+  status: 'Completed' | 'Pending' | 'Locked';
+};
 
 export default function EnrollmentPage() {
+  const { session } = useSession();
+  const [enrollment, setEnrollment] = useState<EnrollmentData | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [enrollmentData, invoiceData] = await Promise.all([
+          getEnrollment(),
+          getInvoices(),
+        ]);
+        setEnrollment(enrollmentData);
+        setInvoices(invoiceData);
+      } catch (error) {
+        console.error('Failed to load enrollment data', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const steps = useMemo<Step[]>(() => {
+    const profileComplete = Boolean(session?.user?.email);
+    const modulesSelected = (enrollment?.selectedModules?.length ?? 0) > 0;
+    const paymentComplete = invoices.some((invoice) => invoice.status === 'paid');
+    const enrollmentConfirmed = enrollment?.status === 'active' || Boolean(enrollment?.confirmedAt);
+
+    return [
+      { title: 'Confirm Profile', status: profileComplete ? 'Completed' : 'Pending' },
+      { title: 'Select Semester Modules', status: modulesSelected ? 'Completed' : profileComplete ? 'Pending' : 'Locked' },
+      { title: 'Tuition Payment', status: paymentComplete ? 'Completed' : modulesSelected ? 'Pending' : 'Locked' },
+      { title: 'Enrollment Confirmation', status: enrollmentConfirmed ? 'Completed' : paymentComplete ? 'Pending' : 'Locked' },
+    ];
+  }, [session, enrollment, invoices]);
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading enrollment checklist...</p>;
+  }
+
   return (
     <div className="space-y-8">
       <div>

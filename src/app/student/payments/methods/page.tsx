@@ -1,15 +1,64 @@
+'use client';
 import Link from 'next/link';
-import { CreditCard, Plus } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { CreditCard, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-const methods = [
-  { id: 'card-1', type: 'Visa', label: '**** 4242', status: 'Default' },
-  { id: 'card-2', type: 'Mastercard', label: '**** 1122', status: 'Backup' },
-];
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useEffect, useState } from 'react';
+import { addPaymentMethod, deletePaymentMethod, getPaymentMethods, setDefaultPaymentMethod } from '@/lib/api';
+import type { PaymentMethod } from '@/lib/api/types';
+import { useToast } from '@/hooks/use-toast';
 
 export default function StudentPaymentMethodsPage() {
+  const { toast } = useToast();
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [type, setType] = useState('card');
+  const [provider, setProvider] = useState('');
+  const [last4, setLast4] = useState('');
+  const [expiryMonth, setExpiryMonth] = useState('');
+  const [expiryYear, setExpiryYear] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadMethods = async () => {
+    const data = await getPaymentMethods();
+    setMethods(data);
+  };
+
+  useEffect(() => {
+    loadMethods();
+  }, []);
+
+  const handleAdd = async () => {
+    if (!provider.trim() || last4.trim().length !== 4) return;
+    setSaving(true);
+    try {
+      const method = await addPaymentMethod({
+        type,
+        provider: provider.trim(),
+        last4: last4.trim(),
+        expiryMonth: expiryMonth ? Number(expiryMonth) : undefined,
+        expiryYear: expiryYear ? Number(expiryYear) : undefined,
+        isDefault: methods.length === 0,
+      });
+      setMethods((prev) => [method, ...prev]);
+      setProvider('');
+      setLast4('');
+      setExpiryMonth('');
+      setExpiryYear('');
+      toast({ title: 'Payment method added' });
+    } catch (error: any) {
+      toast({
+        title: 'Failed to add method',
+        description: error?.message ?? 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -23,37 +72,98 @@ export default function StudentPaymentMethodsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {methods.map((method) => (
-          <Card key={method.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-primary" />
-                {method.type}
-              </CardTitle>
-              <CardDescription>{method.label}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between">
-              <Badge variant="secondary">{method.status}</Badge>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline">Set Default</Button>
-                <Button size="sm" variant="ghost">Remove</Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-primary" />
+              Payment Methods
+            </CardTitle>
+            <CardDescription>Saved payment methods will appear here.</CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            {methods.length === 0 ? (
+              <p>No payment methods saved yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {methods.map((method) => (
+                  <div key={method.id} className="rounded-lg border p-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold capitalize">{method.provider}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {method.type.toUpperCase()} •••• {method.last4} {method.isDefault ? '(Default)' : ''}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {!method.isDefault && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDefaultPaymentMethod(method.id, true).then(loadMethods)}
+                        >
+                          Set Default
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => deletePaymentMethod(method.id).then(loadMethods)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            )}
+          </CardContent>
+        </Card>
         <Card className="border-dashed">
           <CardHeader>
             <CardTitle>Add a New Method</CardTitle>
             <CardDescription>Attach a card or bank account for future payments.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Payment Method
-            </Button>
+            <div className="space-y-3">
+              <div>
+                <Label>Type</Label>
+                <Select value={type} onValueChange={setType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="bank">Bank</SelectItem>
+                    <SelectItem value="mobile">Mobile Money</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Provider</Label>
+                <Input value={provider} onChange={(event) => setProvider(event.target.value)} placeholder="e.g., Visa" />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <Label>Last 4</Label>
+                  <Input value={last4} onChange={(event) => setLast4(event.target.value)} maxLength={4} />
+                </div>
+                <div className="col-span-1">
+                  <Label>Exp. Month</Label>
+                  <Input value={expiryMonth} onChange={(event) => setExpiryMonth(event.target.value)} />
+                </div>
+                <div className="col-span-1">
+                  <Label>Exp. Year</Label>
+                  <Input value={expiryYear} onChange={(event) => setExpiryYear(event.target.value)} />
+                </div>
+              </div>
+              <Button className="w-full" onClick={handleAdd} disabled={saving || !provider.trim() || last4.trim().length !== 4}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Payment Method
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
+

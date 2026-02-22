@@ -10,26 +10,33 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, GraduationCap, Wallet } from "lucide-react";
+import { getStudentGrades } from "@/lib/api";
 
-const steps = [
-  {
-    title: "Clearance Checklist",
-    description: "Complete academic, financial, and conduct checks.",
-    href: "/student/graduation/checklist",
-  },
-  {
-    title: "Graduation Status",
-    description: "Track approval from registrar and faculty.",
-    href: "/student/graduation/status",
-  },
-  {
-    title: "Reward Release",
-    description: "View locked tuition reward and payout options.",
-    href: "/student/wallet",
-  },
-];
+export default async function GraduationPage() {
+  const grades = await getStudentGrades();
+  const creditsEarned = grades.creditsEarned ?? 0;
 
-export default function GraduationPage() {
+  const steps = [
+    {
+      title: "Clearance Checklist",
+      description: "Complete academic, financial, and conduct checks.",
+      href: "/student/graduation/checklist",
+      icon: ClipboardCheck,
+    },
+    {
+      title: "Graduation Status",
+      description: "Track approval from registrar and faculty.",
+      href: "/student/graduation/status",
+      icon: GraduationCap,
+    },
+    {
+      title: "Reward Release",
+      description: "View locked tuition reward and payout options.",
+      href: "/student/wallet",
+      icon: Wallet,
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -54,12 +61,12 @@ export default function GraduationPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Credits Complete
+              Credits Earned
             </CardTitle>
-            <CardDescription>Required 120 credits</CardDescription>
+            <CardDescription>Tracked from your grades</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">114</div>
+            <div className="text-2xl font-bold">{creditsEarned}</div>
           </CardContent>
         </Card>
         <Card>
@@ -70,7 +77,7 @@ export default function GraduationPage() {
             <CardDescription>Release after graduation</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3,200 AFTA</div>
+            <div className="text-2xl font-bold">Pending</div>
           </CardContent>
         </Card>
       </div>
@@ -84,13 +91,7 @@ export default function GraduationPage() {
           {steps.map((step) => (
             <div key={step.title} className="flex items-center justify-between rounded-lg border p-4">
               <div className="flex items-start gap-3">
-                {step.title === "Clearance Checklist" ? (
-                  <ClipboardCheck className="mt-1 h-5 w-5 text-primary" />
-                ) : step.title === "Graduation Status" ? (
-                  <GraduationCap className="mt-1 h-5 w-5 text-primary" />
-                ) : (
-                  <Wallet className="mt-1 h-5 w-5 text-primary" />
-                )}
+                <step.icon className="mt-1 h-5 w-5 text-primary" />
                 <div>
                   <p className="font-semibold">{step.title}</p>
                   <p className="text-sm text-muted-foreground">{step.description}</p>

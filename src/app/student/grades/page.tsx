@@ -18,47 +18,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { GraduationCap, TrendingUp, ShieldCheck } from "lucide-react";
+import { getStudentGrades } from "@/lib/api";
 
-const summary = [
-  { label: "Current GPA", value: "3.62", note: "Semester 2" },
-  { label: "Credits Earned", value: "48", note: "Out of 120" },
-  { label: "Academic Standing", value: "Good", note: "No holds" },
-];
+export const dynamic = "force-dynamic";
 
-const gradeRows = [
-  {
-    course: "CS101 - Foundations of Computing",
-    credits: 6,
-    grade: "A-",
-    status: "Published",
-  },
-  {
-    course: "ICT104 - Digital Systems",
-    credits: 6,
-    grade: "B+",
-    status: "Published",
-  },
-  {
-    course: "MTH110 - Discrete Math",
-    credits: 6,
-    grade: "B",
-    status: "Published",
-  },
-  {
-    course: "COM201 - Technical Writing",
-    credits: 3,
-    grade: "A",
-    status: "Published",
-  },
-  {
-    course: "CS120 - Programming Lab",
-    credits: 3,
-    grade: "Pending",
-    status: "In Review",
-  },
-];
-
-export default function GradesPage() {
+export default async function GradesPage() {
+  const gradeData = await getStudentGrades();
+  const grades = gradeData.grades ?? [];
+  const summary = [
+    { label: "Current GPA", value: gradeData.gpa.toFixed(2), note: "Current term" },
+    { label: "Credits Earned", value: `${gradeData.creditsEarned}`, note: "Completed credits" },
+    { label: "Academic Standing", value: gradeData.standing, note: "Policy-based standing" },
+  ];
   return (
     <div className="space-y-8">
       <div>
@@ -109,24 +80,32 @@ export default function GradesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {gradeRows.map((row) => (
-                <TableRow key={row.course}>
-                  <TableCell className="font-medium">{row.course}</TableCell>
-                  <TableCell>{row.credits}</TableCell>
-                  <TableCell>
-                    {row.grade === "Pending" ? (
-                      <Badge variant="outline">Pending</Badge>
-                    ) : (
-                      <Badge variant="secondary">{row.grade}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={row.status === "Published" ? "secondary" : "outline"}>
-                      {row.status}
-                    </Badge>
+              {grades.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-muted-foreground">
+                    No grades recorded yet.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                grades.map((row) => (
+                  <TableRow key={`${row.moduleId}-${row.attempt}`}>
+                    <TableCell className="font-medium">{row.moduleTitle ?? row.moduleId}</TableCell>
+                    <TableCell>{row.credits ?? "-"}</TableCell>
+                    <TableCell>
+                      {row.letterGrade ? (
+                        <Badge variant="secondary">{row.letterGrade}</Badge>
+                      ) : (
+                        <Badge variant="outline">Pending</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={row.resultStatus === "published" ? "secondary" : "outline"}>
+                        {row.resultStatus ?? "draft"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

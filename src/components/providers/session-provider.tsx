@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getSession } from '@/lib/api';
-import type { Session } from '@/lib/api/mock';
+import type { Session } from '@/lib/api/types';
 
 type SessionContextValue = {
   session: Session | null;

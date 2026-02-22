@@ -6,29 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { MapPin, Briefcase } from 'lucide-react';
 import { getJobById } from '@/lib/api';
 
-const jobDetails: Record<string, { overview: string; responsibilities: string[]; requirements: string[] }> = {
-  j1: {
-    overview: 'Work alongside our engineering team to build scalable student-facing experiences.',
-    responsibilities: ['Support feature delivery in React/Next.js', 'Collaborate with designers and mentors', 'Ship weekly improvements'],
-    requirements: ['Currently enrolled in a CS-related program', 'Basic JavaScript and API knowledge', 'Strong collaboration skills'],
-  },
-  j2: {
-    overview: 'Join a clinical team and contribute to patient care with a focus on empathy and safety.',
-    responsibilities: ['Support patient assessments', 'Assist with care plans', 'Maintain clinical documentation'],
-    requirements: ['Valid nursing credentials', '1+ year clinical experience', 'Strong communication skills'],
-  },
-  j3: {
-    overview: 'Partner with business teams to analyze performance and create strategic recommendations.',
-    responsibilities: ['Build reporting dashboards', 'Analyze KPIs and trends', 'Present insights to stakeholders'],
-    requirements: ['Experience with spreadsheets or BI tools', 'Analytical mindset', 'Clear presentation skills'],
-  },
-  j4: {
-    overview: 'Build engaging user interfaces and refine the frontend architecture.',
-    responsibilities: ['Develop UI components', 'Improve performance and accessibility', 'Collaborate with product managers'],
-    requirements: ['React or Flutter experience', 'Strong UI sensibility', 'Portfolio of recent work'],
-  },
-};
-
 export default async function JobDetailPage({
   params,
 }: {
@@ -39,8 +16,6 @@ export default async function JobDetailPage({
   if (!job) {
     notFound();
   }
-
-  const detail = jobDetails[job.id];
 
   return (
     <div className="space-y-8">
@@ -71,23 +46,7 @@ export default async function JobDetailPage({
           <CardContent className="space-y-6 text-sm text-muted-foreground">
             <section className="space-y-2">
               <h3 className="text-lg font-semibold text-foreground">Role Overview</h3>
-              <p>{detail?.overview}</p>
-            </section>
-            <section className="space-y-2">
-              <h3 className="text-lg font-semibold text-foreground">Key Responsibilities</h3>
-              <ul className="list-disc space-y-1 pl-5">
-                {detail?.responsibilities.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-            <section className="space-y-2">
-              <h3 className="text-lg font-semibold text-foreground">Requirements</h3>
-              <ul className="list-disc space-y-1 pl-5">
-                {detail?.requirements.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              <p>{job.description || 'Role details will appear once the employer publishes the full brief.'}</p>
             </section>
           </CardContent>
         </Card>
@@ -103,7 +62,7 @@ export default async function JobDetailPage({
             </Button>
             <Button variant="outline" className="w-full">Save for Later</Button>
             <p className="text-xs text-muted-foreground">
-              Hiring teams respond within 5–7 business days.
+              Hiring teams respond within 5-7 business days.
             </p>
           </CardContent>
         </Card>
@@ -111,4 +70,5 @@ export default async function JobDetailPage({
     </div>
   );
 }
+
 

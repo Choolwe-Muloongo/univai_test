@@ -2,7 +2,7 @@
 'use client'
 
 import { notFound, useParams } from 'next/navigation';
-import { type DiscussionComment } from '@/lib/data';
+import { type DiscussionComment } from '@/lib/api/types';
 import {
   Card,
   CardContent,
@@ -18,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { CornerDownRight, MessageSquare, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getDiscussionById } from '@/lib/api';
+import { createDiscussionComment, getDiscussionById } from '@/lib/api';
 
 export default function DiscussionDetailPage() {
   const params = useParams();
@@ -28,7 +28,8 @@ export default function DiscussionDetailPage() {
   // Component state
   const [isClient, setIsClient] = useState(false);
   const [comments, setComments] = useState<DiscussionComment[]>([]);
-  const [newComment, setNewComment] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -43,22 +44,6 @@ export default function DiscussionDetailPage() {
     };
     loadDiscussion();
   }, [id]);
-
-  const handlePostComment = () => {
-    if (!newComment.trim()) return;
-
-    const commentToAdd: DiscussionComment = {
-      id: `c${Date.now()}`,
-      author: 'Premium Student', // Placeholder for logged-in user
-      avatar: 'https://i.pravatar.cc/40?u=student-premium',
-      content: newComment,
-      timestamp: 'Just now',
-      upvotes: 0,
-    };
-
-    setComments([commentToAdd, ...comments]);
-    setNewComment('');
-  };
 
 
   if (!isClient) {
@@ -130,16 +115,32 @@ export default function DiscussionDetailPage() {
                     <CornerDownRight className='w-5 h-5 text-muted-foreground'/>
                     <h4 className='text-lg font-semibold'>Leave a Reply</h4>
                 </div>
-                <Textarea 
-                  placeholder="Write your comment here..." 
+                <Textarea
+                  placeholder="Share your perspective or ask a follow-up..."
                   className='min-h-24'
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  value={commentText}
+                  onChange={(event) => setCommentText(event.target.value)}
+                  disabled={posting}
                 />
-                <Button onClick={handlePostComment}>Post Comment</Button>
+                <Button
+                  disabled={posting || !commentText.trim()}
+                  onClick={async () => {
+                    setPosting(true);
+                    try {
+                      const newComment = await createDiscussionComment(id, commentText.trim());
+                      setComments((prev) => [...prev, newComment]);
+                      setCommentText('');
+                    } finally {
+                      setPosting(false);
+                    }
+                  }}
+                >
+                  Post Comment
+                </Button>
             </div>
         </CardFooter>
       </Card>
     </div>
   );
 }
+

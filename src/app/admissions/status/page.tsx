@@ -35,12 +35,13 @@ export default function AdmissionStatusPage() {
     loadStatus();
   }, []);
 
+  const offerReady = ['offer_sent', 'approved', 'admitted'].includes(applicationStatus);
   const steps: StatusStep[] = [
     {
       title: 'Application Submitted',
       description: 'Your documents and subject points have been received.',
       icon: <FileText className="h-4 w-4" />,
-      state: 'done',
+      state: applicationStatus === 'draft' ? 'current' : 'done',
     },
     {
       title: 'Admission Fee',
@@ -52,17 +53,17 @@ export default function AdmissionStatusPage() {
       title: 'Academic Review',
       description: 'Registrar verifies eligibility and subject requirements.',
       icon: <ShieldCheck className="h-4 w-4" />,
-      state: feePaid ? 'current' : 'locked',
+      state: feePaid && !offerReady ? 'current' : feePaid ? 'done' : 'locked',
     },
     {
       title: 'Offer Letter',
-      description: 'Receive your official offer and enrollment instructions.',
+      description: offerReady ? 'Offer sent. Please accept to enroll.' : 'Receive your official offer and enrollment instructions.',
       icon: <CheckCircle2 className="h-4 w-4" />,
-      state: feePaid ? 'locked' : 'locked',
+      state: offerReady ? 'current' : feePaid ? 'locked' : 'locked',
     },
   ];
 
-  const progressValue = feePaid ? 50 : 25;
+  const progressValue = offerReady ? 75 : feePaid ? 50 : 25;
 
   return (
     <div className="min-h-screen bg-background px-4 py-10">
@@ -123,6 +124,9 @@ export default function AdmissionStatusPage() {
                   <Link href="/admissions/fee">Pay Admission Fee</Link>
                 </Button>
               )}
+              <Button variant="outline" asChild>
+                <Link href="/admissions/portal">Open Applicant Portal</Link>
+              </Button>
               <Button variant="outline" asChild>
                 <Link href="/login">Return to Login</Link>
               </Button>

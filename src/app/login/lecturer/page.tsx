@@ -1,5 +1,6 @@
 // src/app/login/lecturer/page.tsx
 'use client';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -13,12 +14,21 @@ import { useSession } from '@/components/providers/session-provider';
 export default function LecturerLoginPage() {
   const router = useRouter();
   const { refresh } = useSession();
+  const [email, setEmail] = useState('lecturer@univai.edu');
+  const [password, setPassword] = useState('password123');
+  const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    await login('lecturer');
-    await refresh();
-    router.push('/lecturer/dashboard');
+    setError(null);
+    try {
+      await login({ email, password, role: 'lecturer' });
+      await refresh();
+      router.push('/lecturer/dashboard');
+    } catch (err) {
+      console.error(err);
+      setError('Login failed. Please check your credentials and try again.');
+    }
   };
 
   return (
@@ -40,13 +50,19 @@ export default function LecturerLoginPage() {
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
+              {error && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   placeholder="lecturer@univai.edu"
-                  defaultValue="lecturer@univai.edu"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
                 />
               </div>
@@ -55,7 +71,8 @@ export default function LecturerLoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  defaultValue="password123"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   required
                 />
               </div>

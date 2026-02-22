@@ -7,36 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-
-const checklist = [
-  {
-    id: "credits",
-    label: "Complete required credits (120)",
-    checked: true,
-  },
-  {
-    id: "fees",
-    label: "Clear all tuition and library fees",
-    checked: false,
-  },
-  {
-    id: "conduct",
-    label: "No outstanding conduct holds",
-    checked: true,
-  },
-  {
-    id: "capstone",
-    label: "Submit capstone project and defense",
-    checked: false,
-  },
-  {
-    id: "exit",
-    label: "Complete exit survey",
-    checked: false,
-  },
-];
 
 export default function GraduationChecklistPage() {
   return (
@@ -54,14 +25,9 @@ export default function GraduationChecklistPage() {
           <CardDescription>Items are updated by registrar and finance.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {checklist.map((item) => (
-            <div key={item.id} className="flex items-start gap-3 rounded-lg border p-4">
-              <Checkbox id={item.id} defaultChecked={item.checked} />
-              <label htmlFor={item.id} className="text-sm leading-relaxed">
-                {item.label}
-              </label>
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Checklist items will appear once the registrar begins your clearance review.
+          </div>
         </CardContent>
         <CardFooter className="justify-between">
           <Button variant="outline" asChild>

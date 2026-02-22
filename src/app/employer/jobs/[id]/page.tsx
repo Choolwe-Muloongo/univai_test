@@ -42,7 +42,6 @@ export default async function EmployerJobDetailPage({
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant={job.type === 'Internship' ? 'secondary' : 'default'}>{job.type}</Badge>
               <Badge variant="outline">Open</Badge>
-              <Badge variant="outline">24 Applicants</Badge>
             </div>
             <p>
               This listing is visible to all eligible students. Update the role description and requirements as needed.
@@ -59,21 +58,8 @@ export default async function EmployerJobDetailPage({
             <CardDescription>Track progress for this role.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <div className="flex justify-between">
-              <span>New</span>
-              <span>12</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Screening</span>
-              <span>7</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Interview</span>
-              <span>3</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Offer</span>
-              <span>2</span>
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Applicant funnel data will appear once applications are submitted.
             </div>
           </CardContent>
         </Card>

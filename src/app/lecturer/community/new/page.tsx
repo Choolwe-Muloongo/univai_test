@@ -1,4 +1,7 @@
+'use client';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,8 +9,37 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { createDiscussion } from '@/lib/api';
 
 export default function NewDiscussionPage() {
+  const router = useRouter();
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('coursework');
+  const [details, setDetails] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await createDiscussion({
+        title,
+        category,
+        details,
+      });
+      router.push('/lecturer/community');
+    } catch (err) {
+      setError('Unable to post discussion. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isDisabled = isSubmitting || !title.trim() || !details.trim();
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -26,34 +58,52 @@ export default function NewDiscussionPage() {
             <CardTitle>Discussion Details</CardTitle>
             <CardDescription>Be clear and specific to help others respond quickly.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" placeholder="e.g., Best resources for learning React?" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select>
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="coursework">Coursework</SelectItem>
-                  <SelectItem value="projects">Projects</SelectItem>
-                  <SelectItem value="careers">Careers</SelectItem>
-                  <SelectItem value="research">Research</SelectItem>
-                  <SelectItem value="general">General</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="details">Discussion</Label>
-              <Textarea id="details" className="min-h-40" placeholder="Share details, context, and what you've tried so far." />
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button className="flex-1">Post Discussion</Button>
-              <Button variant="outline" className="flex-1">Save Draft</Button>
-            </div>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="e.g., Best resources for learning React?"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="coursework">Coursework</SelectItem>
+                    <SelectItem value="projects">Projects</SelectItem>
+                    <SelectItem value="careers">Careers</SelectItem>
+                    <SelectItem value="research">Research</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="details">Discussion</Label>
+                <Textarea
+                  id="details"
+                  value={details}
+                  onChange={(event) => setDetails(event.target.value)}
+                  className="min-h-40"
+                  placeholder="Share details, context, and what you've tried so far."
+                />
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button className="flex-1" type="submit" disabled={isDisabled}>
+                  {isSubmitting ? 'Posting...' : 'Post Discussion'}
+                </Button>
+                <Button variant="outline" className="flex-1" type="button">
+                  Save Draft
+                </Button>
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </form>
           </CardContent>
         </Card>
 
@@ -86,3 +136,4 @@ export default function NewDiscussionPage() {
     </div>
   );
 }
+

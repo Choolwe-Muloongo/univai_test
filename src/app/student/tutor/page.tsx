@@ -2,7 +2,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +17,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { aiTutorAction } from '@/app/actions';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useAiContext } from '@/lib/ai-context';
+import { getProgram } from '@/lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BaseGeneratorState {
   // message can be a string (error/success) or null initially
@@ -50,12 +53,40 @@ export default function TutorPage() {
 const initialState = { message: null, answer: null, errors: null };
   const [state, dispatch] = useActionState<TutorState, FormData>(aiTutorAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const context = useAiContext();
+  const [modules, setModules] = useState<{ id: string; title: string; semester?: number | null }[]>([]);
+  const [selectedModule, setSelectedModule] = useState('');
 
   useEffect(() => {
     if (state.message === 'Success') {
       formRef.current?.reset();
     }
   }, [state]);
+
+  useEffect(() => {
+    const loadModules = async () => {
+      try {
+        const program = await getProgram();
+        setModules(
+          program.modules.map((module) => ({
+            id: module.id,
+            title: module.title,
+            semester: module.semester,
+          }))
+        );
+      } catch (error) {
+        console.error('Failed to load modules', error);
+      }
+    };
+    loadModules();
+  }, []);
+
+  const moduleContext = selectedModule
+    ? modules.find((module) => module.id === selectedModule)
+    : null;
+  const moduleContextText = moduleContext
+    ? `Module: ${moduleContext.title}${moduleContext.semester ? ` (Semester ${moduleContext.semester})` : ''}`
+    : '';
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -78,6 +109,23 @@ const initialState = { message: null, answer: null, errors: null };
             </div>
           )}
           <form ref={formRef} action={dispatch} className="space-y-6">
+            <input type="hidden" name="context" value={context} />
+            <input type="hidden" name="moduleContext" value={moduleContextText} />
+            <div className="space-y-2">
+              <Label>Module Context (optional)</Label>
+              <Select value={selectedModule} onValueChange={setSelectedModule}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a module to guide the tutor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modules.map((module) => (
+                    <SelectItem key={module.id} value={module.id}>
+                      {module.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="courseMaterial">Course Material</Label>
               <Textarea

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -5,14 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
-const groups = [
-  { name: 'Frontend Builders', members: 124, status: 'Joined' },
-  { name: 'AI & Data Club', members: 98, status: 'Join' },
-  { name: 'Product Designers', members: 65, status: 'Join' },
-];
 
 export default function CommunityGroupsPage() {
   return (
@@ -28,19 +22,12 @@ export default function CommunityGroupsPage() {
           <CardDescription>Join a group to collaborate and share resources.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {groups.map((group) => (
-            <div key={group.name} className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">{group.name}</p>
-                <p className="text-sm text-muted-foreground">{group.members} members</p>
-              </div>
-              {group.status === 'Joined' ? (
-                <Badge variant="secondary">Joined</Badge>
-              ) : (
-                <Button variant="outline" size="sm">Join</Button>
-              )}
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Community groups will appear once the student community module is enabled.
+          </div>
+          <Button asChild variant="outline">
+            <Link href="/student/community/new">Start a Discussion</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

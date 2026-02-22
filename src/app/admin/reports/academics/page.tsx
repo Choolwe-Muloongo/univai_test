@@ -3,12 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
-const performance = [
-  { program: 'BSc Software Development', completion: 72 },
-  { program: 'Diploma in Nursing', completion: 64 },
-  { program: 'MBA', completion: 59 },
-];
-
 export default function AcademicReportsPage() {
   return (
     <div className="space-y-8">
@@ -28,15 +22,10 @@ export default function AcademicReportsPage() {
           <CardDescription>Average completion rate by program.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {performance.map((item) => (
-            <div key={item.program} className="space-y-2 rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold">{item.program}</p>
-                <p className="text-sm text-muted-foreground">{item.completion}%</p>
-              </div>
-              <Progress value={item.completion} />
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Academic performance data will appear once grades and attendance are published.
+          </div>
+          <Progress value={0} />
         </CardContent>
       </Card>
     </div>

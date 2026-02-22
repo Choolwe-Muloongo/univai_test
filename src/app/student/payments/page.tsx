@@ -4,9 +4,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Check, Star, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/components/providers/session-provider';
 import Link from 'next/link';
+import { getInvoices } from '@/lib/api';
+import type { Invoice } from '@/lib/api/types';
 
 const freemiumFeatures = [
   { text: 'Access to introductory modules of all courses', included: true },
@@ -30,10 +32,42 @@ export default function PaymentsPage() {
   const router = useRouter();
   const { session } = useSession();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [showAllTotals, setShowAllTotals] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
     setUserRole(session?.user?.role ?? null);
   }, [session]);
+
+  useEffect(() => {
+    const loadInvoices = async () => {
+      const data = await getInvoices();
+      setInvoices(data);
+    };
+    loadInvoices();
+  }, []);
+
+  const feeTotals = useMemo(() => {
+    const toNumber = (value: string) => Number.parseFloat(value || '0') || 0;
+    const schoolMatch = /tuition|school fee|school fees/i;
+    const schoolTotal = invoices
+      .filter((invoice) => schoolMatch.test(invoice.title))
+      .reduce((sum, invoice) => sum + toNumber(invoice.amount), 0);
+    const otherTotal = invoices
+      .filter((invoice) => !schoolMatch.test(invoice.title))
+      .reduce((sum, invoice) => sum + toNumber(invoice.amount), 0);
+    const format = (value: number) => `$${value.toFixed(2)}`;
+    const base = [
+      { label: 'School Fees Total', amount: format(schoolTotal), note: 'Tuition and core modules' },
+      { label: 'Other Fees Total', amount: format(otherTotal), note: 'Labs, exams, and services' },
+    ];
+    const detailed = invoices.map((invoice) => ({
+      label: invoice.title,
+      amount: format(toNumber(invoice.amount)),
+      note: invoice.status,
+    }));
+    return showAllTotals ? [...base, ...detailed] : base;
+  }, [invoices, showAllTotals]);
 
 
   const handleUpgrade = () => {
@@ -73,6 +107,34 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle>Fee Totals</CardTitle>
+            <CardDescription>Track what is included in your overall costs.</CardDescription>
+          </div>
+          <Button variant="outline" onClick={() => setShowAllTotals((prev) => !prev)}>
+            {showAllTotals ? 'View Less' : 'View More'}
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          {(showAllTotals ? feeTotals : feeTotals.slice(0, 2)).map((item) => (
+            <div key={item.label} className="rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{item.label}</p>
+                <p className="text-lg font-bold">{item.amount}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">{item.note}</p>
+            </div>
+          ))}
+          {invoices.length === 0 && (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              No invoices found yet. Once billing is generated, totals will appear here.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
         {/* Freemium Plan */}

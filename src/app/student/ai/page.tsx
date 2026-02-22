@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const tools = [
+  { title: 'AI Chat', description: 'Full chat experience for study help and support.', href: '/student/ai/chat' },
   { title: 'AI Tutor', description: 'Ask questions and get guided explanations.', href: '/student/ai/tutor' },
   { title: 'Lesson Companion', description: 'AI summaries and practice by lesson.', href: '/student/ai/lesson-companion' },
   { title: 'Study Plan', description: 'Personalized weekly learning plan.', href: '/student/study-plan' },

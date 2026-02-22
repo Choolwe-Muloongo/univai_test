@@ -3,6 +3,25 @@
 import { z } from 'zod';
 import { GenerateContentInputSchema } from '@/lib/schemas';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+
+async function callAi(prompt: string, mode: string, context?: string | null) {
+  const response = await fetch(`${API_BASE_URL}/ai/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, mode, context: context || undefined }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(errorBody || 'AI request failed');
+  }
+
+  const data = await response.json();
+  return data.text as string;
+}
+
 
 const studyPlanSchema = z.object({
   learningHistory: z.string().min(10, { message: 'Please provide more details about your learning history.' }),
@@ -27,14 +46,14 @@ export async function generateStudyPlanAction(prevState: any, formData: FormData
 
   try {
     const { learningHistory, goals, availableTime } = validatedFields.data;
-    const mockPlan = `Week 1-2: Refresh fundamentals based on: ${learningHistory}
-Week 3-4: Focus on goals: ${goals}
+    const context = (formData.get('context') as string) || null;
+    const prompt = `Create a 4-week study plan for a university student.
+Learning history: ${learningHistory}
+Goals: ${goals}
 Weekly time allocation: ${availableTime}
-Next Actions:
-- Complete 2 lessons
-- Submit 1 assignment
-- Run 1 practice quiz`;
-    return { message: 'Success', studyPlan: mockPlan, errors: null };
+Return a structured plan with weeks and bullet points.`;
+    const plan = await callAi(prompt, 'lesson', context);
+    return { message: 'Success', studyPlan: plan, errors: null };
   } catch (error) {
     return { message: 'An error occurred while generating the plan.', studyPlan: null, errors: null };
   }
@@ -62,14 +81,14 @@ export async function aiTutorAction(prevState: any, formData: FormData) {
     
       try {
         const { question, courseMaterial } = validatedFields.data;
-        const mockAnswer = `Here's a simplified explanation:
-
-Question: ${question}
-
-Key idea: ${courseMaterial.slice(0, 120)}...
-
-Summary: Focus on the main concept, then practice with a short quiz.`;
-        return { message: 'Success', answer: mockAnswer, errors: null };
+        const context = (formData.get('context') as string) || null;
+        const moduleContext = (formData.get('moduleContext') as string) || '';
+        const moduleBlock = moduleContext ? `Module context: ${moduleContext}\n` : '';
+        const prompt = `Student question: ${question}
+${moduleBlock}Course material: ${courseMaterial}
+Respond with a clear, step-by-step explanation and a short check-for-understanding question.`;
+        const answer = await callAi(prompt, 'tutor', context);
+        return { message: 'Success', answer, errors: null };
       } catch (error) {
         return { message: 'An error occurred while getting an answer.', answer: null, errors: null };
       }
@@ -97,11 +116,16 @@ export async function analyzeCodeAction(prevState: any, formData: FormData) {
     
       try {
         const { code } = validatedFields.data;
-        return { 
-            message: 'Success', 
-            errors: null,
-            feedback: `AI Feedback:\n- Looks good overall.\n- Consider adding input validation.\n- Optimize the loop where possible.\n\nSnippet:\n${code.slice(0, 120)}...`,
-            correctedCode: `${code}\n\n# Suggested fix:\n# Add validation and handle edge cases.`,
+        const context = (formData.get('context') as string) || null;
+        const prompt = `Review the following code for issues, improvements, and best practices. Provide feedback and a corrected version.
+Code:
+${code}`;
+        const feedback = await callAi(prompt, 'summary', context);
+        return {
+          message: 'Success',
+          errors: null,
+          feedback,
+          correctedCode: code,
         };
       } catch (error) {
         return { 
@@ -131,10 +155,14 @@ export async function generateVideoAction(prevState: any, formData: FormData) {
       }
     
       try {
+        const sourceMaterial = (formData.get('sourceMaterial') as string) || '';
+        const intakeName = (formData.get('intakeName') as string) || '';
+        void sourceMaterial;
+        void intakeName;
         return { 
-            message: 'Success', 
-            errors: null,
-            videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          message: 'Success', 
+          errors: null,
+          videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
         };
       } catch (error) {
         console.error('Video generation error:', error);
@@ -144,6 +172,51 @@ export async function generateVideoAction(prevState: any, formData: FormData) {
             videoUrl: null
         };
       }
+}
+
+const lectureScriptSchema = z.object({
+  topic: z.string().min(5, { message: 'Please provide a clearer lesson topic.' }),
+});
+
+export async function generateLectureScriptAction(prevState: any, formData: FormData) {
+  const validatedFields = lectureScriptSchema.safeParse({
+    topic: formData.get('topic'),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      message: 'Validation failed',
+      errors: validatedFields.error.flatten().fieldErrors,
+      script: null,
+    };
+  }
+
+  try {
+    const { topic } = validatedFields.data;
+    const context = (formData.get('context') as string) || null;
+    const sourceMaterial = (formData.get('sourceMaterial') as string) || '';
+    const intakeName = (formData.get('intakeName') as string) || '';
+    const intakeBlock = intakeName ? `Intake context: ${intakeName}\n` : '';
+    const sourceBlock = sourceMaterial ? `Use the following source material:\n${sourceMaterial}\n` : '';
+    const prompt = `${intakeBlock}${sourceBlock}Create a clear lecture script for "${topic}".
+Include:
+1) Hook (1-2 sentences)
+2) Learning objectives (3-5 bullets)
+3) Section-by-section narration with timestamps (approximate)
+4) Visual cues or slides per section
+5) 3 quick check questions
+6) Short wrap-up summary.
+Return in markdown with headings.`;
+    const script = await callAi(prompt, 'lesson', context);
+    return { message: 'Success', errors: null, script };
+  } catch (error) {
+    console.error('Lecture script generation error:', error);
+    return {
+      message: 'An error occurred while generating the lecture script.',
+      errors: null,
+      script: null,
+    };
+  }
 }
 
 const contentGenerationSchema = GenerateContentInputSchema;
@@ -164,25 +237,20 @@ export async function generateContentAction(prevState: any, formData: FormData) 
     
       try {
         const { topic, contentType } = validatedFields.data;
+        const context = (formData.get('context') as string) || null;
+        const sourceMaterial = (formData.get('sourceMaterial') as string) || '';
+        const intakeName = (formData.get('intakeName') as string) || '';
+        const intakeBlock = intakeName ? `Intake context: ${intakeName}\n` : '';
+        const sourceBlock = sourceMaterial ? `Use the following source material:\n${sourceMaterial}\n` : '';
         if (contentType === 'Quiz') {
-          const quiz = {
-            title: `${topic} Quick Quiz`,
-            questions: [
-              {
-                question: `What is the core idea of ${topic}?`,
-                options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                answer: 'Option B',
-              },
-              {
-                question: `Which example best applies ${topic}?`,
-                options: ['Example 1', 'Example 2', 'Example 3', 'Example 4'],
-                answer: 'Example 2',
-              },
-            ],
-          };
-          return { message: 'Success', errors: null, content: JSON.stringify(quiz) };
+          const prompt = `${intakeBlock}${sourceBlock}Create a 5-question multiple-choice quiz about "${topic}".
+Return strict JSON only in this schema:
+{"title":"string","questions":[{"question":"string","options":["A","B","C","D"],"answer":"string"}]}`;
+          const quiz = await callAi(prompt, 'quiz', context);
+          return { message: 'Success', errors: null, content: quiz };
         }
-        const exercise = `# Exercise: ${topic}\n# Write a function that demonstrates the concept.\n\n`;
+        const prompt = `${intakeBlock}${sourceBlock}Create a practical exercise for the topic "${topic}". Provide instructions and expected outcome.`;
+        const exercise = await callAi(prompt, 'lesson', context);
         return { message: 'Success', errors: null, content: exercise };
       } catch (error) {
         console.error('Content generation error:', error);
@@ -198,8 +266,17 @@ export async function generateContentAction(prevState: any, formData: FormData) 
 export async function updateLessonContent(courseId: string, lessonId: string, data: Record<string, any>) {
   try {
     void courseId;
-    void lessonId;
-    void data;
+    const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update lesson content');
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Error updating lesson:", error);

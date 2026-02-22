@@ -1,6 +1,4 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-export const USE_MOCKS =
-  process.env.NEXT_PUBLIC_USE_MOCKS === 'true' || !API_BASE_URL;
 
 export class ApiError extends Error {
   status: number;
@@ -20,10 +18,22 @@ export async function apiFetch<T>(
   { parseJson = true, headers, ...options }: FetchOptions = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
+  let cookieHeader: string | undefined;
+  if (typeof window === 'undefined') {
+    try {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      cookieHeader = cookieStore.toString();
+    } catch (error) {
+      cookieHeader = undefined;
+      void error;
+    }
+  }
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       ...(headers || {}),
     },
     credentials: 'include',

@@ -57,7 +57,7 @@ export default async function ProgramModulesPage() {
                       <Link href={`/student/modules/${module.id}`}>Open Module</Link>
                     </Button>
                     <Button variant="outline" asChild>
-                      <Link href="/student/lessons/l1-cs101">Continue Lesson</Link>
+                      <Link href="/student/lessons">View Lessons</Link>
                     </Button>
                   </div>
                 </div>

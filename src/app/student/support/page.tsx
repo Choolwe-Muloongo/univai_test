@@ -1,4 +1,6 @@
+'use client';
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,31 +11,47 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { LifeBuoy, MessageCircle, FileWarning } from "lucide-react";
-
-const tickets = [
-  {
-    id: "TCK-3012",
-    subject: "Payment confirmation not received",
-    status: "Open",
-    updated: "Today",
-  },
-  {
-    id: "TCK-2964",
-    subject: "Exam booking issue",
-    status: "In Progress",
-    updated: "Yesterday",
-  },
-  {
-    id: "TCK-2890",
-    subject: "Transcript request",
-    status: "Resolved",
-    updated: "Jan 26",
-  },
-];
+import { createSupportTicket, getSupportTickets } from "@/lib/api";
+import type { SupportTicket } from "@/lib/api/types";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SupportPage() {
+  const { toast } = useToast();
+  const [subject, setSubject] = useState('');
+  const [description, setDescription] = useState('');
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadTickets = async () => {
+    const data = await getSupportTickets();
+    setTickets(data);
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!subject.trim() || !description.trim()) return;
+    setSubmitting(true);
+    try {
+      const ticket = await createSupportTicket({ subject: subject.trim(), description: description.trim() });
+      setSubject('');
+      setDescription('');
+      setTickets((prev) => [ticket, ...prev]);
+      toast({ title: 'Ticket submitted', description: 'Support will respond shortly.' });
+    } catch (error: any) {
+      toast({
+        title: 'Failed to submit ticket',
+        description: error?.message ?? 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -52,12 +70,24 @@ export default function SupportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input placeholder="Subject" />
-            <Textarea placeholder="Describe your issue" className="min-h-[140px]" />
+            <Input placeholder="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} />
+            <Textarea
+              placeholder="Describe your issue"
+              className="min-h-[140px]"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
             <div className="flex items-center gap-2">
-              <Button>Submit Ticket</Button>
-              <Button variant="outline">Attach File</Button>
+              <Button onClick={handleSubmit} disabled={submitting || !subject.trim() || !description.trim()}>
+                Submit Ticket
+              </Button>
+              <Button variant="outline" disabled>
+                Attach File
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Attachments will be supported once secure storage is enabled.
+            </p>
           </CardContent>
         </Card>
 
@@ -104,28 +134,26 @@ export default function SupportPage() {
           <CardDescription>Latest support requests and updates.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {tickets.map((ticket) => (
-            <div key={ticket.id} className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">{ticket.subject}</p>
-                <p className="text-sm text-muted-foreground">{ticket.id}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge
-                  variant={ticket.status === "Resolved" ? "secondary" : "outline"}
-                >
-                  {ticket.status}
-                </Badge>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/student/support/tickets/${ticket.id.toLowerCase()}`}>
-                    View
-                  </Link>
-                </Button>
-              </div>
+          {tickets.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              No tickets found. New requests will appear here once submitted.
             </div>
-          ))}
+          ) : (
+            tickets.map((ticket) => (
+              <Link key={ticket.id} href={`/student/support/tickets/${ticket.id}`} className="block rounded-lg border p-4 hover:bg-muted/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{ticket.subject}</p>
+                    <p className="text-xs text-muted-foreground">{ticket.status}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{ticket.createdAt?.slice(0, 10)}</span>
+                </div>
+              </Link>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

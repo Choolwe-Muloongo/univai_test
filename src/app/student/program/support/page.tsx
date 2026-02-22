@@ -8,13 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Mail, MessageCircle, PhoneCall, UserRound } from 'lucide-react';
-
-const advisors = [
-  { name: 'Dr. Angela Mensah', role: 'Academic Advisor', status: 'Available' },
-  { name: 'Registrar Office', role: 'Enrollment & Records', status: 'Online' },
-];
 
 export default function ProgramSupportPage() {
   return (
@@ -27,37 +21,32 @@ export default function ProgramSupportPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {advisors.map((advisor) => (
-          <Card key={advisor.name}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">{advisor.name}</CardTitle>
-                <CardDescription>{advisor.role}</CardDescription>
-              </div>
-              <Badge variant="secondary">{advisor.status}</Badge>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <UserRound className="h-4 w-4" />
-                Assigned to Semester 2 cohort
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                support@univai.edu
-              </div>
-            </CardContent>
-            <CardFooter className="gap-2">
-              <Button variant="outline" className="flex-1">
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Chat
-              </Button>
-              <Button className="flex-1">
-                <PhoneCall className="mr-2 h-4 w-4" />
-                Call
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Advisor Directory</CardTitle>
+            <CardDescription>Advisor details will appear once assignments are published.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <UserRound className="h-4 w-4" />
+              Assigned advisors will show here.
+            </div>
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              support@univai.edu
+            </div>
+          </CardContent>
+          <CardFooter className="gap-2">
+            <Button variant="outline" className="flex-1" disabled>
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Chat
+            </Button>
+            <Button className="flex-1" disabled>
+              <PhoneCall className="mr-2 h-4 w-4" />
+              Call
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
 
       <Card>

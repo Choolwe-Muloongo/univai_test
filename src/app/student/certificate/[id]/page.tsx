@@ -53,8 +53,8 @@ function CertificateSkeleton() {
   }
 
 export default function CertificatePage() {
-  const params = useParams();
-  const id = params.id as string;
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? '';
   const [result, setResult] = useState<ExamResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,9 +67,9 @@ export default function CertificatePage() {
     if (!id) return;
     const fetchResult = async () => {
       try {
-        const stored = await getExamResults();
-        const latestId = await getLatestExamId();
-        const resolved = stored[id] || (latestId ? stored[latestId] : null);
+        const stored = (await getExamResults()) as Record<string, ExamResult>;
+        const latestId = (await getLatestExamId()) as string | null;
+        const resolved = stored[String(id)] || (latestId ? stored[String(latestId)] : null);
         if (resolved) {
           setResult(resolved as ExamResult);
         } else {

@@ -8,7 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import type { ProgramModule } from '@/lib/data';
+import type { ProgramModule } from '@/lib/api/types';
 
 const chartConfig = {
   progress: {
@@ -52,3 +52,4 @@ export function ProgressChart({ modules }: ProgressChartProps) {
     </ChartContainer>
   );
 }
+

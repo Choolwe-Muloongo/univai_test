@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -5,14 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
-const events = [
-  { title: 'AI Study Jam', date: 'Feb 8, 2026 · 4:00 PM', status: 'Registered' },
-  { title: 'Career Prep Workshop', date: 'Feb 12, 2026 · 6:00 PM', status: 'Register' },
-  { title: 'Hackathon Sprint', date: 'Feb 20, 2026 · 10:00 AM', status: 'Register' },
-];
 
 export default function CommunityEventsPage() {
   return (
@@ -28,19 +22,12 @@ export default function CommunityEventsPage() {
           <CardDescription>Grow your network and skills.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {events.map((event) => (
-            <div key={event.title} className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">{event.title}</p>
-                <p className="text-sm text-muted-foreground">{event.date}</p>
-              </div>
-              {event.status === 'Registered' ? (
-                <Badge variant="secondary">Registered</Badge>
-              ) : (
-                <Button variant="outline" size="sm">Register</Button>
-              )}
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Events will appear once the community calendar is published.
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/student/community/new">Ask for an event</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -1,16 +1,40 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-const invoices = [
-  { id: 'inv-2026-01', term: 'Semester 1', amount: '$650', status: 'Due', dueDate: 'Feb 20, 2026' },
-  { id: 'inv-2025-02', term: 'Semester 2', amount: '$650', status: 'Paid', dueDate: 'Oct 14, 2025' },
-  { id: 'inv-2025-01', term: 'Semester 1', amount: '$650', status: 'Paid', dueDate: 'Mar 5, 2025' },
-];
+import { getInvoices, payInvoice } from '@/lib/api';
+import type { Invoice } from '@/lib/api/types';
 
 export default function StudentInvoicesPage() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const data = await getInvoices();
+      setInvoices(data);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const handlePay = async (invoiceId: number) => {
+    setPayingId(invoiceId);
+    const updated = await payInvoice(invoiceId);
+    setInvoices((prev) => prev.map((invoice) => (invoice.id === updated.id ? updated : invoice)));
+    setPayingId(null);
+  };
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading invoices...</p>;
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -33,7 +57,7 @@ export default function StudentInvoicesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice</TableHead>
-                <TableHead>Term</TableHead>
+                <TableHead>Title</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Due</TableHead>
                 <TableHead>Status</TableHead>
@@ -43,24 +67,33 @@ export default function StudentInvoicesPage() {
             <TableBody>
               {invoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{invoice.id}</TableCell>
-                  <TableCell>{invoice.term}</TableCell>
-                  <TableCell>{invoice.amount}</TableCell>
-                  <TableCell>{invoice.dueDate}</TableCell>
+                  <TableCell className="font-medium">INV-{invoice.id}</TableCell>
+                  <TableCell>{invoice.title}</TableCell>
+                  <TableCell>${invoice.amount}</TableCell>
+                  <TableCell>{invoice.dueDate ?? '---'}</TableCell>
                   <TableCell>
-                    <Badge variant={invoice.status === 'Paid' ? 'secondary' : 'default'}>
-                      {invoice.status}
+                    <Badge variant={invoice.status === 'paid' ? 'secondary' : 'default'}>
+                      {invoice.status.toUpperCase()}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {invoice.status === 'Paid' ? (
+                    {invoice.status === 'paid' ? (
                       <Button variant="outline" size="sm">Download</Button>
                     ) : (
-                      <Button size="sm">Pay Now</Button>
+                      <Button size="sm" onClick={() => handlePay(invoice.id)} disabled={payingId === invoice.id}>
+                        {payingId === invoice.id ? 'Paying...' : 'Pay Now'}
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
+              {invoices.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    No invoices available yet.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { generateStudyPlanAction } from '@/app/actions';
 import { Loader2 } from 'lucide-react';
+import { useAiContext } from '@/lib/ai-context';
 
 interface BaseGeneratorState {
   // message can be a string (error/success) or null initially
@@ -49,6 +50,7 @@ function SubmitButton() {
 export default function StudyPlanPage() {
   const initialState = { message: null, studyPlan: null, errors: null };
   const [state, dispatch] = useActionState<StudyPlanState, FormData>(generateStudyPlanAction, initialState);
+  const context = useAiContext();
 
   return (
     <div className="space-y-6">
@@ -75,6 +77,7 @@ export default function StudyPlanPage() {
         </CardHeader>
         <CardContent>
           <form action={dispatch} className="space-y-6">
+            <input type="hidden" name="context" value={context} />
             <div className="space-y-2">
               <Label htmlFor="learningHistory">Learning History</Label>
               <Textarea

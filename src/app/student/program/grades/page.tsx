@@ -17,16 +17,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { getStudentGrades } from '@/lib/api';
 
-const gradeRows = [
-  { course: 'Introduction to ICT', credits: 6, grade: 'A', status: 'Published' },
-  { course: 'Fundamentals of Programming', credits: 6, grade: 'B+', status: 'Published' },
-  { course: 'Mathematics for CS I', credits: 6, grade: 'B', status: 'Published' },
-  { course: 'Introduction to AI', credits: 6, grade: 'A-', status: 'Published' },
-  { course: 'Professional Development & Ethics', credits: 3, grade: 'Pending', status: 'In Review' },
-];
+export const dynamic = 'force-dynamic';
 
-export default function ProgramGradesPage() {
+export default async function ProgramGradesPage() {
+  const gradeData = await getStudentGrades();
+  const grades = gradeData.grades ?? [];
+
   return (
     <div className="space-y-8">
       <div>
@@ -40,16 +38,16 @@ export default function ProgramGradesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Current GPA</CardTitle>
-            <CardDescription>Semester 2</CardDescription>
+            <CardDescription>Based on published attempts</CardDescription>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">3.62</CardContent>
+          <CardContent className="text-2xl font-bold">{gradeData.gpa.toFixed(2)}</CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Credits Earned</CardTitle>
-            <CardDescription>Out of 120</CardDescription>
+            <CardDescription>Completed credits</CardDescription>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">48</CardContent>
+          <CardContent className="text-2xl font-bold">{gradeData.creditsEarned}</CardContent>
         </Card>
         <Card>
           <CardHeader>
@@ -57,7 +55,9 @@ export default function ProgramGradesPage() {
             <CardDescription>Academic status</CardDescription>
           </CardHeader>
           <CardContent>
-            <Badge variant="secondary">Good</Badge>
+            <Badge variant={gradeData.standing === 'good' ? 'secondary' : 'outline'}>
+              {gradeData.standing}
+            </Badge>
           </CardContent>
         </Card>
       </div>
@@ -65,39 +65,45 @@ export default function ProgramGradesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Semester Results</CardTitle>
-          <CardDescription>Awaiting final sign-off.</CardDescription>
+          <CardDescription>Latest attempts for your modules.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Module</TableHead>
-                <TableHead>Credits</TableHead>
-                <TableHead>Grade</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {gradeRows.map((row) => (
-                <TableRow key={row.course}>
-                  <TableCell className="font-medium">{row.course}</TableCell>
-                  <TableCell>{row.credits}</TableCell>
-                  <TableCell>
-                    {row.grade === 'Pending' ? (
-                      <Badge variant="outline">Pending</Badge>
-                    ) : (
-                      <Badge variant="secondary">{row.grade}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={row.status === 'Published' ? 'secondary' : 'outline'}>
-                      {row.status}
-                    </Badge>
-                  </TableCell>
+          {grades.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              No grades recorded yet. Once lecturers publish results, they will appear here.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Module</TableHead>
+                  <TableHead>Credits</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {grades.map((row) => (
+                  <TableRow key={`${row.moduleId}-${row.attempt}`}>
+                    <TableCell className="font-medium">{row.moduleTitle ?? row.moduleId}</TableCell>
+                    <TableCell>{row.credits ?? '-'}</TableCell>
+                    <TableCell>
+                      {row.letterGrade ? (
+                        <Badge variant="secondary">{row.letterGrade}</Badge>
+                      ) : (
+                        <Badge variant="outline">Pending</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={row.resultStatus === 'published' ? 'secondary' : 'outline'}>
+                        {row.resultStatus ?? 'draft'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
         <CardFooter className="justify-between">
           <Button variant="outline" asChild>

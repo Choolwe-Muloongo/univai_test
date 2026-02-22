@@ -17,7 +17,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     setRole(session?.user?.role ?? null);
   }, [session]);
 
-  if (loading || !role) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <Card className="max-w-lg">
@@ -25,6 +25,42 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <CardTitle>Loading student access</CardTitle>
             <CardDescription>Checking your enrollment status.</CardDescription>
           </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <Card className="max-w-lg">
+          <CardHeader>
+            <CardTitle>Please log in</CardTitle>
+            <CardDescription>Sign in to view your admissions or student dashboard.</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/login">Go to Login</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!role) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <Card className="max-w-lg">
+          <CardHeader>
+            <CardTitle>Account role missing</CardTitle>
+            <CardDescription>Please log in again or contact support.</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/login">Go to Login</Link>
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     );
@@ -46,6 +82,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <CardFooter className="flex flex-wrap gap-2">
             <Button asChild>
               <Link href="/admissions/status">View Admissions Status</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/admissions/portal">Applicant Portal</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/admissions/fee">Pay Admission Fee</Link>

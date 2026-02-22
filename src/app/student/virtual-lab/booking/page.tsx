@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -6,13 +7,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-
-const slots = [
-  { time: 'Mon · 9:00 AM', seats: 4 },
-  { time: 'Wed · 1:00 PM', seats: 6 },
-  { time: 'Fri · 3:00 PM', seats: 2 },
-];
 
 export default function VirtualLabBookingPage() {
   return (
@@ -28,22 +22,12 @@ export default function VirtualLabBookingPage() {
           <CardDescription>Select a slot to book your lab time.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {slots.map((slot) => (
-            <div key={slot.time} className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">{slot.time}</p>
-                <p className="text-sm text-muted-foreground">
-                  {slot.seats} seats remaining
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">Open</Badge>
-                <Button variant="outline" size="sm">
-                  Book
-                </Button>
-              </div>
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Booking slots will appear once the virtual lab schedule is published.
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/student/support">Contact Lab Support</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

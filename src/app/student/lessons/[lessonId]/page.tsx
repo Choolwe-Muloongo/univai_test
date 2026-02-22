@@ -13,12 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, Clock, GraduationCap } from 'lucide-react';
 import { getLessonById } from '@/lib/api';
 
-const objectives = [
-  'Understand the key concept and why it matters.',
-  'Apply the concept to a real-world scenario.',
-  'Complete a quick knowledge check to proceed.',
-];
-
 export default async function LessonStartPage({
   params,
 }: {
@@ -30,6 +24,14 @@ export default async function LessonStartPage({
   if (!lesson) {
     notFound();
   }
+
+  const wordCount = lesson.content ? lesson.content.trim().split(/\s+/).filter(Boolean).length : 0;
+  const minutes = Math.max(5, Math.ceil(wordCount / 180));
+  const difficulty =
+    wordCount > 900 ? 'Advanced' : wordCount > 450 ? 'Intermediate' : 'Foundational';
+  const summary = lesson.content
+    ? `${lesson.content.slice(0, 220)}${lesson.content.length > 220 ? '...' : ''}`
+    : null;
 
   return (
     <div className="space-y-8">
@@ -48,7 +50,7 @@ export default async function LessonStartPage({
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-bold">
             <Clock className="h-5 w-5 text-primary" />
-            18 min
+            {minutes} min
           </CardContent>
         </Card>
         <Card>
@@ -57,7 +59,7 @@ export default async function LessonStartPage({
             <CardDescription>Recommended level</CardDescription>
           </CardHeader>
           <CardContent>
-            <Badge variant="secondary">Foundational</Badge>
+            <Badge variant="secondary">{difficulty}</Badge>
           </CardContent>
         </Card>
         <Card>
@@ -78,12 +80,16 @@ export default async function LessonStartPage({
           <CardDescription>Key outcomes for this lesson.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {objectives.map((item) => (
-            <div key={item} className="flex items-start gap-3 rounded-lg border p-4">
+          {summary ? (
+            <div className="flex items-start gap-3 rounded-lg border p-4">
               <BookOpen className="mt-1 h-4 w-4 text-primary" />
-              <p className="text-sm text-muted-foreground">{item}</p>
+              <p className="text-sm text-muted-foreground">{summary}</p>
             </div>
-          ))}
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Lesson outcomes will appear once the lecturer publishes the content.
+            </div>
+          )}
         </CardContent>
         <CardFooter className="gap-2">
           <Button asChild>

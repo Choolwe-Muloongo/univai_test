@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getApplicationById, updateApplicationStatus } from '@/lib/api';
-import type { ApplicationDetail, ApplicationStatus } from '@/lib/api/types';
+import { getApplicationById, updateApplicationStatus, getIntakes, getApplicationDocuments, reviewApplicationDocument } from '@/lib/api';
+import type { ApplicationDetail, ApplicationStatus, Intake, ApplicationDocument } from '@/lib/api/types';
 import { ClipboardCheck, Mail, ShieldCheck, User, AlertTriangle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const requiredSubjects = ['english-language', 'mathematics'];
 
@@ -19,6 +20,7 @@ const statusLabels: Record<ApplicationStatus, string> = {
   fee_paid: 'Fee Paid',
   under_review: 'Under Review',
   needs_info: 'Needs Info',
+  offer_sent: 'Offer Sent',
   approved: 'Approved',
   rejected: 'Rejected',
   admitted: 'Admitted',
@@ -29,14 +31,31 @@ export default function AdmissionDetailPage() {
   const { toast } = useToast();
   const [application, setApplication] = useState<ApplicationDetail | null>(null);
   const [notes, setNotes] = useState('');
+  const [offerMessage, setOfferMessage] = useState('');
+  const [offerLetterUrl, setOfferLetterUrl] = useState('');
+  const [needsInfoMessage, setNeedsInfoMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [intakes, setIntakes] = useState<Intake[]>([]);
+  const [selectedIntake, setSelectedIntake] = useState<string>('');
+  const [documents, setDocuments] = useState<ApplicationDocument[]>([]);
+  const [docNotes, setDocNotes] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const loadApplication = async () => {
       setLoading(true);
-      const data = await getApplicationById(id as string);
+      const [data, intakeList, docList] = await Promise.all([
+        getApplicationById(id as string),
+        getIntakes(),
+        getApplicationDocuments(id as string),
+      ]);
       setApplication(data);
       setNotes(data?.notes || '');
+      setOfferMessage(data?.offerLetterMessage ?? '');
+      setOfferLetterUrl(data?.offerLetterUrl ?? '');
+      setNeedsInfoMessage(data?.needsInfoMessage ?? '');
+      setIntakes(intakeList.filter((intake) => intake.programId === data?.programId));
+      setSelectedIntake(data?.intakeId || '');
+      setDocuments(docList);
       setLoading(false);
     };
     loadApplication();
@@ -55,12 +74,33 @@ export default function AdmissionDetailPage() {
 
   const handleStatusChange = async (status: ApplicationStatus) => {
     if (!application) return;
-    const updated = await updateApplicationStatus(application.id, status, notes);
-    if (updated) {
-      setApplication(updated);
+    if ((status === 'offer_sent' || status === 'admitted' || status === 'approved') && !selectedIntake) {
       toast({
-        title: 'Application updated',
-        description: `Status set to ${statusLabels[status]}.`,
+        title: 'Select an intake first',
+        description: 'Assign the applicant to an intake before approval.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      const updated = await updateApplicationStatus(application.id, status, notes, selectedIntake || null, {
+        offerMessage,
+        offerLetterUrl,
+        needsInfoMessage,
+      });
+      if (updated) {
+        setApplication(updated);
+        toast({
+          title: 'Application updated',
+          description: `Status set to ${statusLabels[status]}.`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update application status', error);
+      toast({
+        title: 'Update failed',
+        description: 'Could not update this application. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -121,6 +161,21 @@ export default function AdmissionDetailPage() {
                 <p className="text-xs text-muted-foreground">Learning Style</p>
                 <p className="font-semibold">{application.learningStyle}</p>
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Assigned Intake</p>
+                <Select value={selectedIntake} onValueChange={setSelectedIntake}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select intake" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {intakes.map((intake) => (
+                      <SelectItem key={intake.id} value={intake.id}>
+                        {intake.name} - {intake.deliveryMode}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-2">
@@ -130,7 +185,10 @@ export default function AdmissionDetailPage() {
             <Button onClick={() => handleStatusChange('needs_info')} variant="outline">
               Request Info
             </Button>
-            <Button onClick={() => handleStatusChange('approved')}>Approve</Button>
+            <Button onClick={() => handleStatusChange('offer_sent')}>Send Offer</Button>
+            <Button onClick={() => handleStatusChange('admitted')} variant="secondary">
+              Mark Admitted
+            </Button>
             <Button onClick={() => handleStatusChange('rejected')} variant="destructive">
               Reject
             </Button>
@@ -170,6 +228,107 @@ export default function AdmissionDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Offer & Needs Info
+          </CardTitle>
+          <CardDescription>Compose offer letters and request missing documents.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Offer Message</p>
+            <Textarea
+              className="min-h-24"
+              value={offerMessage}
+              onChange={(event) => setOfferMessage(event.target.value)}
+              placeholder="Offer letter message shown to the applicant."
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Offer Letter URL (optional)</p>
+            <Textarea
+              className="min-h-24"
+              value={offerLetterUrl}
+              onChange={(event) => setOfferLetterUrl(event.target.value)}
+              placeholder="Paste a custom offer letter URL if needed."
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <p className="text-sm font-semibold">Needs Info Message</p>
+            <Textarea
+              className="min-h-24"
+              value={needsInfoMessage}
+              onChange={(event) => setNeedsInfoMessage(event.target.value)}
+              placeholder="Describe the missing documents or corrections needed."
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => handleStatusChange('needs_info')}>
+            Send Needs Info
+          </Button>
+          <Button onClick={() => handleStatusChange('offer_sent')}>
+            Send Offer
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5 text-primary" />
+            Document Review
+          </CardTitle>
+          <CardDescription>Verify applicant uploads and add notes.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {documents.length === 0 && (
+            <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
+          )}
+          {documents.map((doc) => (
+            <div key={doc.id} className="rounded-lg border p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{doc.documentType.replace(/-/g, ' ')}</p>
+                  <p className="text-xs text-muted-foreground">{doc.fileName}</p>
+                </div>
+                <Badge variant={doc.status === 'verified' ? 'default' : doc.status === 'rejected' ? 'destructive' : 'outline'}>
+                  {doc.status}
+                </Badge>
+              </div>
+              <Textarea
+                placeholder="Review notes"
+                value={docNotes[doc.id] ?? doc.reviewNotes ?? ''}
+                onChange={(event) => setDocNotes((prev) => ({ ...prev, [doc.id]: event.target.value }))}
+                className="min-h-20"
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const updated = await reviewApplicationDocument(id as string, doc.id, 'verified', docNotes[doc.id]);
+                    setDocuments((prev) => prev.map((item) => (item.id === doc.id ? updated : item)));
+                  }}
+                >
+                  Verify
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    const updated = await reviewApplicationDocument(id as string, doc.id, 'rejected', docNotes[doc.id]);
+                    setDocuments((prev) => prev.map((item) => (item.id === doc.id ? updated : item)));
+                  }}
+                >
+                  Reject
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5 text-primary" />
             Subject Points
           </CardTitle>
@@ -205,3 +364,4 @@ export default function AdmissionDetailPage() {
     </div>
   );
 }
+

@@ -1,4 +1,6 @@
+'use client';
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,26 +9,59 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Award, Briefcase, FileText } from "lucide-react";
-
-const skills = ["Python", "UI Design", "Data Analysis", "Presentation", "SQL"];
-const projects = [
-  {
-    title: "AI Tutor Dashboard",
-    role: "Team Lead",
-    status: "Published",
-  },
-  {
-    title: "Smart Campus Access",
-    role: "Research Assistant",
-    status: "Draft",
-  },
-];
+import { createPortfolioItem, getPortfolioItems } from "@/lib/api";
+import type { PortfolioItem } from "@/lib/api/types";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PortfolioPage() {
+  const { toast } = useToast();
+  const [items, setItems] = useState<PortfolioItem[]>([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [link, setLink] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadItems = async () => {
+    const data = await getPortfolioItems();
+    setItems(data);
+  };
+
+  useEffect(() => {
+    loadItems();
+  }, []);
+
+  const handleAdd = async () => {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      const item = await createPortfolioItem({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        link: link.trim() || undefined,
+        status: 'draft',
+      });
+      setItems((prev) => [item, ...prev]);
+      setTitle('');
+      setDescription('');
+      setLink('');
+      toast({ title: 'Portfolio item added' });
+    } catch (error: any) {
+      toast({
+        title: 'Failed to add item',
+        description: error?.message ?? 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -54,14 +89,14 @@ export default function PortfolioPage() {
                   <Award className="h-4 w-4 text-primary" />
                   <p className="font-semibold">Credentials</p>
                 </div>
-                <p className="text-sm text-muted-foreground">3 verified badges</p>
+                <p className="text-sm text-muted-foreground">No verified badges yet</p>
               </div>
               <div className="rounded-lg border p-4">
                 <div className="flex items-center gap-2">
                   <Briefcase className="h-4 w-4 text-primary" />
                   <p className="font-semibold">Experience</p>
                 </div>
-                <p className="text-sm text-muted-foreground">2 projects published</p>
+                <p className="text-sm text-muted-foreground">No projects published yet</p>
               </div>
             </div>
           </CardContent>
@@ -77,12 +112,10 @@ export default function PortfolioPage() {
             <CardTitle>Skills</CardTitle>
             <CardDescription>Skills verified by lecturers and AI.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {skills.map((skill) => (
-              <Badge key={skill} variant="secondary">
-                {skill}
-              </Badge>
-            ))}
+          <CardContent>
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Skills will appear once your lecturers publish assessments.
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -93,28 +126,51 @@ export default function PortfolioPage() {
           <CardDescription>Keep your work organized and shareable.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {projects.map((project) => (
-            <div key={project.title} className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">{project.title}</p>
-                <p className="text-sm text-muted-foreground">{project.role}</p>
-              </div>
-              <Badge variant={project.status === "Published" ? "secondary" : "outline"}>
-                {project.status}
-              </Badge>
+          {items.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Upload project files, reports, or demo links to strengthen your profile.
             </div>
-          ))}
-          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            Upload project files, reports, or demo links to strengthen your profile.
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div key={item.id} className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold">{item.title}</p>
+                    <span className="text-xs text-muted-foreground">{item.status}</span>
+                  </div>
+                  {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                  {item.link && (
+                    <Link href={item.link} className="text-xs text-primary underline" target="_blank">
+                      {item.link}
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
         <CardFooter>
-          <Button variant="outline" className="gap-2">
-            <FileText className="h-4 w-4" />
-            Add New Project
-          </Button>
+          <div className="w-full space-y-3">
+            <div className="grid gap-2">
+              <Label>Project Title</Label>
+              <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g., Inventory Management App" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Description</Label>
+              <Textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What did you build and what was the impact?" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Demo Link</Label>
+              <Input value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://..." />
+            </div>
+            <Button variant="outline" className="gap-2" onClick={handleAdd} disabled={saving || !title.trim()}>
+              <FileText className="h-4 w-4" />
+              Add New Project
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </div>
   );
 }
+

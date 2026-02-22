@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PlusCircle, Trash2, AlertCircle } from 'lucide-react';
-import { type School, type Course } from '@/lib/data';
+import { type School, type Course } from '@/lib/api/types';
 import { createCourse, createSchool, deleteCourse, deleteSchool, getCourses, getSchools } from '@/lib/api';
 
 export default function AdminManagementPage() {
@@ -85,7 +85,7 @@ export default function AdminManagementPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Content Management</h1>
         <p className="text-muted-foreground">
-          Manage schools and programs while the backend is offline.
+          Manage schools and programs for the UnivAI catalog.
         </p>
       </div>
 
@@ -221,3 +221,4 @@ export default function AdminManagementPage() {
     </div>
   );
 }
+

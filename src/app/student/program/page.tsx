@@ -12,7 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { type ProgramModule } from '@/lib/data';
+import { type ProgramModule } from '@/lib/api/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { CheckCircle, Clock, BookOpen, ArrowRight, FileText } from 'lucide-react';
 import {
@@ -25,6 +25,12 @@ import { getProgram } from '@/lib/api';
 export default async function ProgramPage() {
   const program = await getProgram();
   const placeholder = PlaceHolderImages.find((p) => p.id === program.imageId);
+  const deliveryLabel = program.deliveryMode
+    ? program.deliveryMode.charAt(0).toUpperCase() + program.deliveryMode.slice(1)
+    : 'Online';
+  const displayDescription = program.description
+    ? program.description.replace(/\s*Delivery:\s*[^.]+\.?/i, '').trim()
+    : '';
 
   // Group modules by semester
   const modulesBySemester = program.modules.reduce((acc, module) => {
@@ -49,7 +55,16 @@ export default async function ProgramPage() {
         <div className="absolute inset-0 bg-black/50 flex items-end p-6">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight text-white">{program.title}</h1>
-            <p className="text-lg text-white/90">{program.description}</p>
+            <p className="text-lg text-white/90">{displayDescription || program.description}</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide text-white/80">
+              <span className="rounded-full bg-white/15 px-3 py-1">Delivery: {deliveryLabel}</span>
+              {program.campus && (
+                <span className="rounded-full bg-white/15 px-3 py-1">{program.campus}</span>
+              )}
+              {program.curriculumVersion?.name && (
+                <span className="rounded-full bg-white/15 px-3 py-1">{program.curriculumVersion.name}</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -82,6 +97,9 @@ export default async function ProgramPage() {
           </Button>
           <Button variant="outline" asChild>
             <Link href="/student/program/assessments">Assessments</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/student/program/route-change">Route Change</Link>
           </Button>
         </CardContent>
       </Card>
@@ -213,3 +231,4 @@ export default async function ProgramPage() {
     </div>
   );
 }
+

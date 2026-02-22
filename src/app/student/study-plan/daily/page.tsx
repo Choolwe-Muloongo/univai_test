@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -5,15 +6,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Clock } from 'lucide-react';
-
-const tasks = [
-  { time: '08:00', title: 'Watch Lesson: Intro to Python', status: 'Pending' },
-  { time: '10:30', title: 'Practice Quiz: Digital Systems', status: 'Pending' },
-  { time: '14:00', title: 'Assignment Draft: Programming Lab', status: 'In Progress' },
-  { time: '16:00', title: 'AI Tutor Review Session', status: 'Completed' },
-];
+import { Button } from '@/components/ui/button';
+import { CheckCircle2 } from 'lucide-react';
 
 export default function StudyPlanDailyPage() {
   return (
@@ -25,24 +19,16 @@ export default function StudyPlanDailyPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Today’s Schedule</CardTitle>
+          <CardTitle>Today&apos;s Schedule</CardTitle>
           <CardDescription>Focus on these learning blocks.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {tasks.map((task) => (
-            <div key={task.title} className="flex items-center justify-between rounded-lg border p-4">
-              <div className="flex items-center gap-3">
-                <Clock className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="font-semibold">{task.title}</p>
-                  <p className="text-sm text-muted-foreground">{task.time}</p>
-                </div>
-              </div>
-              <Badge variant={task.status === 'Completed' ? 'secondary' : 'outline'}>
-                {task.status}
-              </Badge>
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            No daily plan available yet. Generate a study plan to populate this view.
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/student/study-plan">Generate Study Plan</Link>
+          </Button>
         </CardContent>
       </Card>
 
@@ -53,7 +39,7 @@ export default function StudyPlanDailyPage() {
         </CardHeader>
         <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
           <CheckCircle2 className="h-4 w-4 text-primary" />
-          1 of 4 tasks completed
+          No tasks completed yet
         </CardContent>
       </Card>
     </div>

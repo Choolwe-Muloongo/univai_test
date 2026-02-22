@@ -2,6 +2,7 @@ import { SectionNav } from '@/components/layout/section-nav';
 
 const links = [
   { href: '/student/ai', label: 'AI Hub' },
+  { href: '/student/ai/chat', label: 'AI Chat' },
   { href: '/student/ai/tutor', label: 'AI Tutor' },
   { href: '/student/ai/lesson-companion', label: 'Lesson Companion' },
   { href: '/student/ai/exam-prep', label: 'Exam Prep' },

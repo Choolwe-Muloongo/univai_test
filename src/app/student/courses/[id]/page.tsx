@@ -15,13 +15,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { type Course, type Lesson } from '@/lib/data';
+import { type Course, type Lesson } from '@/lib/api/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlayCircle, Code, FileText, Rocket, Lock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getCourseById, getLessonsByCourse } from '@/lib/api';
+import { getCourseById, getLessonsByCourse, getCourseMeeting } from '@/lib/api';
 import { useSession } from '@/components/providers/session-provider';
+import type { CourseMeeting } from '@/lib/api/types';
 
 function CourseSkeleton() {
   return (
@@ -62,6 +63,7 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState<Course | null>(null);
   const [courseLessons, setCourseLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
+  const [meeting, setMeeting] = useState<CourseMeeting | null>(null);
 
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -70,12 +72,14 @@ export default function CourseDetailPage() {
       setUserRole(session?.user?.role ?? null);
       if (!id) return;
       setLoading(true);
-      const [foundCourse, foundLessons] = await Promise.all([
+      const [foundCourse, foundLessons, meetingInfo] = await Promise.all([
         getCourseById(id),
         getLessonsByCourse(id),
+        getCourseMeeting(id),
       ]);
       setCourse(foundCourse);
       setCourseLessons(foundLessons);
+      setMeeting(meetingInfo);
       setLoading(false);
     };
     loadCourse();
@@ -174,19 +178,23 @@ export default function CourseDetailPage() {
                          {lesson.quiz ? (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>{lesson.quiz.title}</CardTitle>
+                                    <CardTitle>{lesson.quiz.title ?? 'Lesson Quiz'}</CardTitle>
                                 </CardHeader>
                                 <CardContent className='space-y-4'>
-                                    {lesson.quiz.questions.map((q: any, index: number) => (
-                                        <div key={index}>
-                                            <p className='font-semibold'>{index + 1}. {q.question}</p>
-                                            <ul className='list-disc pl-5 mt-2 space-y-1 text-muted-foreground'>
-                                                {q.options.map((opt: string) => (
-                                                    <li key={opt} className={opt === q.answer ? 'text-primary font-medium' : ''}>{opt}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ))}
+                                    {(lesson.quiz.questions ?? []).length > 0 ? (
+                                      (lesson.quiz.questions ?? []).map((q: any, index: number) => (
+                                          <div key={index}>
+                                              <p className='font-semibold'>{index + 1}. {q.question}</p>
+                                              <ul className='list-disc pl-5 mt-2 space-y-1 text-muted-foreground'>
+                                                  {(q.options ?? []).map((opt: string) => (
+                                                      <li key={opt} className={opt === q.answer ? 'text-primary font-medium' : ''}>{opt}</li>
+                                                  ))}
+                                              </ul>
+                                          </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">Quiz questions will appear here once published.</p>
+                                    )}
                                 </CardContent>
                             </Card>
                          ) : (
@@ -217,7 +225,33 @@ export default function CourseDetailPage() {
             </Button>
           </CardContent>
         </Card>
+        {meeting?.meetingUrl && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Live Lesson</CardTitle>
+              <CardDescription>
+                Join the live session with your lecturer.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-sm text-muted-foreground space-y-1">
+                {meeting.meetingProvider && <p>Provider: {meeting.meetingProvider}</p>}
+                {meeting.meetingSchedule && (
+                  <p>
+                    Schedule: {(meeting.meetingSchedule as { day?: string; time?: string }).day ?? ''}{' '}
+                    {(meeting.meetingSchedule as { day?: string; time?: string }).time ?? ''}
+                  </p>
+                )}
+                {meeting.meetingNotes && <p>{meeting.meetingNotes}</p>}
+              </div>
+              <Button className="w-full" asChild>
+                <Link href={meeting.meetingUrl} target="_blank">Join Live Lesson</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
 }
+

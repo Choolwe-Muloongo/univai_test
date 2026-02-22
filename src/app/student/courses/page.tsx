@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { type School, type Course } from '@/lib/data';
+import { type School, type Course } from '@/lib/api/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { CourseCardSkeleton } from '@/components/ui/course-card-skeleton';
 import { getSchools, getCourses } from '@/lib/api';
@@ -133,3 +133,4 @@ export default function CoursesPage() {
     </div>
   );
 }
+

@@ -12,25 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { getLessonsByCourse, getProgram } from "@/lib/api";
-import {
-  BookOpen,
-  Calendar,
-  ClipboardCheck,
-  GraduationCap,
-  Lightbulb,
-} from "lucide-react";
-
-const outcomes = [
-  "Understand core concepts and vocabulary.",
-  "Complete practice exercises and checkpoints.",
-  "Prepare for module assessments with AI guidance.",
-];
-
-const resources = [
-  { label: "Module syllabus (PDF)", type: "PDF" },
-  { label: "Lecture slides", type: "Slides" },
-  { label: "Reading pack", type: "Doc" },
-];
+import { Calendar, ClipboardCheck, Lightbulb } from "lucide-react";
 
 export default async function ModuleDetailPage({
   params,
@@ -46,6 +28,7 @@ export default async function ModuleDetailPage({
   }
 
   const moduleLessons = await getLessonsByCourse(program.id);
+  const nextLesson = moduleLessons[0] ?? null;
 
   return (
     <div className="space-y-8">
@@ -79,7 +62,7 @@ export default async function ModuleDetailPage({
                   <ClipboardCheck className="h-4 w-4 text-primary" />
                   <p className="font-semibold">Assessments</p>
                 </div>
-                <p className="text-sm text-muted-foreground">2 pending tasks</p>
+                <p className="text-sm text-muted-foreground">Assessments will appear once published.</p>
               </div>
             </div>
           </CardContent>
@@ -111,7 +94,7 @@ export default async function ModuleDetailPage({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Credit weight</span>
-              <span className="text-sm font-semibold">6 credits</span>
+              <span className="text-sm font-semibold">{module.credits ?? 0} credits</span>
             </div>
           </CardContent>
           <CardFooter>
@@ -128,12 +111,9 @@ export default async function ModuleDetailPage({
           <CardDescription>What you will achieve in this module.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {outcomes.map((item) => (
-            <div key={item} className="flex items-start gap-3 rounded-lg border p-4">
-              <GraduationCap className="mt-1 h-5 w-5 text-primary" />
-              <p className="text-sm">{item}</p>
-            </div>
-          ))}
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Outcomes will appear once the lecturer publishes the official module plan.
+          </div>
         </CardContent>
       </Card>
 
@@ -165,7 +145,9 @@ export default async function ModuleDetailPage({
           </CardContent>
           <CardFooter>
             <Button asChild>
-              <Link href="/student/lessons/l1-cs101">Continue Lesson</Link>
+              <Link href={nextLesson ? `/student/lessons/${nextLesson.id}` : '/student/lessons'}>
+                Continue Lesson
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -176,19 +158,13 @@ export default async function ModuleDetailPage({
             <CardDescription>Downloadable materials for this module.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {resources.map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-lg border p-3">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </div>
-                <Badge variant="outline">{item.type}</Badge>
-              </div>
-            ))}
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Resources will appear once the lecturer uploads module materials.
+            </div>
           </CardContent>
           <CardFooter className="gap-2">
             <Button variant="outline" className="w-full" asChild>
-              <Link href="/student/ai/lesson-companion/l1-cs101">
+              <Link href={nextLesson ? `/student/ai/lesson-companion/${nextLesson.id}` : '/student/ai'}>
                 <Lightbulb className="mr-2 h-4 w-4" />
                 AI Lesson Companion
               </Link>

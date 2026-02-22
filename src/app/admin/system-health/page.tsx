@@ -1,23 +1,27 @@
+'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Server, ShieldCheck, Activity, Database } from 'lucide-react';
-
-const services = [
-  { name: 'Authentication', status: 'Operational', uptime: 99.98 },
-  { name: 'Primary Database (MySQL)', status: 'Operational', uptime: 99.94 },
-  { name: 'Storage', status: 'Degraded', uptime: 98.2 },
-  { name: 'AI Services', status: 'Operational', uptime: 99.7 },
-];
-
-const resources = [
-  { label: 'API Throughput', value: 78 },
-  { label: 'Database Load', value: 62 },
-  { label: 'Queue Latency', value: 45 },
-];
+import { useEffect, useState } from 'react';
+import { getSystemHealth, runSystemDiagnostics } from '@/lib/api';
 
 export default function SystemHealthPage() {
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+
+  const loadHealth = async () => {
+    setLoading(true);
+    const health = await getSystemHealth();
+    setData(health);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadHealth();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -25,7 +29,18 @@ export default function SystemHealthPage() {
           <h1 className="text-3xl font-bold tracking-tight">System Health</h1>
           <p className="text-muted-foreground">Live status across UnivAI infrastructure.</p>
         </div>
-        <Button variant="outline">Run Diagnostics</Button>
+        <Button
+          variant="outline"
+          disabled={running}
+          onClick={async () => {
+            setRunning(true);
+            await runSystemDiagnostics();
+            await loadHealth();
+            setRunning(false);
+          }}
+        >
+          Run Diagnostics
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -35,8 +50,8 @@ export default function SystemHealthPage() {
             <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">99.92%</div>
-            <p className="text-xs text-muted-foreground">Across core services</p>
+            <div className="text-2xl font-bold">{data?.uptime ?? '--'}</div>
+            <p className="text-xs text-muted-foreground">Telemetry snapshot</p>
           </CardContent>
         </Card>
         <Card>
@@ -45,8 +60,8 @@ export default function SystemHealthPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-muted-foreground">Storage latency issue</p>
+            <div className="text-2xl font-bold">{data?.incidents ?? '--'}</div>
+            <p className="text-xs text-muted-foreground">Monitoring feed</p>
           </CardContent>
         </Card>
         <Card>
@@ -55,7 +70,7 @@ export default function SystemHealthPage() {
             <Server className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1.4M</div>
+            <div className="text-2xl font-bold">{data?.apiRequests ?? '--'}</div>
             <p className="text-xs text-muted-foreground">Last 24 hours</p>
           </CardContent>
         </Card>
@@ -65,7 +80,7 @@ export default function SystemHealthPage() {
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">540 ops/s</div>
+            <div className="text-2xl font-bold">{data?.dbThroughput ?? '--'}</div>
             <p className="text-xs text-muted-foreground">Peak usage</p>
           </CardContent>
         </Card>
@@ -78,17 +93,20 @@ export default function SystemHealthPage() {
             <CardDescription>Latest status checks from core providers.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {services.map((service) => (
-              <div key={service.name} className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <p className="font-semibold">{service.name}</p>
-                  <p className="text-sm text-muted-foreground">Uptime: {service.uptime}%</p>
-                </div>
-                <Badge variant={service.status === 'Operational' ? 'default' : 'destructive'}>
-                  {service.status}
-                </Badge>
+            {loading ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                Loading diagnostics...
               </div>
-            ))}
+            ) : (
+              <div className="space-y-2">
+                {(data?.services ?? []).map((service: any) => (
+                  <div key={service.name} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                    <span>{service.name}</span>
+                    <span className="text-xs text-muted-foreground">{service.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -97,18 +115,31 @@ export default function SystemHealthPage() {
             <CardDescription>Current usage against thresholds.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {resources.map((resource) => (
-              <div key={resource.label} className="space-y-2">
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{resource.label}</span>
-                  <span>{resource.value}%</span>
-                </div>
-                <Progress value={resource.value} />
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>API Throughput</span>
+                <span>{data?.utilization?.apiThroughput ?? 0}%</span>
               </div>
-            ))}
+              <Progress value={data?.utilization?.apiThroughput ?? 0} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Database Load</span>
+                <span>{data?.utilization?.dbLoad ?? 0}%</span>
+              </div>
+              <Progress value={data?.utilization?.dbLoad ?? 0} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Queue Latency</span>
+                <span>{data?.utilization?.queueLatency ?? 0}%</span>
+              </div>
+              <Progress value={data?.utilization?.queueLatency ?? 0} />
+            </div>
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
+

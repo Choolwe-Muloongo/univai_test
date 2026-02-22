@@ -1,16 +1,11 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getFinanceReport } from '@/lib/api';
 
-const revenueRows = [
-  { label: 'Tuition Collected', amount: '$48,200', status: 'On track' },
-  { label: 'Outstanding Invoices', amount: '$6,150', status: 'Attention' },
-  { label: 'Scholarship Grants', amount: '$3,500', status: 'Approved' },
-];
-
-export default function FinanceReportsPage() {
+export default async function FinanceReportsPage() {
+  const rows = await getFinanceReport();
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -38,17 +33,21 @@ export default function FinanceReportsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {revenueRows.map((row) => (
-                <TableRow key={row.label}>
-                  <TableCell className="font-medium">{row.label}</TableCell>
-                  <TableCell>{row.amount}</TableCell>
-                  <TableCell>
-                    <Badge variant={row.status === 'Attention' ? 'destructive' : 'secondary'}>
-                      {row.status}
-                    </Badge>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-sm text-muted-foreground">
+                    No finance data available yet.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                rows.map((row) => (
+                  <TableRow key={row.label}>
+                    <TableCell className="font-medium">{row.label}</TableCell>
+                    <TableCell>${row.amount}</TableCell>
+                    <TableCell>{row.status}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

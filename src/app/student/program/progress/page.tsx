@@ -14,6 +14,9 @@ import { getProgram } from '@/lib/api';
 
 export default async function ProgramProgressPage() {
   const program = await getProgram();
+  const focusModules = [...program.modules]
+    .sort((a, b) => a.progress - b.progress)
+    .slice(0, 3);
   return (
     <div className="space-y-8">
       <div>
@@ -78,9 +81,13 @@ export default async function ProgramProgressPage() {
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
-          <Badge variant="secondary">Python Fundamentals</Badge>
-          <Badge variant="secondary">Database Queries</Badge>
-          <Badge variant="secondary">AI Foundations</Badge>
+          {focusModules.length > 0 ? (
+            focusModules.map((module) => (
+              <Badge key={module.id} variant="secondary">{module.title}</Badge>
+            ))
+          ) : (
+            <span className="text-sm text-muted-foreground">No recommendations yet.</span>
+          )}
         </CardContent>
         <div className="px-6 pb-6">
           <Button asChild>

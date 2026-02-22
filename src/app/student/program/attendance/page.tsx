@@ -1,4 +1,7 @@
+﻿'use client';
+
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -11,14 +14,29 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { CalendarCheck, AlertTriangle } from 'lucide-react';
-
-const sessions = [
-  { id: 's1', title: 'Programming Lab', date: 'Feb 4, 2026', status: 'Present' },
-  { id: 's2', title: 'Database Systems', date: 'Feb 6, 2026', status: 'Present' },
-  { id: 's3', title: 'AI Foundations', date: 'Feb 10, 2026', status: 'Absent' },
-];
+import { getStudentTimetable } from '@/lib/api';
+import type { CourseSession } from '@/lib/api/types';
 
 export default function ProgramAttendancePage() {
+  const [sessions, setSessions] = useState<CourseSession[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getStudentTimetable();
+      setSessions(data);
+    };
+    load();
+  }, []);
+
+  const summary = useMemo(() => {
+    const relevant = sessions.filter((session) => session.status);
+    const present = relevant.filter((session) => session.status === 'present').length;
+    const absent = relevant.filter((session) => session.status === 'absent').length;
+    const total = relevant.length || 1;
+    const rate = Math.round((present / total) * 100);
+    return { present, absent, rate };
+  }, [sessions]);
+
   return (
     <div className="space-y-8">
       <div>
@@ -36,10 +54,10 @@ export default function ProgramAttendancePage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold">86%</span>
+              <span className="font-semibold">{summary.rate}%</span>
               <span className="text-muted-foreground">Target 80%</span>
             </div>
-            <Progress value={86} className="h-2" />
+            <Progress value={summary.rate} className="h-2" />
           </CardContent>
         </Card>
         <Card>
@@ -47,7 +65,7 @@ export default function ProgramAttendancePage() {
             <CardTitle className="text-base">Missed Sessions</CardTitle>
             <CardDescription>Needs review</CardDescription>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">1</CardContent>
+          <CardContent className="text-2xl font-bold">{summary.absent}</CardContent>
         </Card>
         <Card>
           <CardHeader>
@@ -55,7 +73,9 @@ export default function ProgramAttendancePage() {
             <CardDescription>Compliance</CardDescription>
           </CardHeader>
           <CardContent>
-            <Badge variant="secondary">Compliant</Badge>
+            <Badge variant={summary.rate >= 80 ? 'secondary' : 'destructive'}>
+              {summary.rate >= 80 ? 'Compliant' : 'At Risk'}
+            </Badge>
           </CardContent>
         </Card>
       </div>
@@ -72,14 +92,21 @@ export default function ProgramAttendancePage() {
                 <CalendarCheck className="h-4 w-4 text-primary" />
                 <div>
                   <p className="font-semibold">{session.title}</p>
-                  <p className="text-sm text-muted-foreground">{session.date}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {session.dayOfWeek ? `${session.dayOfWeek} ` : ''}
+                    {session.startTime ? `${session.startTime} - ` : ''}
+                    {session.endTime ?? ''}
+                  </p>
                 </div>
               </div>
-              <Badge variant={session.status === 'Absent' ? 'destructive' : 'secondary'}>
-                {session.status}
+              <Badge variant={session.status === 'absent' ? 'destructive' : 'secondary'}>
+                {session.status ? session.status.toUpperCase() : 'PENDING'}
               </Badge>
             </div>
           ))}
+          {sessions.length === 0 && (
+            <p className="text-sm text-muted-foreground">No sessions scheduled yet.</p>
+          )}
         </CardContent>
         <CardFooter className="justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

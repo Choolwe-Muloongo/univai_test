@@ -22,6 +22,11 @@ import {
   Settings,
   BookMarked,
   ClipboardCheck,
+  CalendarDays,
+  Link2,
+  ArrowLeftRight,
+  SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -79,9 +84,17 @@ const allLinks: { [key: string]: NavLink[] } = {
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/admissions', label: 'Admissions', icon: ClipboardCheck },
+    { href: '/admin/route-requests', label: 'Route Requests', icon: ArrowLeftRight },
+    { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays },
+    { href: '/admin/assignments', label: 'Assignments', icon: Link2 },
+    { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck },
+    { href: '/admin/ai', label: 'AI Console', icon: Sparkles },
+    { href: '/admin/curriculum', label: 'Curriculum', icon: BookMarked },
+    { href: '/admin/policies', label: 'Policies', icon: SlidersHorizontal },
     { href: '/admin/management', label: 'Content Management', icon: Settings },
     { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
     { href: '/admin/reports', label: 'Reports & Analytics', icon: BookMarked },
+    { href: '/admin/audit', label: 'Audit Logs', icon: BadgeCheck },
     { href: '/admin/community', label: 'Manage Community', icon: Users },
     { href: '/admin/jobs', label: 'Manage Jobs', icon: Briefcase },
     { href: '/admin/system-health', label: 'System Health', icon: Shield },
@@ -89,6 +102,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   lecturer: [
     { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/lecturer/courses', label: 'Courses', icon: BookOpen },
+    { href: '/lecturer/exams', label: 'Exam Bank', icon: ClipboardCheck },
     { href: '/lecturer/profile', label: 'Profile', icon: User },
     { href: '/lecturer/progress', label: 'Student Progress', icon: UserCheck },
     { href: '/lecturer/community', label: 'Community', icon: Users },
@@ -109,7 +123,8 @@ export function AppSidebar({ role }: { role?: string }) {
 
   useEffect(() => {
     const resolvedRole = role || 'premium-student';
-    setLinks(allLinks[resolvedRole] || allLinks['premium-student']);
+    const normalizedRole = resolvedRole === 'enrolled' ? 'premium-student' : resolvedRole;
+    setLinks(allLinks[normalizedRole] || allLinks['premium-student']);
   }, [pathname, role]);
 
   return (

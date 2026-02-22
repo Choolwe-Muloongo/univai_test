@@ -7,26 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, AlertCircle, Clock } from "lucide-react";
-
-const appeals = [
-  {
-    id: "APL-2041",
-    course: "CS120 - Programming Lab",
-    reason: "Grade discrepancy",
-    status: "In Review",
-    updated: "2 days ago",
-  },
-  {
-    id: "APL-1998",
-    course: "MTH110 - Discrete Math",
-    reason: "Recheck exam script",
-    status: "Resolved",
-    updated: "1 week ago",
-  },
-];
 
 export default function AppealsPage() {
   return (
@@ -88,23 +70,9 @@ export default function AppealsPage() {
             <CardDescription>Status updates for your requests.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {appeals.map((appeal) => (
-              <div key={appeal.id} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold">{appeal.course}</p>
-                  <Badge
-                    variant={appeal.status === "Resolved" ? "secondary" : "outline"}
-                  >
-                    {appeal.status}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{appeal.reason}</p>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{appeal.id}</span>
-                  <span>Updated {appeal.updated}</span>
-                </div>
-              </div>
-            ))}
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              No appeal requests yet. Submit an appeal to see updates here.
+            </div>
           </CardContent>
           <CardFooter>
             <Button variant="outline" className="w-full" asChild>

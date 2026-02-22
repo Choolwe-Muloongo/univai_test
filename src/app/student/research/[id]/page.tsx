@@ -6,21 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FlaskConical, Building } from 'lucide-react';
 import { getResearchById } from '@/lib/api';
 
-const researchDetails: Record<string, { focus: string[]; expectations: string[] }> = {
-  r1: {
-    focus: ['Clinical data analysis', 'Model validation workflows', 'Ethical AI in healthcare'],
-    expectations: ['Experience with ML basics', 'Comfortable reading research papers', 'Collaborative mindset'],
-  },
-  r2: {
-    focus: ['Adaptive UI patterns', 'Generative design systems', 'User experience testing'],
-    expectations: ['Product design or frontend background', 'Interest in AI tooling', 'Portfolio of UI work'],
-  },
-  r3: {
-    focus: ['Financial protocol research', 'Risk modeling', 'Scalability experiments'],
-    expectations: ['Knowledge of fintech fundamentals', 'Research writing skills', 'Interest in systems design'],
-  },
-};
-
 export default async function ResearchDetailPage({
   params,
 }: {
@@ -31,8 +16,6 @@ export default async function ResearchDetailPage({
   if (!opportunity) {
     notFound();
   }
-
-  const detail = researchDetails[opportunity.id];
 
   return (
     <div className="space-y-8">
@@ -60,19 +43,15 @@ export default async function ResearchDetailPage({
             </section>
             <section className="space-y-2">
               <h3 className="text-lg font-semibold text-foreground">Research Focus</h3>
-              <ul className="list-disc space-y-1 pl-5">
-                {detail?.focus.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              <p className="text-sm text-muted-foreground">
+                Focus areas will appear once the supervising team publishes the full research brief.
+              </p>
             </section>
             <section className="space-y-2">
               <h3 className="text-lg font-semibold text-foreground">What We&apos;re Looking For</h3>
-              <ul className="list-disc space-y-1 pl-5">
-                {detail?.expectations.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              <p className="text-sm text-muted-foreground">
+                Expectations and qualification requirements will be shared after the brief is approved.
+              </p>
             </section>
           </CardContent>
         </Card>

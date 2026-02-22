@@ -12,11 +12,14 @@ import { Button } from '@/components/ui/button';
 import { CalendarDays, GraduationCap, Route } from 'lucide-react';
 import { getProgram } from '@/lib/api';
 
-const totalSemesters = 8;
-const semesters = Array.from({ length: totalSemesters }, (_, i) => i + 1);
-
 export default async function ProgramPlanPage() {
   const program = await getProgram();
+  const maxSemester = program.modules.reduce((max, module) => Math.max(max, module.semester), 0) || 8;
+  const semesters = Array.from({ length: maxSemester }, (_, i) => i + 1);
+  const totalYears = Math.ceil(maxSemester / 2);
+  const creditsRequired = program.modules.reduce((sum, module) => sum + (module.credits ?? 0), 0);
+  const activeSemester =
+    program.modules.find((module) => module.progress < 100)?.semester ?? maxSemester;
   return (
     <div className="space-y-8">
       <div>
@@ -32,7 +35,7 @@ export default async function ProgramPlanPage() {
             <CardTitle className="text-base">Program Length</CardTitle>
             <CardDescription>Estimated completion</CardDescription>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">4 Years</CardContent>
+          <CardContent className="text-2xl font-bold">{totalYears} Years</CardContent>
         </Card>
         <Card>
           <CardHeader>
@@ -41,7 +44,7 @@ export default async function ProgramPlanPage() {
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-bold">
             <CalendarDays className="h-5 w-5 text-primary" />
-            Semester 2
+            Semester {activeSemester}
           </CardContent>
         </Card>
         <Card>
@@ -49,7 +52,7 @@ export default async function ProgramPlanPage() {
             <CardTitle className="text-base">Credits Required</CardTitle>
             <CardDescription>Graduation target</CardDescription>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">120</CardContent>
+          <CardContent className="text-2xl font-bold">{creditsRequired}</CardContent>
         </Card>
       </div>
 
@@ -89,7 +92,7 @@ export default async function ProgramPlanPage() {
                   ))
                 ) : (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    This semester’s modules will appear once curriculum is finalized.
+                    This semester's modules will appear once curriculum is finalized.
                   </div>
                 )}
               </CardContent>
@@ -139,4 +142,5 @@ export default async function ProgramPlanPage() {
     </div>
   );
 }
+
 

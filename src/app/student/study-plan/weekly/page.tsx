@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -5,15 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-
-const week = [
-  { day: 'Monday', focus: 'Python fundamentals', status: 'Completed' },
-  { day: 'Tuesday', focus: 'Database queries', status: 'In Progress' },
-  { day: 'Wednesday', focus: 'AI foundations', status: 'Planned' },
-  { day: 'Thursday', focus: 'Assignment draft', status: 'Planned' },
-  { day: 'Friday', focus: 'Revision + quiz', status: 'Planned' },
-];
+import { Button } from '@/components/ui/button';
 
 export default function StudyPlanWeeklyPage() {
   return (
@@ -28,18 +21,13 @@ export default function StudyPlanWeeklyPage() {
           <CardTitle>Week Overview</CardTitle>
           <CardDescription>Aligned with your program pacing.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {week.map((item) => (
-            <div key={item.day} className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">{item.day}</p>
-                <p className="text-sm text-muted-foreground">{item.focus}</p>
-              </div>
-              <Badge variant={item.status === 'Completed' ? 'secondary' : 'outline'}>
-                {item.status}
-              </Badge>
-            </div>
-          ))}
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            No weekly plan available yet. Generate a study plan to populate this view.
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/student/study-plan">Generate Study Plan</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

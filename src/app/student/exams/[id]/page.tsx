@@ -9,6 +9,10 @@ export default async function ExamDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const semesterMatch = id.startsWith('semester-') ? id.replace('semester-', '') : null;
+  const startLink = semesterMatch
+    ? `/student/program/semester/${semesterMatch}/exam`
+    : `/student/courses/${id}/exam`;
   return (
     <div className="space-y-8">
       <div>
@@ -30,7 +34,7 @@ export default async function ExamDetailPage({
             <Link href="/student/exams">Back</Link>
           </Button>
           <Button asChild>
-            <Link href="/student/program/semester/1/exam">Start Exam</Link>
+            <Link href={startLink}>Start Exam</Link>
           </Button>
         </CardFooter>
       </Card>

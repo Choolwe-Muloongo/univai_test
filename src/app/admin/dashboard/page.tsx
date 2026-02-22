@@ -2,52 +2,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Users, BookOpen, Briefcase, DollarSign, Activity, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { getAdminDashboard } from '@/lib/api';
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const dashboard = await getAdminDashboard();
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
-            <p className="text-xs text-muted-foreground">+20.1% from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1,254</div>
-            <p className="text-xs text-muted-foreground">+180.1% from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Courses</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">150</div>
-            <p className="text-xs text-muted-foreground">+10 new courses this week</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Platform Activity</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+573</div>
-            <p className="text-xs text-muted-foreground">New engagements today</p>
-          </CardContent>
-        </Card>
+        {dashboard.metrics.map((metric) => (
+          <Card key={metric.key}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{metric.label}</CardTitle>
+              {metric.key === 'revenue' && <DollarSign className="h-4 w-4 text-muted-foreground" />}
+              {metric.key === 'students' && <Users className="h-4 w-4 text-muted-foreground" />}
+              {metric.key === 'courses' && <BookOpen className="h-4 w-4 text-muted-foreground" />}
+              {metric.key === 'activity' && <Activity className="h-4 w-4 text-muted-foreground" />}
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metric.value}</div>
+              <p className="text-xs text-muted-foreground">{metric.note}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -71,14 +48,14 @@ export default function AdminDashboardPage() {
                 </Card>
                  <Card>
                     <CardHeader>
-                        <CardTitle>Approve Consultants</CardTitle>
+                        <CardTitle>Approve Lecturers</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">Verify and approve new lecturer applications.</p>
+                        <p className="text-sm text-muted-foreground">Review lecturer applications and issue credentials.</p>
                     </CardContent>
                     <CardFooter>
                        <Button variant="outline" asChild>
-                            <Link href="/admin/consultants">View Applications <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                            <Link href="/admin/lecturer-applications">View Applications <ArrowRight className="ml-2 h-4 w-4" /></Link>
                         </Button>
                     </CardFooter>
                 </Card>

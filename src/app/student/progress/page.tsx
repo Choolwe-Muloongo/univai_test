@@ -10,22 +10,28 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
+import { getProgram } from "@/lib/api";
 
-const progressItems = [
-  { label: "Semester 2 Completion", value: 72, note: "On track" },
-  { label: "Assignments Submitted", value: 84, note: "3 pending" },
-  { label: "Lab Attendance", value: 90, note: "Excellent" },
-  { label: "AI Mastery Checks", value: 65, note: "Needs review" },
-];
+export default async function ProgressPage() {
+  const program = await getProgram();
+  const modules = program.modules ?? [];
+  const totalModules = modules.length;
+  const completedModules = modules.filter((module) => (module.progress ?? 0) >= 100).length;
+  const atRiskModules = modules.filter((module) => (module.progress ?? 0) < 50).length;
+  const inProgressModules = totalModules - completedModules;
+  const totalProgress = modules.reduce((sum, module) => sum + (module.progress ?? 0), 0);
+  const averageProgress = totalModules ? Math.round(totalProgress / totalModules) : 0;
 
-const modules = [
-  { name: "CS101", status: "On Track", progress: 78 },
-  { name: "ICT104", status: "On Track", progress: 70 },
-  { name: "MTH110", status: "Needs Help", progress: 54 },
-  { name: "CS120", status: "Ahead", progress: 92 },
-];
+  const percent = (value: number) =>
+    totalModules ? Math.round((value / totalModules) * 100) : 0;
 
-export default function ProgressPage() {
+  const progressItems = [
+    { label: "Overall Program Progress", value: program.progress ?? averageProgress, note: "Credits completed" },
+    { label: "Modules Completed", value: percent(completedModules), note: `${completedModules} of ${totalModules}` },
+    { label: "Modules In Progress", value: percent(inProgressModules), note: `${inProgressModules} active` },
+    { label: "Modules At Risk", value: percent(atRiskModules), note: `${atRiskModules} need attention` },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -61,20 +67,28 @@ export default function ProgressPage() {
           <CardDescription>AI signals highlight where to focus next.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {modules.map((module) => (
-            <div key={module.name} className="rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold">{module.name}</p>
-                <Badge variant={module.status === "Needs Help" ? "destructive" : "secondary"}>
-                  {module.status}
-                </Badge>
-              </div>
-              <div className="mt-3 flex items-center gap-3">
-                <Progress value={module.progress} className="h-2" />
-                <span className="text-sm text-muted-foreground">{module.progress}%</span>
-              </div>
-            </div>
-          ))}
+          {modules.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No modules available yet.</p>
+          ) : (
+            modules.map((module) => {
+              const progress = module.progress ?? 0;
+              const status = progress >= 75 ? "On Track" : progress >= 50 ? "Needs Attention" : "Needs Help";
+              return (
+                <div key={module.id} className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold">{module.title ?? module.id}</p>
+                    <Badge variant={status === "Needs Help" ? "destructive" : "secondary"}>
+                      {status}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <Progress value={progress} className="h-2" />
+                    <span className="text-sm text-muted-foreground">{progress}%</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </CardContent>
       </Card>
 

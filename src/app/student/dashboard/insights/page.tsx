@@ -9,26 +9,39 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles, TrendingUp, Target } from 'lucide-react';
+import { getProgram, getStudentDashboard } from '@/lib/api';
 
-const insights = [
-  {
-    title: 'AI Mastery Gap',
-    detail: 'You are 18% below target in Database Queries.',
-    action: '/student/ai',
-  },
-  {
-    title: 'Momentum Boost',
-    detail: 'Complete two lessons this week to stay ahead.',
-    action: '/student/lessons',
-  },
-  {
-    title: 'Assessment Risk',
-    detail: 'Programming Lab 1 is due in 4 days.',
-    action: '/student/assignments',
-  },
-];
+export default async function DashboardInsightsPage() {
+  const [program, dashboard] = await Promise.all([getProgram(), getStudentDashboard()]);
+  const modules = program.modules ?? [];
+  const deadlines = dashboard.deadlines ?? [];
 
-export default function DashboardInsightsPage() {
+  const totalProgress = modules.reduce((sum, module) => sum + (module.progress ?? 0), 0);
+  const averageProgress = modules.length ? Math.round(totalProgress / modules.length) : 0;
+  const goalProgress = program.progress ?? averageProgress;
+
+  const sortedModules = [...modules].sort((a, b) => (a.progress ?? 0) - (b.progress ?? 0));
+  const focusModules = sortedModules.slice(0, 3);
+  const topModule = [...modules].sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))[0];
+  const nextDeadline = deadlines[0];
+
+  const insights = [
+    ...focusModules.map((module) => ({
+      title: `Focus: ${module.title}`,
+      detail: `Progress is ${module.progress ?? 0}%. Prioritize this module next.`,
+      action: `/student/modules/${module.id}`,
+    })),
+    ...(nextDeadline
+      ? [
+          {
+            title: `${nextDeadline.type} deadline`,
+            detail: `${nextDeadline.title} is due ${nextDeadline.date}.`,
+            action: nextDeadline.type === 'Exam' ? '/student/exams' : '/student/assignments',
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -44,7 +57,7 @@ export default function DashboardInsightsPage() {
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-bold">
             <TrendingUp className="h-5 w-5 text-primary" />
-            82%
+            {averageProgress}%
           </CardContent>
         </Card>
         <Card>
@@ -52,7 +65,7 @@ export default function DashboardInsightsPage() {
             <CardTitle className="text-base">AI Tasks</CardTitle>
             <CardDescription>Ready to start</CardDescription>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">4</CardContent>
+          <CardContent className="text-2xl font-bold">{insights.length}</CardContent>
         </Card>
         <Card>
           <CardHeader>
@@ -61,7 +74,7 @@ export default function DashboardInsightsPage() {
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-bold">
             <Target className="h-5 w-5 text-primary" />
-            64%
+            {goalProgress}%
           </CardContent>
         </Card>
       </div>
@@ -72,20 +85,24 @@ export default function DashboardInsightsPage() {
           <CardDescription>Complete these to improve your outcome.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {insights.map((insight) => (
-            <div key={insight.title} className="flex items-center justify-between rounded-lg border p-4">
-              <div className="flex items-start gap-3">
-                <Sparkles className="mt-1 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-semibold">{insight.title}</p>
-                  <p className="text-sm text-muted-foreground">{insight.detail}</p>
+          {insights.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No recommendations yet.</p>
+          ) : (
+            insights.map((insight) => (
+              <div key={insight.title} className="flex items-center justify-between rounded-lg border p-4">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="mt-1 h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-semibold">{insight.title}</p>
+                    <p className="text-sm text-muted-foreground">{insight.detail}</p>
+                  </div>
                 </div>
+                <Button variant="outline" asChild>
+                  <Link href={insight.action}>Open</Link>
+                </Button>
               </div>
-              <Button variant="outline" asChild>
-                <Link href={insight.action}>Open</Link>
-              </Button>
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
 
@@ -95,9 +112,21 @@ export default function DashboardInsightsPage() {
           <CardDescription>High-impact summary of your week.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Badge variant="secondary">Strong: Python Fundamentals</Badge>
-          <Badge variant="secondary">Need Focus: Database Queries</Badge>
-          <Badge variant="secondary">Next: AI Foundations quiz</Badge>
+          {topModule ? (
+            <Badge variant="secondary">Strong: {topModule.title}</Badge>
+          ) : (
+            <Badge variant="secondary">Strong: No data yet</Badge>
+          )}
+          {focusModules[0] ? (
+            <Badge variant="secondary">Need Focus: {focusModules[0].title}</Badge>
+          ) : (
+            <Badge variant="secondary">Need Focus: No data yet</Badge>
+          )}
+          {nextDeadline ? (
+            <Badge variant="secondary">Next: {nextDeadline.title}</Badge>
+          ) : (
+            <Badge variant="secondary">Next: No deadlines</Badge>
+          )}
         </CardContent>
       </Card>
     </div>

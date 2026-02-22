@@ -105,7 +105,7 @@ export function LessonFocusClient({ lessonId, lessonTitle }: { lessonId: string;
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-2xl">{lessonTitle}</CardTitle>
-                <CardDescription>Focused lesson mode · Step {stepIndex + 1} of {steps.length}</CardDescription>
+                <CardDescription>Focused lesson mode - Step {stepIndex + 1} of {steps.length}</CardDescription>
               </div>
               <Badge variant="secondary">{progress}% Complete</Badge>
             </div>
@@ -252,15 +252,12 @@ export function LessonFocusClient({ lessonId, lessonTitle }: { lessonId: string;
             <CardDescription>Tips from learners in this lesson.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-              “I rewrote the definition in my own words before the quiz.” — Mia
-            </div>
-            <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-              “Try explaining it to a friend; that helped me remember.” — Kofi
+            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+              No community notes yet. Be the first to share a helpful tip.
             </div>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full">Add Comment</Button>
+            <Button variant="outline" className="w-full" disabled>Add Comment</Button>
           </CardFooter>
         </Card>
 
@@ -297,13 +294,8 @@ export function LessonFocusClient({ lessonId, lessonTitle }: { lessonId: string;
             <CardDescription>Extra reading and downloads.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
-              <span>Lesson handout</span>
-              <Badge variant="outline">PDF</Badge>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
-              <span>Summary notes</span>
-              <Badge variant="outline">Doc</Badge>
+            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+              Resources will appear here once the lecturer uploads files.
             </div>
           </CardContent>
         </Card>

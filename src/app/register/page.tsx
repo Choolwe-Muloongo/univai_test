@@ -17,14 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Logo } from '@/components/icons/logo';
-import { type Course, type School } from '@/lib/data';
+import { type Course, type School } from '@/lib/api/types';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, BookOpen, GraduationCap, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { subjectCatalogByCountry } from '@/lib/subject-catalog';
-import { getCourses, getSchools, submitApplication } from '@/lib/api';
+import { getAdmissionsSettings, getCourses, getSchools, registerAccount, submitApplication, uploadAdmissionDocument } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -41,6 +41,8 @@ export default function RegisterPage() {
   const [coursesForSchool, setCoursesForSchool] = useState<Course[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [admissionsOpen, setAdmissionsOpen] = useState(true);
+  const [admissionsMessage, setAdmissionsMessage] = useState('');
 
   const subjects = subjectCatalogByCountry[country] ?? [];
   const filteredSubjects = subjects.filter((subject) =>
@@ -67,9 +69,15 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const loadCatalog = async () => {
-      const [schools, courses] = await Promise.all([getSchools(), getCourses()]);
+      const [schools, courses, settings] = await Promise.all([
+        getSchools(),
+        getCourses(),
+        getAdmissionsSettings(),
+      ]);
       setAllSchools(schools);
       setAllCourses(courses);
+      setAdmissionsOpen(settings.isOpen);
+      setAdmissionsMessage(settings.message ?? '');
     };
     loadCatalog();
   }, []);
@@ -95,10 +103,20 @@ export default function RegisterPage() {
     const studyPace = (formData.get('studyPace') as string) || 'standard';
     
     try {
+      if (!admissionsOpen) {
+        setError(admissionsMessage || 'Admissions are currently closed. Please check back later.');
+        return;
+      }
       if (password.length < 6) {
         setError('The password is too weak. It must be at least 6 characters long.');
         return;
       }
+
+      await registerAccount({
+        name: fullName,
+        email,
+        password,
+      });
 
       await submitApplication({
         fullName,
@@ -112,11 +130,30 @@ export default function RegisterPage() {
         subjectPoints,
       });
 
+      const nationalIdFile = formData.get('nationalId') as File | null;
+      const certificateFile = formData.get('certificate') as File | null;
+      const resultsFile = formData.get('certifiedResults') as File | null;
+
+      const uploads: Promise<unknown>[] = [];
+      if (nationalIdFile && nationalIdFile.size > 0) {
+        uploads.push(uploadAdmissionDocument('national_id', nationalIdFile));
+      }
+      if (certificateFile && certificateFile.size > 0) {
+        uploads.push(uploadAdmissionDocument('certificate', certificateFile));
+      }
+      if (resultsFile && resultsFile.size > 0) {
+        uploads.push(uploadAdmissionDocument('certified_results', resultsFile));
+      }
+
+      if (uploads.length > 0) {
+        await Promise.all(uploads);
+      }
+
       alert(`Application submitted for ${email}!`);
       router.push('/admissions/status');
     } catch (error: any) {
       console.error('Registration error:', error);
-      setError('An unexpected error occurred during registration. Please try again.');
+      setError(error?.message || 'An unexpected error occurred during registration. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -213,9 +250,9 @@ export default function RegisterPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-primary" />
-                  Admissions -> Enrollment -> Student Status
+                  Admissions / Enrollment / Student Status
                 </CardTitle>
-                <CardDescription>Clear steps so students and staff stay aligned.</CardDescription>
+                <CardDescription>Clear steps so students stay aligned.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
                 <ol className="list-decimal space-y-2 pl-5">
@@ -241,6 +278,15 @@ export default function RegisterPage() {
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Registration Failed</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                {!admissionsOpen && !error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Admissions Closed</AlertTitle>
+                    <AlertDescription>
+                      {admissionsMessage || 'Admissions are currently closed. Please check back later.'}
+                    </AlertDescription>
                   </Alert>
                 )}
 
@@ -446,12 +492,12 @@ export default function RegisterPage() {
                   <h3 className="text-sm font-semibold uppercase text-muted-foreground">Documents</h3>
                   <div className="space-y-2">
                     <Label htmlFor="national-id">National ID</Label>
-                    <Input id="national-id" type="file" className="flex-1" required />
+                    <Input id="national-id" name="nationalId" type="file" className="flex-1" required />
                     <p className="text-xs text-muted-foreground">Upload a scan of your national ID card (PDF, JPG, or PNG).</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="certificate">High School Certificate</Label>
-                    <Input id="certificate" type="file" className="flex-1" required />
+                    <Input id="certificate" name="certificate" type="file" className="flex-1" required />
                     <p className="text-xs text-muted-foreground">Upload your certificate (PDF, JPG, or PNG).</p>
                   </div>
                   <div className="space-y-2">
@@ -471,7 +517,7 @@ export default function RegisterPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex-col gap-4">
-                <Button className="w-full" type="submit" disabled={loading}>
+                <Button className="w-full" type="submit" disabled={loading || !admissionsOpen}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Create Account'}
                 </Button>
                 <p className="text-sm text-muted-foreground">
@@ -485,5 +531,6 @@ export default function RegisterPage() {
     </div>
   );
 }
+
 
 

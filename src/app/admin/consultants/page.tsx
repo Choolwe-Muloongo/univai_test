@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Check, X, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { getConsultantApplications } from '@/lib/api';
-import type { ConsultantApplication } from '@/lib/data';
+import type { ConsultantApplication } from '@/lib/api/types';
 
 export default function ConsultantsApprovalPage() {
   const [applications, setApplications] = useState<ConsultantApplication[]>([]);
@@ -107,3 +107,4 @@ export default function ConsultantsApprovalPage() {
     </div>
   );
 }
+
