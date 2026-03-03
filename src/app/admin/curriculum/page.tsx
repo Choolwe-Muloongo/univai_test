@@ -30,10 +30,12 @@ export default function AdminCurriculumPage() {
   const [programId, setProgramId] = useState('');
   const [versionId, setVersionId] = useState('');
   const [versionName, setVersionName] = useState('');
+  const [moduleCode, setModuleCode] = useState('');
   const [moduleTitle, setModuleTitle] = useState('');
   const [moduleDescription, setModuleDescription] = useState('');
   const [moduleSemester, setModuleSemester] = useState('1');
   const [moduleCredits, setModuleCredits] = useState('3');
+  const [moduleHoursPerWeek, setModuleHoursPerWeek] = useState('');
   const [moduleTrack, setModuleTrack] = useState('');
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [selectedPrereqId, setSelectedPrereqId] = useState('');
@@ -107,18 +109,22 @@ export default function AdminCurriculumPage() {
   const handleCreateModule = async () => {
     if (!versionId || !moduleTitle || !moduleDescription) return;
     const created = await createCurriculumModule(versionId, {
+      code: moduleCode || null,
       title: moduleTitle,
       description: moduleDescription,
       credits: Number(moduleCredits) || 3,
+      hoursPerWeek: moduleHoursPerWeek ? Number(moduleHoursPerWeek) : null,
       semester: Number(moduleSemester),
       isCore: true,
       track: moduleTrack || null,
     });
     setModules((prev) => [...prev, created]);
+    setModuleCode('');
     setModuleTitle('');
     setModuleDescription('');
     setModuleTrack('');
     setModuleCredits('3');
+    setModuleHoursPerWeek('');
   };
 
   const handleAddPrerequisite = async () => {
@@ -201,6 +207,10 @@ export default function AdminCurriculumPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
+              <Label>Course Code (optional)</Label>
+              <Input value={moduleCode} onChange={(event) => setModuleCode(event.target.value)} placeholder="DEC 110" />
+            </div>
+            <div className="space-y-2">
               <Label>Module Title</Label>
               <Input value={moduleTitle} onChange={(event) => setModuleTitle(event.target.value)} placeholder="Intro to AI" />
             </div>
@@ -211,6 +221,10 @@ export default function AdminCurriculumPage() {
             <div className="space-y-2">
               <Label>Credits</Label>
               <Input type="number" min="1" value={moduleCredits} onChange={(event) => setModuleCredits(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Hours / Week (optional)</Label>
+              <Input type="number" min="1" value={moduleHoursPerWeek} onChange={(event) => setModuleHoursPerWeek(event.target.value)} />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Description</Label>
@@ -230,11 +244,11 @@ export default function AdminCurriculumPage() {
               <div key={module.id} className="rounded-lg border p-4">
                 <div className="flex flex-wrap justify-between gap-2">
                   <div>
-                    <p className="font-semibold">{module.title}</p>
+                    <p className="font-semibold">{module.code ? `${module.code} - ` : ''}{module.title}</p>
                     <p className="text-sm text-muted-foreground">{module.description}</p>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    Semester {module.semester} · {module.credits ?? 3} credits {module.track ? `- ${module.track}` : ''}
+                    Semester {module.semester} · {module.credits ?? 3} credits{module.hoursPerWeek ? ` · ${module.hoursPerWeek} hrs/wk` : ''} {module.track ? `- ${module.track}` : ''}
                   </div>
                 </div>
               </div>

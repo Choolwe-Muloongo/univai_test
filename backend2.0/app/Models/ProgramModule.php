@@ -14,9 +14,11 @@ class ProgramModule extends Model
         'id',
         'program_id',
         'curriculum_version_id',
+        'code',
         'title',
         'description',
         'credits',
+        'hours_per_week',
         'progress',
         'semester',
         'is_exam_available',
@@ -28,6 +30,7 @@ class ProgramModule extends Model
         'is_exam_available' => 'boolean',
         'is_core' => 'boolean',
         'credits' => 'integer',
+        'hours_per_week' => 'integer',
     ];
 
     public function program(): BelongsTo
