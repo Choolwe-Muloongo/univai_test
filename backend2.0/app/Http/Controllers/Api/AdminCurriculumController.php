@@ -111,9 +111,11 @@ class AdminCurriculumController extends Controller
     public function createModule(Request $request, CurriculumVersion $version)
     {
         $payload = $request->validate([
+            'code' => ['nullable', 'string', 'max:30'],
             'title' => ['required', 'string'],
             'description' => ['required', 'string'],
             'credits' => ['nullable', 'integer', 'min:1'],
+            'hoursPerWeek' => ['nullable', 'integer', 'min:1'],
             'semester' => ['required', 'integer', 'min:1'],
             'isCore' => ['nullable', 'boolean'],
             'track' => ['nullable', 'string'],
@@ -131,9 +133,11 @@ class AdminCurriculumController extends Controller
             'id' => $moduleId,
             'program_id' => $version->program_id,
             'curriculum_version_id' => $version->id,
+            'code' => $payload['code'] ?? null,
             'title' => $payload['title'],
             'description' => $payload['description'],
             'credits' => $payload['credits'] ?? 3,
+            'hours_per_week' => $payload['hoursPerWeek'] ?? null,
             'progress' => 0,
             'semester' => $payload['semester'],
             'is_exam_available' => false,
@@ -189,9 +193,11 @@ class AdminCurriculumController extends Controller
     {
         return [
             'id' => $module->id,
+            'code' => $module->code,
             'title' => $module->title,
             'description' => $module->description,
             'credits' => $module->credits,
+            'hoursPerWeek' => $module->hours_per_week,
             'semester' => $module->semester,
             'isCore' => (bool) $module->is_core,
             'track' => $module->track,

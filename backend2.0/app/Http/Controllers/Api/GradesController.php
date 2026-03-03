@@ -87,13 +87,21 @@ class GradesController extends Controller
         $engine = new AcademicPolicyEngine();
         $policy = $engine->resolvePolicyForStudent($student);
 
-        $attemptNo = CourseAttempt::query()
+        $existingDraftAttempt = CourseAttempt::query()
             ->where('student_id', $student->id)
             ->where('module_id', $module->id)
-            ->max('attempt_no');
-        $attemptNo = $attemptNo ? $attemptNo + 1 : 1;
+            ->where('result_status', 'draft')
+            ->orderByDesc('attempt_no')
+            ->first();
 
-        if ($attemptNo > $policy->max_attempts) {
+        $attemptNo = $existingDraftAttempt
+            ? (int) $existingDraftAttempt->attempt_no
+            : (int) CourseAttempt::query()
+                ->where('student_id', $student->id)
+                ->where('module_id', $module->id)
+                ->max('attempt_no') + 1;
+
+        if (!$existingDraftAttempt && $attemptNo > $policy->max_attempts) {
             return response()->json([
                 'message' => 'Maximum attempts reached for this module.',
             ], 422);
@@ -107,7 +115,7 @@ class GradesController extends Controller
             isset($payload['exam_score']) ? (float) $payload['exam_score'] : null
         );
 
-        $attempt = CourseAttempt::create([
+        $attemptPayload = [
             'student_id' => $student->id,
             'module_id' => $module->id,
             'intake_id' => $student->intake_id,
@@ -121,7 +129,11 @@ class GradesController extends Controller
             'status' => $evaluation['status'],
             'result_status' => $payload['result_status'] ?? 'draft',
             'recorded_by' => $request->session()->get('user')['id'] ?? null,
-        ]);
+        ];
+
+        $attempt = $existingDraftAttempt
+            ? tap($existingDraftAttempt)->update($attemptPayload)
+            : CourseAttempt::create($attemptPayload);
 
         if ($attempt->result_status === 'published') {
             $publishedAttempts = CourseAttempt::query()

@@ -36,9 +36,11 @@ export type Course = {
 
 export type ProgramModule = {
   id: string;
+  code?: string | null;
   title: string;
   description: string;
   credits: number;
+  hoursPerWeek?: number | null;
   progress: number;
   semester: number;
   isExamAvailable: boolean;
@@ -441,9 +443,11 @@ export type CurriculumVersion = {
 
 export type CurriculumModule = {
   id: string;
+  code?: string | null;
   title: string;
   description: string;
   credits?: number | null;
+  hoursPerWeek?: number | null;
   semester: number;
   isCore: boolean;
   track?: string | null;

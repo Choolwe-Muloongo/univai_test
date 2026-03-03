@@ -177,12 +177,12 @@ export default function AdminAiConsolePage() {
       JSON.stringify(
         {
           name: selectedPolicy.name,
-          passMark: selectedPolicy.passMark,
-          repeatRule: selectedPolicy.repeatRule,
-          maxAttempts: selectedPolicy.maxAttempts,
-          creditAwardPolicy: selectedPolicy.creditAwardPolicy,
-          gradeBands: selectedPolicy.gradeBands,
-          progressionPolicy: selectedPolicy.progressionPolicy,
+          pass_mark: selectedPolicy.pass_mark,
+          repeat_rule: selectedPolicy.repeat_rule,
+          max_attempts: selectedPolicy.max_attempts,
+          credit_award_policy: selectedPolicy.credit_award_policy,
+          grade_bands: selectedPolicy.grade_bands,
+          progression_policy: selectedPolicy.progression_policy,
         },
         null,
         2
@@ -210,8 +210,8 @@ export default function AdminAiConsolePage() {
     if (!auditLogs.length) return '';
     const recent = auditLogs.slice(0, 20).map((log) => ({
       action: log.action,
-      actor: log.actor,
-      role: log.role,
+      actorId: log.actorId,
+      actorRole: log.actorRole,
       createdAt: log.createdAt,
     }));
     return truncate(JSON.stringify(recent, null, 2), 1800);
