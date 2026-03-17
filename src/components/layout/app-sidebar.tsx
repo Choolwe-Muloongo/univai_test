@@ -27,6 +27,7 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -84,6 +85,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/admissions', label: 'Admissions', icon: ClipboardCheck },
+    { href: '/admin/exceptions', label: 'Exception Queue', icon: ShieldCheck },
     { href: '/admin/route-requests', label: 'Route Requests', icon: ArrowLeftRight },
     { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays },
     { href: '/admin/assignments', label: 'Assignments', icon: Link2 },
