@@ -93,6 +93,8 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/admin/policies', label: 'Policies', icon: SlidersHorizontal },
     { href: '/admin/management', label: 'Content Management', icon: Settings },
     { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/roles', label: 'Roles & Permissions', icon: BadgeCheck },
     { href: '/admin/reports', label: 'Reports & Analytics', icon: BookMarked },
     { href: '/admin/audit', label: 'Audit Logs', icon: BadgeCheck },
     { href: '/admin/community', label: 'Manage Community', icon: Users },
