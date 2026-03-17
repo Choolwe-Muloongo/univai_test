@@ -17,7 +17,7 @@ type AppShellProps = {
 export function AppShell({ children, role, showAiTutor }: AppShellProps) {
   const { session } = useSession();
   const resolvedRole = useMemo(() => role ?? session?.user?.role ?? null, [role, session]);
-  const isStudent = resolvedRole?.includes('student') || resolvedRole === 'enrolled';
+  const isStudent = isStudentRole(resolvedRole);
   const shouldShowAiTutor = showAiTutor ?? Boolean(isStudent);
 
   return (
