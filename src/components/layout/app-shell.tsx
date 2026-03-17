@@ -7,6 +7,7 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AiTutorWidget } from '@/components/layout/ai-tutor-widget';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useSession } from '@/components/providers/session-provider';
+import { isStudentRole } from '@/lib/auth/roles';
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -17,7 +18,7 @@ type AppShellProps = {
 export function AppShell({ children, role, showAiTutor }: AppShellProps) {
   const { session } = useSession();
   const resolvedRole = useMemo(() => role ?? session?.user?.role ?? null, [role, session]);
-  const isStudent = resolvedRole?.includes('student') || resolvedRole === 'enrolled';
+  const isStudent = isStudentRole(resolvedRole);
   const shouldShowAiTutor = showAiTutor ?? Boolean(isStudent);
 
   return (
