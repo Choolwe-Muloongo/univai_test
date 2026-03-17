@@ -5,8 +5,8 @@ import { useMemo } from 'react';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AiTutorWidget } from '@/components/layout/ai-tutor-widget';
-import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useSession } from '@/components/providers/session-provider';
+import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -22,16 +22,14 @@ export function AppShell({ children, role, showAiTutor }: AppShellProps) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-svh bg-background text-foreground">
+      <div className="flex min-h-svh bg-transparent text-foreground">
         <Sidebar>
           <AppSidebar role={resolvedRole ?? undefined} />
         </Sidebar>
         <SidebarInset>
-          <div className="flex h-full flex-col">
+          <div className="page-shell flex h-full flex-col gap-4 py-3 sm:gap-6 sm:py-4">
             <AppHeader role={resolvedRole ?? undefined} />
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              {children}
-            </main>
+            <main className="section-shell flex-1 overflow-y-auto">{children}</main>
             {shouldShowAiTutor && <AiTutorWidget />}
           </div>
         </SidebarInset>
