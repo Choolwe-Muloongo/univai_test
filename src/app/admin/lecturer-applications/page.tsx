@@ -45,7 +45,15 @@ export default function LecturerApplicationsPage() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading applications...</p>
           ) : applications.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No lecturer applications yet.</p>
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">No lecturer applications yet</p>
+              <p className="mt-1">Next action: publish lecturer callouts and verify department staffing gaps.</p>
+              <div className="mt-3">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/assignments">Review current lecturer coverage</Link>
+                </Button>
+              </div>
+            </div>
           ) : (
             applications.map((app) => (
               <div key={app.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">

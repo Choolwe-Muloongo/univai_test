@@ -27,7 +27,7 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   Sparkles,
-  ShieldCheck,
+  Workflow,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -85,13 +85,15 @@ const allLinks: { [key: string]: NavLink[] } = {
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/admissions', label: 'Admissions', icon: ClipboardCheck },
-    { href: '/admin/exceptions', label: 'Exception Queue', icon: ShieldCheck },
+    { href: '/admin/users', label: 'User Management', icon: Users },
     { href: '/admin/route-requests', label: 'Route Requests', icon: ArrowLeftRight },
     { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays },
     { href: '/admin/assignments', label: 'Assignments', icon: Link2 },
     { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck },
     { href: '/admin/ai', label: 'AI Console', icon: Sparkles },
     { href: '/admin/curriculum', label: 'Curriculum', icon: BookMarked },
+    { href: '/admin/curriculum-ops', label: 'Curriculum Ops', icon: Workflow },
+    { href: '/admin/curriculum-blueprint', label: 'DCE1 Blueprint', icon: BookMarked },
     { href: '/admin/policies', label: 'Policies', icon: SlidersHorizontal },
     { href: '/admin/management', label: 'Content Management', icon: Settings },
     { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
@@ -131,13 +133,13 @@ export function AppSidebar({ role }: { role?: string }) {
 
   return (
     <>
-      <SidebarHeader>
+      <SidebarHeader className="glass-nav rounded-t-xl border-b border-sidebar-border/60">
         <div className="flex items-center gap-2">
           <Logo className="size-8 text-primary" />
           <span className="text-lg font-semibold text-primary">UnivAI</span>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="glass-surface rounded-b-xl border border-sidebar-border/50 p-1">
         <SidebarMenu>
           {links.map((link) => (
             <SidebarMenuItem key={link.key || link.href}>
@@ -150,7 +152,7 @@ export function AppSidebar({ role }: { role?: string }) {
                       link.href.split('/').length > 2)
                   }
                   tooltip={link.label}
-                  className="justify-start"
+                  className="justify-start data-[active=true]:bg-sidebar-accent/70"
                 >
                   <link.icon className="size-5" />
                   <span>{link.label}</span>

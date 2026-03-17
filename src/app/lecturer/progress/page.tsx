@@ -27,7 +27,7 @@ export default function LecturerProgressPage() {
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [finalPercentage, setFinalPercentage] = useState('');
   const [examScore, setExamScore] = useState('');
-  const [resultStatus, setResultStatus] = useState('published');
+  const [resultStatus, setResultStatus] = useState('draft');
   const [saving, setSaving] = useState(false);
   const [aiFeedback, setAiFeedback] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -276,6 +276,9 @@ Include: 1) Summary, 2) Strengths, 3) Areas to improve, 4) Next actions. Use bul
                 <SelectItem value="published">Published</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Save as draft while CA is still being compiled. Publish only when you are ready for students to see results.
+            </p>
           </div>
           <div className="flex items-end">
             <Button onClick={handleRecordGrade} disabled={saving || !selectedStudentId || !selectedModuleId || !finalPercentage}>
