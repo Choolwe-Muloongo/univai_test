@@ -1,21 +1,64 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { getConsultantApplicationById } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileText } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { AdminDecisionPanel, type DecisionActionOption } from '@/components/admin/admin-decision-panel';
+import type { ConsultantApplication } from '@/lib/api/types';
 
-export default async function ConsultantDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const application = await getConsultantApplicationById(id);
+const consultantActions: DecisionActionOption[] = [
+  {
+    value: 'approve',
+    label: 'Approve Consultant',
+    consequence: 'Consultant profile becomes active and discoverable for assignments.',
+    nextFollowUp: 'Notify onboarding to issue contract and account permissions.',
+    highImpact: true,
+    reasonCodes: [
+      { value: 'CREDENTIALS_VERIFIED', label: 'CREDENTIALS_VERIFIED - Credentials passed verification' },
+      { value: 'DEPT_APPROVAL', label: 'DEPT_APPROVAL - Department approved staffing need' },
+    ],
+  },
+  {
+    value: 'needs_info',
+    label: 'Request More Information',
+    consequence: 'Application remains pending and applicant is asked for missing verification data.',
+    nextFollowUp: 'Re-check submitted documents after applicant response.',
+  },
+  {
+    value: 'reject',
+    label: 'Reject Application',
+    consequence: 'Application is closed and consultant cannot be onboarded.',
+    nextFollowUp: 'Send rejection rationale and archive profile notes.',
+    highImpact: true,
+    reasonCodes: [
+      { value: 'FAILED_VERIFICATION', label: 'FAILED_VERIFICATION - Verification failed' },
+      { value: 'ROLE_MISMATCH', label: 'ROLE_MISMATCH - Skills do not match role requirements' },
+    ],
+  },
+];
+
+export default function ConsultantDetailPage() {
+  const { id } = useParams();
+  const { toast } = useToast();
+  const [application, setApplication] = useState<ConsultantApplication | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getConsultantApplicationById(id as string);
+      setApplication(data);
+    };
+    load();
+  }, [id]);
+
   if (!application) {
-    notFound();
+    return <p className="text-sm text-muted-foreground">Loading consultant application...</p>;
   }
 
   return (
@@ -44,8 +87,8 @@ export default async function ConsultantDetailPage({
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
             <p>
-              This applicant has submitted required documentation for lecturer verification. Use the actions to review
-              documents, request additional information, or finalize approval.
+              This applicant has submitted required documentation for lecturer verification. Use the decision panel to
+              complete approvals, escalation, and notifications.
             </p>
             <div className="rounded-lg border p-4">
               <div className="flex items-center justify-between">
@@ -76,19 +119,35 @@ export default async function ConsultantDetailPage({
 
         <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Actions</CardTitle>
-            <CardDescription>Finalize the application.</CardDescription>
+            <CardTitle>Navigation</CardTitle>
+            <CardDescription>Return to listings after review.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full">Approve Lecturer</Button>
-            <Button variant="outline" className="w-full">Request More Info</Button>
-            <Button variant="destructive" className="w-full">Reject</Button>
+          <CardContent>
             <Button variant="ghost" asChild className="w-full">
               <Link href="/admin/consultants">Back to Applications</Link>
             </Button>
           </CardContent>
         </Card>
       </div>
+
+      <AdminDecisionPanel
+        title="Consultant Decision Panel"
+        description="Standardized review flow for consultant approvals and rejections."
+        situationSummary={`Consultant ${application.name} from ${application.department} is currently ${application.status}.`}
+        evidenceItems={['CV uploaded', 'Identification document uploaded', 'Department fit checklist pending final review']}
+        actions={consultantActions}
+        requiredRecipients={[
+          { value: 'consultant', label: 'Consultant Applicant' },
+          { value: 'hr_team', label: 'HR Team' },
+          { value: 'department_head', label: 'Department Head' },
+        ]}
+        onSubmitDecision={async (payload) => {
+          toast({
+            title: 'Decision captured',
+            description: `Action "${payload.action}" recorded with notifications queued.`,
+          });
+        }}
+      />
     </div>
   );
 }

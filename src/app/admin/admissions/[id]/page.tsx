@@ -11,6 +11,7 @@ import { getApplicationById, updateApplicationStatus, getIntakes, getApplication
 import type { ApplicationDetail, ApplicationStatus, Intake, ApplicationDocument } from '@/lib/api/types';
 import { ClipboardCheck, Mail, ShieldCheck, User, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AdminDecisionPanel, type DecisionActionOption } from '@/components/admin/admin-decision-panel';
 
 const requiredSubjects = ['english-language', 'mathematics'];
 
@@ -39,6 +40,54 @@ export default function AdmissionDetailPage() {
   const [selectedIntake, setSelectedIntake] = useState<string>('');
   const [documents, setDocuments] = useState<ApplicationDocument[]>([]);
   const [docNotes, setDocNotes] = useState<Record<number, string>>({});
+
+  const decisionActions: DecisionActionOption[] = [
+    {
+      value: 'under_review',
+      label: 'Mark Under Review',
+      consequence: 'Application remains in active review and no external applicant communication is sent.',
+      nextFollowUp: 'Complete document verification checklist within 24 hours.',
+    },
+    {
+      value: 'needs_info',
+      label: 'Request More Information',
+      consequence: 'Applicant is notified to upload corrections and the decision timeline pauses.',
+      nextFollowUp: 'Monitor applicant response and re-open review once documents are uploaded.',
+    },
+    {
+      value: 'offer_sent',
+      label: 'Send Offer',
+      consequence: 'Conditional offer is issued and enrollment confirmation workflow begins.',
+      nextFollowUp: 'Track offer acceptance and payment verification.',
+      highImpact: true,
+      reasonCodes: [
+        { value: 'ACADEMIC_PASS', label: 'ACADEMIC_PASS - Meets academic threshold' },
+        { value: 'SPECIAL_CASE', label: 'SPECIAL_CASE - Approved via exception policy' },
+      ],
+    },
+    {
+      value: 'admitted',
+      label: 'Mark Admitted',
+      consequence: 'Student is admitted and downstream onboarding systems are activated.',
+      nextFollowUp: 'Notify registration and finance teams for onboarding hand-off.',
+      highImpact: true,
+      reasonCodes: [
+        { value: 'FINAL_APPROVAL', label: 'FINAL_APPROVAL - All checks completed' },
+        { value: 'MANUAL_OVERRIDE', label: 'MANUAL_OVERRIDE - Manual approval override' },
+      ],
+    },
+    {
+      value: 'rejected',
+      label: 'Reject Application',
+      consequence: 'Application closes and applicant receives final rejection notice.',
+      nextFollowUp: 'Issue final communication and archive application with rationale.',
+      highImpact: true,
+      reasonCodes: [
+        { value: 'INELIGIBLE', label: 'INELIGIBLE - Minimum criteria not met' },
+        { value: 'DOCUMENT_ISSUE', label: 'DOCUMENT_ISSUE - Documents unverifiable or incomplete' },
+      ],
+    },
+  ];
 
   useEffect(() => {
     const loadApplication = async () => {
@@ -72,7 +121,10 @@ export default function AdmissionDetailPage() {
     };
   }, [application]);
 
-  const handleStatusChange = async (status: ApplicationStatus) => {
+  const handleStatusChange = async (
+    status: ApplicationStatus,
+    context?: { decisionReason: string; reasonCode?: string; escalate?: boolean; escalationNote?: string }
+  ) => {
     if (!application) return;
     if ((status === 'offer_sent' || status === 'admitted' || status === 'approved') && !selectedIntake) {
       toast({
@@ -83,7 +135,16 @@ export default function AdmissionDetailPage() {
       return;
     }
     try {
-      const updated = await updateApplicationStatus(application.id, status, notes, selectedIntake || null, {
+      const decisionNotes = [
+        context?.reasonCode ? `Reason Code: ${context.reasonCode}` : null,
+        context?.decisionReason ? `Decision Reason: ${context.decisionReason}` : null,
+        context?.escalate ? `Escalated: ${context.escalationNote || 'Yes'}` : null,
+        notes || null,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      const updated = await updateApplicationStatus(application.id, status, decisionNotes, selectedIntake || null, {
         offerMessage,
         offerLetterUrl,
         needsInfoMessage,
@@ -178,20 +239,8 @@ export default function AdmissionDetailPage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-wrap gap-2">
-            <Button onClick={() => handleStatusChange('under_review')} variant="outline">
-              Mark Under Review
-            </Button>
-            <Button onClick={() => handleStatusChange('needs_info')} variant="outline">
-              Request Info
-            </Button>
-            <Button onClick={() => handleStatusChange('offer_sent')}>Send Offer</Button>
-            <Button onClick={() => handleStatusChange('admitted')} variant="secondary">
-              Mark Admitted
-            </Button>
-            <Button onClick={() => handleStatusChange('rejected')} variant="destructive">
-              Reject
-            </Button>
+          <CardFooter>
+            <p className="text-sm text-muted-foreground">Use the decision panel to finalize applicant outcomes.</p>
           </CardFooter>
         </Card>
 
@@ -262,15 +311,37 @@ export default function AdmissionDetailPage() {
             />
           </div>
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => handleStatusChange('needs_info')}>
-            Send Needs Info
-          </Button>
-          <Button onClick={() => handleStatusChange('offer_sent')}>
-            Send Offer
-          </Button>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">Offer and request messages are sent when action is submitted in the decision panel.</p>
         </CardFooter>
       </Card>
+
+      <AdminDecisionPanel
+        title="Admissions Decision Panel"
+        description="Follow the standardized decision workflow before updating applicant status."
+        situationSummary={`Application ${application.id} for ${application.fullName} (${application.programId.toUpperCase()}) is currently ${statusLabels[application.status]}.`}
+        evidenceItems={[
+          `${subjectSummary.total} verified subjects with ${subjectSummary.totalPoints} total points`,
+          `${documents.length} supporting documents uploaded`,
+          subjectSummary.missing.length
+            ? `Missing required subjects: ${subjectSummary.missing.join(', ')}`
+            : 'All required subjects verified',
+        ]}
+        actions={decisionActions}
+        requiredRecipients={[
+          { value: 'applicant', label: 'Applicant' },
+          { value: 'admissions_team', label: 'Admissions Operations Team' },
+          { value: 'registrar', label: 'Registrar Office' },
+        ]}
+        onSubmitDecision={async (payload) => {
+          await handleStatusChange(payload.action as ApplicationStatus, {
+            decisionReason: payload.decisionReason,
+            reasonCode: payload.reasonCode,
+            escalate: payload.escalate,
+            escalationNote: payload.escalationNote,
+          });
+        }}
+      />
 
       <Card>
         <CardHeader>
@@ -350,18 +421,17 @@ export default function AdmissionDetailPage() {
             <AlertTriangle className="h-5 w-5 text-primary" />
             Reviewer Notes
           </CardTitle>
-          <CardDescription>Capture decisions and follow-ups.</CardDescription>
+          <CardDescription>Capture optional internal notes.</CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea
             className="min-h-32"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Add notes or rationale for approval/rejection."
+            placeholder="Add optional internal notes to append to decision logs."
           />
         </CardContent>
       </Card>
     </div>
   );
 }
-

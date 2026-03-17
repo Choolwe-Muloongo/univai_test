@@ -19,9 +19,38 @@ import { CornerDownRight, MessageSquare, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createDiscussionComment, getDiscussionById } from '@/lib/api';
+import { AdminDecisionPanel, type DecisionActionOption } from '@/components/admin/admin-decision-panel';
+import { useToast } from '@/hooks/use-toast';
+
+const moderationActions: DecisionActionOption[] = [
+  {
+    value: 'keep_visible',
+    label: 'Keep Discussion Visible',
+    consequence: 'Discussion remains public and participants can continue interacting.',
+    nextFollowUp: 'Monitor for policy violations in future comments.',
+  },
+  {
+    value: 'flag_for_edit',
+    label: 'Flag for Author Edit',
+    consequence: 'Author receives warning and content is marked for revision.',
+    nextFollowUp: 'Confirm author edits satisfy community guidelines.',
+  },
+  {
+    value: 'remove_content',
+    label: 'Remove Discussion',
+    consequence: 'Thread is removed and moderation report is logged.',
+    nextFollowUp: 'Send moderation decision summary to author and compliance team.',
+    highImpact: true,
+    reasonCodes: [
+      { value: 'POLICY_BREACH', label: 'POLICY_BREACH - Community guideline breach' },
+      { value: 'SAFETY_RISK', label: 'SAFETY_RISK - Potential safety/legal risk' },
+    ],
+  },
+];
 
 export default function DiscussionDetailPage() {
   const params = useParams();
+  const { toast } = useToast();
   const id = params.id as string;
   const [discussion, setDiscussion] = useState<any | null>(null);
 
@@ -140,7 +169,31 @@ export default function DiscussionDetailPage() {
             </div>
         </CardFooter>
       </Card>
+
+      <div className="mt-6">
+        <AdminDecisionPanel
+          title="Community Decision Panel"
+          description="Use the standard moderation decision workflow for this discussion."
+          situationSummary={`Discussion "${discussion.title}" by ${discussion.author} currently has ${comments.length} comments.`}
+          evidenceItems={[
+            `Original post timestamp: ${discussion.timestamp}`,
+            `${comments.length} comments reviewed`,
+            'Community guideline and moderation checklist references available',
+          ]}
+          actions={moderationActions}
+          requiredRecipients={[
+            { value: 'discussion_author', label: 'Discussion Author' },
+            { value: 'community_mod_team', label: 'Community Moderation Team' },
+            { value: 'compliance', label: 'Compliance Team' },
+          ]}
+          onSubmitDecision={async (payload) => {
+            toast({
+              title: 'Moderation decision logged',
+              description: `Action "${payload.action}" has been captured.`,
+            });
+          }}
+        />
+      </div>
     </div>
   );
 }
-

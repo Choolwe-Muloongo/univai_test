@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,10 +66,13 @@ export default function AdminRouteRequestsPage() {
                 onChange={(event) => setNotes((prev) => ({ ...prev, [request.id]: event.target.value }))}
                 className="min-h-20"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button onClick={() => handleReview(request.id, 'approved')}>Approve</Button>
                 <Button variant="outline" onClick={() => handleReview(request.id, 'rejected')}>
                   Reject
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href={`/admin/route-requests/${request.id}`}>Open decision details</Link>
                 </Button>
               </div>
             </div>
