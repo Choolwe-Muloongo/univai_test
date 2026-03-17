@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -119,6 +120,24 @@ export default function AdminAssignmentsPage() {
               </div>
             );
           })}
+            </div>
+          ))}
+          {data.assignments.length === 0 && (
+            <div className="rounded-lg border border-dashed p-4">
+              <p className="font-medium">No assignments created yet.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Next action: confirm lecturers, modules, and intakes are available, then create the first assignment.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/lecturer-applications">Review lecturer pipeline</Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/intakes">Open intake setup</Link>
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

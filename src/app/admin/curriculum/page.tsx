@@ -22,10 +22,13 @@ export default function AdminCurriculumPage() {
   const [programId, setProgramId] = useState('');
   const [versionId, setVersionId] = useState('');
   const [versionName, setVersionName] = useState('');
+  const [moduleCode, setModuleCode] = useState('');
   const [moduleTitle, setModuleTitle] = useState('');
   const [moduleDescription, setModuleDescription] = useState('');
   const [moduleSemester, setModuleSemester] = useState('1');
   const [moduleCredits, setModuleCredits] = useState('3');
+  const [moduleHoursPerWeek, setModuleHoursPerWeek] = useState('');
+  const [moduleTrack, setModuleTrack] = useState('');
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [selectedPrereqId, setSelectedPrereqId] = useState('');
   const [prerequisites, setPrerequisites] = useState<{ moduleId: string; prerequisiteId: string; prerequisiteTitle?: string | null }[]>([]);
@@ -96,6 +99,23 @@ export default function AdminCurriculumPage() {
     setModuleStates((prev) => ({ ...prev, [created.id]: 'active' }));
     setModuleTitle('');
     setModuleDescription('');
+    const created = await createCurriculumModule(versionId, {
+      code: moduleCode || null,
+      title: moduleTitle,
+      description: moduleDescription,
+      credits: Number(moduleCredits) || 3,
+      hoursPerWeek: moduleHoursPerWeek ? Number(moduleHoursPerWeek) : null,
+      semester: Number(moduleSemester),
+      isCore: true,
+      track: moduleTrack || null,
+    });
+    setModules((prev) => [...prev, created]);
+    setModuleCode('');
+    setModuleTitle('');
+    setModuleDescription('');
+    setModuleTrack('');
+    setModuleCredits('3');
+    setModuleHoursPerWeek('');
   };
 
   const handleAddPrerequisite = async () => {
@@ -117,10 +137,85 @@ export default function AdminCurriculumPage() {
       <Card><CardHeader><CardTitle>Version Records</CardTitle><CardDescription>Prefer archive over hard-delete.</CardDescription></CardHeader><CardContent className="space-y-3">{versions.map((version) => { const state = versionStates[version.id] ?? 'active'; if (state === 'deleted') return null; return <div key={version.id} className="rounded-lg border p-3 flex items-center justify-between"><span>{version.name} ({version.status}) · {state}</span><div className="flex gap-2">{state === 'active' ? <Button size="sm" variant="outline" onClick={() => { setVersionStates((prev) => ({ ...prev, [version.id]: 'archived' })); pushHistory('CurriculumVersion', version.id, 'archived'); }}>Archive</Button> : <Button size="sm" variant="outline" onClick={() => { setVersionStates((prev) => ({ ...prev, [version.id]: 'active' })); pushHistory('CurriculumVersion', version.id, 'restored'); }}>Restore</Button>}<Button size="sm" variant="destructive" onClick={() => { setVersionStates((prev) => ({ ...prev, [version.id]: 'deleted' })); pushHistory('CurriculumVersion', version.id, 'hard deleted'); }}>Hard Delete</Button></div></div>; })}</CardContent></Card>
 
       <Card><CardHeader><CardTitle>Modules</CardTitle></CardHeader><CardContent className="space-y-4"><div className="space-y-2"><Label>Curriculum Version</Label><Select value={versionId} onValueChange={setVersionId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{versions.filter((v) => (versionStates[v.id] ?? 'active') !== 'deleted').map((version) => <SelectItem key={version.id} value={version.id}>{version.name}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Module Title</Label><Input value={moduleTitle} onChange={(e) => setModuleTitle(e.target.value)} /></div><div className="space-y-2"><Label>Semester</Label><Input type="number" min="1" value={moduleSemester} onChange={(e) => setModuleSemester(e.target.value)} /></div><div className="space-y-2"><Label>Credits</Label><Input type="number" min="1" value={moduleCredits} onChange={(e) => setModuleCredits(e.target.value)} /></div><div className="space-y-2 md:col-span-2"><Label>Description</Label><Textarea value={moduleDescription} onChange={(e) => setModuleDescription(e.target.value)} /></div><div className="flex items-end"><Button onClick={handleCreateModule}>Create Module</Button></div></div><div className="space-y-3">{modules.map((module) => { const state = moduleStates[module.id] ?? 'active'; if (state === 'deleted') return null; return <div key={module.id} className="rounded-lg border p-4"><div className="flex justify-between"><div><p className="font-semibold">{module.title}</p><p className="text-sm text-muted-foreground">{module.description}</p></div><div className="text-sm text-muted-foreground">Semester {module.semester} · {state}</div></div><div className="mt-2 flex gap-2">{state === 'active' ? <Button size="sm" variant="outline" onClick={() => { setModuleStates((prev) => ({ ...prev, [module.id]: 'archived' })); pushHistory('CurriculumModule', module.id, 'archived'); }}>Archive</Button> : <Button size="sm" variant="outline" onClick={() => { setModuleStates((prev) => ({ ...prev, [module.id]: 'active' })); pushHistory('CurriculumModule', module.id, 'restored'); }}>Restore</Button>}<Button size="sm" variant="destructive" onClick={() => { setModuleStates((prev) => ({ ...prev, [module.id]: 'deleted' })); pushHistory('CurriculumModule', module.id, 'hard deleted'); }}>Hard Delete</Button></div></div>; })}</div></CardContent></Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Course Code (optional)</Label>
+              <Input value={moduleCode} onChange={(event) => setModuleCode(event.target.value)} placeholder="DEC 110" />
+            </div>
+            <div className="space-y-2">
+              <Label>Module Title</Label>
+              <Input value={moduleTitle} onChange={(event) => setModuleTitle(event.target.value)} placeholder="Intro to AI" />
+            </div>
+            <div className="space-y-2">
+              <Label>Semester</Label>
+              <Input type="number" min="1" value={moduleSemester} onChange={(event) => setModuleSemester(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Credits</Label>
+              <Input type="number" min="1" value={moduleCredits} onChange={(event) => setModuleCredits(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Hours / Week (optional)</Label>
+              <Input type="number" min="1" value={moduleHoursPerWeek} onChange={(event) => setModuleHoursPerWeek(event.target.value)} />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Description</Label>
+              <Textarea value={moduleDescription} onChange={(event) => setModuleDescription(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Track (optional)</Label>
+              <Input value={moduleTrack} onChange={(event) => setModuleTrack(event.target.value)} placeholder="AI & Data Science" />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={handleCreateModule}>Add Module</Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {modules.map((module) => (
+              <div key={module.id} className="rounded-lg border p-4">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{module.code ? `${module.code} - ` : ''}{module.title}</p>
+                    <p className="text-sm text-muted-foreground">{module.description}</p>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Semester {module.semester} · {module.credits ?? 3} credits{module.hoursPerWeek ? ` · ${module.hoursPerWeek} hrs/wk` : ''} {module.track ? `- ${module.track}` : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {modules.length === 0 && (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground">No modules created yet</p>
+                <p className="mt-1">Next action: add the first module for this curriculum version.</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card><CardHeader><CardTitle>Prerequisites</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-4 md:grid-cols-3"><div className="space-y-2"><Label>Module</Label><Select value={selectedModuleId} onValueChange={setSelectedModuleId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{modules.filter((m) => (moduleStates[m.id] ?? 'active') !== 'deleted').map((module) => <SelectItem key={module.id} value={module.id}>{module.title}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Prerequisite</Label><Select value={selectedPrereqId} onValueChange={setSelectedPrereqId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{modules.filter((m) => (moduleStates[m.id] ?? 'active') !== 'deleted').map((module) => <SelectItem key={module.id} value={module.id}>{module.title}</SelectItem>)}</SelectContent></Select></div><div className="flex items-end"><Button onClick={handleAddPrerequisite}>Add Prerequisite</Button></div></div>{prerequisites.map((item) => <div key={`${item.moduleId}-${item.prerequisiteId}`} className="rounded-lg border p-3 text-sm">Prerequisite: {item.prerequisiteTitle ?? item.prerequisiteId}</div>)}</CardContent></Card>
 
       <ImmutableHistoryPanel title="Curriculum destructive history" entries={history} />
+          <div className="space-y-3">
+            {prerequisites.map((item) => (
+              <div key={`${item.moduleId}-${item.prerequisiteId}`} className="rounded-lg border p-3 text-sm">
+                Prerequisite: {item.prerequisiteTitle ?? item.prerequisiteId}
+              </div>
+            ))}
+            {selectedModuleId && prerequisites.length === 0 && (
+              <div className="rounded-lg border border-dashed p-4">
+                <p className="font-medium">No prerequisites defined yet.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Next action: add prerequisite rules or continue with no dependencies for this module.
+                </p>
+                <Button className="mt-3" size="sm" variant="outline" onClick={handleAddPrerequisite}>Add prerequisite</Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

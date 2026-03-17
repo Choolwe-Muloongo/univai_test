@@ -60,6 +60,20 @@ export default function ConsultantsApprovalPage() {
               </Card>
             );
           }) : <p className="text-muted-foreground md:col-span-2">No pending applications.</p>}
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 md:col-span-2">
+              <p className="font-medium">No pending applications.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Next action: monitor this queue and review approved/rejected history for quality checks.
+              </p>
+              <div className="mt-3">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/lecturer-applications">Open lecturer applications</Link>
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
