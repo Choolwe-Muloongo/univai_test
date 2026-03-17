@@ -254,7 +254,10 @@ export default function AdminCurriculumPage() {
               </div>
             ))}
             {modules.length === 0 && (
-              <p className="text-sm text-muted-foreground">No modules created yet.</p>
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground">No modules created yet</p>
+                <p className="mt-1">Next action: add the first module for this curriculum version.</p>
+              </div>
             )}
           </div>
         </CardContent>
@@ -309,7 +312,13 @@ export default function AdminCurriculumPage() {
               </div>
             ))}
             {selectedModuleId && prerequisites.length === 0 && (
-              <p className="text-sm text-muted-foreground">No prerequisites defined yet.</p>
+              <div className="rounded-lg border border-dashed p-4">
+                <p className="font-medium">No prerequisites defined yet.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Next action: add prerequisite rules or continue with no dependencies for this module.
+                </p>
+                <Button className="mt-3" size="sm" variant="outline" onClick={handleAddPrerequisite}>Add prerequisite</Button>
+              </div>
             )}
           </div>
         </CardContent>
