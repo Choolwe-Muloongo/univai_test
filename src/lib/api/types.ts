@@ -717,6 +717,56 @@ export type FinanceReportRow = {
   status: string;
 };
 
+export type IncidentLifecycleStep = {
+  key: 'acknowledge' | 'assign' | 'mitigate' | 'notify_affected_roles' | 'resolve' | 'postmortem';
+  label: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  completedAt?: string | null;
+};
+
+export type IncidentTimelineUpdate = {
+  at: string;
+  actor: string;
+  message: string;
+};
+
+export type QueueImpact = {
+  queue: string;
+  module: string;
+  backlog: number;
+  delayedByMinutes: number;
+  status: 'degraded' | 'blocked' | 'recovering';
+};
+
+export type SystemHealthIncident = {
+  id: string;
+  title: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  owner: string;
+  eta: string;
+  communicationStatus: string;
+  impactedModules: string[];
+  affectedQueues: QueueImpact[];
+  lifecycle: IncidentLifecycleStep[];
+  timelineUpdates: IncidentTimelineUpdate[];
+};
+
+export type SystemHealthData = {
+  uptime: string;
+  incidents: number;
+  apiRequests: number;
+  dbThroughput: string;
+  services: Array<{ name: string; status: string }>;
+  utilization: {
+    apiThroughput: number;
+    dbLoad: number;
+    queueLatency: number;
+  };
+  incidentLifecycleGuide: IncidentLifecycleStep[];
+  incidentQueueDirectory: QueueImpact[];
+  incidentRecords: SystemHealthIncident[];
+};
+
 export type ResearchApplication = {
   id: number;
   fullName: string;
