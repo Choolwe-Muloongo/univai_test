@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,6 +15,9 @@ import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 import { getAdmissionsSettings, getApplications, updateAdmissionsSettings } from '@/lib/api';
 import type { ApplicationSummary, ApplicationStatus } from '@/lib/api/types';
 import { ClipboardCheck, Filter, Search } from 'lucide-react';
+import { ImmutableHistoryPanel, type AdminHistoryEntry } from '@/components/admin/immutable-history-panel';
+
+type RecordState = 'active' | 'archived' | 'deleted';
 
 const statusLabels: Record<ApplicationStatus, string> = {
   draft: 'Draft',
@@ -47,6 +51,10 @@ export default function AdmissionsDashboardPage() {
   const [admissionsOpen, setAdmissionsOpen] = useState(true);
   const [admissionsMessage, setAdmissionsMessage] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<ApplicationStatus>('under_review');
+  const [recordStates, setRecordStates] = useState<Record<string, RecordState>>({});
+  const [history, setHistory] = useState<AdminHistoryEntry[]>([]);
 
   useEffect(() => {
     const loadApplications = async () => {
@@ -55,10 +63,37 @@ export default function AdmissionsDashboardPage() {
       setApplications(data);
       setAdmissionsOpen(settings.isOpen);
       setAdmissionsMessage(settings.message ?? '');
+      setRecordStates(Object.fromEntries(data.map((app) => [app.id, 'active'])));
       setLoading(false);
     };
     loadApplications();
   }, []);
+
+  const pushHistory = (entityId: string, action: string) => {
+    setHistory((prev) => [
+      {
+        id: `${entityId}-${Date.now()}-${Math.random()}`,
+        entity: 'Admission',
+        entityId,
+        action,
+        timestamp: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+  };
+
+  const setLifecycleState = (id: string, next: RecordState) => {
+    setRecordStates((prev) => ({ ...prev, [id]: next }));
+    if (next !== 'active') pushHistory(id, next === 'archived' ? 'archived' : 'hard deleted');
+    if (next === 'active') pushHistory(id, 'restored');
+  };
+
+  const handleBulkStatus = () => {
+    if (selectedIds.length === 0) return;
+    setApplications((prev) => prev.map((app) => (selectedIds.includes(app.id) ? { ...app, status: bulkStatus } : app)));
+    selectedIds.forEach((id) => pushHistory(id, `bulk status transition to ${bulkStatus}`));
+    setSelectedIds([]);
+  };
 
   const handleToggleAdmissions = async (nextOpen: boolean) => {
     setAdmissionsOpen(nextOpen);
@@ -75,126 +110,39 @@ export default function AdmissionsDashboardPage() {
     }
   };
 
-  const handleSaveMessage = async () => {
-    setSavingSettings(true);
-    try {
-      const updated = await updateAdmissionsSettings({
-        isOpen: admissionsOpen,
-        message: admissionsMessage || null,
-      });
-      setAdmissionsOpen(updated.isOpen);
-      setAdmissionsMessage(updated.message ?? '');
-    } finally {
-      setSavingSettings(false);
-    }
-  };
-
   const filtered = useMemo(() => {
     return applications.filter((app) => {
+      const lifecycle = recordStates[app.id] ?? 'active';
       const matchesQuery =
         app.fullName.toLowerCase().includes(query.toLowerCase()) ||
         app.email.toLowerCase().includes(query.toLowerCase()) ||
         app.programId.toLowerCase().includes(query.toLowerCase());
       const matchesStatus = status === 'all' || app.status === status;
-      return matchesQuery && matchesStatus;
+      return lifecycle !== 'deleted' && matchesQuery && matchesStatus;
     });
-  }, [applications, query, status]);
-
-  const stats = useMemo(() => {
-    return {
-      total: applications.length,
-      submitted: applications.filter((app) => app.status === 'submitted').length,
-      feePaid: applications.filter((app) => app.status === 'fee_paid').length,
-      review: applications.filter((app) => app.status === 'under_review').length,
-    };
-  }, [applications]);
+  }, [applications, query, status, recordStates]);
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admissions & Enrollment</h1>
-          <p className="text-muted-foreground">
-            Review applications, verify requirements, and move qualified students to enrollment.
-          </p>
+          <p className="text-muted-foreground">Review applications, verify requirements, and move qualified students to enrollment.</p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/admin/reports">View Admission Reports</Link>
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-bold">{stats.total}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Submitted</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-bold">{stats.submitted}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Fee Paid</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-bold">{stats.feePaid}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Under Review</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-bold">{stats.review}</CardContent>
-        </Card>
-      </div>
-
-      <AdminActionPanel
-        title="Admissions Action Panel"
-        description="Optional playbooks for common admissions and enrollment escalations."
-        scenarios={['intake_overcapacity', 'high_rejection_spike']}
-      />
-
       <Card>
-        <CardHeader>
-          <CardTitle>Admissions Window</CardTitle>
-          <CardDescription>Open or close applications globally.</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>Admissions Window</CardTitle><CardDescription>Open or close applications globally.</CardDescription></CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium">
-                {admissionsOpen ? 'Admissions are open' : 'Admissions are closed'}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Closing admissions will block new applications at the register page.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="admissions-switch">Admissions</Label>
-              <Switch
-                id="admissions-switch"
-                checked={admissionsOpen}
-                onCheckedChange={handleToggleAdmissions}
-                disabled={savingSettings}
-              />
-            </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="admissions-switch">Admissions</Label>
+            <Switch id="admissions-switch" checked={admissionsOpen} onCheckedChange={handleToggleAdmissions} disabled={savingSettings} />
           </div>
           {!admissionsOpen && (
-            <div className="space-y-2">
-              <Label htmlFor="admissions-message">Closure Message (optional)</Label>
-              <Textarea
-                id="admissions-message"
-                value={admissionsMessage}
-                onChange={(event) => setAdmissionsMessage(event.target.value)}
-                placeholder="Explain when admissions will re-open."
-                className="min-h-24"
-              />
-              <Button variant="outline" onClick={handleSaveMessage} disabled={savingSettings}>
-                Save Message
-              </Button>
-            </div>
+            <Textarea value={admissionsMessage} onChange={(event) => setAdmissionsMessage(event.target.value)} placeholder="Closure message." className="min-h-24" />
           )}
         </CardContent>
       </Card>
@@ -202,68 +150,51 @@ export default function AdmissionsDashboardPage() {
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-primary" />
-              Application Queue
-            </CardTitle>
-            <CardDescription>Filter, review, and take action on new applicants.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-primary" />Application Queue</CardTitle>
+            <CardDescription>Includes explicit archive/restore controls and bulk status transitions.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search applicant or program"
-                className="pl-8"
-              />
-            </div>
+            <div className="relative"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search applicant" className="pl-8" /></div>
             <Select value={status} onValueChange={(value) => setStatus(value as ApplicationStatus | 'all')}>
-              <SelectTrigger className="w-44">
-                <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder="Filter status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {Object.keys(statusLabels).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {statusLabels[key as ApplicationStatus]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger className="w-44"><Filter className="mr-2 h-4 w-4 text-muted-foreground" /><SelectValue placeholder="Filter status" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All statuses</SelectItem>{Object.keys(statusLabels).map((key) => <SelectItem key={key} value={key}>{statusLabels[key as ApplicationStatus]}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading applications...</p>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No applications match this filter.</p>
-          ) : (
-            <div className="space-y-3">
-              {filtered.map((app) => (
-                <div key={app.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 rounded border p-2">
+            <Select value={bulkStatus} onValueChange={(value) => setBulkStatus(value as ApplicationStatus)}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>{Object.keys(statusLabels).map((key) => <SelectItem key={key} value={key}>{statusLabels[key as ApplicationStatus]}</SelectItem>)}</SelectContent>
+            </Select>
+            <Button variant="outline" onClick={handleBulkStatus} disabled={selectedIds.length === 0}>Bulk transition ({selectedIds.length})</Button>
+          </div>
+          {loading ? <p className="text-sm text-muted-foreground">Loading applications...</p> : filtered.map((app) => {
+            const state = recordStates[app.id] ?? 'active';
+            return (
+              <div key={app.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
+                <div className="flex items-start gap-3">
+                  <Checkbox checked={selectedIds.includes(app.id)} onCheckedChange={(checked) => setSelectedIds((prev) => checked ? [...prev, app.id] : prev.filter((id) => id !== app.id))} />
                   <div>
                     <p className="font-semibold">{app.fullName}</p>
                     <p className="text-sm text-muted-foreground">{app.email}</p>
                     <p className="text-xs text-muted-foreground">Program: {app.programId.toUpperCase()}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="text-right text-xs text-muted-foreground">
-                      <div>Subjects: {app.subjectCount}</div>
-                      <div>Total Points: {app.totalPoints}</div>
-                    </div>
-                    <Badge variant={statusBadgeVariant[app.status]}>{statusLabels[app.status]}</Badge>
-                    <Button asChild>
-                      <Link href={`/admin/admissions/${app.id}`}>Review</Link>
-                    </Button>
-                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={statusBadgeVariant[app.status]}>{statusLabels[app.status]}</Badge>
+                  <Badge variant={state === 'active' ? 'secondary' : 'outline'}>{state}</Badge>
+                  <Button asChild size="sm"><Link href={`/admin/admissions/${app.id}`}>Review</Link></Button>
+                  {state === 'active' ? <Button size="sm" variant="outline" onClick={() => setLifecycleState(app.id, 'archived')}>Archive</Button> : <Button size="sm" variant="outline" onClick={() => setLifecycleState(app.id, 'active')}>Restore</Button>}
+                  <Button size="sm" variant="destructive" onClick={() => setLifecycleState(app.id, 'deleted')} disabled>Hard Delete (blocked)</Button>
+                </div>
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
+
+      <ImmutableHistoryPanel title="Admissions destructive history" entries={history} />
     </div>
   );
 }

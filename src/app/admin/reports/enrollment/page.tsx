@@ -69,18 +69,42 @@ export default async function EnrollmentReportsPage() {
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           {applications.length === 0 ? (
             <div className="rounded-lg border border-dashed p-4">
-              Admissions follow-up items will appear once applications are processed.
+              <p className="font-semibold text-foreground">No applications submitted yet</p>
+              <p className="mt-1">Next action: confirm admissions window and outreach plan.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/admissions">Open Admissions Ops</Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/intakes">Review intake setup</Link>
+                </Button>
+              </div>
             </div>
           ) : (
-            applications
-              .filter((app) => app.status === 'needs_info')
-              .map((app) => (
+            (() => {
+              const followUps = applications.filter((app) => app.status === 'needs_info');
+              if (followUps.length === 0) {
+                return (
+                  <div className="rounded-lg border border-dashed p-4">
+                    <p className="font-semibold text-foreground">No pending document follow-ups</p>
+                    <p className="mt-1">Next action: move qualified applicants to offer issuance and monitor acceptance.</p>
+                    <div className="mt-3">
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href="/admin/admissions">Review all applications</Link>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return followUps.map((app) => (
                 <div key={app.id} className="rounded-lg border p-4">
                   <p className="font-semibold">{app.fullName}</p>
                   <p className="text-xs text-muted-foreground">{app.programId}</p>
                   <p className="text-xs text-muted-foreground">Needs additional documents</p>
                 </div>
-              ))
+              ));
+            })()
           )}
         </CardContent>
       </Card>
