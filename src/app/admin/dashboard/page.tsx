@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Users, BookOpen, Briefcase, DollarSign, Activity, ArrowRight } from 'lucide-react';
+import { Users, BookOpen, DollarSign, Activity, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { getAdminDashboard } from '@/lib/api';
@@ -32,7 +32,7 @@ export default async function AdminDashboardPage() {
                 <CardTitle>Platform Management</CardTitle>
                 <CardDescription>Add, edit, or approve platform content and users.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader>
                         <CardTitle>Manage Content</CardTitle>
@@ -44,6 +44,19 @@ export default async function AdminDashboardPage() {
                         <Button variant="outline" asChild>
                            <Link href="/admin/management">Go to Content <ArrowRight className="ml-2 h-4 w-4" /></Link>
                        </Button>
+                    </CardFooter>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Manage Users</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">Invite users, assign roles, and track onboarding status.</p>
+                    </CardContent>
+                    <CardFooter>
+                       <Button variant="outline" asChild>
+                            <Link href="/admin/users">Open User Management <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                        </Button>
                     </CardFooter>
                 </Card>
                  <Card>
