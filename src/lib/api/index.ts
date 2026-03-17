@@ -66,6 +66,7 @@ import type {
   ResearchApplication,
   LecturerApplication,
   AiResponse,
+  SystemHealthData,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -971,7 +972,7 @@ export async function getFinanceReport(): Promise<FinanceReportRow[]> {
   return apiFetch('/admin/reports/finance');
 }
 
-export async function getSystemHealth(): Promise<any> {
+export async function getSystemHealth(): Promise<SystemHealthData> {
   return apiFetch('/admin/system-health');
 }
 
