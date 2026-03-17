@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 import { getAdmissionsSettings, getApplications, updateAdmissionsSettings } from '@/lib/api';
 import type { ApplicationSummary, ApplicationStatus } from '@/lib/api/types';
 import { ClipboardCheck, Filter, Search } from 'lucide-react';
@@ -148,6 +149,12 @@ export default function AdmissionsDashboardPage() {
           <CardContent className="text-2xl font-bold">{stats.review}</CardContent>
         </Card>
       </div>
+
+      <AdminActionPanel
+        title="Admissions Action Panel"
+        description="Optional playbooks for common admissions and enrollment escalations."
+        scenarios={['intake_overcapacity', 'high_rejection_spike']}
+      />
 
       <Card>
         <CardHeader>

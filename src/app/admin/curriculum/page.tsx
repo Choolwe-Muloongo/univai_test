@@ -20,6 +20,7 @@ import {
 } from '@/lib/api';
 import type { CurriculumModule, CurriculumVersion } from '@/lib/api/types';
 import type { Program } from '@/lib/api/types';
+import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 
 export default function AdminCurriculumPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -142,6 +143,12 @@ export default function AdminCurriculumPage() {
         <h1 className="text-3xl font-bold tracking-tight">Curriculum Builder</h1>
         <p className="text-muted-foreground">Create curriculum versions, modules, and prerequisites.</p>
       </div>
+
+      <AdminActionPanel
+        title="Curriculum Action Panel"
+        description="Optional prompts to keep curriculum decisions aligned with operational risk."
+        scenarios={['low_lecturer_coverage']}
+      />
 
       <Card>
         <CardHeader>

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
+import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 
 export default function AdminReportsPage() {
   return (
@@ -66,6 +67,12 @@ export default function AdminReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AdminActionPanel
+        title="Reporting Action Panel"
+        description="Optional templates for interpreting trend spikes before escalation."
+        scenarios={['high_rejection_spike', 'unpaid_invoices_concentration']}
+      />
 
       <Card>
         <CardHeader>

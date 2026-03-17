@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAdminAssignments, createAssignment } from '@/lib/api';
 import type { AdminAssignment, AdminAssignmentsResponse } from '@/lib/api/types';
+import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 
 const roles = [
   { value: 'lead', label: 'Lead Lecturer' },
@@ -70,6 +71,12 @@ export default function AdminAssignmentsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Lecturer Assignments</h1>
         <p className="text-muted-foreground">Assign lecturers to intakes and courses.</p>
       </div>
+
+      <AdminActionPanel
+        title="Assignments Action Panel"
+        description="Optional guidance for staffing and coverage decisions."
+        scenarios={['low_lecturer_coverage']}
+      />
 
       <Card>
         <CardHeader>
