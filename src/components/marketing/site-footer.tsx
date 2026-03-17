@@ -1,4 +1,5 @@
 import Link from 'next/link';
+
 import { Logo } from '@/components/icons/logo';
 
 const studentLinks = [
@@ -24,29 +25,21 @@ const companyLinks = [
 
 export function SiteFooter() {
   return (
-    <footer className="w-full border-t bg-muted">
-      <div className="container mx-auto grid grid-cols-1 gap-8 px-4 py-8 md:grid-cols-4 md:px-6">
-        <div className="flex flex-col gap-2 items-start">
+    <footer className="border-t border-border/70 py-10">
+      <div className="page-shell glass-card grid grid-cols-1 gap-8 p-6 md:grid-cols-4 md:p-8">
+        <div className="flex flex-col items-start gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
             <Logo className="size-6" />
             <span>UnivAI</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} UnivAI. All rights reserved.
+            &copy; {new Date().getFullYear()} UnivAI. Smart education with premium experience.
           </p>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/privacy" className="text-muted-foreground hover:text-foreground">
-              Privacy
-            </Link>
-            <Link href="/terms" className="text-muted-foreground hover:text-foreground">
-              Terms
-            </Link>
-          </div>
         </div>
         <div className="flex flex-col gap-2">
           <h4 className="font-semibold">Students</h4>
           {studentLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-muted-foreground text-sm hover:text-foreground">
+            <Link key={link.href} href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
               {link.label}
             </Link>
           ))}
@@ -54,7 +47,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-2">
           <h4 className="font-semibold">Staff & Partners</h4>
           {staffLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-muted-foreground text-sm hover:text-foreground">
+            <Link key={link.href} href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
               {link.label}
             </Link>
           ))}
@@ -62,7 +55,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-2">
           <h4 className="font-semibold">Company</h4>
           {companyLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-muted-foreground text-sm hover:text-foreground">
+            <Link key={link.href} href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
               {link.label}
             </Link>
           ))}

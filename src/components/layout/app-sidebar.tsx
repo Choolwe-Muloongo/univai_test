@@ -129,13 +129,13 @@ export function AppSidebar({ role }: { role?: string }) {
 
   return (
     <>
-      <SidebarHeader>
+      <SidebarHeader className="glass-nav rounded-t-xl border-b border-sidebar-border/60">
         <div className="flex items-center gap-2">
           <Logo className="size-8 text-primary" />
           <span className="text-lg font-semibold text-primary">UnivAI</span>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="glass-surface rounded-b-xl border border-sidebar-border/50 p-1">
         <SidebarMenu>
           {links.map((link) => (
             <SidebarMenuItem key={link.key || link.href}>
@@ -148,7 +148,7 @@ export function AppSidebar({ role }: { role?: string }) {
                       link.href.split('/').length > 2)
                   }
                   tooltip={link.label}
-                  className="justify-start"
+                  className="justify-start data-[active=true]:bg-sidebar-accent/70"
                 >
                   <link.icon className="size-5" />
                   <span>{link.label}</span>

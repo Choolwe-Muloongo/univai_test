@@ -16,7 +16,7 @@ export default function MarketingLayout({
   return (
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
