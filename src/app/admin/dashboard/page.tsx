@@ -46,6 +46,19 @@ export default async function AdminDashboardPage() {
                        </Button>
                     </CardFooter>
                 </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Manage Users</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">Handle invitations, role assignments, and next required actions.</p>
+                    </CardContent>
+                    <CardFooter>
+                        <Button variant="outline" asChild>
+                           <Link href="/admin/users">Open User Admin <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                       </Button>
+                    </CardFooter>
+                </Card>
                  <Card>
                     <CardHeader>
                         <CardTitle>Approve Lecturers</CardTitle>
