@@ -191,9 +191,11 @@ class ProgramController extends Controller
 
         return [
             'id' => $module->id,
+            'code' => $module->code,
             'title' => $module->title,
             'description' => $module->description,
             'credits' => $module->credits,
+            'hoursPerWeek' => $module->hours_per_week,
             'progress' => $progress,
             'semester' => $module->semester,
             'isExamAvailable' => (bool) $module->is_exam_available,

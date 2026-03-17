@@ -27,6 +27,7 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   Sparkles,
+  Workflow,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -90,6 +91,8 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck },
     { href: '/admin/ai', label: 'AI Console', icon: Sparkles },
     { href: '/admin/curriculum', label: 'Curriculum', icon: BookMarked },
+    { href: '/admin/curriculum-ops', label: 'Curriculum Ops', icon: Workflow },
+    { href: '/admin/curriculum-blueprint', label: 'DCE1 Blueprint', icon: BookMarked },
     { href: '/admin/policies', label: 'Policies', icon: SlidersHorizontal },
     { href: '/admin/management', label: 'Content Management', icon: Settings },
     { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
