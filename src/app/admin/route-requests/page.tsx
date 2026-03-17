@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { getAdminRouteChangeRequests, reviewRouteChangeRequest } from '@/lib/api';
 import type { RouteChangeRequest } from '@/lib/api/types';
+import { ExceptionActionsCard } from '@/components/admin/exception-actions-card';
 
 export default function AdminRouteRequestsPage() {
   const [requests, setRequests] = useState<RouteChangeRequest[]>([]);
@@ -71,6 +72,13 @@ export default function AdminRouteRequestsPage() {
                   Reject
                 </Button>
               </div>
+
+              <ExceptionActionsCard
+                domain="route_changes"
+                targetId={request.id}
+                title="Route Change Exception"
+              />
+
             </div>
           ))}
           {requests.length === 0 && (

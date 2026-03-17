@@ -722,3 +722,34 @@ export type ResearchApplication = {
   status: string;
   createdAt?: string | null;
 };
+
+
+export type ExceptionDomain = 'admissions' | 'finance' | 'policies' | 'assignments' | 'route_changes';
+
+export type ExceptionCaseStatus = 'open' | 'under_review' | 'approved_override' | 'rejected' | 'closed';
+
+export type ExceptionCase = {
+  id: number;
+  exceptionable_type: string;
+  exceptionable_id: string;
+  exception_type: string;
+  reason_code: string;
+  evidence_attachments: string[];
+  escalation_target_type: 'role' | 'user';
+  escalation_target_id: string;
+  approval_chain: string[];
+  expiry_rollback_condition: string;
+  status: ExceptionCaseStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExceptionActionPayload = {
+  exceptionType: string;
+  reasonCode: string;
+  evidenceAttachments: string[];
+  escalationTargetType: 'role' | 'user';
+  escalationTargetId: string;
+  approvalChain: string[];
+  expiryRollbackCondition: string;
+};

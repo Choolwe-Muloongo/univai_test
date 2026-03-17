@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Http\Controllers\Api\AdminExceptionsController;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -212,6 +213,10 @@ Route::middleware('api')->group(function () {
         Route::patch('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'update']);
         Route::delete('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'destroy']);
 
+
+        Route::get('/exceptions/{domain}/{targetId}', [AdminExceptionsController::class, 'index']);
+        Route::post('/exceptions/{domain}/{targetId}/escalate', [AdminExceptionsController::class, 'escalate']);
+        Route::post('/exceptions/{domain}/{targetId}/override', [AdminExceptionsController::class, 'overrideWithApproval']);
         Route::get('/consultants', [ConsultantsController::class, 'index']);
         Route::get('/consultants/{id}', [ConsultantsController::class, 'show']);
         Route::get('/reports/finance', [ReportsController::class, 'finance']);

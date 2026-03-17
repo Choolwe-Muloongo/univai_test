@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAdminAssignments, createAssignment } from '@/lib/api';
 import type { AdminAssignment, AdminAssignmentsResponse } from '@/lib/api/types';
+import { ExceptionActionsCard } from '@/components/admin/exception-actions-card';
 
 const roles = [
   { value: 'lead', label: 'Lead Lecturer' },
@@ -186,6 +187,8 @@ export default function AdminAssignmentsPage() {
                   {assignment.intakeName ?? 'No intake'} - {assignment.role ?? 'lead'}
                 </div>
               </div>
+
+              <ExceptionActionsCard domain="assignments" targetId={assignment.id} title="Assignment Exception" />
             </div>
           ))}
           {data.assignments.length === 0 && (

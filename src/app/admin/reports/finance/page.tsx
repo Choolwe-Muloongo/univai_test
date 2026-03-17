@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getFinanceReport } from '@/lib/api';
+import { ExceptionActionsCard } from '@/components/admin/exception-actions-card';
 
 export default async function FinanceReportsPage() {
   const rows = await getFinanceReport();
@@ -52,6 +53,8 @@ export default async function FinanceReportsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ExceptionActionsCard domain="finance" targetId="report" title="Finance Exception Management" />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { getApplicationById, updateApplicationStatus, getIntakes, getApplication
 import type { ApplicationDetail, ApplicationStatus, Intake, ApplicationDocument } from '@/lib/api/types';
 import { ClipboardCheck, Mail, ShieldCheck, User, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ExceptionActionsCard } from '@/components/admin/exception-actions-card';
 
 const requiredSubjects = ['english-language', 'mathematics'];
 
@@ -224,6 +225,13 @@ export default function AdmissionDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+
+      <ExceptionActionsCard
+        domain="admissions"
+        targetId={application.id}
+        title="Admissions Exception Management"
+      />
 
       <Card>
         <CardHeader>

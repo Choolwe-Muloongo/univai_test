@@ -66,6 +66,9 @@ import type {
   ResearchApplication,
   LecturerApplication,
   AiResponse,
+  ExceptionActionPayload,
+  ExceptionCase,
+  ExceptionDomain,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -981,3 +984,30 @@ export async function runSystemDiagnostics(): Promise<any> {
   });
 }
 
+
+
+export async function getExceptionCases(domain: ExceptionDomain, targetId: string | number): Promise<ExceptionCase[]> {
+  return apiFetch(`/admin/exceptions/${domain}/${targetId}`);
+}
+
+export async function escalateException(
+  domain: ExceptionDomain,
+  targetId: string | number,
+  payload: ExceptionActionPayload
+): Promise<ExceptionCase> {
+  return apiFetch(`/admin/exceptions/${domain}/${targetId}/escalate`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function overrideExceptionWithApproval(
+  domain: ExceptionDomain,
+  targetId: string | number,
+  payload: ExceptionActionPayload
+): Promise<ExceptionCase> {
+  return apiFetch(`/admin/exceptions/${domain}/${targetId}/override`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

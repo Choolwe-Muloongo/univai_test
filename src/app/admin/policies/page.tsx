@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ExceptionActionsCard } from '@/components/admin/exception-actions-card';
 import { Badge } from '@/components/ui/badge';
 import {
   assignCurriculumPolicy,
@@ -269,8 +270,9 @@ export default function AdminPoliciesPage() {
                 <Badge variant="secondary">Pass {policy.pass_mark}%</Badge>
               </div>
               <div className="text-sm text-muted-foreground">
-                Repeat: {policy.repeat_rule} � Max Attempts: {policy.max_attempts}
+                Repeat: {policy.repeat_rule} · Max Attempts: {policy.max_attempts}
               </div>
+              <ExceptionActionsCard domain="policies" targetId={policy.id} title="Policy Exception" />
             </div>
           ))}
         </CardContent>
