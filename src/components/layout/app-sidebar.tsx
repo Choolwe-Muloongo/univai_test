@@ -85,6 +85,7 @@ const allLinks: { [key: string]: NavLink[] } = {
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/admissions', label: 'Admissions', icon: ClipboardCheck },
+    { href: '/admin/users', label: 'User Management', icon: Users },
     { href: '/admin/route-requests', label: 'Route Requests', icon: ArrowLeftRight },
     { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays },
     { href: '/admin/assignments', label: 'Assignments', icon: Link2 },
