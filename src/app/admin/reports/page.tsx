@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, DatabaseZap, Download } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle, ArrowUpRight, RefreshCcw } from 'lucide-react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -177,12 +179,68 @@ export default async function AdminReportsPage() {
   const revenueMetric = dashboard?.metrics.find((metric) => metric.key === 'revenue');
   const topKpis = buildKpis(revenueMetric?.value ?? null, revenueMetric?.note);
 
+type MetricStatus = 'healthy' | 'stale' | 'missing' | 'anomaly';
+
+const statusTone: Record<MetricStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  healthy: 'default',
+  stale: 'secondary',
+  missing: 'outline',
+  anomaly: 'destructive',
+};
+
+const metrics: Array<{
+  title: string;
+  value: string;
+  note: string;
+  freshness: string;
+  status: MetricStatus;
+  ctaLabel: string;
+  href: string;
+}> = [
+  {
+    title: 'Total Revenue',
+    value: '$128,400',
+    note: 'Collections this term',
+    freshness: 'Updated 6m ago',
+    status: 'healthy',
+    ctaLabel: 'Open Finance Summary',
+    href: '/admin/reports/finance',
+  },
+  {
+    title: 'Active Students',
+    value: '742',
+    note: 'Enrolled and active this cycle',
+    freshness: 'Updated 9m ago',
+    status: 'healthy',
+    ctaLabel: 'Open Enrollment Pipeline',
+    href: '/admin/reports/enrollment',
+  },
+  {
+    title: 'Completion Rate',
+    value: '68%',
+    note: 'Target is 70% (gap: 2%)',
+    freshness: 'Updated 23m ago',
+    status: 'anomaly',
+    ctaLabel: 'Review Academic Performance',
+    href: '/admin/reports/academics',
+  },
+  {
+    title: 'Student NPS',
+    value: 'Data sync required',
+    note: 'Survey warehouse feed is stale',
+    freshness: 'Last sync 27h ago',
+    status: 'stale',
+    ctaLabel: 'Open Data Follow-up',
+    href: '/admin/system-health',
+  },
+];
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
-          <p className="text-muted-foreground">Monitor performance, diagnose failures, and take immediate action.</p>
+          <p className="text-muted-foreground">Monitor performance across programs and cohorts with clear next actions.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" className="gap-2" asChild>
@@ -207,161 +265,36 @@ export default async function AdminReportsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {topKpis.map((kpi) => {
-          const isWarning = kpi.status === 'warning';
-
-          return (
-            <Card key={kpi.name}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-sm font-medium">{kpi.name}</CardTitle>
-                  <Badge variant={isWarning ? 'destructive' : 'secondary'}>{isWarning ? 'Needs attention' : 'Healthy'}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="text-2xl font-bold">{kpi.value}</div>
-                <div
-                  className={`flex items-center gap-1 text-xs ${
-                    isWarning ? 'text-destructive' : 'text-emerald-700 dark:text-emerald-400'
-                  }`}
-                >
-                  {isWarning ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
-                  <span>{kpi.trend}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{kpi.detail}</p>
-                <div className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
-                  <p>
-                    <span className="font-medium text-foreground">Owner:</span> {kpi.owner}
-                  </p>
-                  <p>
-                    <span className="font-medium text-foreground">Team:</span> {kpi.team}
-                  </p>
-                  <p>
-                    <span className="font-medium text-foreground">Source:</span> {kpi.source}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {metrics.map((metric) => (
+          <Card key={metric.title}>
+            <CardHeader className="space-y-3 pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+                <Badge variant={statusTone[metric.status]}>{metric.status}</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">{metric.freshness}</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-2xl font-bold">{metric.value}</div>
+              <p className="text-xs text-muted-foreground">{metric.note}</p>
+              <Button variant="outline" size="sm" asChild className="w-full">
+                <Link href={metric.href}>{metric.ctaLabel}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Anomaly states</CardTitle>
-          <CardDescription>System-detected anomalies with next-step workflows for administrators.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {anomalyStates.map((anomaly) => (
-            <Alert key={anomaly.title} variant={anomaly.severity === 'critical' ? 'destructive' : 'default'}>
-              {anomaly.severity === 'critical' ? (
-                <DatabaseZap className="h-4 w-4" />
-              ) : (
-                <AlertTriangle className="h-4 w-4" />
-              )}
-              <AlertTitle>{anomaly.title}</AlertTitle>
-              <AlertDescription className="space-y-2">
-                <p>{anomaly.description}</p>
-                <Button size="sm" variant={anomaly.severity === 'critical' ? 'destructive' : 'outline'} asChild>
-                  <Link href={anomaly.workflowHref}>{anomaly.actionLabel}</Link>
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ))}
-        </CardContent>
-      </Card>
+      <AdminActionPanel
+        title="Reporting Action Panel"
+        description="Optional templates for interpreting trend spikes before escalation."
+        scenarios={['high_rejection_spike', 'unpaid_invoices_concentration']}
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle>KPI drill-down tables</CardTitle>
-          <CardDescription>Each KPI includes scoped filters by date range, intake, school, and program.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          {drillDowns.map((drillDown) => (
-            <div key={drillDown.kpiName} className="space-y-4 rounded-lg border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-base font-semibold">{drillDown.kpiName}</h3>
-                <Badge variant="outline">Drill-down</Badge>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <Select defaultValue="30d">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Date range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterOptions.dateRange.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select defaultValue="all">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Intake" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterOptions.intake.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select defaultValue="all">
-                  <SelectTrigger>
-                    <SelectValue placeholder="School" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterOptions.school.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select defaultValue="all">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Program" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterOptions.program.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {drillDown.tableHeaders.map((header) => (
-                      <TableHead key={header}>{header}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {drillDown.rows.map((row, index) => (
-                    <TableRow key={`${drillDown.kpiName}-${index}`}>
-                      {row.map((cell, cellIndex) => (
-                        <TableCell key={`${drillDown.kpiName}-${index}-${cellIndex}`}>{cell}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Report shortcuts</CardTitle>
-          <CardDescription>Open focused dashboards for each reporting domain.</CardDescription>
+          <CardTitle>Report Shortcuts</CardTitle>
+          <CardDescription>Open focused dashboards and take direct action.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <Button variant="outline" asChild>
@@ -373,6 +306,39 @@ export default async function AdminReportsPage() {
           <Button variant="outline" asChild>
             <Link href="/admin/reports/finance">Finance Summary</Link>
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Action Queue from Analytics
+          </CardTitle>
+          <CardDescription>Handle issues surfaced by reporting before they impact operations.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border p-4">
+            <p className="font-semibold">Completion gap</p>
+            <p className="mt-1 text-sm text-muted-foreground">Completion is below target by 2%. Check curriculum pacing and assessments.</p>
+            <Button className="mt-3 w-full" size="sm" asChild>
+              <Link href="/admin/reports/academics">Review cohorts <ArrowUpRight className="ml-1 h-4 w-4" /></Link>
+            </Button>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="font-semibold">NPS data stale</p>
+            <p className="mt-1 text-sm text-muted-foreground">Survey feed is delayed. Re-run source diagnostics and confirm owner.</p>
+            <Button className="mt-3 w-full" size="sm" variant="outline" asChild>
+              <Link href="/admin/system-health">Run diagnostics <RefreshCcw className="ml-1 h-4 w-4" /></Link>
+            </Button>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="font-semibold">Revenue follow-up</p>
+            <p className="mt-1 text-sm text-muted-foreground">Track overdue tuition balances and hand off high-risk accounts to finance.</p>
+            <Button className="mt-3 w-full" size="sm" variant="outline" asChild>
+              <Link href="/admin/reports/finance">Open finance actions</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAuditLogs } from '@/lib/api';
 import type { AuditLogEntry } from '@/lib/api/types';
@@ -66,7 +68,18 @@ export default function AdminAuditPage() {
             </div>
           ))}
           {logs.length === 0 && (
-            <p className="text-sm text-muted-foreground">No audit activity yet.</p>
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">No audit activity captured yet</p>
+              <p className="mt-1">Next action: trigger a governance workflow and verify audit ingestion.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/admissions">Open admissions workflow</Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/assignments">Open assignment workflow</Link>
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

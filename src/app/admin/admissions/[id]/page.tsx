@@ -282,7 +282,13 @@ export default function AdmissionDetailPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {documents.length === 0 && (
-            <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">No documents uploaded yet</p>
+              <p className="mt-1">Next action: request missing uploads via "Send Needs Info" before making a final decision.</p>
+              <Button className="mt-3" size="sm" variant="outline" onClick={() => handleStatusChange('needs_info')}>
+                Send Needs Info
+              </Button>
+            </div>
           )}
           {documents.map((doc) => (
             <div key={doc.id} className="rounded-lg border p-3 space-y-2">
@@ -364,4 +370,3 @@ export default function AdmissionDetailPage() {
     </div>
   );
 }
-

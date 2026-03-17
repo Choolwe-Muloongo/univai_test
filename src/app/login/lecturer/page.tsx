@@ -10,6 +10,8 @@ import { Logo } from '@/components/icons/logo';
 import Link from 'next/link';
 import { login } from '@/lib/api';
 import { useSession } from '@/components/providers/session-provider';
+import { getPostAuthDestination } from '@/lib/auth-routing';
+import { RoleIntentSwitcher } from '@/components/auth/role-intent-switcher';
 
 export default function LecturerLoginPage() {
   const router = useRouter();
@@ -24,7 +26,7 @@ export default function LecturerLoginPage() {
     try {
       await login({ email, password, role: 'lecturer' });
       await refresh();
-      router.push('/lecturer/dashboard');
+      router.push(getPostAuthDestination('lecturer'));
     } catch (err) {
       console.error(err);
       setError('Login failed. Please check your credentials and try again.');
@@ -85,11 +87,7 @@ export default function LecturerLoginPage() {
                 <p className="font-semibold text-foreground">Demo credentials</p>
                 <p>lecturer@univai.edu / password123</p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                    <Link href="/login" className="font-semibold text-primary hover:underline">
-                        Are you a student?
-                    </Link>
-                </p>
+              <RoleIntentSwitcher currentRole="lecturer" compact />
             </CardFooter>
           </form>
         </Card>

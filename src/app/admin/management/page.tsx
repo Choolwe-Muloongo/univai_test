@@ -211,7 +211,10 @@ export default function AdminManagementPage() {
                     </div>
                   ))}
                 {courses.filter((course) => course.schoolId === school.id).length === 0 && (
-                  <p className="text-sm text-muted-foreground p-2">No programs in this school yet.</p>
+                  <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                    <p className="font-semibold text-foreground">No programs in this school yet</p>
+                    <p className="mt-1">Next action: use the form above to add the first program to this school.</p>
+                  </div>
                 )}
               </div>
             </div>
