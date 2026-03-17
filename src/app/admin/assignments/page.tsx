@@ -77,6 +77,12 @@ export default function AdminAssignmentsPage() {
     <div className="space-y-8">
       <div><h1 className="text-3xl font-bold tracking-tight">Lecturer Assignments</h1><p className="text-muted-foreground">Create, update, archive, restore, and bulk manage assignments.</p></div>
 
+      <AdminActionPanel
+        title="Assignments Action Panel"
+        description="Optional guidance for staffing and coverage decisions."
+        scenarios={['low_lecturer_coverage']}
+      />
+
       <Card>
         <CardHeader><CardTitle>New Assignment</CardTitle><CardDescription>Create records.</CardDescription></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">

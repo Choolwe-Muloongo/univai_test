@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Server, ShieldCheck, Activity, Database } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getSystemHealth, runSystemDiagnostics } from '@/lib/api';
+import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 
 type IncidentAction = 'Acknowledge' | 'Assign owner' | 'Mitigate' | 'Communicate to affected roles' | 'Resolve' | 'Postmortem';
 
@@ -157,6 +158,12 @@ export default function SystemHealthPage() {
           Run Diagnostics
         </Button>
       </div>
+
+      <AdminActionPanel
+        title="System Response Panel"
+        description="Optional response checklist for elevated platform-risk events."
+        scenarios={['suspicious_account_activity']}
+      />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>

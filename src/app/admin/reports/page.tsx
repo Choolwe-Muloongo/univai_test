@@ -107,6 +107,12 @@ export default function AdminReportsPage() {
         ))}
       </div>
 
+      <AdminActionPanel
+        title="Reporting Action Panel"
+        description="Optional templates for interpreting trend spikes before escalation."
+        scenarios={['high_rejection_spike', 'unpaid_invoices_concentration']}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>Report Shortcuts</CardTitle>
