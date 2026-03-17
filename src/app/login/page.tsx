@@ -18,6 +18,8 @@ import Link from 'next/link';
 import { login } from '@/lib/api';
 import { ApiError } from '@/lib/api/client';
 import { useSession } from '@/components/providers/session-provider';
+import { getPostAuthDestination } from '@/lib/auth-routing';
+import { RoleIntentSwitcher } from '@/components/auth/role-intent-switcher';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,12 +34,7 @@ export default function LoginPage() {
     try {
       const session = await login({ email, password });
       await refresh();
-      const role = session?.user?.role;
-      if (role === 'applicant') {
-        router.push('/admissions/status');
-      } else {
-        router.push('/student/dashboard');
-      }
+      router.push(getPostAuthDestination(session?.user?.role));
     } catch (err) {
       console.error(err);
       const message =
@@ -99,20 +96,7 @@ export default function LoginPage() {
                 <p className="font-semibold text-foreground">Demo credentials</p>
                 <p>student.premium@univai.edu / password123</p>
               </div>
-              <div className="text-center text-xs text-muted-foreground">
-                Other portals:{' '}
-                <Link href="/login/lecturer" className="font-semibold text-primary hover:underline">
-                  Lecturer
-                </Link>
-                {' | '}
-                <Link href="/login/employer" className="font-semibold text-primary hover:underline">
-                  Employer
-                </Link>
-                {' | '}
-                <Link href="/login/admin" className="font-semibold text-primary hover:underline">
-                  Admin
-                </Link>
-              </div>
+              <RoleIntentSwitcher currentRole="student" compact />
               <p className="text-sm text-muted-foreground">
                 New student?{' '}
                 <Link

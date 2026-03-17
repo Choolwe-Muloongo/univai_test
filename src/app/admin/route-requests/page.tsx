@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 import { Button } from '@/components/ui/button';
@@ -162,7 +163,20 @@ export default function AdminRouteRequestsPage() {
               />
             </div>
           ))}
-          {requests.length === 0 && <p className="text-sm text-muted-foreground">No requests yet.</p>}
+          {requests.length === 0 && (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">No route-change requests pending</p>
+              <p className="mt-1">Next action: review intake capacity and keep admissions communication up to date.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/intakes">Review intakes</Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/admissions">Open admissions queue</Link>
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,215 +1,169 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, BellRing, CheckCircle2, FileText, History, RotateCcw, Siren } from 'lucide-react';
+import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, Sparkles } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export type AdminActionPanelAction = {
-  id: string;
+type ScenarioKey =
+  | 'intake_overcapacity'
+  | 'high_rejection_spike'
+  | 'low_lecturer_coverage'
+  | 'unpaid_invoices_concentration'
+  | 'suspicious_account_activity';
+
+type ScenarioTemplate = {
   label: string;
-  description: string;
-  consequenceHint: string;
-  requiredNotifications: string[];
-  reversible: boolean;
-  rollbackPath: string;
-  sensitive?: boolean;
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary';
+  whatChanged: string;
+  atRisk: string;
+  doNow: string;
+  notify: string;
+  deadline: string;
 };
 
-export type AdminActionPanelEvidence = {
-  id: string;
-  label: string;
-  detail: string;
-  kind: 'document' | 'log' | 'history';
+const scenarioTemplates: Record<ScenarioKey, ScenarioTemplate> = {
+  intake_overcapacity: {
+    label: 'Intake overcapacity',
+    whatChanged: 'Confirmed enrollments exceeded planned seats for the active intake.',
+    atRisk: 'Timetables, class sizes, support capacity, and student onboarding quality.',
+    doNow: 'Freeze auto-accept for this intake, create overflow section options, and publish a short waitlist update.',
+    notify: 'Admissions lead, registrar operations, program director, and student support.',
+    deadline: 'Within 24 hours before the next admissions communication cycle.',
+  },
+  high_rejection_spike: {
+    label: 'High rejection spike',
+    whatChanged: 'Rejection rate increased above recent baseline for submitted applications.',
+    atRisk: 'Enrollment targets, fairness perception, and conversion from qualified applicants.',
+    doNow: 'Audit top rejection reasons, sample borderline files, and confirm policy/config changes this week.',
+    notify: 'Admissions reviewers, policy owner, and marketing/recruitment team.',
+    deadline: 'Same business day; publish findings by end of day.',
+  },
+  low_lecturer_coverage: {
+    label: 'Low lecturer coverage',
+    whatChanged: 'Open courses/modules no longer have enough assigned lecturer capacity.',
+    atRisk: 'Teaching continuity, grading turnaround, and learner satisfaction.',
+    doNow: 'Prioritize critical modules, add backup lecturers, and rebalance assignments by workload.',
+    notify: 'Academic operations, program heads, and lecturer management.',
+    deadline: 'Resolve coverage plan within 48 hours.',
+  },
+  unpaid_invoices_concentration: {
+    label: 'Unpaid invoices concentration',
+    whatChanged: 'A large share of overdue balances is clustered in one cohort or billing cycle.',
+    atRisk: 'Cash flow, student retention, and compliance with payment policy.',
+    doNow: 'Segment affected students, trigger reminder cadence, and offer approved payment-plan options.',
+    notify: 'Finance operations, student success, and compliance/bursar contacts.',
+    deadline: 'Start outreach within 1 business day; review recovery trend in 7 days.',
+  },
+  suspicious_account_activity: {
+    label: 'Suspicious account activity',
+    whatChanged: 'Account behavior patterns indicate potential abuse or unauthorized access.',
+    atRisk: 'Data privacy, platform trust, and operational security posture.',
+    doNow: 'Apply risk controls (session reset/step-up auth), log incident details, and isolate impacted accounts.',
+    notify: 'Security response lead, platform engineering on-call, and compliance officer.',
+    deadline: 'Immediate triage in under 1 hour; incident update within 4 hours.',
+  },
 };
+
+const defaultScenarioOrder: ScenarioKey[] = [
+  'intake_overcapacity',
+  'high_rejection_spike',
+  'low_lecturer_coverage',
+  'unpaid_invoices_concentration',
+  'suspicious_account_activity',
+];
 
 type AdminActionPanelProps = {
   title?: string;
-  situationSummary: string;
-  evidence: AdminActionPanelEvidence[];
-  actions: AdminActionPanelAction[];
-  onSubmitAction: (actionId: string, metadata: { decisionReason?: string }) => Promise<void> | void;
+  description?: string;
+  scenarios?: ScenarioKey[];
 };
 
 export function AdminActionPanel({
   title = 'Admin Action Panel',
-  situationSummary,
-  evidence,
-  actions,
-  onSubmitAction,
+  description = 'Use a scenario template when you need lightweight next steps.',
+  scenarios = defaultScenarioOrder,
 }: AdminActionPanelProps) {
-  const [decisionReasonByAction, setDecisionReasonByAction] = useState<Record<string, string>>({});
-  const [notificationsConfirmed, setNotificationsConfirmed] = useState<Record<string, boolean>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const availableScenarios = useMemo(() => scenarios.filter((id) => scenarioTemplates[id]), [scenarios]);
+  const [selectedScenario, setSelectedScenario] = useState<ScenarioKey>(availableScenarios[0] ?? 'intake_overcapacity');
+  const [showGuidance, setShowGuidance] = useState(false);
 
-  const evidenceIcon = useMemo(
-    () => ({
-      document: FileText,
-      log: AlertTriangle,
-      history: History,
-    }),
-    []
-  );
-
-  const handleAction = async (action: AdminActionPanelAction) => {
-    const decisionReason = decisionReasonByAction[action.id]?.trim();
-    const hasNotifications = action.requiredNotifications.length > 0;
-
-    if (action.sensitive && !decisionReason) {
-      setErrors((prev) => ({
-        ...prev,
-        [action.id]: 'Decision reason is required for this sensitive action.',
-      }));
-      return;
-    }
-
-    if (hasNotifications && !notificationsConfirmed[action.id]) {
-      setErrors((prev) => ({
-        ...prev,
-        [action.id]: 'Confirm required notifications before submitting this action.',
-      }));
-      return;
-    }
-
-    setErrors((prev) => ({ ...prev, [action.id]: '' }));
-    setActiveAction(action.id);
-    try {
-      await onSubmitAction(action.id, {
-        decisionReason,
-      });
-    } finally {
-      setActiveAction(null);
-    }
-  };
+  const template = scenarioTemplates[selectedScenario];
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>Standardized moderation workflow for high-impact decisions.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2 rounded-lg border p-4">
-          <p className="text-sm font-semibold">Situation summary</p>
-          <p className="text-sm text-muted-foreground">{situationSummary}</p>
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Sparkles className="h-5 w-5 text-primary" />
+              {title}
+            </CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowGuidance((prev) => !prev)}>
+            {showGuidance ? 'Hide guidance' : 'Show guidance'}
+          </Button>
         </div>
-
-        <div className="space-y-3">
-          <p className="text-sm font-semibold">Evidence</p>
+        {showGuidance && (
           <div className="space-y-2">
-            {evidence.map((item) => {
-              const Icon = evidenceIcon[item.kind];
-              return (
-                <div key={item.id} className="flex items-start gap-3 rounded-lg border p-3">
-                  <Icon className="mt-0.5 h-4 w-4 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.detail}</p>
-                  </div>
-                </div>
-              );
-            })}
+            <Label htmlFor="admin-action-scenario">Scenario template</Label>
+            <Select value={selectedScenario} onValueChange={(value) => setSelectedScenario(value as ScenarioKey)}>
+              <SelectTrigger id="admin-action-scenario" className="md:w-[320px]">
+                <SelectValue placeholder="Select scenario" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableScenarios.map((scenarioId) => (
+                  <SelectItem key={scenarioId} value={scenarioId}>
+                    {scenarioTemplates[scenarioId].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-
-        <div className="space-y-3">
-          <p className="text-sm font-semibold">Available actions</p>
-          <div className="grid gap-4">
-            {actions.map((action) => (
-              <div key={action.id} className="rounded-lg border p-4 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold">{action.label}</p>
-                    <p className="text-xs text-muted-foreground">{action.description}</p>
-                  </div>
-                  {action.sensitive ? <Badge variant="destructive">Sensitive</Badge> : <Badge variant="secondary">Standard</Badge>}
-                </div>
-
-                <div className="grid gap-3 text-xs text-muted-foreground md:grid-cols-2">
-                  <div className="rounded-md border border-dashed p-2">
-                    <p className="font-medium text-foreground">Consequence hint</p>
-                    <p>{action.consequenceHint}</p>
-                  </div>
-                  <div className="rounded-md border border-dashed p-2">
-                    <p className="font-medium text-foreground">Reversible</p>
-                    <p className="flex items-center gap-1">
-                      {action.reversible ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Siren className="h-3.5 w-3.5" />}
-                      {action.reversible ? 'Yes' : 'No'}
-                    </p>
-                    <p className="mt-1 flex items-center gap-1">
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Rollback path: {action.rollbackPath}
-                    </p>
-                  </div>
-                </div>
-
-                {action.requiredNotifications.length > 0 && (
-                  <div className="rounded-md border border-dashed p-3">
-                    <p className="text-xs font-medium text-foreground flex items-center gap-1">
-                      <BellRing className="h-3.5 w-3.5" />
-                      Required notifications
-                    </p>
-                    <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
-                      {action.requiredNotifications.map((target) => (
-                        <li key={target}>{target}</li>
-                      ))}
-                    </ul>
-                    <label className="mt-2 flex items-center gap-2 text-xs text-foreground">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(notificationsConfirmed[action.id])}
-                        onChange={(event) =>
-                          setNotificationsConfirmed((prev) => ({
-                            ...prev,
-                            [action.id]: event.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4"
-                      />
-                      I confirm these notifications are configured and will be sent.
-                    </label>
-                  </div>
-                )}
-
-                {action.sensitive && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">
-                      Decision reason <span className="text-destructive">*</span>
-                    </Label>
-                    <Textarea
-                      className="min-h-20"
-                      value={decisionReasonByAction[action.id] ?? ''}
-                      onChange={(event) =>
-                        setDecisionReasonByAction((prev) => ({
-                          ...prev,
-                          [action.id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Describe why this sensitive action is justified."
-                    />
-                  </div>
-                )}
-
-                {errors[action.id] && <p className="text-xs text-destructive">{errors[action.id]}</p>}
-
-                <Button
-                  variant={action.variant ?? 'default'}
-                  onClick={() => handleAction(action)}
-                  disabled={activeAction === action.id}
-                >
-                  {activeAction === action.id ? 'Submitting...' : action.label}
-                </Button>
-              </div>
-            ))}
+        )}
+      </CardHeader>
+      {showGuidance && (
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="mb-1 flex items-center gap-2 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              What changed?
+            </p>
+            <p className="text-muted-foreground">{template.whatChanged}</p>
           </div>
-        </div>
-      </CardContent>
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="mb-1 flex items-center gap-2 font-medium">
+              <AlertTriangle className="h-4 w-4 text-primary" />
+              What is at risk?
+            </p>
+            <p className="text-muted-foreground">{template.atRisk}</p>
+          </div>
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="mb-1 flex items-center gap-2 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              What should I do now?
+            </p>
+            <p className="text-muted-foreground">{template.doNow}</p>
+          </div>
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="mb-1 flex items-center gap-2 font-medium">
+              <BellRing className="h-4 w-4 text-primary" />
+              Who should be notified?
+            </p>
+            <p className="text-muted-foreground">{template.notify}</p>
+          </div>
+          <div className="rounded-lg border p-3 text-sm md:col-span-2">
+            <p className="mb-1 flex items-center gap-2 font-medium">
+              <CalendarClock className="h-4 w-4 text-primary" />
+              What deadline applies?
+            </p>
+            <p className="text-muted-foreground">{template.deadline}</p>
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }

@@ -108,7 +108,7 @@ export default function DiscussionDetailPage() {
               </div>
             ))}
              {comments.length === 0 && (
-                <p className='text-muted-foreground text-center py-4'>No comments yet. Be the first to reply!</p>
+                <p className='text-muted-foreground text-center py-4'>No comments yet. Next action: add the first moderator response below.</p>
              )}
           </div>
         </CardContent>
