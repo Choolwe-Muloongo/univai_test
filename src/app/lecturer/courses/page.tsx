@@ -3,7 +3,6 @@ import { BookOpen, Users, CalendarDays } from 'lucide-react';
 import { getLecturerAssignments } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import {
   Card,
   CardContent,

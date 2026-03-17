@@ -159,9 +159,11 @@ export async function getCurriculumModules(versionId: string): Promise<Curriculu
 export async function createCurriculumModule(
   versionId: string,
   payload: {
+    code?: string | null;
     title: string;
     description: string;
     credits?: number;
+    hoursPerWeek?: number | null;
     semester: number;
     isCore?: boolean;
     track?: string | null;
