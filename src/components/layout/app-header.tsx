@@ -81,7 +81,7 @@ export function AppHeader({ role }: { role?: string }) {
   const routes = roleRoutes[userRole || ''] || {};
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
+    <header className="glass-nav sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 rounded-2xl border-b px-3 sm:gap-4 sm:px-6 lg:px-8">
       <div className="md:hidden">
         <SidebarTrigger />
       </div>
@@ -90,7 +90,7 @@ export function AppHeader({ role }: { role?: string }) {
         <Input
           type="search"
           placeholder="Search..."
-          className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
+          className="w-full rounded-xl bg-background/70 pl-8 sm:max-w-[260px] lg:max-w-[340px]"
         />
       </div>
       <div className="flex items-center gap-4">
@@ -108,7 +108,7 @@ export function AppHeader({ role }: { role?: string }) {
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuContent className="glass-modal w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{user.name}</p>

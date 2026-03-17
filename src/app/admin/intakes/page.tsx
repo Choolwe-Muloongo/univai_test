@@ -224,7 +224,13 @@ export default function AdminIntakesPage() {
             </div>
           ))}
           {intakes.length === 0 && (
-            <p className="text-sm text-muted-foreground">No intakes created yet.</p>
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">No intakes created yet</p>
+              <p className="mt-1">Next action: create your first intake, set delivery mode, and publish capacity.</p>
+              <Button size="sm" className="mt-3" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                Create first intake
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -1,41 +1,52 @@
-// src/app/(marketing)/page.tsx
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Check, Star, ArrowRight, BookOpen, Lightbulb, FlaskConical, Briefcase, Users, GraduationCap, X } from 'lucide-react';
-import { SiteHeader } from '@/components/marketing/site-header';
+import {
+  ArrowRight,
+  BookOpen,
+  Briefcase,
+  Check,
+  FlaskConical,
+  GraduationCap,
+  Lightbulb,
+  Star,
+  Users,
+  X,
+} from 'lucide-react';
+
 import { SiteFooter } from '@/components/marketing/site-footer';
+import { SiteHeader } from '@/components/marketing/site-header';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 const features = [
   {
     icon: Lightbulb,
     title: 'AI-Powered Tutoring',
-    description: 'Get instant, 24/7 help with course material. Our AI tutor provides personalized explanations to keep you on track.',
+    description: 'Get instant, 24/7 help with course material and personalized explanations.',
   },
   {
     icon: BookOpen,
     title: 'Personalized Study Plans',
-    description: 'Our AI analyzes your goals and learning style to generate a custom study plan that adapts as you progress.',
+    description: 'AI-generated study plans adapt around your schedule and progress.',
   },
   {
     icon: FlaskConical,
     title: 'Virtual Labs & Code Feedback',
-    description: 'Apply your knowledge in hands-on virtual labs and get instant AI-driven feedback on your code.',
+    description: 'Practice in realistic labs with instant feedback and guided fixes.',
   },
   {
     icon: GraduationCap,
     title: 'Verified Certificates',
-    description: 'Earn verified digital certificates upon course completion to validate your skills to employers.',
+    description: 'Graduate with verifiable credentials trusted by global employers.',
   },
   {
     icon: Briefcase,
     title: 'Career & Job Hub',
-    description: 'Access exclusive job postings and internship opportunities from our network of partner employers.',
+    description: 'Access internships and jobs tailored to your skills and outcomes.',
   },
   {
     icon: Users,
     title: 'Global Community',
-    description: 'Connect with peers, collaborate on projects, and learn from a diverse community of students and experts.',
+    description: 'Collaborate, ask questions, and grow with peers worldwide.',
   },
 ];
 
@@ -58,119 +69,147 @@ const premiumFeatures = [
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <SiteHeader />
 
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 py-20 text-center md:px-6 md:py-32">
-          <h1 className="text-4xl font-extrabold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
-            The Future of Global Higher Education, <span className="text-primary">Powered by AI</span>.
-          </h1>
-          <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground md:text-xl">
-            UnivAI offers accredited degrees with AI-driven learning tools, a global community, and a direct path to your career. Start learning for free today.
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Button size="lg" asChild>
-              <Link href="/register">Get Started for Free <ArrowRight className="ml-2"/></Link>
-            </Button>
+      <main className="page-shell flex-1 space-y-12 py-8 sm:space-y-16 sm:py-10 md:space-y-20">
+        <section className="section-shell grid items-center gap-8 lg:grid-cols-2">
+          <div className="space-y-5 text-left">
+            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Premium AI University Platform
+            </span>
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
+              The Future of Higher Education, <span className="text-primary">Engineered for Excellence.</span>
+            </h1>
+            <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
+              UnivAI blends accredited academics, elite AI assistance, and career pathways into one elegant,
+              mobile-first learning experience.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="lg" asChild>
+                <Link href="/register">
+                  Start for Free <ArrowRight className="ml-1" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/#features">Explore Platform</Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card className="sm:col-span-2">
+              <CardContent className="p-5 sm:p-6">
+                <p className="text-sm text-muted-foreground">Completion Rate</p>
+                <p className="text-3xl font-extrabold text-primary">94%</p>
+                <p className="mt-1 text-sm text-muted-foreground">with AI study assistant enabled</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 sm:p-6">
+                <p className="text-sm text-muted-foreground">Countries</p>
+                <p className="text-2xl font-bold">40+</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 sm:p-6">
+                <p className="text-sm text-muted-foreground">Mentor Support</p>
+                <p className="text-2xl font-bold">24/7</p>
+              </CardContent>
+            </Card>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section id="features" className="w-full bg-muted py-20 md:py-32">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">A Smarter Way to Learn</h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                Our platform is packed with AI-powered features designed to enhance your learning experience and accelerate your career.
-              </p>
-            </div>
-            <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {features.map((feature) => (
-                <Card key={feature.title} className="flex flex-col">
-                  <CardHeader>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                      <feature.icon className="h-6 w-6 text-primary" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
-                    <CardDescription className="mt-2">{feature.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+        <section id="features" className="space-y-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">A Smarter Way to Learn</h2>
+            <p className="mx-auto mt-3 max-w-3xl text-muted-foreground sm:text-lg">
+              Fast, clean, and beautifully responsive across mobile, tablet, and desktop.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <Card key={feature.title}>
+                <CardHeader>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                    <feature.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <CardTitle className="text-lg">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm leading-6">{feature.description}</CardDescription>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </section>
 
-        {/* Pricing Section */}
-        <section id="pricing" className="w-full py-20 md:py-32">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Choose Your Plan</h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                Start for free and upgrade when you're ready to unlock your full potential.
-              </p>
-            </div>
-            <div className="mt-12 grid grid-cols-1 items-start gap-8 md:grid-cols-2">
-                 <Card className="border-2">
-                    <CardHeader>
-                        <CardTitle className="text-2xl">Freemium</CardTitle>
-                        <CardDescription>Get a taste of our platform with limited access.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <p className="text-4xl font-bold">Free</p>
-                        <ul className="space-y-3">
-                        {freemiumFeatures.map((feature, index) => (
-                            <li key={index} className={`flex items-center gap-3 ${!feature.included && 'text-muted-foreground'}`}>
-                            {feature.included ? <Check className="h-5 w-5 text-green-500" /> : <X className="h-5 w-5" />}
-                            <span>{feature.text}</span>
-                            </li>
-                        ))}
-                        </ul>
-                    </CardContent>
-                    <CardFooter>
-                        <Button variant="outline" className="w-full" size="lg" asChild>
-                            <Link href="/register">Get Started</Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
+        <section id="pricing" className="space-y-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Choose Your Plan</h2>
+            <p className="mx-auto mt-3 max-w-3xl text-muted-foreground sm:text-lg">
+              Start free, then upgrade for premium outcomes and full AI capabilities.
+            </p>
+          </div>
 
-                <Card className="border-2 border-primary shadow-lg shadow-primary/20 relative">
-                    <div className="absolute top-0 right-4 -translate-y-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2">
-                        <Star className='w-4 h-4'/>
-                        Best Value
-                    </div>
-                    <CardHeader>
-                        <CardTitle className="text-2xl">Premium</CardTitle>
-                        <CardDescription>Unlock your full potential with complete access.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div>
-                            <span className="text-4xl font-bold">$250</span>
-                            <span className="text-muted-foreground"> / year</span>
-                        </div>
-                        <ul className="space-y-3">
-                        {premiumFeatures.map((feature, index) => (
-                            <li key={index} className="flex items-center gap-3">
-                            <Check className="h-5 w-5 text-green-500" />
-                            <span>{feature.text}</span>
-                            </li>
-                        ))}
-                        </ul>
-                        <div className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-primary">
-                          <Star className="h-5 w-5 flex-shrink-0" />
-                          <p><span className='font-semibold'>Earn a Reward:</span> 40% of your fee ($100) will be rewarded to your wallet as AFTACOIN upon program completion.</p>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <Button className="w-full" size="lg" asChild>
-                            <Link href="/register">Upgrade to Premium</Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Freemium</CardTitle>
+                <CardDescription>Great for trying UnivAI with core learning tools.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <p className="text-4xl font-bold">Free</p>
+                <ul className="space-y-3">
+                  {freemiumFeatures.map((feature, index) => (
+                    <li key={index} className={`flex items-center gap-3 ${!feature.included && 'text-muted-foreground'}`}>
+                      {feature.included ? <Check className="h-5 w-5 text-primary" /> : <X className="h-5 w-5" />}
+                      <span>{feature.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full" size="lg" asChild>
+                  <Link href="/register">Get Started</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="border-primary/80">
+              <CardHeader>
+                <div className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                  <Star className="h-4 w-4" /> Best Value
+                </div>
+                <CardTitle className="text-2xl">Premium</CardTitle>
+                <CardDescription>Complete access for ambitious, career-focused learners.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <span className="text-4xl font-bold">$250</span>
+                  <span className="text-muted-foreground"> / year</span>
+                </div>
+                <ul className="space-y-3">
+                  {premiumFeatures.map((feature, index) => (
+                    <li key={index} className="flex items-center gap-3">
+                      <Check className="h-5 w-5 text-primary" />
+                      <span>{feature.text}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-sm text-primary">
+                  <p>
+                    <span className="font-semibold">Earn a Reward:</span> 40% of your fee ($100) returns to your
+                    wallet as AFTACOIN after successful completion.
+                  </p>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" size="lg" asChild>
+                  <Link href="/register">Upgrade to Premium</Link>
+                </Button>
+              </CardFooter>
+            </Card>
           </div>
         </section>
       </main>

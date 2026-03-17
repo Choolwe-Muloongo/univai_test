@@ -18,6 +18,7 @@ class StudentAssignmentsController extends Controller
 
         $query = Assignment::query()
             ->with(['module'])
+            ->where('status', 'published')
             ->when($programId, function ($builder) use ($programId) {
                 $builder->whereHas('module', fn ($q) => $q->where('program_id', $programId));
             })
@@ -59,6 +60,10 @@ class StudentAssignmentsController extends Controller
         $sessionUser = $request->session()->get('user');
         $studentId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
         $assignment->load('module');
+
+        if ($assignment->status !== 'published') {
+            return response()->json(['message' => 'Assignment not available yet.'], 404);
+        }
 
         $submission = null;
         if ($studentId) {
