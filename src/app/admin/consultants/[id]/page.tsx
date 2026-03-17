@@ -1,19 +1,40 @@
-import { notFound } from 'next/navigation';
+'use client';
+
 import Link from 'next/link';
-import { getConsultantApplicationById } from '@/lib/api';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { notFound, useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
 
-export default async function ConsultantDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const application = await getConsultantApplicationById(id);
+import { AdminActionPanel } from '@/components/admin/admin-action-panel';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { getConsultantApplicationById } from '@/lib/api';
+import type { ConsultantApplication } from '@/lib/api/types';
+
+export default function ConsultantDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const { toast } = useToast();
+
+  const [application, setApplication] = useState<ConsultantApplication | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadApplication = async () => {
+      const data = await getConsultantApplicationById(id);
+      setApplication(data);
+      setLoading(false);
+    };
+    loadApplication();
+  }, [id]);
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading consultant application...</p>;
+  }
+
   if (!application) {
     notFound();
   }
@@ -76,19 +97,92 @@ export default async function ConsultantDetailPage({
 
         <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Actions</CardTitle>
-            <CardDescription>Finalize the application.</CardDescription>
+            <CardTitle>Navigation</CardTitle>
+            <CardDescription>Return to consultant reviews.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full">Approve Lecturer</Button>
-            <Button variant="outline" className="w-full">Request More Info</Button>
-            <Button variant="destructive" className="w-full">Reject</Button>
+          <CardContent>
             <Button variant="ghost" asChild className="w-full">
               <Link href="/admin/consultants">Back to Applications</Link>
             </Button>
           </CardContent>
         </Card>
       </div>
+
+      <AdminActionPanel
+        title="Consultant Review Decision Panel"
+        situationSummary={`${application.name}'s consultant application is currently ${application.status}. Validate identity and teaching evidence before deciding.`}
+        evidence={[
+          {
+            id: 'consultant-cv',
+            label: 'Curriculum vitae',
+            detail: 'CV file uploaded and ready for review.',
+            kind: 'document',
+          },
+          {
+            id: 'consultant-id',
+            label: 'Identification document',
+            detail: 'Identity file uploaded for KYC checks.',
+            kind: 'document',
+          },
+          {
+            id: 'consultant-history',
+            label: 'Application status history',
+            detail: `Current status: ${application.status}.`,
+            kind: 'history',
+          },
+        ]}
+        actions={[
+          {
+            id: 'approve',
+            label: 'Approve Consultant',
+            description: 'Approve the applicant for consultant onboarding.',
+            consequenceHint: 'Consultant profile can be activated for assignments.',
+            requiredNotifications: ['Applicant email', 'HR operations', 'Department lead'],
+            reversible: true,
+            rollbackPath: 'Suspend profile and open compliance review case.',
+            sensitive: true,
+          },
+          {
+            id: 'request_info',
+            label: 'Request More Info',
+            description: 'Ask for missing certifications or clarifications.',
+            consequenceHint: 'Application remains pending until applicant responds.',
+            requiredNotifications: ['Applicant email', 'Reviewer queue'],
+            reversible: true,
+            rollbackPath: 'Return to pending review after documents are received.',
+            variant: 'outline',
+          },
+          {
+            id: 'reject',
+            label: 'Reject Application',
+            description: 'Decline this consultant application.',
+            consequenceHint: 'Applicant cannot onboard without reapplication or appeal.',
+            requiredNotifications: ['Applicant email', 'Compliance mailbox'],
+            reversible: true,
+            rollbackPath: 'Reopen application with manager override.',
+            sensitive: true,
+            variant: 'destructive',
+          },
+          {
+            id: 'escalate',
+            label: 'Escalate to Compliance',
+            description: 'Escalate concerns to senior compliance reviewers.',
+            consequenceHint: 'Final decision is paused pending compliance adjudication.',
+            requiredNotifications: ['Compliance team', 'Department lead'],
+            reversible: true,
+            rollbackPath: 'Close escalation and return application to local queue.',
+            variant: 'secondary',
+          },
+        ]}
+        onSubmitAction={(actionId, metadata) => {
+          toast({
+            title: `Action queued: ${actionId.replace('_', ' ')}`,
+            description: metadata.decisionReason
+              ? `Decision reason captured: ${metadata.decisionReason}`
+              : 'Decision has been captured in the moderation log.',
+          });
+        }}
+      />
     </div>
   );
 }
