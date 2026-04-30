@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import { Logo } from '@/components/icons/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const navLinks = [
   { href: '/#features', label: 'Features' },
@@ -36,9 +37,39 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation menu">
-            <Menu className="h-5 w-5" />
-          </Button>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[85vw] max-w-sm">
+              <nav className="mt-8 flex flex-col gap-3">
+                {navLinks.map((link) => (
+                  <SheetClose asChild key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="rounded-md px-2 py-2 text-base font-medium text-foreground hover:bg-muted"
+                    >
+                      {link.label}
+                    </Link>
+                  </SheetClose>
+                ))}
+                <div className="mt-4 flex flex-col gap-2">
+                  <SheetClose asChild>
+                    <Button variant="outline" asChild>
+                      <Link href="/login">Login</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button asChild>
+                      <Link href="/register">Get Started</Link>
+                    </Button>
+                  </SheetClose>
+                </div>
+              </nav>
+            </SheetContent>
+          </Sheet>
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href="/login">Login</Link>
           </Button>
