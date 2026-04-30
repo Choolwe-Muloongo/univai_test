@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { ImmutableHistoryPanel, type AdminHistoryEntry } from '@/components/admin/immutable-history-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,9 +20,9 @@ import {
   updateCurriculumVersion,
 } from '@/lib/api';
 import type { CurriculumModule, CurriculumVersion, Program } from '@/lib/api/types';
-import { ImmutableHistoryPanel, type AdminHistoryEntry } from '@/components/admin/immutable-history-panel';
 
 type RecordState = 'active' | 'archived';
+type CurriculumVersionPatch = Parameters<typeof updateCurriculumVersion>[1] & { name?: string };
 
 export default function AdminCurriculumPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -44,15 +45,14 @@ export default function AdminCurriculumPage() {
   const [history, setHistory] = useState<AdminHistoryEntry[]>([]);
 
   useEffect(() => {
-    const load = async () => {
+    const loadPrograms = async () => {
       setLoading(true);
       setError(null);
 
       try {
         const programList = await getPrograms();
         setPrograms(programList);
-        const firstProgram = programList[0]?.id ?? '';
-        setProgramId(firstProgram);
+        setProgramId(programList[0]?.id ?? '');
       } catch (loadError: any) {
         console.error('Failed to load programs', loadError);
         setError(loadError?.message ?? 'Could not load curriculum data.');
@@ -61,7 +61,7 @@ export default function AdminCurriculumPage() {
       }
     };
 
-    load();
+    loadPrograms();
   }, []);
 
   useEffect(() => {
@@ -75,7 +75,10 @@ export default function AdminCurriculumPage() {
       .then((versionList) => {
         setVersions(versionList);
         setVersionId(versionList[0]?.id ?? '');
-        setVersionStates((prev) => ({ ...prev, ...Object.fromEntries(versionList.map((item) => [item.id, prev[item.id] ?? 'active'])) }));
+        setVersionStates((prev) => ({
+          ...prev,
+          ...Object.fromEntries(versionList.map((item) => [item.id, prev[item.id] ?? 'active'])),
+        }));
       })
       .catch((loadError) => {
         console.error('Failed to load curriculum versions', loadError);
@@ -92,7 +95,10 @@ export default function AdminCurriculumPage() {
     getCurriculumModules(versionId)
       .then((moduleList) => {
         setModules(moduleList);
-        setModuleStates((prev) => ({ ...prev, ...Object.fromEntries(moduleList.map((item) => [item.id, prev[item.id] ?? 'active'])) }));
+        setModuleStates((prev) => ({
+          ...prev,
+          ...Object.fromEntries(moduleList.map((item) => [item.id, prev[item.id] ?? 'active'])),
+        }));
       })
       .catch((loadError) => {
         console.error('Failed to load modules', loadError);
@@ -121,6 +127,10 @@ export default function AdminCurriculumPage() {
     ]);
   };
 
+  const patchCurriculumVersion = (id: string, payload: CurriculumVersionPatch) => {
+    return updateCurriculumVersion(id, payload as Parameters<typeof updateCurriculumVersion>[1]);
+  };
+
   const handleCreateVersion = async () => {
     if (!programId || !versionName) return;
 
@@ -141,8 +151,8 @@ export default function AdminCurriculumPage() {
     if (!versionId || !versionName) return;
 
     try {
-      const updated = await updateCurriculumVersion(versionId, { name: versionName });
-      setVersions((prev) => prev.map((item) => (item.id === versionId ? { ...item, ...updated } : item)));
+      const updated = await patchCurriculumVersion(versionId, { name: versionName });
+      setVersions((prev) => prev.map((item) => (item.id === versionId ? { ...item, ...updated, name: versionName } : item)));
       pushHistory('CurriculumVersion', versionId, 'updated');
       setVersionName('');
     } catch (updateError) {
@@ -155,7 +165,7 @@ export default function AdminCurriculumPage() {
     if (!versionId) return;
 
     try {
-      const updated = await updateCurriculumVersion(versionId, { status: 'published' });
+      const updated = await patchCurriculumVersion(versionId, { status: 'published' });
       setVersions((prev) => prev.map((item) => (item.id === versionId ? { ...item, ...updated } : item)));
       pushHistory('CurriculumVersion', versionId, 'published');
     } catch (publishError) {
