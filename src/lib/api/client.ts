@@ -1,4 +1,7 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  '';
 
 export class ApiError extends Error {
   status: number;
@@ -13,12 +16,24 @@ export class ApiError extends Error {
 
 type FetchOptions = RequestInit & { parseJson?: boolean };
 
+function buildApiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  const cleanBase = API_BASE_URL.replace(/\/$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+  return `${cleanBase}${cleanPath}`;
+}
+
 export async function apiFetch<T>(
   path: string,
   { parseJson = true, headers, ...options }: FetchOptions = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
+  const url = buildApiUrl(path);
   let cookieHeader: string | undefined;
+
   if (typeof window === 'undefined') {
     try {
       const { cookies } = await import('next/headers');
@@ -29,6 +44,7 @@ export async function apiFetch<T>(
       void error;
     }
   }
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -37,6 +53,7 @@ export async function apiFetch<T>(
       ...(headers || {}),
     },
     credentials: 'include',
+    cache: 'no-store',
   });
 
   if (!response.ok) {
