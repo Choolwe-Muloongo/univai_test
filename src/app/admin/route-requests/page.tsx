@@ -25,7 +25,7 @@ export default function AdminRouteRequestsPage() {
   }, []);
 
   const handleReview = async (request: RouteChangeRequest, status: 'approved' | 'rejected') => {
-    const reviewNotes = notes[request.id]?.trim() || null;
+    const reviewNotes = notes[request.id]?.trim() || undefined;
     const updated = await reviewRouteChangeRequest(request.id, { status, reviewNotes });
     setRequests((prev) => prev.map((item) => (item.id === request.id ? (updated as RouteChangeRequest) : item)));
     toast({ title: 'Route request updated', description: 'The route decision has been saved.' });
