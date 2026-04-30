@@ -22,7 +22,7 @@ import {
 import type { CurriculumModule, CurriculumVersion, Program } from '@/lib/api/types';
 
 type RecordState = 'active' | 'archived';
-type CurriculumVersionPatch = Parameters<typeof updateCurriculumVersion>[1] & { name?: string };
+type CurriculumVersionPatch = { name?: string; status?: string };
 
 export default function AdminCurriculumPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -128,7 +128,7 @@ export default function AdminCurriculumPage() {
   };
 
   const patchCurriculumVersion = (id: string, payload: CurriculumVersionPatch) => {
-    return updateCurriculumVersion(id, payload as Parameters<typeof updateCurriculumVersion>[1]);
+    return updateCurriculumVersion(id, payload as { status: string });
   };
 
   const handleCreateVersion = async () => {
