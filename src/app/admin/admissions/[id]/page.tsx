@@ -180,7 +180,7 @@ export default function AdmissionDetailPage() {
             </div>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
-            Use the Admin Action Panel below to submit governed decisions.
+            Select an intake before sending an offer or marking the applicant admitted.
           </CardFooter>
         </Card>
 
@@ -252,95 +252,28 @@ export default function AdmissionDetailPage() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => handleStatusChange('under_review')}>
+            Mark Under Review
+          </Button>
           <Button variant="outline" onClick={() => handleStatusChange('needs_info')}>
             Send Needs Info
           </Button>
           <Button onClick={() => handleStatusChange('offer_sent')}>
             Send Offer
           </Button>
+          <Button variant="secondary" onClick={() => handleStatusChange('admitted')}>
+            Mark Admitted
+          </Button>
+          <Button variant="destructive" onClick={() => handleStatusChange('rejected')}>
+            Reject Application
+          </Button>
         </CardFooter>
       </Card>
 
       <AdminActionPanel
-        title="Admission Decision Panel"
-        situationSummary={`Application ${application.id} for ${application.fullName} is currently ${statusLabels[application.status]}. Review eligibility, documents, and reviewer notes before submitting an action.`}
-        evidence={[
-          {
-            id: 'admission-documents',
-            label: 'Uploaded documents',
-            detail: `${documents.length} file(s) available for verification in the Document Review section.`,
-            kind: 'document',
-          },
-          {
-            id: 'subject-points',
-            label: 'Eligibility checks',
-            detail: `Subjects counted: ${subjectSummary.total}, total points: ${subjectSummary.totalPoints}.`,
-            kind: 'log',
-          },
-          {
-            id: 'review-history',
-            label: 'Reviewer history',
-            detail: notes ? 'Reviewer notes are available for this application.' : 'No reviewer notes have been captured yet.',
-            kind: 'history',
-          },
-        ]}
-        actions={[
-          {
-            id: 'under_review',
-            label: 'Mark Under Review',
-            description: 'Move the application into active triage for verification.',
-            consequenceHint: 'Applicant remains in review queue and cannot be enrolled yet.',
-            requiredNotifications: ['Admissions operations queue'],
-            reversible: true,
-            rollbackPath: 'Set status back to submitted.',
-            variant: 'outline',
-          },
-          {
-            id: 'needs_info',
-            label: 'Request Info',
-            description: 'Ask applicant for missing items before a final decision.',
-            consequenceHint: 'Timeline pauses until applicant responds with requested evidence.',
-            requiredNotifications: ['Applicant email', 'Admissions case owner'],
-            reversible: true,
-            rollbackPath: 'Return to under_review after missing info is received.',
-            variant: 'outline',
-          },
-          {
-            id: 'offer_sent',
-            label: 'Send Offer',
-            description: 'Issue an offer and trigger applicant acceptance workflow.',
-            consequenceHint: 'Offer acceptance and enrollment workflows start immediately.',
-            requiredNotifications: ['Applicant email', 'Enrollment team'],
-            reversible: true,
-            rollbackPath: 'Withdraw offer and set to under_review with documented reason.',
-            sensitive: true,
-          },
-          {
-            id: 'admitted',
-            label: 'Mark Admitted',
-            description: 'Finalize admission and release onboarding permissions.',
-            consequenceHint: 'Student gains program access and intake allocation is committed.',
-            requiredNotifications: ['Applicant email', 'Registrar', 'Finance office'],
-            reversible: false,
-            rollbackPath: 'Open a registrar-led exception case to reverse admission.',
-            sensitive: true,
-            variant: 'secondary',
-          },
-          {
-            id: 'rejected',
-            label: 'Reject Application',
-            description: 'Close the application as not approved for the selected intake.',
-            consequenceHint: 'Applicant cannot proceed without reapplying or appeal approval.',
-            requiredNotifications: ['Applicant email', 'Admissions quality review mailbox'],
-            reversible: true,
-            rollbackPath: 'Reopen case and move to under_review if rejection was in error.',
-            sensitive: true,
-            variant: 'destructive',
-          },
-        ]}
-        onSubmitAction={async (actionId) => {
-          await handleStatusChange(actionId as ApplicationStatus);
-        }}
+        title="Admission Decision Guidance"
+        description="Use this optional panel to structure high-risk admissions decisions."
+        scenarios={['intake_overcapacity', 'high_rejection_spike']}
       />
 
       <Card>
