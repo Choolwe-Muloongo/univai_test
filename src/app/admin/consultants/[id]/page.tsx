@@ -39,6 +39,13 @@ export default function ConsultantDetailPage() {
     notFound();
   }
 
+  const queueAction = (action: string) => {
+    toast({
+      title: `Action queued: ${action}`,
+      description: 'Decision captured for consultant review follow-up.',
+    });
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -65,8 +72,7 @@ export default function ConsultantDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
             <p>
-              This applicant has submitted required documentation for lecturer verification. Use the actions to review
-              documents, request additional information, or finalize approval.
+              This applicant has submitted documentation for consultant verification. Review the evidence before making a decision.
             </p>
             <div className="rounded-lg border p-4">
               <div className="flex items-center justify-between">
@@ -109,80 +115,23 @@ export default function ConsultantDetailPage() {
       </div>
 
       <AdminActionPanel
-        title="Consultant Review Decision Panel"
-        situationSummary={`${application.name}'s consultant application is currently ${application.status}. Validate identity and teaching evidence before deciding.`}
-        evidence={[
-          {
-            id: 'consultant-cv',
-            label: 'Curriculum vitae',
-            detail: 'CV file uploaded and ready for review.',
-            kind: 'document',
-          },
-          {
-            id: 'consultant-id',
-            label: 'Identification document',
-            detail: 'Identity file uploaded for KYC checks.',
-            kind: 'document',
-          },
-          {
-            id: 'consultant-history',
-            label: 'Application status history',
-            detail: `Current status: ${application.status}.`,
-            kind: 'history',
-          },
-        ]}
-        actions={[
-          {
-            id: 'approve',
-            label: 'Approve Consultant',
-            description: 'Approve the applicant for consultant onboarding.',
-            consequenceHint: 'Consultant profile can be activated for assignments.',
-            requiredNotifications: ['Applicant email', 'HR operations', 'Department lead'],
-            reversible: true,
-            rollbackPath: 'Suspend profile and open compliance review case.',
-            sensitive: true,
-          },
-          {
-            id: 'request_info',
-            label: 'Request More Info',
-            description: 'Ask for missing certifications or clarifications.',
-            consequenceHint: 'Application remains pending until applicant responds.',
-            requiredNotifications: ['Applicant email', 'Reviewer queue'],
-            reversible: true,
-            rollbackPath: 'Return to pending review after documents are received.',
-            variant: 'outline',
-          },
-          {
-            id: 'reject',
-            label: 'Reject Application',
-            description: 'Decline this consultant application.',
-            consequenceHint: 'Applicant cannot onboard without reapplication or appeal.',
-            requiredNotifications: ['Applicant email', 'Compliance mailbox'],
-            reversible: true,
-            rollbackPath: 'Reopen application with manager override.',
-            sensitive: true,
-            variant: 'destructive',
-          },
-          {
-            id: 'escalate',
-            label: 'Escalate to Compliance',
-            description: 'Escalate concerns to senior compliance reviewers.',
-            consequenceHint: 'Final decision is paused pending compliance adjudication.',
-            requiredNotifications: ['Compliance team', 'Department lead'],
-            reversible: true,
-            rollbackPath: 'Close escalation and return application to local queue.',
-            variant: 'secondary',
-          },
-        ]}
-        onSubmitAction={(actionId, metadata) => {
-          toast({
-            title: `Action queued: ${actionId.replace('_', ' ')}`,
-            description: metadata.decisionReason
-              ? `Decision reason captured: ${metadata.decisionReason}`
-              : 'Decision has been captured in the moderation log.',
-          });
-        }}
+        title="Consultant Review Guidance"
+        description="Use this guidance to structure consultant approval and escalation decisions."
+        scenarios={['low_lecturer_coverage']}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Consultant Review Actions</CardTitle>
+          <CardDescription>Queue a decision after checking identity and qualifications.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button onClick={() => queueAction('approve consultant')}>Approve Consultant</Button>
+          <Button variant="outline" onClick={() => queueAction('request more information')}>Request More Info</Button>
+          <Button variant="secondary" onClick={() => queueAction('escalate to compliance')}>Escalate</Button>
+          <Button variant="destructive" onClick={() => queueAction('reject application')}>Reject Application</Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
