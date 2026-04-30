@@ -1,170 +1,131 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, Database, Server, ShieldCheck } from 'lucide-react';
+
+import { AdminActionPanel } from '@/components/admin/admin-action-panel';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Server, ShieldCheck, Activity, Database } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
 import { getSystemHealth, runSystemDiagnostics } from '@/lib/api';
-import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 
-type IncidentAction = 'Acknowledge' | 'Assign owner' | 'Mitigate' | 'Communicate to affected roles' | 'Resolve' | 'Postmortem';
-
-type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
-type IncidentStatus = 'Investigating' | 'Mitigating' | 'Monitoring' | 'Resolved';
-type ImpactedModule = 'admissions' | 'payments' | 'exams' | 'AI tutor';
-
-type IncidentTimelineEntry = {
-  at: string;
-  update: string;
+type ServiceStatus = {
+  name: string;
+  status: string;
 };
 
-type Incident = {
+type IncidentRecord = {
   id: string;
   title: string;
-  severity: IncidentSeverity;
-  impactScope: string;
-  owner: string;
-  eta: string;
-  status: IncidentStatus;
-  impactedModules: ImpactedModule[];
-  currentAction: IncidentAction;
-  timeline: IncidentTimelineEntry[];
+  severity: string;
+  owner?: string;
+  eta?: string;
+  communicationStatus?: string;
+  impactedModules?: string[];
 };
 
-const guidedActions: IncidentAction[] = [
-  'Acknowledge',
-  'Assign owner',
-  'Mitigate',
-  'Communicate to affected roles',
-  'Resolve',
-  'Postmortem',
-];
-
-const fallbackIncidents: Incident[] = [
-  {
-    id: 'INC-3421',
-    title: 'Admissions decision emails delayed',
-    severity: 'High',
-    impactScope: 'Applicants in the current intake receiving delayed status updates.',
-    owner: 'Admissions Ops',
-    eta: '35 mins',
-    status: 'Mitigating',
-    impactedModules: ['admissions'],
-    currentAction: 'Communicate to affected roles',
-    timeline: [
-      { at: '09:15 UTC', update: 'Alert triggered for outbound email queue saturation.' },
-      { at: '09:22 UTC', update: 'Incident acknowledged and escalation started.' },
-      { at: '09:30 UTC', update: 'Retry workers scaled to drain backlog.' },
-    ],
-  },
-  {
-    id: 'INC-3422',
-    title: 'Payment confirmation lag',
-    severity: 'Medium',
-    impactScope: 'Students in checkout can see delayed invoice state for up to 5 minutes.',
-    owner: 'Finance Platform',
-    eta: '20 mins',
-    status: 'Investigating',
-    impactedModules: ['payments'],
-    currentAction: 'Assign owner',
-    timeline: [
-      { at: '09:05 UTC', update: 'Monitoring shows increased webhook retries from PSP.' },
-      { at: '09:12 UTC', update: 'Ops reviewing callback signature mismatch pattern.' },
-    ],
-  },
-  {
-    id: 'INC-3423',
-    title: 'AI Tutor response timeout in exam prep',
-    severity: 'Critical',
-    impactScope: 'Exam prep sessions fail to return AI hints for affected students.',
-    owner: 'AI Learning Systems',
-    eta: '45 mins',
-    status: 'Monitoring',
-    impactedModules: ['exams', 'AI tutor'],
-    currentAction: 'Resolve',
-    timeline: [
-      { at: '08:50 UTC', update: 'Rate limits exceeded on inference provider.' },
-      { at: '08:58 UTC', update: 'Fallback model activated for exam-prep requests.' },
-      { at: '09:18 UTC', update: 'Latency restored; monitoring for recurrence.' },
-    ],
-  },
-];
-
-const severityVariant: Record<IncidentSeverity, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  Low: 'outline',
-  Medium: 'secondary',
-  High: 'default',
-  Critical: 'destructive',
+type HealthData = {
+  uptime?: string;
+  incidents?: number;
+  apiRequests?: string | number;
+  dbThroughput?: string | number;
+  services?: ServiceStatus[];
+  utilization?: {
+    apiThroughput?: number;
+    dbLoad?: number;
+    queueLatency?: number;
+  };
+  incidentRecords?: IncidentRecord[];
 };
 
-const statusVariant: Record<IncidentStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  Investigating: 'secondary',
-  Mitigating: 'default',
-  Monitoring: 'outline',
-  Resolved: 'default',
+const fallbackHealth: HealthData = {
+  uptime: '--',
+  incidents: 0,
+  apiRequests: '--',
+  dbThroughput: '--',
+  services: [],
+  utilization: {
+    apiThroughput: 0,
+    dbLoad: 0,
+    queueLatency: 0,
+  },
+  incidentRecords: [],
 };
 
-const nextRecommendedAction = (incidents: Incident[]): string => {
-  const firstOpenIncident = incidents.find((incident) => incident.status !== 'Resolved');
-
-  if (firstOpenIncident) {
-    const currentIndex = guidedActions.indexOf(firstOpenIncident.currentAction);
-    const nextAction = guidedActions[Math.min(currentIndex + 1, guidedActions.length - 1)];
-    return `${firstOpenIncident.id}: ${nextAction}`;
-  }
-
-  return 'No active incidents. Publish a system-wide status confirmation update.';
+const severityVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  low: 'outline',
+  medium: 'secondary',
+  high: 'default',
+  critical: 'destructive',
 };
 
 export default function SystemHealthPage() {
-  const [data, setData] = useState<any | null>(null);
-  const [incidents, setIncidents] = useState<Incident[]>(fallbackIncidents);
+  const [data, setData] = useState<HealthData>(fallbackHealth);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [recommendedAction, setRecommendedAction] = useState('Review current incident queue and acknowledge untriaged alerts.');
+  const [error, setError] = useState<string | null>(null);
 
   const loadHealth = async () => {
     setLoading(true);
-    const health = await getSystemHealth();
-    setData(health);
-    setSelectedIncidentId((current) => current ?? health.incidentRecords[0]?.id ?? null);
-    const mappedIncidents = (health?.incidentObjects as Incident[] | undefined) ?? fallbackIncidents;
-    setIncidents(mappedIncidents);
-    setRecommendedAction(nextRecommendedAction(mappedIncidents));
-    setLoading(false);
+    setError(null);
+
+    try {
+      const health = (await getSystemHealth()) as HealthData;
+      setData({ ...fallbackHealth, ...health });
+    } catch (loadError: any) {
+      console.error('Failed to load system health', loadError);
+      setData(fallbackHealth);
+      setError(loadError?.message ?? 'Could not load system health data.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadHealth();
   }, []);
 
-  const selectedIncident = useMemo(
-    () => data?.incidentRecords.find((incident) => incident.id === selectedIncidentId) ?? data?.incidentRecords[0],
-    [data?.incidentRecords, selectedIncidentId]
-  );
+  const recommendedAction = useMemo(() => {
+    const firstIncident = data.incidentRecords?.[0];
+    if (firstIncident) {
+      return `${firstIncident.id}: assign owner, communicate impact, and track resolution.`;
+    }
+    return 'No active incidents. Continue monitoring platform health.';
+  }, [data.incidentRecords]);
+
+  const runDiagnostics = async () => {
+    setRunning(true);
+    setError(null);
+
+    try {
+      await runSystemDiagnostics();
+      await loadHealth();
+    } catch (diagnosticError: any) {
+      console.error('Failed to run diagnostics', diagnosticError);
+      setError(diagnosticError?.message ?? 'Diagnostics could not be completed.');
+    } finally {
+      setRunning(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">System Health</h1>
-          <p className="text-muted-foreground">Live status across UnivAI infrastructure.</p>
+          <p className="text-muted-foreground">Monitor infrastructure, diagnostics, and incident response.</p>
         </div>
-        <Button
-          variant="outline"
-          disabled={running}
-          onClick={async () => {
-            setRunning(true);
-            await runSystemDiagnostics();
-            await loadHealth();
-            setRunning(false);
-          }}
-        >
-          Run Diagnostics
+        <Button variant="outline" disabled={running} onClick={runDiagnostics}>
+          {running ? 'Running Diagnostics...' : 'Run Diagnostics'}
         </Button>
       </div>
+
+      {error ? (
+        <Card className="border-amber-200 bg-amber-50/70">
+          <CardContent className="p-4 text-sm text-amber-900">{error}</CardContent>
+        </Card>
+      ) : null}
 
       <AdminActionPanel
         title="System Response Panel"
@@ -175,11 +136,11 @@ export default function SystemHealthPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Uptime (30d)</CardTitle>
+            <CardTitle className="text-sm font-medium">Uptime</CardTitle>
             <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.uptime ?? '--'}</div>
+            <div className="text-2xl font-bold">{loading ? '--' : data.uptime}</div>
             <p className="text-xs text-muted-foreground">Telemetry snapshot</p>
           </CardContent>
         </Card>
@@ -189,7 +150,7 @@ export default function SystemHealthPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.incidents ?? '--'}</div>
+            <div className="text-2xl font-bold">{loading ? '--' : data.incidents}</div>
             <p className="text-xs text-muted-foreground">Monitoring feed</p>
           </CardContent>
         </Card>
@@ -199,7 +160,7 @@ export default function SystemHealthPage() {
             <Server className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.apiRequests ?? '--'}</div>
+            <div className="text-2xl font-bold">{loading ? '--' : data.apiRequests}</div>
             <p className="text-xs text-muted-foreground">Last 24 hours</p>
           </CardContent>
         </Card>
@@ -209,7 +170,7 @@ export default function SystemHealthPage() {
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.dbThroughput ?? '--'}</div>
+            <div className="text-2xl font-bold">{loading ? '--' : data.dbThroughput}</div>
             <p className="text-xs text-muted-foreground">Peak usage</p>
           </CardContent>
         </Card>
@@ -221,21 +182,22 @@ export default function SystemHealthPage() {
             <CardTitle>Service Status</CardTitle>
             <CardDescription>Latest status checks from core providers.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {loading ? (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Loading diagnostics...</div>
+            ) : data.services && data.services.length > 0 ? (
+              data.services.map((service) => (
+                <div key={service.name} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                  <span>{service.name}</span>
+                  <Badge variant={service.status === 'healthy' ? 'default' : 'secondary'}>{service.status}</Badge>
+                </div>
+              ))
             ) : (
-              <div className="space-y-2">
-                {(data?.services ?? []).map((service) => (
-                  <div key={service.name} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-                    <span>{service.name}</span>
-                    <span className="text-xs capitalize text-muted-foreground">{service.status}</span>
-                  </div>
-                ))}
-              </div>
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No service checks returned yet.</div>
             )}
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Resource Utilization</CardTitle>
@@ -245,224 +207,57 @@ export default function SystemHealthPage() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>API Throughput</span>
-                <span>{data?.utilization?.apiThroughput ?? 0}%</span>
+                <span>{data.utilization?.apiThroughput ?? 0}%</span>
               </div>
-              <Progress value={data?.utilization?.apiThroughput ?? 0} />
+              <Progress value={data.utilization?.apiThroughput ?? 0} />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Database Load</span>
-                <span>{data?.utilization?.dbLoad ?? 0}%</span>
+                <span>{data.utilization?.dbLoad ?? 0}%</span>
               </div>
-              <Progress value={data?.utilization?.dbLoad ?? 0} />
+              <Progress value={data.utilization?.dbLoad ?? 0} />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Queue Latency</span>
-                <span>{data?.utilization?.queueLatency ?? 0}%</span>
+                <span>{data.utilization?.queueLatency ?? 0}%</span>
               </div>
-              <Progress value={data?.utilization?.queueLatency ?? 0} />
+              <Progress value={data.utilization?.queueLatency ?? 0} />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Incident Lifecycle Guide</CardTitle>
-            <CardDescription>Standard guided workflow for every response.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {(data?.incidentLifecycleGuide ?? []).map((step, idx) => (
-              <div key={step.key} className="flex items-center gap-3 rounded-lg border px-3 py-2">
-                <span className="text-xs font-semibold text-muted-foreground">{idx + 1}.</span>
-                <span>{step.label}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Incidents</CardTitle>
-            <CardDescription>
-              Track severity, ownership, communications, timeline updates, and linked operational queues.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {loading ? (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Loading incidents...</div>
-            ) : (
-              (data?.incidentRecords ?? []).map((incident) => (
-                <button
-                  key={incident.id}
-                  type="button"
-                  onClick={() => setSelectedIncidentId(incident.id)}
-                  className={`w-full rounded-lg border p-4 text-left transition ${
-                    incident.id === selectedIncident?.id ? 'border-primary bg-muted/50' : 'hover:bg-muted/30'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-medium">{incident.title}</h3>
-                    <Badge variant={severityBadgeVariant[incident.severity]} className="capitalize">
-                      {incident.severity}
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Owner: {incident.owner} • ETA: {incident.eta}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{incident.communicationStatus}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {incident.impactedModules.map((moduleName) => (
-                      <Badge key={moduleName} variant="outline">
-                        {moduleName}
-                      </Badge>
-                    ))}
-                  </div>
-                </button>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Incident Lifecycle Progress</CardTitle>
-            <CardDescription>
-              Acknowledge → Assign → Mitigate → Notify affected roles → Resolve → Postmortem
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(selectedIncident?.lifecycle ?? []).map((step, idx) => (
-              <div key={step.key} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2.5 w-2.5 rounded-full ${lifecycleStatusClasses[step.status] ?? lifecycleStatusClasses.pending}`} />
-                    <span className="font-medium">{idx + 1}. {step.label}</span>
-                  </div>
-                  <Badge variant={step.status === 'completed' ? 'default' : step.status === 'in_progress' ? 'secondary' : 'outline'}>
-                    {step.status.replace('_', ' ')}
-                  </Badge>
-                </div>
-                {step.completedAt ? <p className="mt-1 text-xs text-muted-foreground">Completed: {step.completedAt}</p> : null}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Timeline Updates</CardTitle>
-            <CardDescription>Latest updates for the selected incident.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(selectedIncident?.timelineUpdates ?? []).map((update) => (
-              <div key={`${update.at}-${update.actor}`} className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">{update.at} • {update.actor}</p>
-                <p className="text-sm">{update.message}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Affected Queue Pivot</CardTitle>
-          <CardDescription>
-            Pivot from an incident to the impacted operational queue (admissions, finance, exams, etc.).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {(selectedIncident?.affectedQueues ?? []).map((queueImpact) => (
-              <div key={`${queueImpact.queue}-${queueImpact.module}`} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium capitalize">{queueImpact.queue}</p>
-                  <Badge variant={queueImpact.status === 'blocked' ? 'destructive' : queueImpact.status === 'degraded' ? 'secondary' : 'outline'}>
-                    {queueImpact.status}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{queueImpact.module}</p>
-                <p className="mt-1 text-sm">Backlog: {queueImpact.backlog}</p>
-                <p className="text-sm">Delay: {queueImpact.delayedByMinutes} min</p>
-              </div>
-            ))}
-          </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Diagnostics Guidance</CardTitle>
-          <CardDescription>Run diagnostics is always followed by a recommended next action.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="rounded-lg border bg-muted/30 p-3 text-sm">
-            <span className="font-medium">Recommended next action: </span>
-            {running ? 'Diagnostics running... collect results and prepare communications.' : recommendedAction}
-          </p>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>Incident Response Board</CardTitle>
-          <CardDescription>
-            Structured incident objects with ownership, ETA, impacted modules, and guided actions.
-          </CardDescription>
+          <CardDescription>Ownership, impact, and recommended next action.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {incidents.map((incident) => {
-            const currentActionIndex = guidedActions.indexOf(incident.currentAction);
-            return (
-              <div key={incident.id} className="space-y-3 rounded-lg border p-4">
+        <CardContent className="space-y-3">
+          <p className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <span className="font-medium">Recommended next action: </span>
+            {running ? 'Diagnostics running...' : recommendedAction}
+          </p>
+          {data.incidentRecords && data.incidentRecords.length > 0 ? (
+            data.incidentRecords.map((incident) => (
+              <div key={incident.id} className="rounded-lg border p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold">{incident.id}</p>
                   <p className="text-sm text-muted-foreground">{incident.title}</p>
-                  <Badge variant={severityVariant[incident.severity]}>{incident.severity}</Badge>
-                  <Badge variant={statusVariant[incident.status]}>{incident.status}</Badge>
+                  <Badge variant={severityVariant[String(incident.severity).toLowerCase()] ?? 'outline'}>{incident.severity}</Badge>
                 </div>
-
-                <div className="grid gap-3 text-sm md:grid-cols-2">
-                  <p>
-                    <span className="font-medium">Impact scope:</span> {incident.impactScope}
-                  </p>
-                  <p>
-                    <span className="font-medium">Owner:</span> {incident.owner}
-                  </p>
-                  <p>
-                    <span className="font-medium">ETA:</span> {incident.eta}
-                  </p>
-                  <p>
-                    <span className="font-medium">Impacted modules:</span> {incident.impactedModules.join(', ')}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Guided actions</p>
-                  <ol className="grid gap-1 text-sm text-muted-foreground md:grid-cols-2">
-                    {guidedActions.map((action, index) => (
-                      <li key={action} className={index <= currentActionIndex ? 'font-medium text-foreground' : ''}>
-                        {index + 1}. {action}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Timeline</p>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    {incident.timeline.map((entry) => (
-                      <li key={`${incident.id}-${entry.at}`}>
-                        <span className="font-medium text-foreground">{entry.at}</span> — {entry.update}
-                      </li>
-                    ))}
-                  </ul>
+                <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
+                  <p><span className="font-medium">Owner:</span> {incident.owner ?? 'Unassigned'}</p>
+                  <p><span className="font-medium">ETA:</span> {incident.eta ?? 'Not set'}</p>
+                  <p><span className="font-medium">Communication:</span> {incident.communicationStatus ?? 'Pending'}</p>
+                  <p><span className="font-medium">Modules:</span> {(incident.impactedModules ?? []).join(', ') || 'Not specified'}</p>
                 </div>
               </div>
-            );
-          })}
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No active incident records.</div>
+          )}
         </CardContent>
       </Card>
     </div>
