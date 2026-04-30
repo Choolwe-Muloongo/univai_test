@@ -6,6 +6,7 @@ import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AiTutorWidget } from '@/components/layout/ai-tutor-widget';
 import { useSession } from '@/components/providers/session-provider';
+import { isStudentRole } from '@/lib/auth/roles';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 type AppShellProps = {

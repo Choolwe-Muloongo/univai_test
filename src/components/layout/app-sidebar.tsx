@@ -143,21 +143,22 @@ export function AppSidebar({ role }: { role?: string }) {
         <SidebarMenu>
           {links.map((link) => (
             <SidebarMenuItem key={link.key || link.href}>
-              <Link href={link.href}>
-                <SidebarMenuButton
-                  isActive={
-                    pathname === link.href ||
-                    (link.href !== '/student/dashboard' &&
-                      pathname.startsWith(link.href) &&
-                      link.href.split('/').length > 2)
-                  }
-                  tooltip={link.label}
-                  className="justify-start data-[active=true]:bg-sidebar-accent/70"
-                >
+              <SidebarMenuButton
+                asChild
+                isActive={
+                  pathname === link.href ||
+                  (link.href !== '/student/dashboard' &&
+                    pathname.startsWith(link.href) &&
+                    link.href.split('/').length > 2)
+                }
+                tooltip={link.label}
+                className="justify-start data-[active=true]:bg-sidebar-accent/70"
+              >
+                <Link href={link.href}>
                   <link.icon className="size-5" />
                   <span>{link.label}</span>
-                </SidebarMenuButton>
-              </Link>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
