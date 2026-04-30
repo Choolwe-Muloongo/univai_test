@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -43,18 +43,33 @@ export default function AdmissionsPortalPage() {
   const [docType, setDocType] = useState('national_id');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    const [app, docs] = await Promise.all([getAdmissionApplication(), getAdmissionDocuments()]);
-    setApplication(app);
-    setDocuments(docs);
-    setLoading(false);
-  };
+    setLoadError(null);
+
+    try {
+      const [app, docs] = await Promise.all([getAdmissionApplication(), getAdmissionDocuments()]);
+      setApplication(app);
+      setDocuments(docs);
+    } catch (error: any) {
+      console.error('Failed to load admissions portal', error);
+      setApplication(null);
+      setDocuments([]);
+      setLoadError(
+        error?.details?.message ||
+          error?.message ||
+          'We could not load your admissions portal. Please sign in again or try later.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleUpload = async (file: File | null) => {
     if (!file) return;
@@ -78,6 +93,29 @@ export default function AdmissionsPortalPage() {
     return <p className="text-sm text-muted-foreground">Loading your admissions portal...</p>;
   }
 
+  if (loadError) {
+    return (
+      <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30">
+        <CardHeader>
+          <CardTitle>We could not load your admissions portal</CardTitle>
+          <CardDescription>{loadError}</CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          This usually happens when your session has expired or the admissions API is temporarily unavailable.
+        </CardContent>
+        <CardFooter className="flex flex-wrap gap-2">
+          <Button onClick={loadData}>Try Again</Button>
+          <Button variant="outline" asChild>
+            <Link href="/login">Go to Login</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admissions/status">Check Status</Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
   if (!application) {
     return (
       <Card>
@@ -85,9 +123,12 @@ export default function AdmissionsPortalPage() {
           <CardTitle>No application found</CardTitle>
           <CardDescription>Start your application to access the admissions portal.</CardDescription>
         </CardHeader>
-        <CardFooter>
+        <CardFooter className="flex flex-wrap gap-2">
           <Button asChild>
             <Link href="/register">Start Application</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admissions/status">Check Status</Link>
           </Button>
         </CardFooter>
       </Card>
@@ -134,7 +175,7 @@ export default function AdmissionsPortalPage() {
         <div>
           <p className="text-sm font-semibold text-muted-foreground">UnivAI Admissions</p>
           <h1 className="text-3xl font-bold tracking-tight">Applicant Portal</h1>
-          <p className="text-muted-foreground">Track your application and submit documents.</p>
+          <p className="text-muted-foreground">Track your application, pay the admission fee, submit documents, and accept your offer.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{statusLabel}</Badge>
