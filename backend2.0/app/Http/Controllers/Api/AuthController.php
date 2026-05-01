@@ -37,8 +37,8 @@ class AuthController extends Controller
             $sessionUser = $this->demoUser($role);
         }
 
-        $request->session()->put('user', $sessionUser);
         $request->session()->regenerate();
+        $request->session()->put('user', $sessionUser);
 
         return response()->json(['user' => $sessionUser]);
     }
@@ -63,8 +63,8 @@ class AuthController extends Controller
         ]);
 
         $sessionUser = $this->mapUser($user);
-        $request->session()->put('user', $sessionUser);
         $request->session()->regenerate();
+        $request->session()->put('user', $sessionUser);
 
         return response()->json(['user' => $sessionUser], 201);
     }
