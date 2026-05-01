@@ -14,16 +14,18 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-RUN php artisan config:clear || true
-RUN php artisan route:clear || true
-RUN php artisan view:clear || true
+# Do not run Laravel artisan scripts during image build.
+# Render runtime environment variables are not fully reliable during this layer,
+# and artisan package discovery can fail before the container starts.
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+RUN composer dump-autoload --optimize --no-interaction --no-scripts
 
 EXPOSE 10000
 
-CMD php artisan config:clear \
+CMD php artisan package:discover --ansi || true \
+    && php artisan config:clear \
     && php artisan route:clear \
     && php artisan view:clear \
     && php artisan migrate --force \
+    && php artisan db:seed --force \
     && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
