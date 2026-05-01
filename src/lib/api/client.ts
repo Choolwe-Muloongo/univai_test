@@ -18,15 +18,16 @@ export class ApiError extends Error {
 
 type FetchOptions = RequestInit & { parseJson?: boolean };
 
-function buildApiUrl(path: string) {
+export function buildApiUrl(path: string) {
   if (/^https?:\/\//i.test(path)) {
     return path;
   }
 
   const cleanBase = API_BASE_URL.replace(/\/$/, '');
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const apiPath = cleanPath === '/api' || cleanPath.startsWith('/api/') ? cleanPath : `/api${cleanPath}`;
 
-  return `${cleanBase}${cleanPath}`;
+  return `${cleanBase}${apiPath}`;
 }
 
 export async function apiFetch<T>(
