@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Intake;
+use App\Models\Program;
 use App\Support\AuditLogger;
+use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -20,7 +22,7 @@ class IntakesController extends Controller
                 'programId' => $intake->program_id,
                 'curriculumVersionId' => $intake->curriculum_version_id,
                 'name' => $intake->name,
-                'deliveryMode' => $intake->delivery_mode,
+                'deliveryMode' => DeliveryModes::normalize($intake->delivery_mode),
                 'campus' => $intake->campus,
                 'capacity' => $intake->capacity,
                 'startDate' => optional($intake->start_date)->toDateString(),
@@ -43,6 +45,16 @@ class IntakesController extends Controller
             'status' => ['nullable', 'string'],
         ]);
 
+        $program = Program::find($payload['programId']);
+        if (!$program) {
+            return response()->json(['message' => 'Program not found'], 404);
+        }
+
+        $deliveryMode = DeliveryModes::normalize($payload['deliveryMode']);
+        if (!DeliveryModes::supports($program->supported_delivery_modes, $deliveryMode)) {
+            return response()->json(['message' => 'This program does not support the selected delivery mode.'], 422);
+        }
+
         $idBase = Str::slug($payload['programId'] . '-' . $payload['name']);
         $intakeId = $idBase;
         $counter = 1;
@@ -56,7 +68,7 @@ class IntakesController extends Controller
             'program_id' => $payload['programId'],
             'curriculum_version_id' => $payload['curriculumVersionId'] ?? null,
             'name' => $payload['name'],
-            'delivery_mode' => $payload['deliveryMode'],
+            'delivery_mode' => $deliveryMode,
             'campus' => $payload['campus'] ?? null,
             'capacity' => $payload['capacity'] ?? null,
             'start_date' => $payload['startDate'],
@@ -66,7 +78,7 @@ class IntakesController extends Controller
 
         AuditLogger::log($request, 'intake.created', 'intake', $intake->id, [
             'programId' => $intake->program_id,
-            'deliveryMode' => $intake->delivery_mode,
+            'deliveryMode' => DeliveryModes::normalize($intake->delivery_mode),
         ]);
 
         return response()->json([
@@ -74,7 +86,7 @@ class IntakesController extends Controller
             'programId' => $intake->program_id,
             'curriculumVersionId' => $intake->curriculum_version_id,
             'name' => $intake->name,
-            'deliveryMode' => $intake->delivery_mode,
+            'deliveryMode' => DeliveryModes::normalize($intake->delivery_mode),
             'campus' => $intake->campus,
             'capacity' => $intake->capacity,
             'startDate' => optional($intake->start_date)->toDateString(),
@@ -100,7 +112,7 @@ class IntakesController extends Controller
             'programId' => $intake->program_id,
             'curriculumVersionId' => $intake->curriculum_version_id,
             'name' => $intake->name,
-            'deliveryMode' => $intake->delivery_mode,
+            'deliveryMode' => DeliveryModes::normalize($intake->delivery_mode),
             'campus' => $intake->campus,
             'capacity' => $intake->capacity,
             'startDate' => optional($intake->start_date)->toDateString(),

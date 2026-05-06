@@ -11,42 +11,91 @@ use App\Models\Intake;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
+use App\Support\StudentAccess;
 use Illuminate\Http\Request;
 
 class StudentsController extends Controller
 {
     public function checkout(Request $request)
     {
+        $payload = $request->validate([
+            'role' => ['nullable', 'string'],
+            'accessTier' => ['nullable', 'string'],
+        ]);
+
+        $requestedTier = $payload['accessTier'] ?? StudentAccess::tierFromRole($payload['role'] ?? StudentAccess::ROLE_PREMIUM);
+        $requestedRole = StudentAccess::roleFromTier($requestedTier);
         $user = $request->session()->get('user');
         if (!$user) {
             $user = [
-                'id' => 'student-premium',
-                'name' => 'Premium Student',
-                'email' => 'student.premium@univai.edu',
-                'role' => 'premium-student',
-                'schoolId' => 'ict',
-                'programId' => 'cs101',
+                'id' => $requestedTier === StudentAccess::TIER_FREE ? 'student-free' : 'student-premium',
+                'name' => $requestedTier === StudentAccess::TIER_FREE ? 'Free Student' : 'Premium Student',
+                'email' => $requestedTier === StudentAccess::TIER_FREE ? 'student.free@univai.edu' : 'student.premium@univai.edu',
+                'role' => $requestedRole,
+                'schoolId' => $requestedTier === StudentAccess::TIER_PROGRAMME ? 'ict' : null,
+                'programId' => $requestedTier === StudentAccess::TIER_PROGRAMME ? 'cs101' : null,
             ];
         } else {
-            $user['role'] = 'premium-student';
-            $user['schoolId'] = $user['schoolId'] ?? 'ict';
-            $user['programId'] = $user['programId'] ?? 'cs101';
+            $user['role'] = $requestedRole;
+            if ($requestedTier === StudentAccess::TIER_PROGRAMME) {
+                $user['schoolId'] = $user['schoolId'] ?? 'ict';
+                $user['programId'] = $user['programId'] ?? 'cs101';
+            }
         }
+
+        $user = StudentAccess::sessionPayload($user);
 
         if (is_array($user) && isset($user['id']) && is_numeric($user['id'])) {
             $dbUser = User::find($user['id']);
             if ($dbUser) {
                 $dbUser->update([
-                    'role' => 'premium-student',
+                    'role' => $requestedRole,
                     'school_id' => $user['schoolId'] ?? $dbUser->school_id,
                     'program_id' => $user['programId'] ?? $dbUser->program_id,
                 ]);
+                StudentAccess::syncUserEntitlements($dbUser, $requestedTier, 'checkout');
             }
         }
 
         $request->session()->put('user', $user);
 
         return response()->json(['user' => $user]);
+    }
+
+    public function entitlements(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        if (!is_array($sessionUser)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $sessionUser = StudentAccess::sessionPayload($sessionUser);
+        $request->session()->put('user', $sessionUser);
+
+        if (isset($sessionUser['id']) && is_numeric($sessionUser['id'])) {
+            $dbUser = User::find((int) $sessionUser['id']);
+            if ($dbUser) {
+                $active = $dbUser->studentEntitlements()
+                    ->where('status', 'active')
+                    ->where(function ($query) {
+                        $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                    })
+                    ->pluck('type')
+                    ->all();
+
+                if (!empty($active)) {
+                    $sessionUser['entitlements'] = $active;
+                } else {
+                    StudentAccess::syncUserEntitlements($dbUser, $sessionUser['accessTier'], 'session-bootstrap');
+                }
+            }
+        }
+
+        return response()->json([
+            'accessTier' => $sessionUser['accessTier'],
+            'entitlements' => $sessionUser['entitlements'],
+            'cashbackEligible' => $sessionUser['cashbackEligible'],
+        ]);
     }
 
     public function enrollment(Request $request)
@@ -67,6 +116,7 @@ class StudentsController extends Controller
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
+            'deliveryMode' => DeliveryModes::normalize($enrollment->delivery_mode),
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
@@ -85,10 +135,30 @@ class StudentsController extends Controller
         $payload = $request->validate([
             'modules' => ['required', 'array', 'min:1'],
             'modules.*' => ['string'],
+            'deliveryMode' => ['required', 'string'],
         ]);
 
         if (!$intakeId) {
             return response()->json(['message' => 'No intake assigned'], 422);
+        }
+
+        $intake = Intake::find($intakeId);
+        if (!$intake) {
+            return response()->json(['message' => 'Intake not found'], 404);
+        }
+
+        $selectedMode = DeliveryModes::normalize($payload['deliveryMode']);
+        if (!DeliveryModes::supports($intake->program?->supported_delivery_modes, $selectedMode)) {
+            return response()->json(['message' => 'Your program does not support the selected delivery mode.'], 422);
+        }
+
+        $modules = ProgramModule::query()
+            ->whereIn('id', $payload['modules'])
+            ->get();
+
+        $unsupported = $modules->first(fn (ProgramModule $module) => !DeliveryModes::supports($module->supported_delivery_modes, $selectedMode));
+        if ($unsupported) {
+            return response()->json(['message' => "{$unsupported->title} is not available for the selected delivery mode."], 422);
         }
 
         $enrollment = Enrollment::query()->firstOrCreate(
@@ -104,12 +174,14 @@ class StudentsController extends Controller
 
         $enrollment->update([
             'selected_modules' => $payload['modules'],
+            'delivery_mode' => $selectedMode,
         ]);
 
         return response()->json([
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
+            'deliveryMode' => DeliveryModes::normalize($enrollment->delivery_mode),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
     }
@@ -144,7 +216,10 @@ class StudentsController extends Controller
         ]);
 
         if (is_array($sessionUser)) {
-            $sessionUser['role'] = 'premium-student';
+            $sessionUser['role'] = StudentAccess::ROLE_PROGRAMME;
+            $sessionUser['accessTier'] = StudentAccess::TIER_PROGRAMME;
+            $sessionUser['entitlements'] = StudentAccess::entitlementsForTier(StudentAccess::TIER_PROGRAMME);
+            $sessionUser['cashbackEligible'] = true;
             $request->session()->put('user', $sessionUser);
         }
 
@@ -152,8 +227,9 @@ class StudentsController extends Controller
             $user = User::find($userId);
             if ($user) {
                 $user->update([
-                    'role' => 'premium-student',
+                    'role' => StudentAccess::ROLE_PROGRAMME,
                 ]);
+                StudentAccess::syncUserEntitlements($user, StudentAccess::TIER_PROGRAMME, 'enrollment-confirmation');
             }
         }
 
@@ -161,6 +237,7 @@ class StudentsController extends Controller
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
+            'deliveryMode' => DeliveryModes::normalize($enrollment->delivery_mode),
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
@@ -170,6 +247,7 @@ class StudentsController extends Controller
     {
         $user = $request->session()->get('user');
         $intakeId = is_array($user) ? ($user['intakeId'] ?? null) : null;
+        $studentId = is_array($user) ? ($user['id'] ?? null) : null;
 
         if (!$intakeId) {
             return response()->json(null, 404);
@@ -184,6 +262,18 @@ class StudentsController extends Controller
             return response()->json(null, 404);
         }
 
+        $mode = Enrollment::query()
+            ->where('user_id', $studentId ?? null)
+            ->where('intake_id', $intakeId)
+            ->value('delivery_mode') ?? $assignment->intake?->delivery_mode;
+        $normalizedMode = DeliveryModes::normalize($mode);
+        if ($normalizedMode === DeliveryModes::SOFTWARE_ONLY && empty($assignment->meeting_url)) {
+            return response()->json(['message' => 'This meeting is not available for software-only learners.'], 403);
+        }
+        if ($normalizedMode === DeliveryModes::PHYSICAL && empty($assignment->intake?->campus) && empty($assignment->meeting_notes)) {
+            return response()->json(['message' => 'Physical learning venue is not available yet.'], 404);
+        }
+
         return [
             'courseId' => $assignment->course_id,
             'intakeId' => $assignment->intake_id,
@@ -192,6 +282,7 @@ class StudentsController extends Controller
             'meetingUrl' => $assignment->meeting_url,
             'meetingSchedule' => $assignment->meeting_schedule,
             'meetingNotes' => $assignment->meeting_notes,
+            'deliveryMode' => $normalizedMode,
         ];
     }
 

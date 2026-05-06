@@ -90,6 +90,97 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['email'], ['name', 'password', 'role', 'school_id', 'program_id', 'updated_at']);
 
+        DB::table('users')
+            ->whereIn('role', ['admin', 'lecturer'])
+            ->update([
+                'account_state' => 'active',
+                'verification_status' => 'identity',
+                'profile_completed_at' => now(),
+            ]);
+
+        DB::table('users')
+            ->whereIn('role', ['employer', 'student', 'premium-student', 'freemium-student', 'enrolled'])
+            ->update([
+                'account_state' => 'active',
+                'verification_status' => 'email',
+                'profile_completed_at' => now(),
+            ]);
+
+        $accessUsers = DB::table('users')
+            ->whereIn('email', [
+                'admin@univai.edu',
+                'lecturer@univai.edu',
+                'lecturer.a@univai.edu',
+                'lecturer.b@univai.edu',
+                'employer@univai.edu',
+                'student.premium@univai.edu',
+                'student.freemium@univai.edu',
+            ])
+            ->get()
+            ->keyBy('email');
+
+        foreach ($accessUsers as $seedUser) {
+            DB::table('user_profiles')->updateOrInsert(
+                ['user_id' => $seedUser->id],
+                [
+                    'display_name' => $seedUser->name,
+                    'completion_percent' => in_array($seedUser->role, ['applicant', 'lecturer-applicant', 'employer-applicant'], true) ? 25 : 100,
+                    'completed_at' => in_array($seedUser->role, ['applicant', 'lecturer-applicant', 'employer-applicant'], true) ? null : now(),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        foreach ([
+            'student.premium@univai.edu' => ['tier' => 'premium', 'status' => 'active'],
+            'student.freemium@univai.edu' => ['tier' => 'freemium', 'status' => 'free'],
+        ] as $email => $subscription) {
+            $seedUser = $accessUsers->get($email);
+            if (!$seedUser) {
+                continue;
+            }
+
+            DB::table('user_subscriptions')->updateOrInsert(
+                ['user_id' => $seedUser->id, 'tier' => $subscription['tier']],
+                [
+                    'status' => $subscription['status'],
+                    'starts_at' => now(),
+                    'ends_at' => null,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        foreach ([
+            'admin@univai.edu' => ['admin_portal'],
+            'lecturer@univai.edu' => ['teaching'],
+            'lecturer.a@univai.edu' => ['teaching'],
+            'lecturer.b@univai.edu' => ['teaching'],
+            'employer@univai.edu' => ['employer_portal'],
+            'student.premium@univai.edu' => ['student_portal', 'course_access', 'ai_tutor'],
+            'student.freemium@univai.edu' => ['student_portal'],
+        ] as $email => $entitlements) {
+            $seedUser = $accessUsers->get($email);
+            if (!$seedUser) {
+                continue;
+            }
+
+            foreach ($entitlements as $entitlement) {
+                DB::table('academic_entitlements')->updateOrInsert(
+                    ['user_id' => $seedUser->id, 'code' => $entitlement, 'scope_type' => null, 'scope_id' => null],
+                    [
+                        'status' => 'active',
+                        'starts_at' => now(),
+                        'ends_at' => null,
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
+        }
+
         DB::table('schools')->upsert([
             ['id' => 'edu', 'name' => 'School of Education', 'created_at' => now(), 'updated_at' => now()],
             ['id' => 'ict', 'name' => 'School of ICT', 'created_at' => now(), 'updated_at' => now()],
@@ -247,58 +338,226 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['id'], ['name', 'pass_mark', 'gpa_scale_type', 'grade_bands', 'repeat_rule', 'max_attempts', 'include_failed_in_gpa', 'include_withdrawn_in_gpa', 'credit_award_policy', 'condoned_mark', 'progression_policy', 'holds_policy', 'rounding_decimals', 'updated_at']);
 
+
+        DB::table('qualification_levels')->upsert([
+            [
+                'id' => 'short-course',
+                'name' => 'Short Course',
+                'category' => 'short_course',
+                'default_credits' => 5,
+                'minimum_credits' => 1,
+                'maximum_credits' => 15,
+                'duration_months' => 2,
+                'admission_requirements' => 'Open entry; applicant interest statement recommended.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid']),
+                'requires_exam_clinic' => false,
+                'requires_accreditation_approval' => false,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => null,
+                'sort_order' => 10,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'certificate',
+                'name' => 'Certificate',
+                'category' => 'certificate',
+                'default_credits' => 30,
+                'minimum_credits' => 20,
+                'maximum_credits' => 60,
+                'duration_months' => 6,
+                'admission_requirements' => 'Secondary school completion or equivalent experience.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid', 'physical']),
+                'requires_exam_clinic' => false,
+                'requires_accreditation_approval' => false,
+                'minimum_subject_count' => 3,
+                'minimum_total_points' => 12,
+                'required_prior_qualification' => 'Secondary school certificate or equivalent',
+                'sort_order' => 20,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'diploma',
+                'name' => 'Diploma',
+                'category' => 'diploma',
+                'default_credits' => 120,
+                'minimum_credits' => 90,
+                'maximum_credits' => 180,
+                'duration_months' => 24,
+                'admission_requirements' => 'Five qualifying subjects including English and programme-specific prerequisites.',
+                'allowed_delivery_modes' => json_encode(['hybrid', 'physical']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 5,
+                'minimum_total_points' => 24,
+                'required_prior_qualification' => 'Secondary school certificate',
+                'sort_order' => 30,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'degree',
+                'name' => 'Degree',
+                'category' => 'degree',
+                'default_credits' => 480,
+                'minimum_credits' => 360,
+                'maximum_credits' => 600,
+                'duration_months' => 48,
+                'admission_requirements' => 'Five qualifying subjects plus programme prerequisites; mature entry may require registrar review.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid', 'physical']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 5,
+                'minimum_total_points' => 30,
+                'required_prior_qualification' => 'Secondary school certificate',
+                'sort_order' => 40,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'masters',
+                'name' => 'Masters',
+                'category' => 'masters',
+                'default_credits' => 180,
+                'minimum_credits' => 120,
+                'maximum_credits' => 240,
+                'duration_months' => 24,
+                'admission_requirements' => 'Recognised bachelor degree, transcript, CV, and professional or research statement.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => 'Bachelor degree or equivalent',
+                'sort_order' => 50,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'phd',
+                'name' => 'PhD',
+                'category' => 'phd',
+                'default_credits' => 360,
+                'minimum_credits' => 240,
+                'maximum_credits' => 540,
+                'duration_months' => 36,
+                'admission_requirements' => 'Relevant masters degree, research proposal, supervisor match, and research ethics screening.',
+                'allowed_delivery_modes' => json_encode(['hybrid']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => 'Masters degree or equivalent',
+                'sort_order' => 60,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'professional-programme',
+                'name' => 'Professional Programme',
+                'category' => 'professional_programme',
+                'default_credits' => 60,
+                'minimum_credits' => 30,
+                'maximum_credits' => 120,
+                'duration_months' => 12,
+                'admission_requirements' => 'Relevant workplace experience and any regulator-mandated prerequisites.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid', 'physical']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => 'Professional experience or recognised prior learning',
+                'sort_order' => 70,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['name', 'category', 'default_credits', 'minimum_credits', 'maximum_credits', 'duration_months', 'admission_requirements', 'allowed_delivery_modes', 'requires_exam_clinic', 'requires_accreditation_approval', 'minimum_subject_count', 'minimum_total_points', 'required_prior_qualification', 'sort_order', 'updated_at']);
+
         DB::table('courses')->upsert([
+        DB::table('short_courses')->upsert([
             [
                 'id' => 'cs101',
                 'school_id' => 'ict',
-                'title' => 'Bachelor of Science in Software Development and Emerging Technologies',
-                'description' => 'Foundational concepts of computing, including algorithms, data structures, and software engineering.',
+                'title' => 'AI Digital Skills Certificate',
+                'description' => 'A free certificate short course covering digital systems, cloud collaboration, and AI fundamentals.',
                 'progress' => 100,
                 'image_id' => '1',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'free',
+                'price' => 0,
+                'currency' => 'USD',
+                'duration_hours' => 18,
+                'level' => 'beginner',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
                 'id' => 'nur201',
                 'school_id' => 'nursing',
-                'title' => 'Diploma in Nursing',
-                'description' => 'Essential skills for patient care, clinical practice, and medical ethics.',
+                'title' => 'Community Health Certificate',
+                'description' => 'A paid certificate short course introducing community health, patient safety, and care ethics.',
                 'progress' => 45,
                 'image_id' => '2',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'paid',
+                'price' => 49,
+                'currency' => 'USD',
+                'duration_hours' => 24,
+                'level' => 'intermediate',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
                 'id' => 'bus301',
                 'school_id' => 'business',
-                'title' => 'MBA',
-                'description' => 'Advanced business administration, leadership, and strategic management.',
+                'title' => 'Business Analytics Certificate',
+                'description' => 'A paid certificate short course for practical dashboards, KPIs, and decision support.',
                 'progress' => 90,
                 'image_id' => '3',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'paid',
+                'price' => 79,
+                'currency' => 'USD',
+                'duration_hours' => 30,
+                'level' => 'intermediate',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
                 'id' => 'eng401',
                 'school_id' => 'eng',
-                'title' => 'Mechanical Engineering',
-                'description' => 'Principles of mechanics, thermodynamics, and material science.',
+                'title' => 'Engineering Design Certificate',
+                'description' => 'A free certificate short course introducing engineering design thinking and prototyping.',
                 'progress' => 20,
                 'image_id' => '4',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'free',
+                'price' => 0,
+                'currency' => 'USD',
+                'duration_hours' => 16,
+                'level' => 'beginner',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
                 'id' => 'edu110',
                 'school_id' => 'edu',
-                'title' => 'Early Childhood Education',
-                'description' => 'Theories and practices for teaching young children from birth to age 8.',
+                'title' => 'Early Learning Certificate',
+                'description' => 'A free certificate short course for early childhood teaching foundations.',
                 'progress' => 60,
                 'image_id' => '5',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'free',
+                'price' => 0,
+                'currency' => 'USD',
+                'duration_hours' => 20,
+                'level' => 'beginner',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'description', 'school_id', 'progress', 'image_id', 'updated_at']);
+        ], ['id'], ['title', 'description', 'school_id', 'certificate_type', 'pricing_type', 'price', 'currency', 'duration_hours', 'level', 'progress', 'image_id', 'updated_at']);
 
         DB::table('programs')->upsert([
             [
@@ -306,8 +565,22 @@ class UnivAiSeeder extends Seeder
                 'school_id' => 'ict',
                 'title' => 'Bachelor of Science in Software Development and Emerging Technologies',
                 'description' => 'Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs.',
+                'qualification_level_id' => 'degree',
+                'credits' => 480,
+                'duration_months' => 48,
+                'admission_requirements' => 'Five qualifying subjects including Mathematics or ICT.',
+                'delivery_modes' => json_encode(['online', 'hybrid']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
                 'progress' => 100,
                 'image_id' => '1',
+                'award_type' => 'degree',
+                'qualification_level' => 'bachelors',
+                'duration_semesters' => 8,
+                'total_credits' => 480,
+                'delivery_mode' => 'online',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -316,8 +589,22 @@ class UnivAiSeeder extends Seeder
                 'school_id' => 'business',
                 'title' => 'MBA',
                 'description' => 'Duration: 2 years (4 semesters). Delivery: hybrid with weekend intensives and online classes.',
+                'qualification_level_id' => 'masters',
+                'credits' => 180,
+                'duration_months' => 24,
+                'admission_requirements' => 'Recognised bachelor degree and leadership statement.',
+                'delivery_modes' => json_encode(['online', 'hybrid']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
                 'progress' => 0,
                 'image_id' => '3',
+                'award_type' => 'masters',
+                'qualification_level' => 'masters',
+                'duration_semesters' => 4,
+                'total_credits' => 240,
+                'delivery_mode' => 'online',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -326,8 +613,22 @@ class UnivAiSeeder extends Seeder
                 'school_id' => 'nursing',
                 'title' => 'Diploma in Nursing',
                 'description' => 'Duration: 3 years (6 semesters). Delivery: physical labs with online theory.',
+                'qualification_level_id' => 'diploma',
+                'credits' => 180,
+                'duration_months' => 36,
+                'admission_requirements' => 'Five qualifying subjects including Biology or Science.',
+                'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
                 'progress' => 0,
                 'image_id' => '2',
+                'award_type' => 'diploma',
+                'qualification_level' => 'diploma',
+                'duration_semesters' => 6,
+                'total_credits' => 360,
+                'delivery_mode' => 'online',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -336,8 +637,22 @@ class UnivAiSeeder extends Seeder
                 'school_id' => 'eng',
                 'title' => 'Mechanical Engineering',
                 'description' => 'Duration: 4 years (8 semesters). Delivery: physical labs and hybrid lectures.',
+                'qualification_level_id' => 'degree',
+                'credits' => 480,
+                'duration_months' => 48,
+                'admission_requirements' => 'Five qualifying subjects including Mathematics and Physics.',
+                'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
                 'progress' => 0,
                 'image_id' => '4',
+                'award_type' => 'degree',
+                'qualification_level' => 'bachelors',
+                'duration_semesters' => 8,
+                'total_credits' => 480,
+                'delivery_mode' => 'online',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -346,12 +661,33 @@ class UnivAiSeeder extends Seeder
                 'school_id' => 'edu',
                 'title' => 'Early Childhood Education',
                 'description' => 'Duration: 3 years (6 semesters). Delivery: blended learning with school placements.',
+                'qualification_level_id' => 'diploma',
+                'credits' => 180,
+                'duration_months' => 36,
+                'admission_requirements' => 'Five qualifying subjects and teaching placement readiness.',
+                'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
                 'progress' => 0,
                 'image_id' => '5',
+                'award_type' => 'diploma',
+                'qualification_level' => 'diploma',
+                'duration_semesters' => 6,
+                'total_credits' => 360,
+                'delivery_mode' => 'online',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'description', 'progress', 'image_id', 'updated_at']);
+        ], ['id'], ['title', 'description', 'qualification_level_id', 'credits', 'duration_months', 'admission_requirements', 'delivery_modes', 'exam_clinic_required', 'requires_accreditation_approval', 'accreditation_approved_at', 'launch_status', 'progress', 'image_id', 'updated_at']);
+        ], ['id'], ['title', 'description', 'school_id', 'award_type', 'qualification_level', 'duration_semesters', 'total_credits', 'delivery_mode', 'progress', 'image_id', 'updated_at']);
+
+        DB::table('programs')->where('id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('programs')->where('id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('programs')->where('id', 'nur201')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('programs')->where('id', 'eng401')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('programs')->where('id', 'edu110')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical'])]);
 
         DB::table('curriculum_versions')->upsert([
             [
@@ -431,7 +767,7 @@ class UnivAiSeeder extends Seeder
                 'program_id' => 'cs101',
                 'curriculum_version_id' => 'cs101-v2026',
                 'name' => 'Jun 2026 Intake',
-                'delivery_mode' => 'online',
+                'delivery_mode' => 'software_only',
                 'campus' => null,
                 'capacity' => 300,
                 'start_date' => now()->addMonths(4)->toDateString(),
@@ -459,7 +795,7 @@ class UnivAiSeeder extends Seeder
                 'program_id' => 'bus301',
                 'curriculum_version_id' => 'bus301-v2026',
                 'name' => 'Jun 2026 Intake',
-                'delivery_mode' => 'online',
+                'delivery_mode' => 'software_only',
                 'campus' => null,
                 'capacity' => 150,
                 'start_date' => now()->addMonths(5)->toDateString(),
@@ -613,10 +949,16 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['id'], ['title', 'description', 'progress', 'semester', 'is_exam_available', 'is_core', 'curriculum_version_id', 'updated_at']);
 
+        $lessonRows = [
+        DB::table('program_modules')->where('program_id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('program_modules')->where('program_id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('program_modules')->where('program_id', 'nur201')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('program_modules')->where('program_id', 'eng401')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('program_modules')->where('program_id', 'edu110')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical'])]);
+
         DB::table('lessons')->upsert([
             [
                 'id' => 'l1-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Digital Systems Overview',
                 'content' => 'An overview of modern computer hardware, software, and networking components.',
                 'created_at' => now(),
@@ -624,7 +966,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l2-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Cloud Collaboration',
                 'content' => 'Hands-on skills using cloud storage and collaborative tools like Google Workspace.',
                 'created_at' => now(),
@@ -632,7 +973,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l3-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Intro to Python',
                 'content' => 'Learn the fundamentals of the Python programming language, including variables and control flow.',
                 'video_url' => 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
@@ -657,7 +997,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l4-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Data Representation',
                 'content' => 'How data is represented in binary, hexadecimal, and structured formats.',
                 'created_at' => now(),
@@ -665,7 +1004,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l5-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Algorithms in Everyday Systems',
                 'content' => 'Understanding how algorithms power search, recommendations, and automation.',
                 'created_at' => now(),
@@ -673,7 +1011,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l6-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Ethics in Emerging Tech',
                 'content' => 'Ethical considerations for AI, privacy, and responsible innovation.',
                 'created_at' => now(),
@@ -681,7 +1018,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l7-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Collaboration & Version Control',
                 'content' => 'Working with teams, version control basics, and academic integrity in group projects.',
                 'created_at' => now(),
@@ -689,7 +1025,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l8-cs101',
-                'course_id' => 'cs101',
                 'title' => 'Programming Fundamentals Lab',
                 'content' => 'Hands-on lab to practice input/output, conditions, and loops.',
                 'exercise' => 'Create a simple calculator that adds and subtracts two numbers.',
@@ -698,7 +1033,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l9-cs101',
-                'course_id' => 'cs101',
                 'title' => 'AI in Society',
                 'content' => 'Case studies on how AI impacts education, health, and business.',
                 'created_at' => now(),
@@ -706,7 +1040,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l1-bus301',
-                'course_id' => 'bus301',
                 'title' => 'Strategic Leadership Foundations',
                 'content' => 'Leadership models, decision-making frameworks, and strategy alignment.',
                 'created_at' => now(),
@@ -714,19 +1047,268 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 'l2-bus301',
-                'course_id' => 'bus301',
                 'title' => 'Business Analytics Overview',
                 'content' => 'Core KPIs, dashboards, and data-driven decision support.',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'content', 'course_id', 'video_url', 'quiz', 'exercise', 'updated_at']);
+        ];
+
+        DB::table('lessons')->upsert(
+            collect($lessonRows)->map(fn (array $lesson) => [
+                'id' => $lesson['id'],
+                'course_id' => $lesson['course_id'],
+                'title' => $lesson['title'],
+                'summary' => $lesson['content'] ?? null,
+                'publication_status' => 'published',
+                'published_at' => now()->subDays(7),
+                'created_at' => $lesson['created_at'],
+                'updated_at' => $lesson['updated_at'],
+            ])->all(),
+            ['id'],
+            ['title', 'summary', 'course_id', 'publication_status', 'published_at', 'updated_at']
+        );
+
+        $learningObjectRows = [];
+        $lessonLearningObjectRows = [];
+        $learningObjectTypes = [
+            'content' => ['position' => 1, 'title' => 'Lesson Notes'],
+            'video' => ['position' => 2, 'title' => 'Lesson Video'],
+            'quiz' => ['position' => 3, 'title' => 'Knowledge Check'],
+            'exercise' => ['position' => 4, 'title' => 'Practice Exercise'],
+        ];
+
+        foreach ($lessonRows as $lesson) {
+            foreach ($learningObjectTypes as $type => $meta) {
+                $hasObject = $type === 'content'
+                    ? !empty($lesson['content'])
+                    : ($type === 'video'
+                        ? !empty($lesson['video_url'])
+                        : ($type === 'quiz'
+                            ? !empty($lesson['quiz'])
+                            : !empty($lesson['exercise'])));
+
+                if (!$hasObject) {
+                    continue;
+                }
+
+                $learningObjectId = "{$lesson['id']}-{$type}-v1";
+                $learningObjectRows[] = [
+                    'id' => $learningObjectId,
+                    'type' => $type,
+                    'title' => "{$lesson['title']} {$meta['title']}",
+                    'description' => $type === 'content' ? $lesson['content'] : null,
+                    'body' => in_array($type, ['content', 'exercise'], true) ? ($type === 'content' ? $lesson['content'] : $lesson['exercise']) : null,
+                    'asset_url' => $type === 'video' ? $lesson['video_url'] : null,
+                    'payload' => $type === 'quiz' ? $lesson['quiz'] : null,
+                    'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                    'version' => 1,
+                    'version_label' => '2026.1',
+                    'is_current' => true,
+                    'is_reusable' => true,
+                    'review_status' => 'approved',
+                    'publication_status' => 'published',
+                    'reviewed_at' => now()->subDays(8),
+                    'published_at' => now()->subDays(7),
+                    'created_at' => $lesson['created_at'],
+                    'updated_at' => $lesson['updated_at'],
+                ];
+                $lessonLearningObjectRows[] = [
+                    'lesson_id' => $lesson['id'],
+                    'learning_object_id' => $learningObjectId,
+                    'position' => $meta['position'],
+                    'is_required' => true,
+                    'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]),
+                    'publication_status' => 'published',
+                    'created_at' => $lesson['created_at'],
+                    'updated_at' => $lesson['updated_at'],
+                ];
+            }
+        }
+
+        $learningObjectRows = array_merge($learningObjectRows, [
+            [
+                'id' => 'l1-cs101-slides-v1',
+                'type' => 'slides',
+                'title' => 'Digital Systems Overview Slides',
+                'description' => 'Reusable lecture deck covering hardware, software, and network components.',
+                'asset_url' => 'https://example.edu/learning-objects/digital-systems-slides.pdf',
+                'mime_type' => 'application/pdf',
+                'payload' => json_encode(['slideCount' => 18]),
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDays(8),
+                'published_at' => now()->subDays(7),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l3-cs101-flashcards-v1',
+                'type' => 'flashcards',
+                'title' => 'Python Basics Flashcards',
+                'description' => 'Reusable terminology flashcards for beginner Python concepts.',
+                'payload' => json_encode(['cards' => [
+                    ['front' => 'Variable', 'back' => 'A named reference to a value.'],
+                    ['front' => 'Conditional', 'back' => 'Logic that runs only when a condition is true.'],
+                ]]),
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDays(4),
+                'published_at' => now()->subDays(3),
+        ], ['id'], ['title', 'content', 'video_url', 'quiz', 'exercise', 'updated_at']);
+
+        DB::table('learning_objects')->upsert([
+            [
+                'id' => 'lo-python-video',
+                'type' => 'video',
+                'title' => 'Python Basics Demonstration',
+                'body' => null,
+                'url' => 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                'metadata' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l8-cs101-rubric-v1',
+                'type' => 'rubric',
+                'title' => 'Programming Lab Rubric',
+                'description' => 'Assessment rubric for introductory programming labs.',
+                'payload' => json_encode(['criteria' => [
+                    ['name' => 'Correctness', 'points' => 10],
+                    ['name' => 'Code clarity', 'points' => 5],
+                    ['name' => 'Reflection', 'points' => 5],
+                ]]),
+                'access_rules' => json_encode(['roles' => ['lecturer'], 'requiresEnrollment' => false]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'pending_review',
+                'publication_status' => 'draft',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l1-bus301-document-v1',
+                'type' => 'document',
+                'title' => 'Strategic Leadership Brief',
+                'description' => 'Downloadable briefing document for leadership frameworks.',
+                'storage_path' => 'seeded/strategic-leadership-brief.md',
+                'mime_type' => 'text/markdown',
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDay(),
+                'published_at' => now()->subDay(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $lessonLearningObjectRows = array_merge($lessonLearningObjectRows, [
+            ['lesson_id' => 'l1-cs101', 'learning_object_id' => 'l1-cs101-slides-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'l3-cs101-flashcards-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l8-cs101', 'learning_object_id' => 'l8-cs101-rubric-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['lecturer'], 'requiresEnrollment' => false]), 'publication_status' => 'draft', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l1-bus301', 'learning_object_id' => 'l1-bus301-document-v1', 'position' => 5, 'is_required' => true, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $learningObjectDefaults = [
+            'description' => null,
+            'body' => null,
+            'asset_url' => null,
+            'storage_path' => null,
+            'mime_type' => null,
+            'payload' => null,
+            'access_rules' => null,
+            'version' => 1,
+            'version_label' => null,
+            'is_current' => true,
+            'is_reusable' => true,
+            'review_status' => 'draft',
+            'publication_status' => 'draft',
+            'created_by' => null,
+            'updated_by' => null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'published_at' => null,
+            'retracted_at' => null,
+        ];
+        $learningObjectRows = array_map(
+            fn (array $row) => array_merge($learningObjectDefaults, $row),
+            $learningObjectRows
+        );
+
+        DB::table('learning_objects')->upsert(
+            $learningObjectRows,
+            ['id'],
+            ['type', 'title', 'description', 'body', 'asset_url', 'storage_path', 'mime_type', 'payload', 'access_rules', 'version', 'version_label', 'is_current', 'is_reusable', 'review_status', 'publication_status', 'reviewed_at', 'published_at', 'updated_at']
+        );
+
+        DB::table('lesson_learning_objects')->upsert(
+            $lessonLearningObjectRows,
+            ['lesson_id', 'learning_object_id'],
+            ['position', 'is_required', 'access_rules', 'publication_status', 'updated_at']
+        );
+                'id' => 'lo-python-quiz',
+                'type' => 'quiz',
+                'title' => 'Python Basics Check',
+                'body' => null,
+                'url' => null,
+                'metadata' => json_encode([
+                    'questions' => [
+                        ['question' => 'Which keyword creates a conditional block in Python?', 'options' => ['if', 'loop', 'define', 'switch'], 'answer' => 'if'],
+                        ['question' => 'What data type is "42" in Python?', 'options' => ['int', 'string', 'float', 'bool'], 'answer' => 'string'],
+                    ],
+                ]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['type', 'title', 'body', 'url', 'metadata', 'updated_at']);
+
+        DB::table('lesson_learning_object')->upsert([
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-video', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-quiz', 'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()],
+        ], ['lesson_id', 'learning_object_id'], ['sort_order', 'updated_at']);
+
+        DB::table('short_course_lessons')->upsert([
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l1-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l2-cs101', 'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l3-cs101', 'sort_order' => 3, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l4-cs101', 'sort_order' => 4, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l5-cs101', 'sort_order' => 5, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l6-cs101', 'sort_order' => 6, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l7-cs101', 'sort_order' => 7, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l8-cs101', 'sort_order' => 8, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l9-cs101', 'sort_order' => 9, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'bus301', 'lesson_id' => 'l1-bus301', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'bus301', 'lesson_id' => 'l2-bus301', 'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()],
+        ], ['short_course_id', 'lesson_id'], ['sort_order', 'updated_at']);
+
+        DB::table('program_module_lessons')->upsert([
+            ['program_module_id' => 'cs101-sem1-1', 'lesson_id' => 'l1-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['program_module_id' => 'cs101-sem1-2', 'lesson_id' => 'l3-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['program_module_id' => 'cs101-sem1-4', 'lesson_id' => 'l9-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['program_module_id' => 'bus301-sem1-1', 'lesson_id' => 'l1-bus301', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+        ], ['program_module_id', 'lesson_id'], ['sort_order', 'updated_at']);
 
         DB::table('assignments')->upsert([
             [
                 'id' => 1,
                 'module_id' => 'cs101-sem1-1',
-                'course_id' => 'cs101',
                 'title' => 'Digital Literacy Reflection',
                 'description' => 'Reflect on how digital systems shape your daily workflow.',
                 'instructions' => 'Write 500-700 words. Include two real-world examples and one improvement idea.',
@@ -740,7 +1322,6 @@ class UnivAiSeeder extends Seeder
             [
                 'id' => 2,
                 'module_id' => 'cs101-sem1-2',
-                'course_id' => 'cs101',
                 'title' => 'Python Basics Lab',
                 'description' => 'Complete the lab tasks on variables, input/output, and conditionals.',
                 'instructions' => 'Submit a short write-up plus a link to your code repository.',
@@ -754,7 +1335,6 @@ class UnivAiSeeder extends Seeder
             [
                 'id' => 3,
                 'module_id' => 'cs101-sem1-3',
-                'course_id' => 'cs101',
                 'title' => 'Discrete Math Problem Set',
                 'description' => 'Solve the first 10 problems in the provided worksheet.',
                 'instructions' => 'Upload a PDF or share a drive link with your solutions.',
@@ -768,7 +1348,6 @@ class UnivAiSeeder extends Seeder
             [
                 'id' => 4,
                 'module_id' => 'cs101-sem1-4',
-                'course_id' => 'cs101',
                 'title' => 'AI Ethics Essay',
                 'description' => 'Analyze an AI ethics case study and propose safeguards.',
                 'instructions' => '800-1000 words. Cite at least 2 sources.',
@@ -782,7 +1361,6 @@ class UnivAiSeeder extends Seeder
             [
                 'id' => 5,
                 'module_id' => 'cs101-sem1-5',
-                'course_id' => 'cs101',
                 'title' => 'Professional Portfolio Draft',
                 'description' => 'Create a draft student portfolio with your goals, skills, and project outline.',
                 'instructions' => 'Submit a PDF or live link to your portfolio page.',
@@ -798,7 +1376,6 @@ class UnivAiSeeder extends Seeder
         DB::table('exam_questions')->upsert([
             [
                 'id' => 1,
-                'course_id' => 'cs101',
                 'semester' => 1,
                 'question' => 'Which of these is NOT a core component of a computer system?',
                 'options' => json_encode(['CPU', 'RAM', 'Mouse', 'Hard Drive']),
@@ -808,7 +1385,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 2,
-                'course_id' => 'cs101',
                 'semester' => 1,
                 'question' => 'What does the if statement do in Python?',
                 'options' => json_encode([
@@ -823,7 +1399,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 3,
-                'course_id' => 'cs101',
                 'semester' => 1,
                 'question' => 'Which of the following is a key application of AI?',
                 'options' => json_encode([
@@ -1003,7 +1578,7 @@ class UnivAiSeeder extends Seeder
                 ]),
                 'subject_count' => 6,
                 'total_points' => 34,
-                'delivery_mode' => 'online',
+                'delivery_mode' => 'software_only',
                 'learning_style' => 'personalized',
                 'study_pace' => 'flex',
                 'country' => 'Zambia',
@@ -1090,6 +1665,7 @@ class UnivAiSeeder extends Seeder
                 [
                     'id' => 1,
                     'lesson_id' => 'l1-cs101',
+                    'learning_object_id' => 'l1-cs101-slides-v1',
                     'intake_id' => 'cs101-2026-jan',
                     'source' => 'manual',
                     'status' => 'approved',
@@ -1107,6 +1683,7 @@ class UnivAiSeeder extends Seeder
                 [
                     'id' => 2,
                     'lesson_id' => 'l3-cs101',
+                    'learning_object_id' => 'l3-cs101-exercise-v1',
                     'intake_id' => 'cs101-2026-jan',
                     'source' => 'manual',
                     'status' => 'pending',
@@ -1124,6 +1701,7 @@ class UnivAiSeeder extends Seeder
                 [
                     'id' => 3,
                     'lesson_id' => 'l1-bus301',
+                    'learning_object_id' => 'l1-bus301-document-v1',
                     'intake_id' => 'bus301-2026-jan',
                     'source' => 'manual',
                     'status' => 'approved',
@@ -1138,7 +1716,7 @@ class UnivAiSeeder extends Seeder
                     'created_at' => now()->subDay(),
                     'updated_at' => now()->subHours(12),
                 ],
-            ], ['id'], ['lesson_id', 'intake_id', 'status', 'approved_by', 'approved_at', 'file_name', 'mime_type', 'storage_path', 'extracted_text', 'review_notes', 'updated_at']);
+            ], ['id'], ['lesson_id', 'learning_object_id', 'intake_id', 'status', 'approved_by', 'approved_at', 'file_name', 'mime_type', 'storage_path', 'extracted_text', 'review_notes', 'updated_at']);
         }
 
         DB::table('enrollments')->upsert([
@@ -1154,7 +1732,6 @@ class UnivAiSeeder extends Seeder
 
         DB::table('course_lecturer_assignments')->upsert([
             [
-                'course_id' => 'cs101',
                 'module_id' => 'cs101-sem1-1',
                 'lecturer_id' => $lecturerId,
                 'intake_id' => 'cs101-2026-jan',
@@ -1168,7 +1745,6 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'course_id' => 'cs101',
                 'module_id' => 'cs101-sem1-2',
                 'lecturer_id' => $lecturerAId,
                 'intake_id' => 'cs101-2026-jan',
@@ -1182,7 +1758,6 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'course_id' => 'cs101',
                 'module_id' => 'cs101-sem1-3',
                 'lecturer_id' => $lecturerBId,
                 'intake_id' => 'cs101-2026-jan',
@@ -1196,7 +1771,6 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'course_id' => 'bus301',
                 'module_id' => 'bus301-sem1-1',
                 'lecturer_id' => $lecturerAId,
                 'intake_id' => 'bus301-2026-jan',
@@ -1214,7 +1788,6 @@ class UnivAiSeeder extends Seeder
         DB::table('course_sessions')->upsert([
             [
                 'id' => 1,
-                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'Intro Lecture - Digital Systems',
                 'session_type' => 'lecture',
@@ -1229,7 +1802,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 2,
-                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'Programming Fundamentals Lab',
                 'session_type' => 'lab',
@@ -1244,7 +1816,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 3,
-                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'AI Ethics Workshop',
                 'session_type' => 'workshop',
@@ -1259,7 +1830,6 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 4,
-                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'Project Clinic',
                 'session_type' => 'tutorial',

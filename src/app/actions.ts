@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { GenerateContentInputSchema } from '@/lib/schemas';
+import { createDraftLearningObject } from '@/lib/ai-content-factory';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
@@ -217,7 +218,17 @@ Include:
 6) Short wrap-up summary.
 Return in markdown with headings.`;
     const script = await callAi(prompt, 'lesson', context);
-    return { message: 'Success', errors: null, script };
+    const learningObject = createDraftLearningObject({
+      type: 'VideoScript',
+      title: `Lecture script: ${topic}`,
+      content: script,
+      prompt,
+      generatorFlow: 'generateLectureScriptAction',
+      generatedBy: 'lecturer-ai-console',
+      sourceMaterial,
+      programmeContent: true,
+    });
+    return { message: 'Success', errors: null, script, learningObject };
   } catch (error) {
     console.error('Lecture script generation error:', error);
     return {
@@ -256,11 +267,31 @@ export async function generateContentAction(prevState: any, formData: FormData) 
 Return strict JSON only in this schema:
 {"title":"string","questions":[{"question":"string","options":["A","B","C","D"],"answer":"string"}]}`;
           const quiz = await callAi(prompt, 'quiz', context);
-          return { message: 'Success', errors: null, content: quiz };
+          const learningObject = createDraftLearningObject({
+            type: 'Quiz',
+            title: `Quiz: ${topic}`,
+            content: quiz,
+            prompt,
+            generatorFlow: 'generateContentAction',
+            generatedBy: 'lecturer-ai-console',
+            sourceMaterial,
+            programmeContent: true,
+          });
+          return { message: 'Success', errors: null, content: quiz, learningObject };
         }
         const prompt = `${intakeBlock}${sourceBlock}Create a practical exercise for the topic "${topic}". Provide instructions and expected outcome.`;
         const exercise = await callAi(prompt, 'lesson', context);
-        return { message: 'Success', errors: null, content: exercise };
+        const learningObject = createDraftLearningObject({
+          type: 'Exercise',
+          title: `Exercise: ${topic}`,
+          content: exercise,
+          prompt,
+          generatorFlow: 'generateContentAction',
+          generatedBy: 'lecturer-ai-console',
+          sourceMaterial,
+          programmeContent: true,
+        });
+        return { message: 'Success', errors: null, content: exercise, learningObject };
       } catch (error) {
         console.error('Content generation error:', error);
         return { 

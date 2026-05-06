@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { createDraftLearningObject } from '@/lib/ai-content-factory';
 
 const PersonalizedStudyPlanInputSchema = z.object({
   learningHistory: z
@@ -26,8 +27,12 @@ const PersonalizedStudyPlanInputSchema = z.object({
 });
 export type PersonalizedStudyPlanInput = z.infer<typeof PersonalizedStudyPlanInputSchema>;
 
-const PersonalizedStudyPlanOutputSchema = z.object({
+const PersonalizedStudyPlanPromptOutputSchema = z.object({
   studyPlan: z.string().describe('A personalized study plan for the student, including specific topics to study, resources to use, and a schedule to follow.'),
+});
+
+const PersonalizedStudyPlanOutputSchema = PersonalizedStudyPlanPromptOutputSchema.extend({
+  learningObject: z.any().describe('Governed learning-object record with metadata and approval status.'),
 });
 export type PersonalizedStudyPlanOutput = z.infer<typeof PersonalizedStudyPlanOutputSchema>;
 
@@ -42,6 +47,8 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI-powered study plan generator. You will take a student's learning history, goals, available time, and AI access tier to generate an appropriate study plan.
 
 Free students should receive only brief next-step guidance and no cashback. Paid-certificate students should receive certificate-focused plans. Premium students should receive advanced tutor, study plan, flashcard, mock exam, and weak-area support. Programme students should receive plans grounded in approved module materials.
+  output: {schema: PersonalizedStudyPlanPromptOutputSchema},
+  prompt: `You are an AI-powered study plan generator. You will take a student's learning history, goals, and available time, and generate a personalized study plan for them.
 
 Learning History: {{{learningHistory}}}
 Goals: {{{goals}}}
@@ -60,6 +67,18 @@ const generatePersonalizedStudyPlanFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    const studyPlan = output!.studyPlan;
+    return {
+      studyPlan,
+      learningObject: createDraftLearningObject({
+        type: 'StudyPlan',
+        title: 'Personalized Study Plan',
+        content: studyPlan,
+        prompt: `Learning history: ${input.learningHistory}\nGoals: ${input.goals}\nAvailable time: ${input.availableTime}`,
+        generatorFlow: 'generatePersonalizedStudyPlanFlow',
+        sourceMaterial: input.learningHistory,
+        programmeContent: false,
+      }),
+    };
   }
 );

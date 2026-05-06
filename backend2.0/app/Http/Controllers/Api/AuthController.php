@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Access\AccessControl;
 use Illuminate\Http\Request;
+use App\Support\StudentAccess;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -20,7 +22,7 @@ class AuthController extends Controller
         if (!empty($payload['email'])) {
             $email = strtolower(trim($payload['email']));
             $password = $payload['password'] ?? '';
-            $user = User::where('email', $email)->first();
+            $user = User::with(['activeSubscription', 'activeEntitlements'])->where('email', $email)->first();
 
             if ($user && Hash::check($password, $user->password)) {
                 $sessionUser = $this->mapUser($user);
@@ -60,6 +62,8 @@ class AuthController extends Controller
             'email' => $payload['email'],
             'password' => Hash::make($payload['password']),
             'role' => 'applicant',
+            'account_state' => 'applicant',
+            'verification_status' => 'email',
         ]);
 
         $sessionUser = $this->mapUser($user);
@@ -107,14 +111,26 @@ class AuthController extends Controller
 
     private function mapUser(User $user): array
     {
-        return [
+        $sessionUser = [
             'id' => (string) $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'role' => $user->role ?? 'student',
+            'role' => $user->role ?? StudentAccess::ROLE_STUDENT,
             'schoolId' => $user->school_id,
             'programId' => $user->program_id,
             'intakeId' => $user->intake_id,
+        ];
+
+        $access = app(AccessControl::class)->contextFor($sessionUser);
+
+        return $sessionUser + [
+            'accountState' => $access['state'],
+            'verificationStatus' => $access['verification'],
+            'profileCompleted' => $access['profileCompleted'],
+            'profileStarted' => $access['profileStarted'],
+            'subscriptionStatus' => $access['subscription'],
+            'subscriptionTier' => $access['subscriptionTier'],
+            'entitlements' => $access['entitlements'],
         ];
     }
 
@@ -132,6 +148,7 @@ class AuthController extends Controller
     {
         return [
             'student.premium@univai.edu' => 'premium-student',
+            'student.free@univai.edu' => 'free-student',
             'student.freemium@univai.edu' => 'freemium-student',
             'student.free@univai.edu' => 'free-student',
             'student.certificate@univai.edu' => 'paid-certificate-student',
@@ -150,8 +167,19 @@ class AuthController extends Controller
                 'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
                 'email' => $role === 'free-student' ? 'student.free@univai.edu' : 'student.freemium@univai.edu',
                 'role' => $role,
+            'free-student', 'freemium-student' => StudentAccess::sessionPayload([
+                'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
+                'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
+                'email' => $role === 'free-student' ? 'student.free@univai.edu' : 'student.freemium@univai.edu',
+                'role' => $role === 'free-student' ? StudentAccess::ROLE_FREE : StudentAccess::ROLE_FREEMIUM,
                 'schoolId' => null,
                 'programId' => null,
+                'accountState' => 'active',
+                'verificationStatus' => 'email',
+                'profileCompleted' => true,
+                'subscriptionStatus' => 'free',
+                'subscriptionTier' => 'freemium',
+                'entitlements' => ['student_portal'],
             ],
             'paid-certificate-student' => [
                 'id' => 'student-certificate',
@@ -176,27 +204,68 @@ class AuthController extends Controller
                 'name' => 'Lecturer',
                 'email' => 'lecturer@univai.edu',
                 'role' => 'lecturer',
+                'accountState' => 'active',
+                'verificationStatus' => 'identity',
+                'profileCompleted' => true,
+                'subscriptionStatus' => 'none',
+                'subscriptionTier' => 'none',
+                'entitlements' => ['teaching'],
             ],
             'employer' => [
                 'id' => 'employer-1',
                 'name' => 'Employer',
                 'email' => 'employer@univai.edu',
                 'role' => 'employer',
+                'accountState' => 'active',
+                'verificationStatus' => 'email',
+                'profileCompleted' => true,
+                'subscriptionStatus' => 'none',
+                'subscriptionTier' => 'none',
+                'entitlements' => ['employer_portal'],
             ],
             'admin' => [
                 'id' => 'admin-1',
                 'name' => 'Admin',
                 'email' => 'admin@univai.edu',
                 'role' => 'admin',
+                'accountState' => 'active',
+                'verificationStatus' => 'identity',
+                'profileCompleted' => true,
+                'subscriptionStatus' => 'none',
+                'subscriptionTier' => 'none',
+                'entitlements' => ['admin_portal'],
             ],
-            default => [
-                'id' => 'student-premium',
-                'name' => 'Premium Student',
-                'email' => 'student.premium@univai.edu',
-                'role' => 'premium-student',
+            'certificate-student' => StudentAccess::sessionPayload([
+                'id' => 'student-certificate',
+                'name' => 'Certificate Student',
+                'email' => 'student.certificate@univai.edu',
+                'role' => StudentAccess::ROLE_CERTIFICATE,
+                'schoolId' => null,
+                'programId' => null,
+            ]),
+            'programme-student', 'enrolled' => StudentAccess::sessionPayload([
+                'id' => 'student-programme',
+                'name' => 'Programme Student',
+                'email' => 'student.programme@univai.edu',
+                'role' => StudentAccess::ROLE_PROGRAMME,
                 'schoolId' => 'ict',
                 'programId' => 'cs101',
                 'intakeId' => 'cs101-2026-jan',
+            ]),
+            default => StudentAccess::sessionPayload([
+                'id' => 'student-premium',
+                'name' => 'Premium Student',
+                'email' => 'student.premium@univai.edu',
+                'role' => StudentAccess::ROLE_PREMIUM,
+                'schoolId' => 'ict',
+                'programId' => 'cs101',
+                'intakeId' => 'cs101-2026-jan',
+                'accountState' => 'active',
+                'verificationStatus' => 'email',
+                'profileCompleted' => true,
+                'subscriptionStatus' => 'active',
+                'subscriptionTier' => 'premium',
+                'entitlements' => ['student_portal', 'course_access', 'ai_tutor'],
             ],
         };
     }

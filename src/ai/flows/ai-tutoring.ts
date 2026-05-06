@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { createDraftLearningObject } from '@/lib/ai-content-factory';
 
 const AITutorInputSchema = z.object({
   question: z.string().describe('The student\'s question about the course material.'),
@@ -19,8 +20,12 @@ const AITutorInputSchema = z.object({
 });
 export type AITutorInput = z.infer<typeof AITutorInputSchema>;
 
-const AITutorOutputSchema = z.object({
-  answer: z.string().describe('The AI tutor\'s answer to the question.'),
+const AITutorPromptOutputSchema = z.object({
+  answer: z.string().describe("The AI tutor's answer to the question."),
+});
+
+const AITutorOutputSchema = AITutorPromptOutputSchema.extend({
+  learningObject: z.any().describe('Governed learning-object record with metadata and approval status.'),
 });
 export type AITutorOutput = z.infer<typeof AITutorOutputSchema>;
 
@@ -31,7 +36,7 @@ export async function aiTutor(input: AITutorInput): Promise<AITutorOutput> {
 const prompt = ai.definePrompt({
   name: 'aiTutorPrompt',
   input: {schema: AITutorInputSchema},
-  output: {schema: AITutorOutputSchema},
+  output: {schema: AITutorPromptOutputSchema},
   prompt: `You are an AI tutor specializing in answering student questions about course material.
 
   Student AI access tier: {{{accessTier}}}
@@ -59,6 +64,18 @@ const aiTutorFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    const answer = output!.answer;
+    return {
+      answer,
+      learningObject: createDraftLearningObject({
+        type: 'TutorResponse',
+        title: `Tutor response: ${input.question.slice(0, 60)}`,
+        content: answer,
+        prompt: `Question: ${input.question}\nCourse material: ${input.courseMaterial}`,
+        generatorFlow: 'aiTutorFlow',
+        sourceMaterial: input.courseMaterial,
+        programmeContent: false,
+      }),
+    };
   }
 );

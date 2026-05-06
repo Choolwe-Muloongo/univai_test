@@ -14,6 +14,13 @@ export type SessionUser = {
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
+  accountState?: string | null;
+  verificationStatus?: string | null;
+  profileCompleted?: boolean | null;
+  profileStarted?: boolean | null;
+  subscriptionStatus?: string | null;
+  subscriptionTier?: string | null;
+  entitlements?: string[] | null;
 };
 
 export type Session = {
@@ -32,6 +39,41 @@ export type Course = {
   schoolId: string;
   progress?: number | null;
   imageId: string;
+  supportedDeliveryModes?: string[];
+};
+
+export type QualificationLevel = {
+  id: string;
+  name: string;
+  category: string;
+  defaultCredits: number;
+  minimumCredits: number;
+  maximumCredits?: number | null;
+  durationMonths: number;
+  admissionRequirements?: string | null;
+  allowedDeliveryModes: string[];
+  requiresExamClinic: boolean;
+  requiresAccreditationApproval: boolean;
+  minimumSubjectCount: number;
+  minimumTotalPoints: number;
+  requiredPriorQualification?: string | null;
+};
+
+export type ProgramPayload = {
+  id: string;
+  title: string;
+  description: string;
+  schoolId: string;
+  qualificationLevelId: string;
+  credits?: number | null;
+  durationMonths?: number | null;
+  admissionRequirements?: string | null;
+  deliveryModes?: string[];
+  examClinicRequired?: boolean;
+  requiresAccreditationApproval?: boolean;
+  accreditationApproved?: boolean;
+  launchStatus?: string;
+  imageId?: string | null;
 };
 
 export type ProgramModule = {
@@ -44,6 +86,7 @@ export type ProgramModule = {
   progress: number;
   semester: number;
   isExamAvailable: boolean;
+  supportedDeliveryModes?: string[];
   isCore?: boolean;
   track?: string | null;
 };
@@ -54,10 +97,21 @@ export type Program = {
   description: string;
   schoolId: string;
   schoolName?: string | null;
+  qualificationLevelId?: string | null;
+  qualificationLevel?: QualificationLevel | null;
+  credits?: number | null;
+  durationMonths?: number | null;
+  admissionRequirements?: string | null;
+  deliveryModes?: string[];
   deliveryMode?: string | null;
+  supportedDeliveryModes?: string[];
   campus?: string | null;
   intakeId?: string | null;
   curriculumVersion?: { id: string; name: string; status: string } | null;
+  examClinicRequired?: boolean;
+  requiresAccreditationApproval?: boolean;
+  accreditationApprovedAt?: string | null;
+  launchStatus?: string | null;
   progress: number;
   imageId: string;
   modules: ProgramModule[];
@@ -70,6 +124,31 @@ export type Lesson = {
   videoUrl?: string | null;
   exercise?: string | null;
   quiz?: LessonQuiz | null;
+  learningObjects?: LearningObject[];
+};
+
+export type LearningObject = {
+  id: string;
+  type: 'content' | 'video' | 'quiz' | 'exercise' | 'slides' | 'flashcards' | 'document' | 'rubric' | string;
+  title: string;
+  description?: string | null;
+  body?: string | null;
+  assetUrl?: string | null;
+  storagePath?: string | null;
+  mimeType?: string | null;
+  payload?: Record<string, any> | null;
+  accessRules?: Record<string, any> | null;
+  version: number;
+  versionLabel?: string | null;
+  isCurrent: boolean;
+  isReusable: boolean;
+  reviewStatus: string;
+  publicationStatus: string;
+  position?: number | null;
+  isRequired?: boolean | null;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
+  publishedAt?: string | null;
 };
 
 export type LessonQuiz = {
@@ -398,6 +477,7 @@ export type StudentDashboardWallet = {
   label: string;
   value: string;
   note?: string;
+  cashbackEligible?: boolean;
 };
 
 export type StudentDashboardData = {
@@ -426,6 +506,7 @@ export type Intake = {
   curriculumVersionId?: string | null;
   name: string;
   deliveryMode: string;
+  supportedDeliveryModes?: string[];
   campus?: string | null;
   capacity?: number | null;
   startDate?: string | null;
@@ -450,6 +531,7 @@ export type CurriculumModule = {
   hoursPerWeek?: number | null;
   semester: number;
   isCore: boolean;
+  supportedDeliveryModes?: string[];
   track?: string | null;
 };
 
@@ -471,6 +553,7 @@ export type LecturerAssignment = {
   intakeId?: string | null;
   intakeName?: string | null;
   deliveryMode?: string | null;
+  supportedDeliveryModes?: string[];
   campus?: string | null;
   role?: string | null;
   meetingProvider?: string | null;
@@ -531,6 +614,7 @@ export type AiResponse = {
 export type LessonDocument = {
   id: number;
   lessonId: string;
+  learningObjectId?: string | null;
   intakeId?: string | null;
   fileName: string;
   mimeType?: string | null;
@@ -550,6 +634,7 @@ export type CourseMeeting = {
   meetingUrl?: string | null;
   meetingSchedule?: Record<string, unknown> | null;
   meetingNotes?: string | null;
+  deliveryMode?: string | null;
 };
 
 export type CourseSession = {
@@ -558,6 +643,7 @@ export type CourseSession = {
   intakeId?: string | null;
   title: string;
   sessionType?: string | null;
+  deliveryMode?: string | null;
   dayOfWeek?: string | null;
   startTime?: string | null;
   endTime?: string | null;
@@ -580,6 +666,8 @@ export type Invoice = {
   paidAmount: string;
   status: string;
   dueDate?: string | null;
+  deliveryMode?: string | null;
+  feePolicy?: string | null;
 };
 
 export type Payment = {
@@ -595,6 +683,7 @@ export type EnrollmentData = {
   status: string;
   intakeId?: string | null;
   selectedModules?: string[];
+  deliveryMode?: string | null;
   enrolledAt?: string | null;
   confirmedAt?: string | null;
 };
@@ -678,6 +767,13 @@ export type WalletSettings = {
   walletAddress?: string | null;
   payoutCurrency?: string | null;
   status?: string | null;
+  cashbackEligible?: boolean;
+};
+
+export type StudentEntitlementsResponse = {
+  accessTier: string;
+  entitlements: string[];
+  cashbackEligible: boolean;
 };
 
 export type PaymentMethod = {
@@ -775,4 +871,117 @@ export type ResearchApplication = {
   availability?: string | null;
   status: string;
   createdAt?: string | null;
+};
+
+export type ExamCentre = {
+  id: number;
+  name: string;
+  code: string;
+  location: string;
+  timezone: string;
+  capacity: number;
+  approvalStatus: string;
+  approvalNotes?: string | null;
+  approvedAt?: string | null;
+  roomsCount?: number | null;
+  sessionsCount?: number | null;
+};
+
+export type ExamRoom = {
+  id: number;
+  centreId: number;
+  centreName?: string | null;
+  name: string;
+  code?: string | null;
+  capacity: number;
+  accessibilityNotes?: string | null;
+  equipment: string[];
+  status: string;
+};
+
+export type ExamInvigilator = {
+  id: number;
+  userId?: string | null;
+  name: string;
+  email: string;
+  phone?: string | null;
+  certifications: string[];
+  status: string;
+};
+
+export type ExamClinicSession = {
+  id: number;
+  centreId: number;
+  centreName?: string | null;
+  roomId?: number | null;
+  roomName?: string | null;
+  invigilatorId?: number | null;
+  invigilatorName?: string | null;
+  examId: string;
+  title: string;
+  programId?: string | null;
+  moduleId?: string | null;
+  courseId?: string | null;
+  deliveryMode: string;
+  startsAt: string;
+  endsAt: string;
+  capacity: number;
+  bookingsCount: number;
+  incidentsCount?: number | null;
+  status: string;
+  rules: string[];
+};
+
+export type ExamBooking = {
+  id: number;
+  sessionId: number;
+  studentId: string;
+  studentName?: string | null;
+  studentEmail?: string | null;
+  status: string;
+  accommodations?: string | null;
+  bookedAt?: string | null;
+  session?: ExamClinicSession | null;
+  attendance?: {
+    id: number;
+    status: string;
+    checkedInAt?: string | null;
+    checkedOutAt?: string | null;
+    notes?: string | null;
+  } | null;
+};
+
+export type ExamIncident = {
+  id: number;
+  sessionId: number;
+  bookingId?: number | null;
+  severity: string;
+  category: string;
+  description: string;
+  status: string;
+  reportedBy?: string | null;
+  actions: string[];
+  createdAt?: string | null;
+  sessionTitle?: string | null;
+};
+
+export type ExamResultsSyncLog = {
+  id: number;
+  sessionId?: number | null;
+  sessionTitle?: string | null;
+  status: string;
+  recordsSynced: number;
+  message?: string | null;
+  syncedAt?: string | null;
+  triggeredBy?: string | null;
+};
+
+export type ExamClinicOverview = {
+  centres: ExamCentre[];
+  rooms: ExamRoom[];
+  invigilators: ExamInvigilator[];
+  sessions: ExamClinicSession[];
+  bookings: ExamBooking[];
+  incidents: ExamIncident[];
+  resultsSync: ExamResultsSyncLog[];
 };

@@ -1,14 +1,16 @@
 // src/ai/flows/content-generation.ts
 'use server';
 /**
- * @fileOverview A flow for generating educational content like quizzes and exercises using AI.
+ * @fileOverview AI content factory for generating reviewable learning objects.
  *
- * - generateCourseContent - A function that handles the content generation process.
+ * - generateCourseContent - Generates notes, slides, video scripts, flashcards,
+ *   quizzes, assignments, rubrics, study guides, and exercises with governance metadata.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { GenerateContentInput, GenerateContentOutput } from '@/lib/schemas';
+import { createDraftLearningObject } from '@/lib/ai-content-factory';
+import type { GenerateContentInput, GenerateContentOutput, LearningObjectType } from '@/lib/schemas';
 import { GenerateContentInputSchema, GenerateContentOutputSchema } from '@/lib/schemas';
 
 export async function generateCourseContent(
@@ -17,40 +19,46 @@ export async function generateCourseContent(
   return generateContentFlow(input);
 }
 
-const quizPrompt = ai.definePrompt({
-    name: 'quizGenerationPrompt',
-    input: { schema: z.object({ topic: z.string() }) },
-    output: { schema: z.object({ content: z.string() }) },
-    prompt: `You are an expert quiz designer for university-level courses. Generate a 5-question multiple-choice quiz about the following topic: {{{topic}}}.
+const contentFactoryPrompt = ai.definePrompt({
+  name: 'contentFactoryPrompt',
+  input: {
+    schema: z.object({
+      topic: z.string(),
+      contentType: z.string(),
+      sourceMaterial: z.string().optional(),
+    }),
+  },
+  output: {
+    schema: z.object({
+      title: z.string(),
+      content: z.string(),
+    }),
+  },
+  prompt: `You are an expert university AI content factory.
+Generate one high-quality {{{contentType}}} learning object for this topic: {{{topic}}}.
 
-    Provide the output as a JSON string in the following format:
-    {
-      "title": "Quiz on {{{topic}}}",
-      "questions": [
-        {
-          "question": "...",
-          "options": ["...", "...", "...", "..."],
-          "answer": "..."
-        }
-      ]
-    }
-    
-    The 'content' field in your output schema should contain this JSON as a string.
-    `,
+{{#if sourceMaterial}}
+Use this source material as the authoritative basis:
+{{{sourceMaterial}}}
+{{/if}}
+
+Follow the format for the requested object:
+- Notes: structured markdown notes with headings, examples, and misconceptions.
+- Slides: markdown slide deck with slide numbers, titles, bullets, speaker notes, and visual suggestions.
+- VideoScript: narration script with timestamps, scene directions, visual cues, and checks for understanding.
+- Flashcards: JSON array of cards with front, back, hint, and difficulty.
+- Quiz: strict JSON with title and questions, each with question, options, answer, and rationale.
+- Assignment: markdown brief with scenario, tasks, deliverables, marking criteria, and submission checklist.
+- Rubric: markdown table with criteria, weightings, performance bands, and feedback guidance.
+- StudyGuide: structured markdown guide with objectives, key concepts, worked examples, practice tasks, and revision plan.
+- Exercise: practical exercise with instructions, starter code when relevant, expected outcome, and extension task.
+
+Return only the title and content fields in the output schema.`,
 });
 
-const exercisePrompt = ai.definePrompt({
-    name: 'exerciseGenerationPrompt',
-    input: { schema: z.object({ topic: z.string() }) },
-    output: { schema: z.object({ content: z.string() }) },
-    prompt: `You are an expert curriculum designer for university-level computer science courses. Create a simple Python coding exercise for the following topic: {{{topic}}}.
-
-    Provide a function signature and a comment indicating where the student should write their code. Include a brief description of the task.
-    
-    The 'content' field in your output schema should contain only the Python code block as a string.
-    `,
-});
-
+function fallbackTitle(contentType: LearningObjectType, topic: string) {
+  return `${contentType}: ${topic}`;
+}
 
 const generateContentFlow = ai.defineFlow(
   {
@@ -59,12 +67,33 @@ const generateContentFlow = ai.defineFlow(
     outputSchema: GenerateContentOutputSchema,
   },
   async (input) => {
-    if (input.contentType === 'Quiz') {
-      const { output } = await quizPrompt({ topic: input.topic });
-      return output!;
-    } else {
-      const { output } = await exercisePrompt({ topic: input.topic });
-      return output!;
-    }
+    const { output } = await contentFactoryPrompt({
+      topic: input.topic,
+      contentType: input.contentType,
+      sourceMaterial: input.sourceMaterial,
+    });
+
+    const title = output?.title?.trim() || fallbackTitle(input.contentType, input.topic);
+    const content = output?.content?.trim() || '';
+    const prompt = [
+      `Generate ${input.contentType} for: ${input.topic}`,
+      input.sourceMaterial ? `Source material: ${input.sourceMaterial}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    return {
+      content,
+      learningObject: createDraftLearningObject({
+        type: input.contentType,
+        title,
+        content,
+        prompt,
+        generatorFlow: 'generateContentFlow',
+        generatedBy: input.generatedBy,
+        sourceMaterial: input.sourceMaterial,
+        programmeContent: input.programmeContent,
+      }),
+    };
   }
 );
