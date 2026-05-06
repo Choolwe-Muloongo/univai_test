@@ -776,3 +776,116 @@ export type ResearchApplication = {
   status: string;
   createdAt?: string | null;
 };
+
+export type ExamCentre = {
+  id: number;
+  name: string;
+  code: string;
+  location: string;
+  timezone: string;
+  capacity: number;
+  approvalStatus: string;
+  approvalNotes?: string | null;
+  approvedAt?: string | null;
+  roomsCount?: number | null;
+  sessionsCount?: number | null;
+};
+
+export type ExamRoom = {
+  id: number;
+  centreId: number;
+  centreName?: string | null;
+  name: string;
+  code?: string | null;
+  capacity: number;
+  accessibilityNotes?: string | null;
+  equipment: string[];
+  status: string;
+};
+
+export type ExamInvigilator = {
+  id: number;
+  userId?: string | null;
+  name: string;
+  email: string;
+  phone?: string | null;
+  certifications: string[];
+  status: string;
+};
+
+export type ExamClinicSession = {
+  id: number;
+  centreId: number;
+  centreName?: string | null;
+  roomId?: number | null;
+  roomName?: string | null;
+  invigilatorId?: number | null;
+  invigilatorName?: string | null;
+  examId: string;
+  title: string;
+  programId?: string | null;
+  moduleId?: string | null;
+  courseId?: string | null;
+  deliveryMode: string;
+  startsAt: string;
+  endsAt: string;
+  capacity: number;
+  bookingsCount: number;
+  incidentsCount?: number | null;
+  status: string;
+  rules: string[];
+};
+
+export type ExamBooking = {
+  id: number;
+  sessionId: number;
+  studentId: string;
+  studentName?: string | null;
+  studentEmail?: string | null;
+  status: string;
+  accommodations?: string | null;
+  bookedAt?: string | null;
+  session?: ExamClinicSession | null;
+  attendance?: {
+    id: number;
+    status: string;
+    checkedInAt?: string | null;
+    checkedOutAt?: string | null;
+    notes?: string | null;
+  } | null;
+};
+
+export type ExamIncident = {
+  id: number;
+  sessionId: number;
+  bookingId?: number | null;
+  severity: string;
+  category: string;
+  description: string;
+  status: string;
+  reportedBy?: string | null;
+  actions: string[];
+  createdAt?: string | null;
+  sessionTitle?: string | null;
+};
+
+export type ExamResultsSyncLog = {
+  id: number;
+  sessionId?: number | null;
+  sessionTitle?: string | null;
+  status: string;
+  recordsSynced: number;
+  message?: string | null;
+  syncedAt?: string | null;
+  triggeredBy?: string | null;
+};
+
+export type ExamClinicOverview = {
+  centres: ExamCentre[];
+  rooms: ExamRoom[];
+  invigilators: ExamInvigilator[];
+  sessions: ExamClinicSession[];
+  bookings: ExamBooking[];
+  incidents: ExamIncident[];
+  resultsSync: ExamResultsSyncLog[];
+};

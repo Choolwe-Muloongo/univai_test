@@ -89,6 +89,7 @@ const allLinks: { [key: string]: NavLink[] } = {
     { href: '/admin/route-requests', label: 'Route Requests', icon: ArrowLeftRight },
     { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays },
     { href: '/admin/assignments', label: 'Assignments', icon: Link2 },
+    { href: '/admin/exam-clinic', label: 'Exam Clinic', icon: ClipboardCheck },
     { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck },
     { href: '/admin/ai', label: 'AI Console', icon: Sparkles },
     { href: '/admin/curriculum', label: 'Curriculum', icon: BookMarked },
@@ -127,7 +128,7 @@ export function AppSidebar({ role }: { role?: string }) {
 
   useEffect(() => {
     const resolvedRole = role || 'premium-student';
-    const normalizedRole = resolvedRole === 'enrolled' ? 'premium-student' : resolvedRole;
+    const normalizedRole = resolvedRole === 'enrolled' ? 'premium-student' : resolvedRole === 'exam-officer' ? 'admin' : resolvedRole;
     setLinks(allLinks[normalizedRole] || allLinks['premium-student']);
   }, [pathname, role]);
 

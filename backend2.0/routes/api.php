@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Http\Controllers\Api\ExamClinicController;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -111,6 +112,10 @@ Route::middleware('api')->group(function () {
         Route::get('/students/me/assignments', [StudentAssignmentsController::class, 'index']);
         Route::get('/students/me/assignments/submissions', [StudentAssignmentsController::class, 'submissions']);
         Route::get('/students/me/assignments/{assignment}', [StudentAssignmentsController::class, 'show']);
+        Route::get('/students/me/exam-clinic/sessions', [ExamClinicController::class, 'studentSessions']);
+        Route::get('/students/me/exam-clinic/bookings', [ExamClinicController::class, 'studentBookings']);
+        Route::post('/students/me/exam-clinic/bookings', [ExamClinicController::class, 'bookSession']);
+        Route::delete('/students/me/exam-clinic/bookings/{booking}', [ExamClinicController::class, 'cancelBooking']);
         Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
         Route::get('/students/me/support/tickets', [SupportController::class, 'index']);
         Route::post('/students/me/support/tickets', [SupportController::class, 'store']);
@@ -166,6 +171,19 @@ Route::middleware('api')->group(function () {
 
     Route::prefix('employer')->middleware(['session.auth', 'role:employer'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'employer']);
+    });
+
+    Route::prefix('admin')->middleware(['session.auth', 'role:admin,exam-officer'])->group(function () {
+        Route::get('/exam-clinic', [ExamClinicController::class, 'adminOverview']);
+        Route::post('/exam-clinic/centres', [ExamClinicController::class, 'storeCentre']);
+        Route::patch('/exam-clinic/centres/{centre}/approval', [ExamClinicController::class, 'updateCentreApproval']);
+        Route::post('/exam-clinic/rooms', [ExamClinicController::class, 'storeRoom']);
+        Route::post('/exam-clinic/invigilators', [ExamClinicController::class, 'storeInvigilator']);
+        Route::post('/exam-clinic/sessions', [ExamClinicController::class, 'storeSession']);
+        Route::patch('/exam-clinic/sessions/{session}', [ExamClinicController::class, 'updateSession']);
+        Route::post('/exam-clinic/sessions/{session}/incidents', [ExamClinicController::class, 'storeIncident']);
+        Route::post('/exam-clinic/bookings/{booking}/attendance', [ExamClinicController::class, 'markAttendance']);
+        Route::post('/exam-clinic/results-sync', [ExamClinicController::class, 'syncResults']);
     });
 
     Route::prefix('admin')->middleware(['session.auth', 'role:admin'])->group(function () {

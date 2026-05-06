@@ -67,6 +67,14 @@ import type {
   LecturerApplication,
   AiResponse,
   SystemHealthData,
+  ExamCentre,
+  ExamRoom,
+  ExamInvigilator,
+  ExamClinicSession,
+  ExamBooking,
+  ExamIncident,
+  ExamResultsSyncLog,
+  ExamClinicOverview,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -984,3 +992,82 @@ export async function runSystemDiagnostics(): Promise<any> {
   });
 }
 
+
+export async function getExamClinicOverview(): Promise<ExamClinicOverview> {
+  return apiFetch('/admin/exam-clinic');
+}
+
+export async function createExamCentre(payload: {
+  name: string;
+  code?: string;
+  location: string;
+  timezone?: string;
+  capacity?: number;
+  approvalStatus?: string;
+  approvalNotes?: string;
+}): Promise<ExamCentre> {
+  return apiFetch('/admin/exam-clinic/centres', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateExamCentreApproval(id: number, payload: { approvalStatus: string; approvalNotes?: string }): Promise<ExamCentre> {
+  return apiFetch(`/admin/exam-clinic/centres/${id}/approval`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function createExamRoom(payload: { centreId: number; name: string; code?: string; capacity: number; accessibilityNotes?: string; equipment?: string[]; status?: string }): Promise<ExamRoom> {
+  return apiFetch('/admin/exam-clinic/rooms', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function createExamInvigilator(payload: { name: string; email: string; phone?: string; certifications?: string[]; status?: string }): Promise<ExamInvigilator> {
+  return apiFetch('/admin/exam-clinic/invigilators', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function createExamClinicSession(payload: {
+  centreId: number;
+  roomId?: number | null;
+  invigilatorId?: number | null;
+  examId: string;
+  title: string;
+  programId?: string | null;
+  moduleId?: string | null;
+  courseId?: string | null;
+  deliveryMode: string;
+  startsAt: string;
+  endsAt: string;
+  capacity: number;
+  status?: string;
+  rules?: string[];
+}): Promise<ExamClinicSession> {
+  return apiFetch('/admin/exam-clinic/sessions', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateExamClinicSession(id: number, payload: { status?: string; capacity?: number; invigilatorId?: number }): Promise<ExamClinicSession> {
+  return apiFetch(`/admin/exam-clinic/sessions/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function createExamIncident(sessionId: number, payload: { bookingId?: number | null; severity: string; category: string; description: string; status?: string; actions?: string[] }): Promise<ExamIncident> {
+  return apiFetch(`/admin/exam-clinic/sessions/${sessionId}/incidents`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function markExamAttendance(bookingId: number, payload: { status: string; notes?: string }): Promise<ExamBooking> {
+  return apiFetch(`/admin/exam-clinic/bookings/${bookingId}/attendance`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function syncExamResults(payload: { sessionId?: number | null; recordsSynced?: number; message?: string }): Promise<ExamResultsSyncLog> {
+  return apiFetch('/admin/exam-clinic/results-sync', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function getStudentExamClinicSessions(): Promise<ExamClinicSession[]> {
+  return apiFetch('/students/me/exam-clinic/sessions');
+}
+
+export async function getStudentExamBookings(): Promise<ExamBooking[]> {
+  return apiFetch('/students/me/exam-clinic/bookings');
+}
+
+export async function bookExamClinicSession(sessionId: number, accommodations?: string): Promise<ExamBooking> {
+  return apiFetch('/students/me/exam-clinic/bookings', { method: 'POST', body: JSON.stringify({ sessionId, accommodations }) });
+}
+
+export async function cancelExamBooking(bookingId: number): Promise<ExamBooking> {
+  return apiFetch(`/students/me/exam-clinic/bookings/${bookingId}`, { method: 'DELETE' });
+}

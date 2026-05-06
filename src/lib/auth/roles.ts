@@ -9,6 +9,7 @@ export const ROLE = {
   APPLICANT: 'applicant',
   LECTURER_APPLICANT: 'lecturer-applicant',
   EMPLOYER_APPLICANT: 'employer-applicant',
+  EXAM_OFFICER: 'exam-officer',
 } as const;
 
 export type UserRole = (typeof ROLE)[keyof typeof ROLE];
@@ -20,7 +21,7 @@ export const STUDENT_ROLES: readonly UserRole[] = [
   ROLE.ENROLLED,
 ];
 
-export const ADMIN_ROLES: readonly UserRole[] = [ROLE.ADMIN];
+export const ADMIN_ROLES: readonly UserRole[] = [ROLE.ADMIN, ROLE.EXAM_OFFICER];
 export const LECTURER_ROLES: readonly UserRole[] = [ROLE.LECTURER];
 export const EMPLOYER_ROLES: readonly UserRole[] = [ROLE.EMPLOYER];
 
@@ -41,6 +42,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [ROLE.APPLICANT]: 'Applicant',
   [ROLE.LECTURER_APPLICANT]: 'Lecturer Applicant',
   [ROLE.EMPLOYER_APPLICANT]: 'Employer Applicant',
+  [ROLE.EXAM_OFFICER]: 'Exam Officer',
 };
 
 export function isKnownUserRole(role: string | null | undefined): role is UserRole {
