@@ -12,15 +12,20 @@ class Invoice extends Model
         'student_id',
         'intake_id',
         'title',
+        'original_amount',
         'amount',
         'paid_amount',
+        'discount_amount',
+        'alumni_discount_application_id',
         'status',
         'due_date',
     ];
 
     protected $casts = [
+        'original_amount' => 'decimal:2',
         'amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
         'due_date' => 'date',
     ];
 
@@ -37,5 +42,10 @@ class Invoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function alumniDiscountApplication(): BelongsTo
+    {
+        return $this->belongsTo(AlumniDiscountApplication::class);
     }
 }

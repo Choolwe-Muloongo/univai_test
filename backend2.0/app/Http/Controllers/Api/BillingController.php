@@ -26,7 +26,10 @@ class BillingController extends Controller
             ->map(fn (Invoice $invoice) => [
                 'id' => $invoice->id,
                 'title' => $invoice->title,
+                'originalAmount' => (string) ($invoice->original_amount ?? $invoice->amount),
                 'amount' => (string) $invoice->amount,
+                'discountAmount' => (string) $invoice->discount_amount,
+                'alumniDiscountApplicationId' => $invoice->alumni_discount_application_id,
                 'paidAmount' => (string) $invoice->paid_amount,
                 'status' => $invoice->status,
                 'dueDate' => optional($invoice->due_date)->toDateString(),
@@ -67,7 +70,10 @@ class BillingController extends Controller
         return [
             'id' => $invoice->id,
             'title' => $invoice->title,
+            'originalAmount' => (string) ($invoice->original_amount ?? $invoice->amount),
             'amount' => (string) $invoice->amount,
+            'discountAmount' => (string) $invoice->discount_amount,
+            'alumniDiscountApplicationId' => $invoice->alumni_discount_application_id,
             'paidAmount' => (string) $invoice->paid_amount,
             'status' => $invoice->status,
             'dueDate' => optional($invoice->due_date)->toDateString(),

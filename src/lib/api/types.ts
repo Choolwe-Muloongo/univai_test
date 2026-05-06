@@ -576,7 +576,10 @@ export type SessionRosterStudent = {
 export type Invoice = {
   id: number;
   title: string;
+  originalAmount?: string;
   amount: string;
+  discountAmount?: string;
+  alumniDiscountApplicationId?: number | null;
   paidAmount: string;
   status: string;
   dueDate?: string | null;
@@ -775,4 +778,62 @@ export type ResearchApplication = {
   availability?: string | null;
   status: string;
   createdAt?: string | null;
+};
+
+export type CompletedProgramme = {
+  id: number;
+  programId: string;
+  programTitle?: string | null;
+  programLevel: string;
+  status: string;
+  finalStanding: string;
+  paymentCleared: boolean;
+  completedAt?: string | null;
+};
+
+export type AlumniDiscountApplication = {
+  id: number;
+  campaignId: number;
+  campaignName?: string | null;
+  studentId?: number;
+  studentName?: string | null;
+  invoiceId?: number | null;
+  previousProgrammeLevel?: string | null;
+  newProgrammeLevel?: string | null;
+  requestedDiscountAmount: string;
+  approvedDiscountAmount: string;
+  status: string;
+  eligibilitySnapshot?: {
+    eligible?: boolean;
+    reasons?: string[];
+    checks?: Record<string, unknown>;
+  } | null;
+  decisionNotes?: string | null;
+  reviewedAt?: string | null;
+  createdAt?: string | null;
+};
+
+export type AlumniDiscountCampaign = {
+  id: number;
+  name: string;
+  code: string;
+  description?: string | null;
+  discountType: 'percentage' | 'fixed';
+  discountValue: string;
+  startsAt: string;
+  endsAt: string;
+  previousProgrammeLevels: string[];
+  newProgrammeLevels: string[];
+  automatic: boolean;
+  requiresAdminApproval: boolean;
+  isActive: boolean;
+  usesCount: number;
+};
+
+export type AlumniProfile = {
+  alumniState: string;
+  accountStanding: string;
+  suspendedAt?: string | null;
+  completedProgrammes: CompletedProgramme[];
+  discountApplications: AlumniDiscountApplication[];
 };

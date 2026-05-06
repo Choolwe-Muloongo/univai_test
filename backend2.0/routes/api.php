@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Http\Controllers\Api\AlumniDiscountsController;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -93,6 +94,7 @@ Route::middleware('api')->group(function () {
 
         Route::post('/students/checkout', [StudentsController::class, 'checkout']);
         Route::get('/students/me/enrollment', [StudentsController::class, 'enrollment']);
+        Route::get('/students/me/alumni-profile', [AlumniDiscountsController::class, 'studentProfile']);
         Route::post('/students/me/enrollment/modules', [StudentsController::class, 'saveEnrollmentModules']);
         Route::post('/students/me/enrollment/confirm', [StudentsController::class, 'confirmEnrollment']);
         Route::post('/students/me/exams/results', [ExamController::class, 'saveResult']);
@@ -215,6 +217,12 @@ Route::middleware('api')->group(function () {
         Route::get('/consultants', [ConsultantsController::class, 'index']);
         Route::get('/consultants/{id}', [ConsultantsController::class, 'show']);
         Route::get('/reports/finance', [ReportsController::class, 'finance']);
+        Route::get('/alumni-discounts/campaigns', [AlumniDiscountsController::class, 'campaigns']);
+        Route::post('/alumni-discounts/campaigns', [AlumniDiscountsController::class, 'storeCampaign']);
+        Route::get('/alumni-discounts/applications', [AlumniDiscountsController::class, 'applications']);
+        Route::patch('/alumni-discounts/applications/{application}', [AlumniDiscountsController::class, 'decide']);
+        Route::patch('/students/{student}/alumni-state', [AlumniDiscountsController::class, 'syncAlumniState']);
+        Route::post('/students/{student}/completed-programmes', [AlumniDiscountsController::class, 'completeProgramme']);
         Route::get('/system-health', [SystemHealthController::class, 'status']);
         Route::post('/system-health/diagnostics', [SystemHealthController::class, 'diagnostics']);
     });

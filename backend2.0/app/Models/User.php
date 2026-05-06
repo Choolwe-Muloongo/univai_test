@@ -22,6 +22,10 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'alumni_state',
+        'account_standing',
+        'suspended_at',
+        'alumni_suspension_reason',
         'school_id',
         'program_id',
         'intake_id',
@@ -48,6 +52,22 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'suspended_at' => 'datetime',
         ];
+    }
+
+    public function completedProgrammes()
+    {
+        return $this->hasMany(CompletedProgramme::class);
+    }
+
+    public function alumniDiscountApplications()
+    {
+        return $this->hasMany(AlumniDiscountApplication::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
     }
 }

@@ -67,6 +67,9 @@ import type {
   LecturerApplication,
   AiResponse,
   SystemHealthData,
+  AlumniProfile,
+  AlumniDiscountCampaign,
+  AlumniDiscountApplication,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -984,3 +987,29 @@ export async function runSystemDiagnostics(): Promise<any> {
   });
 }
 
+
+export async function getAlumniProfile(): Promise<AlumniProfile> {
+  return apiFetch('/students/me/alumni-profile');
+}
+
+export async function getAlumniDiscountCampaigns(): Promise<AlumniDiscountCampaign[]> {
+  return apiFetch('/admin/alumni-discounts/campaigns');
+}
+
+export async function createAlumniDiscountCampaign(payload: Partial<AlumniDiscountCampaign>): Promise<AlumniDiscountCampaign> {
+  return apiFetch('/admin/alumni-discounts/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getAlumniDiscountApplications(): Promise<AlumniDiscountApplication[]> {
+  return apiFetch('/admin/alumni-discounts/applications');
+}
+
+export async function decideAlumniDiscountApplication(id: number, payload: { decision: 'approved' | 'declined'; notes?: string }): Promise<AlumniDiscountApplication> {
+  return apiFetch(`/admin/alumni-discounts/applications/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

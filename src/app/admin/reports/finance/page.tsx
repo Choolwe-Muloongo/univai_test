@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getFinanceReport } from '@/lib/api';
+import { AlumniDiscountsPanel } from './alumni-discounts-panel';
 
 export default async function FinanceReportsPage() {
   const rows = await getFinanceReport();
@@ -79,6 +80,8 @@ export default async function FinanceReportsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlumniDiscountsPanel />
 
       <Card>
         <CardHeader>

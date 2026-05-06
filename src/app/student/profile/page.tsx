@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { BadgeCheck, Edit } from 'lucide-react';
+import { BadgeCheck, Edit, GraduationCap, Percent } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BadgeCard } from '@/components/ui/badge-card';
-import { type Badge as BadgeType } from '@/lib/api/types';
-import { getBadges } from '@/lib/api';
+import { type AlumniProfile, type Badge as BadgeType } from '@/lib/api/types';
+import { getAlumniProfile, getBadges } from '@/lib/api';
 import { useSession } from '@/components/providers/session-provider';
 
 const roleDetails: { [key: string]: { name: string, email: string, avatar: string, school: string } } = {
@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const { session } = useSession();
   const [user, setUser] = useState({ name: '', email: '', avatar: '', school: '' });
   const [earnedBadges, setEarnedBadges] = useState<BadgeType[]>([]);
+  const [alumniProfile, setAlumniProfile] = useState<AlumniProfile | null>(null);
 
   useEffect(() => {
     const role = session?.user?.role || 'premium-student';
@@ -33,8 +34,9 @@ export default function ProfilePage() {
       }
     );
     const loadBadges = async () => {
-      const badgeData = await getBadges();
-      setEarnedBadges(badgeData);
+      const [badgeData, alumniData] = await Promise.allSettled([getBadges(), getAlumniProfile()]);
+      if (badgeData.status === 'fulfilled') setEarnedBadges(badgeData.value);
+      if (alumniData.status === 'fulfilled') setAlumniProfile(alumniData.value);
     };
     loadBadges();
   }, [session]);
@@ -70,6 +72,60 @@ export default function ProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-primary" /> Alumni status & completed programmes</CardTitle>
+          <CardDescription>Alumni discounts use this state plus completion, standing, payment clearance, campaign window, programme levels, and suspension checks.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border p-3">
+              <p className="text-sm text-muted-foreground">Alumni state</p>
+              <p className="text-lg font-semibold capitalize">{alumniProfile?.alumniState ?? 'none'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-sm text-muted-foreground">Account standing</p>
+              <p className="text-lg font-semibold capitalize">{alumniProfile?.accountStanding ?? 'good'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-sm text-muted-foreground">Suspension</p>
+              <p className="text-lg font-semibold">{alumniProfile?.suspendedAt ? 'Suspended' : 'Clear'}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {(alumniProfile?.completedProgrammes ?? []).length > 0 ? alumniProfile?.completedProgrammes.map((programme) => (
+              <div key={programme.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+                <div>
+                  <p className="font-medium">{programme.programTitle ?? programme.programId}</p>
+                  <p className="text-sm text-muted-foreground">{programme.programLevel} • completed {programme.completedAt ?? 'date unavailable'} • standing {programme.finalStanding}</p>
+                </div>
+                <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium">{programme.paymentCleared ? 'Payment cleared' : 'Payment not cleared'}</span>
+              </div>
+            )) : <p className="text-sm text-muted-foreground">No completed programme history has been recorded yet.</p>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5 text-primary" /> Alumni discount applications</CardTitle>
+          <CardDescription>Automatic discounts appear here immediately; campaigns requiring finance approval remain pending until reviewed.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(alumniProfile?.discountApplications ?? []).length > 0 ? alumniProfile?.discountApplications.map((application) => (
+            <div key={application.id} className="rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-medium">{application.campaignName}</p>
+                <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium capitalize">{application.status}</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">Requested ${application.requestedDiscountAmount}; approved ${application.approvedDiscountAmount}. {application.previousProgrammeLevel ?? 'Previous level'} → {application.newProgrammeLevel ?? 'new level'}.</p>
+            </div>
+          )) : <p className="text-sm text-muted-foreground">No alumni discount applications yet.</p>}
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

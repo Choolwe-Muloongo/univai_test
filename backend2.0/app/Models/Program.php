@@ -15,6 +15,7 @@ class Program extends Model
         'id',
         'school_id',
         'title',
+        'level',
         'description',
         'progress',
         'image_id',

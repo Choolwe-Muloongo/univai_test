@@ -8,6 +8,7 @@ use App\Models\ApplicationDocument;
 use App\Models\AdmissionsSetting;
 use App\Models\Enrollment;
 use App\Models\Invoice;
+use App\Services\AlumniDiscountService;
 use App\Models\User;
 use App\Support\AuditLogger;
 use Illuminate\Http\Request;
@@ -696,14 +697,18 @@ class AdmissionsController extends Controller
         }
 
         $amount = (float) env('DEFAULT_TUITION_FEE', 650);
-        Invoice::create([
+        $invoice = Invoice::create([
             'student_id' => $user->id,
             'intake_id' => $application->intake_id,
             'title' => 'Semester 1 Tuition',
+            'original_amount' => $amount,
             'amount' => $amount,
             'paid_amount' => 0,
+            'discount_amount' => 0,
             'status' => 'unpaid',
             'due_date' => now()->addDays(14)->toDateString(),
         ]);
+
+        app(AlumniDiscountService::class)->applyAutomaticDiscounts($user, $invoice);
     }
 }
