@@ -6,10 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\JobApplication;
 use App\Models\JobPosting;
 use Illuminate\Http\Request;
+use App\Services\StateTransitionService;
 use Illuminate\Support\Str;
 
 class JobsController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function index()
     {
         return JobPosting::query()
@@ -72,6 +77,18 @@ class JobsController extends Controller
             'cover_letter' => $data['coverLetter'] ?? null,
             'status' => 'submitted',
         ]);
+
+        $this->stateTransitions->recordInitialState(
+            $application,
+            'status',
+            'job.application.submitted',
+            $request,
+            'Student submitted an employer job application.',
+            ['jobId' => $job->id],
+            null,
+            ['allowed' => false],
+            ['allowed' => true, 'state' => 'submitted']
+        );
 
         return response()->json([
             'status' => 'submitted',

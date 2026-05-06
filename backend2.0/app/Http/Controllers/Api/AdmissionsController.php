@@ -10,13 +10,17 @@ use App\Models\Enrollment;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Services\StateTransitionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail;
 
 class AdmissionsController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function submit(Request $request)
     {
         $settings = AdmissionsSetting::query()->first();
@@ -70,6 +74,22 @@ class AdmissionsController extends Controller
             'study_pace' => $payload['studyPace'] ?? 'standard',
             'country' => $payload['country'] ?? null,
         ]);
+
+        $this->stateTransitions->recordInitialState(
+            $application,
+            'status',
+            'admission.submitted',
+            $request,
+            'Applicant submitted a programme application.',
+            [
+                'programId' => $application->program_id,
+                'schoolId' => $application->school_id,
+                'reference' => $application->reference,
+            ],
+            null,
+            ['allowed' => false],
+            ['allowed' => true, 'state' => 'submitted']
+        );
 
         $request->session()->put('admission_reference', $application->reference);
 
@@ -154,10 +174,19 @@ class AdmissionsController extends Controller
             return response()->json(['status' => 'submitted', 'admissionFeePaid' => false]);
         }
 
-        $application->update([
-            'status' => 'fee_paid',
-            'admission_fee_paid' => true,
-        ]);
+        $this->stateTransitions->transition(
+            $application,
+            'status',
+            'fee_paid',
+            'admission.fee_paid',
+            $request,
+            'Applicant paid the admission fee.',
+            ['reference' => $application->reference],
+            null,
+            ['allowed' => false],
+            ['allowed' => false],
+            ['admission_fee_paid' => true]
+        );
 
         return response()->json([
             'status' => $application->status,
@@ -254,19 +283,42 @@ class AdmissionsController extends Controller
             return response()->json(['message' => 'Offer missing intake assignment'], 422);
         }
 
-        $application->update([
-            'status' => 'admitted',
-            'offer_accepted_at' => now(),
-        ]);
+        $this->stateTransitions->transition(
+            $application,
+            'status',
+            'admitted',
+            'admission.offer.accepted',
+            $request,
+            'Applicant accepted the offer letter.',
+            ['reference' => $application->reference, 'intakeId' => $application->intake_id],
+            [
+                'subject' => 'UnivAI Offer Accepted',
+                'message' => 'Your offer has been accepted successfully. Please continue to enrollment in your student portal.',
+            ],
+            ['allowed' => false],
+            ['allowed' => false],
+            ['offer_accepted_at' => now()]
+        );
 
         $user = User::where('email', $application->email)->first();
         if ($user) {
-            $user->update([
-                'role' => 'enrolled',
-                'school_id' => $application->school_id,
-                'program_id' => $application->program_id,
-                'intake_id' => $application->intake_id,
-            ]);
+            $this->stateTransitions->transition(
+                $user,
+                'role',
+                'enrolled',
+                'student.offer.accepted',
+                $request,
+                'Student accepted an admission offer.',
+                ['applicationReference' => $application->reference],
+                null,
+                ['allowed' => false],
+                ['allowed' => false],
+                [
+                    'school_id' => $application->school_id,
+                    'program_id' => $application->program_id,
+                    'intake_id' => $application->intake_id,
+                ]
+            );
 
             Enrollment::updateOrCreate(
                 [
@@ -293,11 +345,6 @@ class AdmissionsController extends Controller
 
         AuditLogger::log($request, 'admission.offer.accepted', 'application', $application->reference, []);
 
-        $this->notifyApplicant(
-            $application,
-            'UnivAI Offer Accepted',
-            'Your offer has been accepted successfully. Please continue to enrollment in your student portal.'
-        );
 
         return response()->json($this->mapApplication($application));
     }
@@ -353,15 +400,43 @@ class AdmissionsController extends Controller
             ], 422);
         }
 
-        $application->update([
-            'status' => $payload['status'],
-            'notes' => $payload['notes'] ?? $application->notes,
-            'intake_id' => $payload['intakeId'] ?? $application->intake_id,
-            'offer_letter_message' => $payload['offerMessage'] ?? $application->offer_letter_message,
-            'offer_letter_url' => $payload['offerLetterUrl'] ?? $application->offer_letter_url,
-            'needs_info_message' => $payload['needsInfoMessage'] ?? $application->needs_info_message,
-            'needs_info_at' => $payload['status'] === 'needs_info' ? now() : $application->needs_info_at,
-        ]);
+        $transitionNotification = null;
+        if (in_array($payload['status'], ['offer_sent', 'approved'], true)) {
+            $transitionNotification = [
+                'subject' => 'Your UnivAI Offer Letter',
+                'message' => $payload['offerMessage'] ?? $application->offer_letter_message ?? 'Your offer letter is ready. Please review and accept to continue.',
+            ];
+        }
+        if ($payload['status'] === 'needs_info') {
+            $transitionNotification = [
+                'subject' => 'UnivAI Admissions - Additional Information Needed',
+                'message' => $payload['needsInfoMessage'] ?? 'Please log in to your applicant portal to provide the required documents.',
+            ];
+        }
+
+        $this->stateTransitions->transition(
+            $application,
+            'status',
+            $payload['status'],
+            'admission.admin.updated',
+            $request,
+            $payload['notes'] ?? null,
+            [
+                'reference' => $application->reference,
+                'intakeId' => $payload['intakeId'] ?? $application->intake_id,
+            ],
+            $transitionNotification,
+            ['allowed' => in_array($payload['status'], ['rejected', 'needs_info'], true), 'windowDays' => 14],
+            ['allowed' => in_array($payload['status'], ['rejected'], true), 'afterDays' => 30],
+            [
+                'notes' => $payload['notes'] ?? $application->notes,
+                'intake_id' => $payload['intakeId'] ?? $application->intake_id,
+                'offer_letter_message' => $payload['offerMessage'] ?? $application->offer_letter_message,
+                'offer_letter_url' => $payload['offerLetterUrl'] ?? $application->offer_letter_url,
+                'needs_info_message' => $payload['needsInfoMessage'] ?? $application->needs_info_message,
+                'needs_info_at' => $payload['status'] === 'needs_info' ? now() : $application->needs_info_at,
+            ]
+        );
 
         AuditLogger::log($request, 'admission.updated', 'application', $application->reference, [
             'status' => $payload['status'],
@@ -376,30 +451,29 @@ class AdmissionsController extends Controller
 
         if (in_array($payload['status'], ['offer_sent', 'approved'], true)) {
             $this->ensureOfferLetter($application);
-            $this->notifyApplicant(
-                $application,
-                'Your UnivAI Offer Letter',
-                $payload['offerMessage'] ?? $application->offer_letter_message ?? 'Your offer letter is ready. Please review and accept to continue.'
-            );
         }
 
-        if ($payload['status'] === 'needs_info') {
-            $this->notifyApplicant(
-                $application,
-                'UnivAI Admissions - Additional Information Needed',
-                $payload['needsInfoMessage'] ?? 'Please log in to your applicant portal to provide the required documents.'
-            );
-        }
 
         if (in_array($payload['status'], ['admitted'], true)) {
             $user = User::where('email', $application->email)->first();
             if ($user) {
-                $user->update([
-                    'role' => 'enrolled',
-                    'school_id' => $application->school_id,
-                    'program_id' => $application->program_id,
-                    'intake_id' => $payload['intakeId'] ?? $application->intake_id,
-                ]);
+                $this->stateTransitions->transition(
+                    $user,
+                    'role',
+                    'enrolled',
+                    'student.admin.admitted',
+                    $request,
+                    'Admin admitted the programme applicant.',
+                    ['applicationReference' => $application->reference],
+                    null,
+                    ['allowed' => false],
+                    ['allowed' => false],
+                    [
+                        'school_id' => $application->school_id,
+                        'program_id' => $application->program_id,
+                        'intake_id' => $payload['intakeId'] ?? $application->intake_id,
+                    ]
+                );
 
                 if (!empty($payload['intakeId'])) {
                     Enrollment::updateOrCreate(
@@ -662,21 +736,6 @@ class AdmissionsController extends Controller
         $pdf .= "startxref\n{$xrefOffset}\n%%EOF";
 
         return $pdf;
-    }
-
-    private function notifyApplicant(Application $application, string $subject, string $message): void
-    {
-        try {
-            Mail::raw($message, function ($mail) use ($application, $subject) {
-                $mail->to($application->email)
-                    ->subject($subject);
-            });
-        } catch (\Throwable $exception) {
-            logger()->warning('Failed to send applicant email', [
-                'application' => $application->reference,
-                'error' => $exception->getMessage(),
-            ]);
-        }
     }
 
     private function ensureEnrollmentInvoice(Application $application, ?User $user = null): void

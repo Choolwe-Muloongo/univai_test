@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Http\Controllers\Api\AdminStateTransitionsController;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -131,7 +132,7 @@ Route::middleware('api')->group(function () {
     });
 
     Route::middleware('session.auth')->group(function () {
-    Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware('throttle:admissions');
+        Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware('throttle:admissions');
         Route::get('/admissions/me', [AdmissionsController::class, 'me']);
         Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents']);
         Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument']);
@@ -175,6 +176,8 @@ Route::middleware('api')->group(function () {
         Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
         Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
         Route::get('/audit-logs', [AdminAuditController::class, 'index']);
+        Route::get('/state-transitions', [AdminStateTransitionsController::class, 'index']);
+        Route::post('/state-transitions', [AdminStateTransitionsController::class, 'store']);
         Route::get('/route-change-requests', [RouteChangeController::class, 'adminIndex']);
         Route::patch('/route-change-requests/{routeChangeRequest}', [RouteChangeController::class, 'adminUpdate']);
         Route::get('/curriculum/versions', [AdminCurriculumController::class, 'versions']);

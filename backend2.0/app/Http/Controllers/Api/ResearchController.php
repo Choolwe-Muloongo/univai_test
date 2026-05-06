@@ -6,10 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
 use Illuminate\Http\Request;
+use App\Services\StateTransitionService;
 use Illuminate\Support\Str;
 
 class ResearchController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function index()
     {
         return ResearchOpportunity::query()
@@ -71,6 +76,18 @@ class ResearchController extends Controller
             'status' => 'submitted',
         ]);
 
+        $this->stateTransitions->recordInitialState(
+            $application,
+            'status',
+            'research.application.submitted',
+            $request,
+            'Student submitted a research programme application.',
+            ['researchId' => $opp->id],
+            null,
+            ['allowed' => false],
+            ['allowed' => true, 'state' => 'submitted']
+        );
+
         return response()->json([
             'status' => 'submitted',
             'id' => $application->id,
@@ -110,7 +127,18 @@ class ResearchController extends Controller
             'status' => ['required', 'string'],
         ]);
 
-        $application->update(['status' => $payload['status']]);
+        $this->stateTransitions->transition(
+            $application,
+            'status',
+            $payload['status'],
+            'research.application.employer.updated',
+            $request,
+            'Employer reviewed the research application.',
+            ['researchId' => $opp->id],
+            null,
+            ['allowed' => in_array($payload['status'], ['rejected'], true), 'windowDays' => 14],
+            ['allowed' => in_array($payload['status'], ['rejected'], true), 'afterDays' => 30]
+        );
 
         return response()->json([
             'id' => $application->id,

@@ -8,10 +8,15 @@ use App\Models\Intake;
 use App\Models\RouteChangeRequest;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Services\StateTransitionService;
 use Illuminate\Http\Request;
 
 class RouteChangeController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function studentIndex(Request $request)
     {
         $user = $request->session()->get('user');
@@ -60,6 +65,18 @@ class RouteChangeController extends Controller
             'status' => 'pending',
         ]);
 
+        $this->stateTransitions->recordInitialState(
+            $requestModel,
+            'status',
+            'route_change.requested',
+            $request,
+            $payload['reason'] ?? 'Student requested a route change.',
+            ['requestedIntakeId' => $payload['requestedIntakeId']],
+            null,
+            ['allowed' => true, 'windowDays' => 7],
+            ['allowed' => false]
+        );
+
         AuditLogger::log($request, 'route_change.requested', 'route_change_request', (string) $requestModel->id, [
             'requestedIntakeId' => $payload['requestedIntakeId'],
         ]);
@@ -88,12 +105,23 @@ class RouteChangeController extends Controller
             $reviewerId = (int) $sessionUser['id'];
         }
 
-        $routeChangeRequest->update([
-            'status' => $payload['status'],
-            'review_notes' => $payload['reviewNotes'] ?? $routeChangeRequest->review_notes,
-            'reviewed_by' => $reviewerId,
-            'reviewed_at' => now(),
-        ]);
+        $this->stateTransitions->transition(
+            $routeChangeRequest,
+            'status',
+            $payload['status'],
+            'route_change.reviewed',
+            $request,
+            $payload['reviewNotes'] ?? null,
+            ['requestedIntakeId' => $routeChangeRequest->requested_intake_id],
+            null,
+            ['allowed' => $payload['status'] === 'rejected', 'windowDays' => 14],
+            ['allowed' => $payload['status'] === 'rejected', 'afterDays' => 30],
+            [
+                'review_notes' => $payload['reviewNotes'] ?? $routeChangeRequest->review_notes,
+                'reviewed_by' => $reviewerId,
+                'reviewed_at' => now(),
+            ]
+        );
 
         if ($payload['status'] === 'approved') {
             $student = User::find($routeChangeRequest->student_id);

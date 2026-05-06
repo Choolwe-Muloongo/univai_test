@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\StateTransitionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function login(Request $request)
     {
         $payload = $request->validate([
@@ -61,6 +66,18 @@ class AuthController extends Controller
             'password' => Hash::make($payload['password']),
             'role' => 'applicant',
         ]);
+
+        $this->stateTransitions->recordInitialState(
+            $user,
+            'role',
+            'user.registered',
+            ['type' => 'self-service', 'label' => $payload['email']],
+            'User registered and entered the applicant state.',
+            ['email' => $user->email],
+            null,
+            ['allowed' => false],
+            ['allowed' => true, 'state' => 'applicant']
+        );
 
         $sessionUser = $this->mapUser($user);
         $request->session()->regenerate();

@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\LecturerApplication;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Services\StateTransitionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class LecturerApplicationsController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function submit(Request $request)
     {
         $payload = $request->validate([
@@ -38,6 +43,18 @@ class LecturerApplicationsController extends Controller
             'status' => 'submitted',
             'submitted_at' => now(),
         ]);
+
+        $this->stateTransitions->recordInitialState(
+            $application,
+            'status',
+            'lecturer.application.submitted',
+            $request,
+            'Lecturer applicant submitted a programme teaching application.',
+            ['email' => $application->email],
+            null,
+            ['allowed' => false],
+            ['allowed' => true, 'state' => 'submitted']
+        );
 
         AuditLogger::log($request, 'lecturer.application.submitted', 'lecturer_application', (string) $application->id, [
             'email' => $application->email,
@@ -71,12 +88,23 @@ class LecturerApplicationsController extends Controller
             ? (int) $reviewer['id']
             : null;
 
-        $lecturerApplication->update([
-            'status' => $payload['status'],
-            'notes' => $payload['notes'] ?? $lecturerApplication->notes,
-            'reviewed_at' => now(),
-            'reviewed_by' => $reviewerId,
-        ]);
+        $this->stateTransitions->transition(
+            $lecturerApplication,
+            'status',
+            $payload['status'],
+            'lecturer.application.reviewed',
+            $request,
+            $payload['notes'] ?? null,
+            ['email' => $lecturerApplication->email],
+            null,
+            ['allowed' => in_array($payload['status'], ['rejected', 'needs_info'], true), 'windowDays' => 14],
+            ['allowed' => $payload['status'] === 'rejected', 'afterDays' => 30],
+            [
+                'notes' => $payload['notes'] ?? $lecturerApplication->notes,
+                'reviewed_at' => now(),
+                'reviewed_by' => $reviewerId,
+            ]
+        );
 
         $temporaryPassword = null;
         if ($payload['status'] === 'approved') {
@@ -88,9 +116,18 @@ class LecturerApplicationsController extends Controller
                     'password' => Hash::make($temporaryPassword),
                 ]
             );
-            $user->update([
-                'role' => 'lecturer',
-            ]);
+            $this->stateTransitions->transition(
+                $user,
+                'role',
+                'lecturer',
+                'lecturer.application.approved',
+                $request,
+                'Lecturer application was approved by an admin.',
+                ['lecturerApplicationId' => $lecturerApplication->id],
+                null,
+                ['allowed' => false],
+                ['allowed' => false]
+            );
         }
 
         AuditLogger::log($request, 'lecturer.application.reviewed', 'lecturer_application', (string) $lecturerApplication->id, [

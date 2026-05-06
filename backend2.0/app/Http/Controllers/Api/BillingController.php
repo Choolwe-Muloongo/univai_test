@@ -6,10 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\AuditLogger;
+use App\Services\StateTransitionService;
 use Illuminate\Http\Request;
 
 class BillingController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function invoices(Request $request)
     {
         $user = $request->session()->get('user');
@@ -48,9 +53,22 @@ class BillingController extends Controller
         ]);
 
         $amount = $payload['amount'] ?? $invoice->amount;
-        $invoice->paid_amount = min($invoice->amount, $invoice->paid_amount + $amount);
-        $invoice->status = $invoice->paid_amount >= $invoice->amount ? 'paid' : 'partial';
-        $invoice->save();
+        $paidAmount = min($invoice->amount, $invoice->paid_amount + $amount);
+        $subscriptionStatus = $paidAmount >= $invoice->amount ? 'paid' : 'partial';
+
+        $this->stateTransitions->transition(
+            $invoice,
+            'status',
+            $subscriptionStatus,
+            'subscription.invoice.paid',
+            $request,
+            'Student submitted a subscription or tuition payment.',
+            ['amount' => $amount, 'paidAmount' => $paidAmount],
+            null,
+            ['allowed' => false],
+            ['allowed' => false],
+            ['paid_amount' => $paidAmount]
+        );
 
         Payment::create([
             'invoice_id' => $invoice->id,

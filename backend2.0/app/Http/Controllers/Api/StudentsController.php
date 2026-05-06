@@ -11,10 +11,15 @@ use App\Models\Intake;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
+use App\Services\StateTransitionService;
 use Illuminate\Http\Request;
 
 class StudentsController extends Controller
 {
+    public function __construct(private readonly StateTransitionService $stateTransitions)
+    {
+    }
+
     public function checkout(Request $request)
     {
         $user = $request->session()->get('user');
@@ -36,11 +41,22 @@ class StudentsController extends Controller
         if (is_array($user) && isset($user['id']) && is_numeric($user['id'])) {
             $dbUser = User::find($user['id']);
             if ($dbUser) {
-                $dbUser->update([
-                    'role' => 'premium-student',
-                    'school_id' => $user['schoolId'] ?? $dbUser->school_id,
-                    'program_id' => $user['programId'] ?? $dbUser->program_id,
-                ]);
+                $this->stateTransitions->transition(
+                    $dbUser,
+                    'role',
+                    'premium-student',
+                    'student.checkout.completed',
+                    $request,
+                    'Student completed checkout.',
+                    ['source' => 'checkout'],
+                    null,
+                    ['allowed' => false],
+                    ['allowed' => false],
+                    [
+                        'school_id' => $user['schoolId'] ?? $dbUser->school_id,
+                        'program_id' => $user['programId'] ?? $dbUser->program_id,
+                    ]
+                );
             }
         }
 
@@ -102,6 +118,20 @@ class StudentsController extends Controller
             ]
         );
 
+        if ($enrollment->wasRecentlyCreated) {
+            $this->stateTransitions->recordInitialState(
+                $enrollment,
+                'status',
+                'student.enrollment.created',
+                $request,
+                'Student selected enrollment modules.',
+                ['intakeId' => $intakeId],
+                null,
+                ['allowed' => true, 'windowDays' => 7],
+                ['allowed' => false]
+            );
+        }
+
         $enrollment->update([
             'selected_modules' => $payload['modules'],
         ]);
@@ -137,11 +167,22 @@ class StudentsController extends Controller
             return response()->json(['message' => 'Please complete tuition payment before confirming enrollment.'], 422);
         }
 
-        $enrollment->update([
-            'status' => 'active',
-            'enrolled_at' => $enrollment->enrolled_at ?? now(),
-            'confirmed_at' => now(),
-        ]);
+        $this->stateTransitions->transition(
+            $enrollment,
+            'status',
+            'active',
+            'student.enrollment.confirmed',
+            $request,
+            'Student confirmed enrollment after payment.',
+            ['intakeId' => $enrollment->intake_id],
+            null,
+            ['allowed' => true, 'windowDays' => 7],
+            ['allowed' => false],
+            [
+                'enrolled_at' => $enrollment->enrolled_at ?? now(),
+                'confirmed_at' => now(),
+            ]
+        );
 
         if (is_array($sessionUser)) {
             $sessionUser['role'] = 'premium-student';
@@ -151,9 +192,18 @@ class StudentsController extends Controller
         if (is_numeric($userId)) {
             $user = User::find($userId);
             if ($user) {
-                $user->update([
-                    'role' => 'premium-student',
-                ]);
+                $this->stateTransitions->transition(
+                    $user,
+                    'role',
+                    'premium-student',
+                    'student.enrollment.confirmed',
+                    $request,
+                    'Student became active after enrollment confirmation.',
+                    ['enrollmentId' => $enrollment->id],
+                    null,
+                    ['allowed' => false],
+                    ['allowed' => false]
+                );
             }
         }
 
