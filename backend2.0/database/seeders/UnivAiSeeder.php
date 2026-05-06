@@ -90,6 +90,97 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['email'], ['name', 'password', 'role', 'school_id', 'program_id', 'updated_at']);
 
+        DB::table('users')
+            ->whereIn('role', ['admin', 'lecturer'])
+            ->update([
+                'account_state' => 'active',
+                'verification_status' => 'identity',
+                'profile_completed_at' => now(),
+            ]);
+
+        DB::table('users')
+            ->whereIn('role', ['employer', 'student', 'premium-student', 'freemium-student', 'enrolled'])
+            ->update([
+                'account_state' => 'active',
+                'verification_status' => 'email',
+                'profile_completed_at' => now(),
+            ]);
+
+        $accessUsers = DB::table('users')
+            ->whereIn('email', [
+                'admin@univai.edu',
+                'lecturer@univai.edu',
+                'lecturer.a@univai.edu',
+                'lecturer.b@univai.edu',
+                'employer@univai.edu',
+                'student.premium@univai.edu',
+                'student.freemium@univai.edu',
+            ])
+            ->get()
+            ->keyBy('email');
+
+        foreach ($accessUsers as $seedUser) {
+            DB::table('user_profiles')->updateOrInsert(
+                ['user_id' => $seedUser->id],
+                [
+                    'display_name' => $seedUser->name,
+                    'completion_percent' => in_array($seedUser->role, ['applicant', 'lecturer-applicant', 'employer-applicant'], true) ? 25 : 100,
+                    'completed_at' => in_array($seedUser->role, ['applicant', 'lecturer-applicant', 'employer-applicant'], true) ? null : now(),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        foreach ([
+            'student.premium@univai.edu' => ['tier' => 'premium', 'status' => 'active'],
+            'student.freemium@univai.edu' => ['tier' => 'freemium', 'status' => 'free'],
+        ] as $email => $subscription) {
+            $seedUser = $accessUsers->get($email);
+            if (!$seedUser) {
+                continue;
+            }
+
+            DB::table('user_subscriptions')->updateOrInsert(
+                ['user_id' => $seedUser->id, 'tier' => $subscription['tier']],
+                [
+                    'status' => $subscription['status'],
+                    'starts_at' => now(),
+                    'ends_at' => null,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        foreach ([
+            'admin@univai.edu' => ['admin_portal'],
+            'lecturer@univai.edu' => ['teaching'],
+            'lecturer.a@univai.edu' => ['teaching'],
+            'lecturer.b@univai.edu' => ['teaching'],
+            'employer@univai.edu' => ['employer_portal'],
+            'student.premium@univai.edu' => ['student_portal', 'course_access', 'ai_tutor'],
+            'student.freemium@univai.edu' => ['student_portal'],
+        ] as $email => $entitlements) {
+            $seedUser = $accessUsers->get($email);
+            if (!$seedUser) {
+                continue;
+            }
+
+            foreach ($entitlements as $entitlement) {
+                DB::table('academic_entitlements')->updateOrInsert(
+                    ['user_id' => $seedUser->id, 'code' => $entitlement, 'scope_type' => null, 'scope_id' => null],
+                    [
+                        'status' => 'active',
+                        'starts_at' => now(),
+                        'ends_at' => null,
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
+        }
+
         DB::table('schools')->upsert([
             ['id' => 'edu', 'name' => 'School of Education', 'created_at' => now(), 'updated_at' => now()],
             ['id' => 'ict', 'name' => 'School of ICT', 'created_at' => now(), 'updated_at' => now()],
