@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ProgramModule extends Model
 {
@@ -43,5 +44,13 @@ class ProgramModule extends Model
     public function curriculumVersion(): BelongsTo
     {
         return $this->belongsTo(CurriculumVersion::class, 'curriculum_version_id');
+    }
+
+    public function lessons(): BelongsToMany
+    {
+        return $this->belongsToMany(Lesson::class, 'program_module_lessons', 'program_module_id', 'lesson_id')
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderBy('program_module_lessons.sort_order');
     }
 }

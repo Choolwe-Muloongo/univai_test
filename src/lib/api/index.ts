@@ -56,6 +56,8 @@ import type {
   RouteChangeRequest,
   Program,
   ProgramModule,
+  ProgramPayload,
+  QualificationLevel,
   SupportTicket,
   SupportMessage,
   WalletSettings,
@@ -67,6 +69,7 @@ import type {
   LecturerApplication,
   AiResponse,
   SystemHealthData,
+  StudentEntitlementsResponse,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -79,6 +82,10 @@ export async function getCourses(): Promise<Course[]> {
 
 export async function getPrograms(): Promise<Program[]> {
   return apiFetch('/programs');
+}
+
+export async function getQualificationLevels(): Promise<QualificationLevel[]> {
+  return apiFetch('/admin/qualification-levels');
 }
 
 export async function getProgramModulesByProgram(programId: string): Promise<ProgramModule[]> {
@@ -106,12 +113,23 @@ export async function createCourse(course: Course): Promise<Course> {
   });
 }
 
+export async function createProgram(program: ProgramPayload): Promise<Program> {
+  return apiFetch('/admin/programs', {
+    method: 'POST',
+    body: JSON.stringify(program),
+  });
+}
+
 export async function deleteSchool(id: string): Promise<void> {
   await apiFetch(`/admin/schools/${id}`, { method: 'DELETE', parseJson: false });
 }
 
 export async function deleteCourse(id: string): Promise<void> {
   await apiFetch(`/admin/courses/${id}`, { method: 'DELETE', parseJson: false });
+}
+
+export async function deleteProgram(id: string): Promise<void> {
+  await apiFetch(`/admin/programs/${id}`, { method: 'DELETE', parseJson: false });
 }
 
 export async function getCourseById(id: string): Promise<Course | null> {
@@ -503,6 +521,10 @@ export async function getWalletSettings(): Promise<WalletSettings> {
   return apiFetch('/students/me/wallet/settings');
 }
 
+export async function getStudentEntitlements(): Promise<StudentEntitlementsResponse> {
+  return apiFetch('/students/me/entitlements');
+}
+
 export async function updateWalletSettings(payload: {
   walletAddress: string;
   payoutCurrency: string;
@@ -865,10 +887,10 @@ export async function getSession(): Promise<Session> {
   return apiFetch('/auth/me');
 }
 
-export async function completeCheckout(role: string): Promise<Session> {
+export async function completeCheckout(role: string, accessTier?: string): Promise<Session> {
   return apiFetch('/students/checkout', {
     method: 'POST',
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ role, accessTier }),
   });
 }
 

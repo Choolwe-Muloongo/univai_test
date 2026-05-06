@@ -18,13 +18,16 @@ use App\Models\ResearchOpportunity;
 use App\Models\User;
 use App\Models\Application;
 use Illuminate\Http\Request;
+use App\Support\StudentAccess;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function student(Request $request)
     {
-        $role = $request->session()->get('user')['role'] ?? null;
+        $sessionUser = StudentAccess::sessionPayload($request->session()->get('user') ?? []);
+        $request->session()->put('user', $sessionUser);
+        $role = $sessionUser['role'] ?? null;
 
         $actions = DB::table('student_actions')
             ->when($role, fn ($query) => $query->whereNull('role')->orWhere('role', $role))
@@ -36,16 +39,18 @@ class DashboardController extends Controller
             ->orderBy('due_date')
             ->get(['id', 'title', 'type', 'due_date']);
 
-        $sessionUser = $request->session()->get('user');
         $studentId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+        $isCashbackEligible = StudentAccess::cashbackEligible($sessionUser['accessTier'] ?? null);
         $walletValue = '0 AFTA';
         $walletNote = 'AFTACOIN Balance';
-        if ($studentId && is_numeric($studentId)) {
+        if ($studentId && is_numeric($studentId) && $isCashbackEligible) {
             $totalPaid = Payment::query()
                 ->whereHas('invoice', fn ($query) => $query->where('student_id', $studentId))
                 ->sum('amount');
             $walletValue = number_format((float) $totalPaid, 2) . ' AFTA';
             $walletNote = 'Tuition paid to date';
+        } elseif (!$isCashbackEligible) {
+            $walletNote = 'Free learning tier is not eligible for cashback';
         }
 
         return response()->json([
@@ -65,6 +70,7 @@ class DashboardController extends Controller
                 'label' => 'Wallet Balance',
                 'value' => $walletValue,
                 'note' => $walletNote,
+                'cashbackEligible' => $isCashbackEligible,
             ],
         ]);
     }

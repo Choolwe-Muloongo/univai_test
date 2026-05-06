@@ -8,6 +8,7 @@ use App\Models\ApplicationDocument;
 use App\Models\AdmissionsSetting;
 use App\Models\Enrollment;
 use App\Models\Invoice;
+use App\Models\Program;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\DeliveryModes;
@@ -43,6 +44,40 @@ class AdmissionsController extends Controller
         $subjectCount = collect($subjectPoints)->filter(fn ($value) => (int) $value > 0)->count();
         $totalPoints = collect($subjectPoints)->reduce(fn ($sum, $value) => $sum + (int) $value, 0);
 
+        $program = Program::with('qualificationLevel')->find($payload['programId']);
+        if (!$program || $program->school_id !== $payload['schoolId']) {
+            return response()->json(['message' => 'Selected programme is not available for this school.'], 422);
+        }
+
+        if ($program->launch_status !== 'published') {
+            return response()->json(['message' => 'Selected programme is not open for admissions yet.'], 422);
+        }
+
+        if ($program->requires_accreditation_approval && !$program->accreditation_approved_at) {
+            return response()->json(['message' => 'Selected programme requires accreditation approval before launch.'], 422);
+        }
+
+        $deliveryMode = $payload['deliveryMode'] ?? (($program->delivery_modes ?? [])[0] ?? 'hybrid');
+        $deliveryModes = $program->delivery_modes ?? $program->qualificationLevel?->allowed_delivery_modes ?? ['hybrid'];
+        if (!in_array($deliveryMode, $deliveryModes, true)) {
+            return response()->json([
+                'message' => 'Delivery mode is not available for this qualification level.',
+            ], 422);
+        }
+
+        $minimumSubjectCount = $program->qualificationLevel?->minimum_subject_count ?? 0;
+        $minimumTotalPoints = $program->qualificationLevel?->minimum_total_points ?? 0;
+        if ($subjectCount < $minimumSubjectCount || $totalPoints < $minimumTotalPoints) {
+            return response()->json([
+                'message' => 'Applicant does not meet the admission requirements for this qualification level.',
+                'requirements' => [
+                    'minimumSubjectCount' => $minimumSubjectCount,
+                    'minimumTotalPoints' => $minimumTotalPoints,
+                    'admissionRequirements' => $program->admission_requirements,
+                ],
+            ], 422);
+        }
+
         $reference = 'app-' . strtoupper(Str::random(6));
 
         $sessionUser = $request->session()->get('user');
@@ -66,7 +101,7 @@ class AdmissionsController extends Controller
             'subject_points' => $subjectPoints,
             'subject_count' => $subjectCount,
             'total_points' => $totalPoints,
-            'delivery_mode' => DeliveryModes::normalize($payload['deliveryMode'] ?? null),
+            'delivery_mode' => $deliveryMode,
             'learning_style' => $payload['learningStyle'] ?? 'traditional',
             'study_pace' => $payload['studyPace'] ?? 'standard',
             'country' => $payload['country'] ?? null,
@@ -534,6 +569,7 @@ class AdmissionsController extends Controller
             'studyPace' => $application->study_pace,
             'country' => $application->country,
             'subjectPoints' => $application->subject_points ?? [],
+            'qualificationLevel' => optional(Program::with('qualificationLevel')->find($application->program_id)?->qualificationLevel)->name,
             'notes' => $application->notes,
             'admissionFeePaid' => (bool) $application->admission_fee_paid,
             'offerLetterMessage' => $application->offer_letter_message,

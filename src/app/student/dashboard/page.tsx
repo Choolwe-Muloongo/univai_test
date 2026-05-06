@@ -1,22 +1,46 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { GraduationCap, Wallet, ArrowRight, BookOpen, CalendarCheck, ClipboardList, Timer } from 'lucide-react';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  GraduationCap,
+  Wallet,
+  ArrowRight,
+  BookOpen,
+  CalendarCheck,
+  ClipboardList,
+  Timer,
+} from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { ProgressChart } from '@/components/dashboard/progress-chart';
-import { QuickLinks } from '@/components/dashboard/quick-links';
-import { PageHeader } from '@/components/student/page-header';
-import { StatCard } from '@/components/student/stat-card';
-import { EmptyState } from '@/components/student/empty-state';
-import { type Program } from '@/lib/api/types';
-import { getProgram, getStudentDashboard } from '@/lib/api';
-import type { StudentDashboardAction, StudentDashboardDeadline, StudentDashboardWallet } from '@/lib/api/types';
-import { useSession } from '@/components/providers/session-provider';
-import { deliveryModeLabel } from '@/lib/delivery-modes';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { ProgressChart } from "@/components/dashboard/progress-chart";
+import { QuickLinks } from "@/components/dashboard/quick-links";
+import { PageHeader } from "@/components/student/page-header";
+import { StatCard } from "@/components/student/stat-card";
+import { EmptyState } from "@/components/student/empty-state";
+import { type Program } from "@/lib/api/types";
+import { getProgram, getStudentDashboard } from "@/lib/api";
+import {
+  STUDENT_ACCESS_TIER_LABELS,
+  STUDENT_ENTITLEMENT,
+  hasStudentEntitlement,
+  roleToStudentAccessTier,
+} from "@/lib/auth/roles";
+import type {
+  StudentDashboardAction,
+  StudentDashboardDeadline,
+  StudentDashboardWallet,
+} from "@/lib/api/types";
+import { useSession } from "@/components/providers/session-provider";
 
 export default function DashboardPage() {
   const { session } = useSession();
@@ -24,7 +48,9 @@ export default function DashboardPage() {
   const [program, setProgram] = useState<Program | null>(null);
   const [loading, setLoading] = useState(true);
   const [nextActions, setNextActions] = useState<StudentDashboardAction[]>([]);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<StudentDashboardDeadline[]>([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<
+    StudentDashboardDeadline[]
+  >([]);
   const [wallet, setWallet] = useState<StudentDashboardWallet | null>(null);
 
   useEffect(() => {
@@ -32,7 +58,13 @@ export default function DashboardPage() {
       setLoading(true);
       const resolvedRole = session?.user?.role ?? null;
       setUserRole(resolvedRole);
-      if (!session?.user || resolvedRole === 'freemium-student') {
+      const accessTier = roleToStudentAccessTier(resolvedRole);
+      const hasProgrammeAccess = hasStudentEntitlement(
+        STUDENT_ENTITLEMENT.PROGRAMME,
+        session?.user?.entitlements,
+        accessTier,
+      );
+      if (!session?.user || !hasProgrammeAccess) {
         setLoading(false);
         return;
       }
@@ -51,7 +83,7 @@ export default function DashboardPage() {
         setUpcomingDeadlines(dashboardData.deadlines);
         setWallet(dashboardData.wallet ?? null);
       } catch (error) {
-        console.error('Failed to load program', error);
+        console.error("Failed to load program", error);
       } finally {
         setLoading(false);
       }
@@ -60,7 +92,64 @@ export default function DashboardPage() {
   }, [session]);
 
   if (loading) {
-    return <div className="text-sm text-muted-foreground">Loading your dashboard...</div>;
+    return (
+      <div className="text-sm text-muted-foreground">
+        Loading your dashboard...
+      </div>
+    );
+  }
+
+  const accessTier = roleToStudentAccessTier(userRole);
+  const hasProgrammeAccess = hasStudentEntitlement(
+    STUDENT_ENTITLEMENT.PROGRAMME,
+    session?.user?.entitlements,
+    accessTier,
+  );
+  const tierLabel = STUDENT_ACCESS_TIER_LABELS[accessTier];
+
+  if (!hasProgrammeAccess) {
+    return (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <PageHeader
+            title={`Welcome to UnivAI ${tierLabel}`}
+            description="Free learning includes short-course previews only. Upgrade when you need certificates, premium tools, or formal programme enrolment."
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Short-course access active</CardTitle>
+              <CardDescription>
+                Continue exploring free lessons without cashback, premium tools,
+                or programme-only records.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Certificate downloads, premium AI features, grades, assignments,
+                attendance, and enrolment resources unlock only on the matching
+                paid tier.
+              </p>
+            </CardContent>
+            <CardFooter className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/student/courses">
+                  Browse Short Courses <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/student/payments">Compare Access Tiers</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+        <div className="lg:col-span-1 space-y-6">
+          <QuickLinks />
+        </div>
+      </div>
+    );
   }
 
   if (!program) {
@@ -93,49 +182,13 @@ export default function DashboardPage() {
     );
   }
 
-  const isFreemium = userRole === 'freemium-student';
-  const studentName = session?.user?.name ?? 'Student';
-  const schoolLabel = program.schoolName ?? `School of ${program.schoolId?.toUpperCase() ?? 'School'}`;
-  const walletValue = wallet?.value ?? '0 AFTA';
-  const walletLabel = wallet?.note ?? wallet?.label ?? 'Wallet Balance';
+  const studentName = session?.user?.name ?? "Student";
+  const schoolLabel =
+    program.schoolName ??
+    `School of ${program.schoolId?.toUpperCase() ?? "School"}`;
+  const walletValue = wallet?.value ?? "0 AFTA";
+  const walletLabel = wallet?.note ?? wallet?.label ?? "Wallet Balance";
   const nextDeadline = upcomingDeadlines[0];
-
-  if (isFreemium) {
-    return (
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <PageHeader
-            title="Welcome to UnivAI"
-            description="Your journey to higher education starts here. Upgrade to Premium to enroll in a program."
-          />
-          <Card>
-            <CardHeader>
-              <CardTitle>Explore Our Programs</CardTitle>
-              <CardDescription>Browse available schools and courses to find your fit.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <BookOpen className="h-6 w-6 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Review offerings, preview lessons, and get ready for full enrollment.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild className="w-full">
-                <Link href="/student/courses">
-                  View All Courses <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-        <div className="lg:col-span-1 space-y-6">
-          <QuickLinks />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -153,8 +206,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Next Deadline"
-          value={nextDeadline ? nextDeadline.date : 'None'}
-          helper={nextDeadline ? nextDeadline.title : 'No upcoming deadlines'}
+          value={nextDeadline ? nextDeadline.date : "None"}
+          helper={nextDeadline ? nextDeadline.title : "No upcoming deadlines"}
           icon={<Timer className="h-4 w-4" />}
         />
         <StatCard
@@ -170,7 +223,9 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>My Program</CardTitle>
-              <CardDescription>Your selected mode controls course access, timetable, exams, fees, and content availability.</CardDescription>
+              <CardDescription>
+                Your central hub for course materials, progress, and modules.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="mb-4 flex items-center gap-4">
@@ -202,19 +257,27 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Next Actions</CardTitle>
-              <CardDescription>Complete these to keep your pace on track.</CardDescription>
+              <CardDescription>
+                Complete these to keep your pace on track.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {nextActions.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  No urgent actions right now. Check your study plan to stay ahead.
+                  No urgent actions right now. Check your study plan to stay
+                  ahead.
                 </div>
               ) : (
                 nextActions.map((action) => (
-                  <div key={action.id} className="flex items-center justify-between rounded-lg border p-3">
+                  <div
+                    key={action.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
                     <div>
                       <p className="font-semibold">{action.title}</p>
-                      <p className="text-sm text-muted-foreground">{action.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {action.description}
+                      </p>
                     </div>
                     <Button variant="outline" size="sm" asChild>
                       <Link href={action.href}>Open</Link>
@@ -228,7 +291,9 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Progress Overview</CardTitle>
-              <CardDescription>Here is a breakdown of your progress by module.</CardDescription>
+              <CardDescription>
+                Here is a breakdown of your progress by module.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ProgressChart modules={program.modules} />
@@ -245,9 +310,12 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {upcomingDeadlines.map((item) => (
-                <div key={item.id} className="flex items-start gap-3 rounded-lg border p-3">
+                <div
+                  key={item.id}
+                  className="flex items-start gap-3 rounded-lg border p-3"
+                >
                   <div className="mt-0.5 rounded-full bg-primary/10 p-2">
-                    {item.type === 'Exam' ? (
+                    {item.type === "Exam" ? (
                       <CalendarCheck className="h-4 w-4 text-primary" />
                     ) : (
                       <ClipboardList className="h-4 w-4 text-primary" />
@@ -255,7 +323,9 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="font-semibold">{item.title}</p>
-                    <p className="text-sm text-muted-foreground">{item.type} - {item.date}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.type} - {item.date}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -289,5 +359,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-

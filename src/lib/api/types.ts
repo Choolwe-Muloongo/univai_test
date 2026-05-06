@@ -14,6 +14,13 @@ export type SessionUser = {
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
+  accountState?: string | null;
+  verificationStatus?: string | null;
+  profileCompleted?: boolean | null;
+  profileStarted?: boolean | null;
+  subscriptionStatus?: string | null;
+  subscriptionTier?: string | null;
+  entitlements?: string[] | null;
 };
 
 export type Session = {
@@ -33,6 +40,40 @@ export type Course = {
   progress?: number | null;
   imageId: string;
   supportedDeliveryModes?: string[];
+};
+
+export type QualificationLevel = {
+  id: string;
+  name: string;
+  category: string;
+  defaultCredits: number;
+  minimumCredits: number;
+  maximumCredits?: number | null;
+  durationMonths: number;
+  admissionRequirements?: string | null;
+  allowedDeliveryModes: string[];
+  requiresExamClinic: boolean;
+  requiresAccreditationApproval: boolean;
+  minimumSubjectCount: number;
+  minimumTotalPoints: number;
+  requiredPriorQualification?: string | null;
+};
+
+export type ProgramPayload = {
+  id: string;
+  title: string;
+  description: string;
+  schoolId: string;
+  qualificationLevelId: string;
+  credits?: number | null;
+  durationMonths?: number | null;
+  admissionRequirements?: string | null;
+  deliveryModes?: string[];
+  examClinicRequired?: boolean;
+  requiresAccreditationApproval?: boolean;
+  accreditationApproved?: boolean;
+  launchStatus?: string;
+  imageId?: string | null;
 };
 
 export type ProgramModule = {
@@ -56,11 +97,21 @@ export type Program = {
   description: string;
   schoolId: string;
   schoolName?: string | null;
+  qualificationLevelId?: string | null;
+  qualificationLevel?: QualificationLevel | null;
+  credits?: number | null;
+  durationMonths?: number | null;
+  admissionRequirements?: string | null;
+  deliveryModes?: string[];
   deliveryMode?: string | null;
   supportedDeliveryModes?: string[];
   campus?: string | null;
   intakeId?: string | null;
   curriculumVersion?: { id: string; name: string; status: string } | null;
+  examClinicRequired?: boolean;
+  requiresAccreditationApproval?: boolean;
+  accreditationApprovedAt?: string | null;
+  launchStatus?: string | null;
   progress: number;
   imageId: string;
   modules: ProgramModule[];
@@ -401,6 +452,7 @@ export type StudentDashboardWallet = {
   label: string;
   value: string;
   note?: string;
+  cashbackEligible?: boolean;
 };
 
 export type StudentDashboardData = {
@@ -689,6 +741,13 @@ export type WalletSettings = {
   walletAddress?: string | null;
   payoutCurrency?: string | null;
   status?: string | null;
+  cashbackEligible?: boolean;
+};
+
+export type StudentEntitlementsResponse = {
+  accessTier: string;
+  entitlements: string[];
+  cashbackEligible: boolean;
 };
 
 export type PaymentMethod = {

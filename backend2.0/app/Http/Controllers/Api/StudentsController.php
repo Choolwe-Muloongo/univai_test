@@ -11,43 +11,91 @@ use App\Models\Intake;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
-use App\Support\DeliveryModes;
+use App\Support\StudentAccess;
 use Illuminate\Http\Request;
 
 class StudentsController extends Controller
 {
     public function checkout(Request $request)
     {
+        $payload = $request->validate([
+            'role' => ['nullable', 'string'],
+            'accessTier' => ['nullable', 'string'],
+        ]);
+
+        $requestedTier = $payload['accessTier'] ?? StudentAccess::tierFromRole($payload['role'] ?? StudentAccess::ROLE_PREMIUM);
+        $requestedRole = StudentAccess::roleFromTier($requestedTier);
         $user = $request->session()->get('user');
         if (!$user) {
             $user = [
-                'id' => 'student-premium',
-                'name' => 'Premium Student',
-                'email' => 'student.premium@univai.edu',
-                'role' => 'premium-student',
-                'schoolId' => 'ict',
-                'programId' => 'cs101',
+                'id' => $requestedTier === StudentAccess::TIER_FREE ? 'student-free' : 'student-premium',
+                'name' => $requestedTier === StudentAccess::TIER_FREE ? 'Free Student' : 'Premium Student',
+                'email' => $requestedTier === StudentAccess::TIER_FREE ? 'student.free@univai.edu' : 'student.premium@univai.edu',
+                'role' => $requestedRole,
+                'schoolId' => $requestedTier === StudentAccess::TIER_PROGRAMME ? 'ict' : null,
+                'programId' => $requestedTier === StudentAccess::TIER_PROGRAMME ? 'cs101' : null,
             ];
         } else {
-            $user['role'] = 'premium-student';
-            $user['schoolId'] = $user['schoolId'] ?? 'ict';
-            $user['programId'] = $user['programId'] ?? 'cs101';
+            $user['role'] = $requestedRole;
+            if ($requestedTier === StudentAccess::TIER_PROGRAMME) {
+                $user['schoolId'] = $user['schoolId'] ?? 'ict';
+                $user['programId'] = $user['programId'] ?? 'cs101';
+            }
         }
+
+        $user = StudentAccess::sessionPayload($user);
 
         if (is_array($user) && isset($user['id']) && is_numeric($user['id'])) {
             $dbUser = User::find($user['id']);
             if ($dbUser) {
                 $dbUser->update([
-                    'role' => 'premium-student',
+                    'role' => $requestedRole,
                     'school_id' => $user['schoolId'] ?? $dbUser->school_id,
                     'program_id' => $user['programId'] ?? $dbUser->program_id,
                 ]);
+                StudentAccess::syncUserEntitlements($dbUser, $requestedTier, 'checkout');
             }
         }
 
         $request->session()->put('user', $user);
 
         return response()->json(['user' => $user]);
+    }
+
+    public function entitlements(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        if (!is_array($sessionUser)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $sessionUser = StudentAccess::sessionPayload($sessionUser);
+        $request->session()->put('user', $sessionUser);
+
+        if (isset($sessionUser['id']) && is_numeric($sessionUser['id'])) {
+            $dbUser = User::find((int) $sessionUser['id']);
+            if ($dbUser) {
+                $active = $dbUser->studentEntitlements()
+                    ->where('status', 'active')
+                    ->where(function ($query) {
+                        $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                    })
+                    ->pluck('type')
+                    ->all();
+
+                if (!empty($active)) {
+                    $sessionUser['entitlements'] = $active;
+                } else {
+                    StudentAccess::syncUserEntitlements($dbUser, $sessionUser['accessTier'], 'session-bootstrap');
+                }
+            }
+        }
+
+        return response()->json([
+            'accessTier' => $sessionUser['accessTier'],
+            'entitlements' => $sessionUser['entitlements'],
+            'cashbackEligible' => $sessionUser['cashbackEligible'],
+        ]);
     }
 
     public function enrollment(Request $request)
@@ -168,7 +216,10 @@ class StudentsController extends Controller
         ]);
 
         if (is_array($sessionUser)) {
-            $sessionUser['role'] = 'premium-student';
+            $sessionUser['role'] = StudentAccess::ROLE_PROGRAMME;
+            $sessionUser['accessTier'] = StudentAccess::TIER_PROGRAMME;
+            $sessionUser['entitlements'] = StudentAccess::entitlementsForTier(StudentAccess::TIER_PROGRAMME);
+            $sessionUser['cashbackEligible'] = true;
             $request->session()->put('user', $sessionUser);
         }
 
@@ -176,8 +227,9 @@ class StudentsController extends Controller
             $user = User::find($userId);
             if ($user) {
                 $user->update([
-                    'role' => 'premium-student',
+                    'role' => StudentAccess::ROLE_PROGRAMME,
                 ]);
+                StudentAccess::syncUserEntitlements($user, StudentAccess::TIER_PROGRAMME, 'enrollment-confirmation');
             }
         }
 
