@@ -6,35 +6,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+
+const supportedCredentials = [
+  'Short-course certificates',
+  'Professional certificates',
+  'Diplomas',
+  'Degrees',
+  'Transcripts',
+  'Statements of results',
+  'Postgraduate credentials',
+];
 
 export default function VerifyLandingPage() {
   const router = useRouter();
-  const [certificateId, setCertificateId] = useState('');
+  const [credentialId, setCredentialId] = useState('');
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!certificateId.trim()) return;
-    router.push(`/verify/${certificateId.trim()}`);
+    if (!credentialId.trim()) return;
+    router.push(`/verify/${encodeURIComponent(credentialId.trim())}`);
   };
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-xl space-y-4">
       <Card>
         <CardHeader className="text-center">
-          <CardTitle>Verify a Credential</CardTitle>
+          <CardTitle>Verify a UnivAI Credential</CardTitle>
           <CardDescription>
-            Enter a certificate ID to validate a student&apos;s credential.
+            Enter the public ID from a QR code, certificate, diploma, degree, transcript, or statement of results.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleVerify} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="certificateId">Certificate ID</Label>
+              <Label htmlFor="credentialId">Public credential ID</Label>
               <Input
-                id="certificateId"
-                placeholder="e.g., abcd1234"
-                value={certificateId}
-                onChange={(e) => setCertificateId(e.target.value)}
+                id="credentialId"
+                placeholder="e.g., UAI-SCC-ABCD1234"
+                value={credentialId}
+                onChange={(e) => setCredentialId(e.target.value)}
               />
             </div>
             <Button className="w-full" type="submit">
@@ -43,6 +54,13 @@ export default function VerifyLandingPage() {
           </form>
         </CardContent>
       </Card>
+      <div className="flex flex-wrap justify-center gap-2">
+        {supportedCredentials.map((credential) => (
+          <Badge key={credential} variant="outline">
+            {credential}
+          </Badge>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,10 @@
 import { apiFetch, API_BASE_URL } from '@/lib/api/client';
+import {
+  findCredentialByIdOrPublicId,
+  normalizeCredentials,
+  type CredentialRecord,
+  type CredentialVerificationResult,
+} from '@/lib/credentials';
 import type {
   AdmissionStatus,
   AdmissionsSettings,
@@ -873,6 +879,50 @@ export async function saveExamResult(examId: string, result: Record<string, unkn
 
 export async function getExamResults(): Promise<ExamResultsMap> {
   return apiFetch('/students/me/exams/results');
+}
+
+export async function getStudentCredentials(): Promise<CredentialRecord[]> {
+  try {
+    const credentials = await apiFetch<unknown>('/students/me/credentials');
+    return normalizeCredentials(credentials);
+  } catch (error) {
+    const legacyResults = await getExamResults();
+    return normalizeCredentials(legacyResults);
+  }
+}
+
+export async function getStudentCredential(id: string): Promise<CredentialRecord | null> {
+  const credentials = await getStudentCredentials();
+  return findCredentialByIdOrPublicId(credentials, id);
+}
+
+export async function verifyPublicCredential(publicId: string): Promise<CredentialVerificationResult> {
+  try {
+    const verified = await apiFetch<CredentialVerificationResult>(`/credentials/verify/${encodeURIComponent(publicId)}`);
+    return verified;
+  } catch (error) {
+    const legacyResults = await getExamResults();
+    const credential = findCredentialByIdOrPublicId(normalizeCredentials(legacyResults), publicId);
+    const isValid = Boolean(credential && credential.status === 'issued');
+
+    return {
+      isValid,
+      credential,
+      checkedAt: new Date().toISOString(),
+      message: isValid
+        ? 'This credential is authentic and currently issued.'
+        : credential?.status === 'revoked'
+          ? 'This credential exists but has been revoked.'
+          : 'This credential could not be found or is not valid.',
+    };
+  }
+}
+
+export async function revokeStudentCredential(id: string, reason: string): Promise<CredentialRecord> {
+  return apiFetch(`/students/me/credentials/${encodeURIComponent(id)}/revoke`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
 }
 
 export async function getLatestExamId() {
