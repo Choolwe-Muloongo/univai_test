@@ -1,5 +1,5 @@
 export type AdmissionStatus = {
-  status: string;
+  status: ApplicationStatus;
   admissionFeePaid: boolean;
   offerIssuedAt?: string | null;
   offerAcceptedAt?: string | null;
@@ -14,6 +14,7 @@ export type SessionUser = {
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
+  employerVerificationStatus?: string | null;
 };
 
 export type Session = {
@@ -366,6 +367,18 @@ export type JobApplicationPayload = {
   coverLetter?: string;
 };
 
+export type EmployerApplicationStatus = 'submitted' | 'shortlisted' | 'accepted' | 'rejected';
+
+export type JobApplication = {
+  id: number;
+  fullName: string;
+  email: string;
+  portfolio?: string | null;
+  coverLetter?: string | null;
+  status: EmployerApplicationStatus | string;
+  createdAt?: string | null;
+};
+
 export type ResearchApplicationPayload = {
   fullName: string;
   email: string;
@@ -637,6 +650,11 @@ export type EmployerDashboardJob = {
 };
 
 export type EmployerDashboardData = {
+  verification: {
+    status: 'unverified' | 'pending' | 'verified' | 'rejected' | string;
+    workflow: 'employer' | string;
+    message: string;
+  };
   stats: {
     activeJobs: { value: number; note?: string };
     activeResearch: { value: number; note?: string };
@@ -773,6 +791,6 @@ export type ResearchApplication = {
   email: string;
   experience?: string | null;
   availability?: string | null;
-  status: string;
+  status: EmployerApplicationStatus | string;
   createdAt?: string | null;
 };

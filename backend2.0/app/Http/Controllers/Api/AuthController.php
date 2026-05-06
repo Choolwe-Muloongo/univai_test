@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmployerVerification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -115,7 +116,24 @@ class AuthController extends Controller
             'schoolId' => $user->school_id,
             'programId' => $user->program_id,
             'intakeId' => $user->intake_id,
+            'employerVerificationStatus' => $this->employerVerificationStatus($user),
         ];
+    }
+
+    private function employerVerificationStatus(User $user): ?string
+    {
+        if (($user->role ?? null) !== 'employer') {
+            return null;
+        }
+
+        return EmployerVerification::query()
+            ->where('workflow_type', 'employer')
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->orWhere('contact_email', strtolower($user->email));
+            })
+            ->orderByDesc('created_at')
+            ->value('status') ?? 'unverified';
     }
 
     private function isDemoCredential(string $email, string $password): bool
@@ -161,6 +179,7 @@ class AuthController extends Controller
                 'name' => 'Employer',
                 'email' => 'employer@univai.edu',
                 'role' => 'employer',
+                'employerVerificationStatus' => 'verified',
             ],
             'admin' => [
                 'id' => 'admin-1',

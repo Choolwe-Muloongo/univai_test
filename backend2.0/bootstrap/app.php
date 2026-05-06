@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'session.auth' => \App\Http\Middleware\EnsureSessionUser::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'verified.employer' => \App\Http\Middleware\EnsureVerifiedEmployer::class,
         ]);
 
         $middleware->api(prepend: [

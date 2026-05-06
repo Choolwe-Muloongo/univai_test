@@ -1,11 +1,13 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Briefcase, Users, PlusCircle, ArrowRight, FlaskConical } from 'lucide-react';
+import { Briefcase, Users, PlusCircle, ArrowRight, FlaskConical, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 import { getEmployerDashboard } from '@/lib/api';
 
 export default async function EmployerDashboardPage() {
   const dashboard = await getEmployerDashboard();
+  const isVerified = dashboard.verification.status === 'verified';
   return (
     <div className="space-y-8">
       <div className='flex justify-between items-center'>
@@ -28,6 +30,24 @@ export default async function EmployerDashboardPage() {
             </Button>
         </div>
       </div>
+      <Card className={isVerified ? 'border-primary/30' : 'border-destructive/40'}>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Employer Verification
+            </CardTitle>
+            <CardDescription>{dashboard.verification.message}</CardDescription>
+          </div>
+          <Badge variant={isVerified ? 'default' : 'outline'}>{dashboard.verification.status}</Badge>
+        </CardHeader>
+        {!isVerified && (
+          <CardContent className="text-sm text-muted-foreground">
+            Posting opportunities and applicant decisions are locked until this separate employer workflow is approved. Academic enrolment status does not satisfy employer verification.
+          </CardContent>
+        )}
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

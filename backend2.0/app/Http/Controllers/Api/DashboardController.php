@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseLecturerAssignment;
 use App\Models\CourseAttempt;
+use App\Models\EmployerVerification;
 use App\Models\Enrollment;
 use App\Models\JobApplication;
 use App\Models\JobPosting;
@@ -171,18 +172,31 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function employer()
+    public function employer(Request $request)
     {
-        $jobs = JobPosting::query()->orderBy('created_at', 'desc')->get();
-        $jobApplicants = JobApplication::query()->select('job_id', DB::raw('count(*) as total'))->groupBy('job_id')->pluck('total', 'job_id');
-        $research = ResearchOpportunity::query()->orderBy('created_at', 'desc')->get();
-        $researchApplicants = ResearchApplication::query()->count();
+        $employerId = $this->numericSessionUserId($request);
+        $verification = $this->employerVerification($request);
+        $jobs = JobPosting::query()
+            ->when($employerId, fn ($query) => $query->where('employer_id', $employerId)->orWhereNull('employer_id'))
+            ->orderBy('created_at', 'desc')
+            ->get();
+        $jobIds = $jobs->pluck('id');
+        $jobApplicants = $jobIds->isNotEmpty()
+            ? JobApplication::query()->whereIn('job_id', $jobIds)->select('job_id', DB::raw('count(*) as total'))->groupBy('job_id')->pluck('total', 'job_id')
+            : collect();
+        $research = ResearchOpportunity::query()
+            ->when($employerId, fn ($query) => $query->where('employer_id', $employerId)->orWhereNull('employer_id'))
+            ->orderBy('created_at', 'desc')
+            ->get();
+        $researchIds = $research->pluck('id');
+        $researchApplicants = $researchIds->isNotEmpty() ? ResearchApplication::query()->whereIn('research_id', $researchIds)->count() : 0;
         $today = now()->toDateString();
-        $todayApplicants = JobApplication::query()->whereDate('created_at', $today)->count()
-            + ResearchApplication::query()->whereDate('created_at', $today)->count();
+        $todayApplicants = ($jobIds->isNotEmpty() ? JobApplication::query()->whereIn('job_id', $jobIds)->whereDate('created_at', $today)->count() : 0)
+            + ($researchIds->isNotEmpty() ? ResearchApplication::query()->whereIn('research_id', $researchIds)->whereDate('created_at', $today)->count() : 0);
         $todayNote = $todayApplicants > 0 ? "+{$todayApplicants} new today" : 'No new applicants today';
 
         return response()->json([
+            'verification' => $verification,
             'stats' => [
                 'activeJobs' => [
                     'value' => $jobs->count(),
@@ -210,6 +224,53 @@ class DashboardController extends Controller
                 'description' => $item->description,
             ]),
         ]);
+    }
+
+
+    private function employerVerification(Request $request): array
+    {
+        $sessionUser = $request->session()->get('user');
+        $status = is_array($sessionUser) ? ($sessionUser['employerVerificationStatus'] ?? null) : null;
+        if ($status === 'verified') {
+            return [
+                'status' => 'verified',
+                'workflow' => 'employer',
+                'message' => 'Your employer verification is approved and separate from academic enrolment.',
+            ];
+        }
+
+        $userId = $this->numericSessionUserId($request);
+        $email = is_array($sessionUser) ? ($sessionUser['email'] ?? null) : null;
+        $record = EmployerVerification::query()
+            ->where('workflow_type', 'employer')
+            ->where(function ($query) use ($userId, $email) {
+                if ($userId) {
+                    $query->where('user_id', $userId);
+                }
+
+                if ($email) {
+                    $method = $userId ? 'orWhere' : 'where';
+                    $query->{$method}('contact_email', strtolower($email));
+                }
+            })
+            ->orderByDesc('created_at')
+            ->first();
+
+        return [
+            'status' => $record?->status ?? 'unverified',
+            'workflow' => 'employer',
+            'message' => $record?->status === 'pending'
+                ? 'Your employer verification is pending review and remains separate from academic enrolment.'
+                : 'Complete employer verification before posting opportunities or managing applicants.',
+        ];
+    }
+
+    private function numericSessionUserId(Request $request): ?int
+    {
+        $sessionUser = $request->session()->get('user');
+        $id = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+
+        return is_numeric($id) ? (int) $id : null;
     }
 
     public function admin()

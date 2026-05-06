@@ -11,6 +11,7 @@ class JobPosting extends Model
 
     protected $fillable = [
         'id',
+        'employer_id',
         'title',
         'company',
         'location',

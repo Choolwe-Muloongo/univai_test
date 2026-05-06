@@ -66,16 +66,18 @@ Route::middleware('api')->group(function () {
     Route::patch('/lessons/{lessonId}', [CatalogController::class, 'updateLesson']);
 
     Route::get('/jobs', [JobsController::class, 'index']);
-    Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'role:employer', 'verified.employer']);
     Route::get('/jobs/{id}', [JobsController::class, 'show']);
+    Route::get('/jobs/{id}/applications', [JobsController::class, 'applications'])->middleware(['session.auth', 'role:employer', 'verified.employer']);
+    Route::patch('/jobs/{id}/applications/{application}', [JobsController::class, 'updateApplication'])->middleware(['session.auth', 'role:employer', 'verified.employer']);
     Route::post('/jobs/{id}/apply', [JobsController::class, 'apply'])->middleware(['session.auth', 'role:student']);
 
     Route::get('/research', [ResearchController::class, 'index']);
-    Route::post('/research', [ResearchController::class, 'store'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/research', [ResearchController::class, 'store'])->middleware(['session.auth', 'role:employer', 'verified.employer']);
     Route::get('/research/{id}', [ResearchController::class, 'show']);
     Route::post('/research/{id}/apply', [ResearchController::class, 'apply'])->middleware(['session.auth', 'role:student']);
-    Route::get('/research/{id}/applications', [ResearchController::class, 'applications'])->middleware(['session.auth', 'role:employer']);
-    Route::patch('/research/{id}/applications/{application}', [ResearchController::class, 'updateApplication'])->middleware(['session.auth', 'role:employer']);
+    Route::get('/research/{id}/applications', [ResearchController::class, 'applications'])->middleware(['session.auth', 'role:employer', 'verified.employer']);
+    Route::patch('/research/{id}/applications/{application}', [ResearchController::class, 'updateApplication'])->middleware(['session.auth', 'role:employer', 'verified.employer']);
 
     Route::get('/community/discussions', [CommunityController::class, 'index']);
     Route::post('/community/discussions', [CommunityController::class, 'store'])->middleware(['session.auth', 'role:student']);

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getResearchApplications, getResearchById } from '@/lib/api';
+import { ResearchApplicantActions } from './research-applicant-actions';
 
 export default async function EmployerResearchDetailPage({
   params,
@@ -100,6 +101,13 @@ export default async function EmployerResearchDetailPage({
                 {app.availability && (
                   <p className="text-xs text-muted-foreground">Availability: {app.availability}</p>
                 )}
+                <div className="mt-4">
+                  <ResearchApplicantActions
+                    opportunityId={research.id}
+                    applicationId={app.id}
+                    currentStatus={app.status}
+                  />
+                </div>
               </div>
             ))
           )}

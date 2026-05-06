@@ -19,6 +19,7 @@ import type {
   DiscussionComment,
   Discussion,
   JobApplicationPayload,
+  JobApplication,
   Job,
   Lesson,
   LessonWithCourseId,
@@ -222,6 +223,17 @@ export async function applyJob(jobId: string, payload: JobApplicationPayload) {
   return apiFetch(`/jobs/${jobId}/apply`, {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function getJobApplications(jobId: string): Promise<JobApplication[]> {
+  return apiFetch(`/jobs/${jobId}/applications`);
+}
+
+export async function updateJobApplication(jobId: string, applicationId: number, status: string) {
+  return apiFetch(`/jobs/${jobId}/applications/${applicationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
   });
 }
 
