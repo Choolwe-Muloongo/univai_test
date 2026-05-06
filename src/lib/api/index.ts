@@ -85,6 +85,13 @@ export async function getProgramModulesByProgram(programId: string): Promise<Pro
   return apiFetch(`/programs/${programId}/modules`);
 }
 
+export async function updateProgramDeliveryModes(programId: string, supportedDeliveryModes: string[]): Promise<Program> {
+  return apiFetch(`/admin/programs/${programId}/delivery-modes`, {
+    method: 'PATCH',
+    body: JSON.stringify({ supportedDeliveryModes }),
+  });
+}
+
 export async function createSchool(name: string): Promise<School> {
   return apiFetch('/admin/schools', {
     method: 'POST',
@@ -168,6 +175,7 @@ export async function createCurriculumModule(
     semester: number;
     isCore?: boolean;
     track?: string | null;
+    supportedDeliveryModes?: string[];
   }
 ): Promise<CurriculumModule> {
   return apiFetch(`/admin/curriculum/versions/${versionId}/modules`, {
@@ -596,10 +604,10 @@ export async function getEnrollment(): Promise<EnrollmentData | null> {
   }
 }
 
-export async function saveEnrollmentModules(modules: string[]): Promise<EnrollmentData> {
+export async function saveEnrollmentModules(modules: string[], deliveryMode: string): Promise<EnrollmentData> {
   return apiFetch('/students/me/enrollment/modules', {
     method: 'POST',
-    body: JSON.stringify({ modules }),
+    body: JSON.stringify({ modules, deliveryMode }),
   });
 }
 

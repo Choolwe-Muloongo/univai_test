@@ -32,6 +32,7 @@ export type Course = {
   schoolId: string;
   progress?: number | null;
   imageId: string;
+  supportedDeliveryModes?: string[];
 };
 
 export type ProgramModule = {
@@ -44,6 +45,7 @@ export type ProgramModule = {
   progress: number;
   semester: number;
   isExamAvailable: boolean;
+  supportedDeliveryModes?: string[];
   isCore?: boolean;
   track?: string | null;
 };
@@ -55,6 +57,7 @@ export type Program = {
   schoolId: string;
   schoolName?: string | null;
   deliveryMode?: string | null;
+  supportedDeliveryModes?: string[];
   campus?: string | null;
   intakeId?: string | null;
   curriculumVersion?: { id: string; name: string; status: string } | null;
@@ -426,6 +429,7 @@ export type Intake = {
   curriculumVersionId?: string | null;
   name: string;
   deliveryMode: string;
+  supportedDeliveryModes?: string[];
   campus?: string | null;
   capacity?: number | null;
   startDate?: string | null;
@@ -450,6 +454,7 @@ export type CurriculumModule = {
   hoursPerWeek?: number | null;
   semester: number;
   isCore: boolean;
+  supportedDeliveryModes?: string[];
   track?: string | null;
 };
 
@@ -471,6 +476,7 @@ export type LecturerAssignment = {
   intakeId?: string | null;
   intakeName?: string | null;
   deliveryMode?: string | null;
+  supportedDeliveryModes?: string[];
   campus?: string | null;
   role?: string | null;
   meetingProvider?: string | null;
@@ -550,6 +556,7 @@ export type CourseMeeting = {
   meetingUrl?: string | null;
   meetingSchedule?: Record<string, unknown> | null;
   meetingNotes?: string | null;
+  deliveryMode?: string | null;
 };
 
 export type CourseSession = {
@@ -558,6 +565,7 @@ export type CourseSession = {
   intakeId?: string | null;
   title: string;
   sessionType?: string | null;
+  deliveryMode?: string | null;
   dayOfWeek?: string | null;
   startTime?: string | null;
   endTime?: string | null;
@@ -580,6 +588,8 @@ export type Invoice = {
   paidAmount: string;
   status: string;
   dueDate?: string | null;
+  deliveryMode?: string | null;
+  feePolicy?: string | null;
 };
 
 export type Payment = {
@@ -595,6 +605,7 @@ export type EnrollmentData = {
   status: string;
   intakeId?: string | null;
   selectedModules?: string[];
+  deliveryMode?: string | null;
   enrolledAt?: string | null;
   confirmedAt?: string | null;
 };

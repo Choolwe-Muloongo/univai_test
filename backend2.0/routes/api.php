@@ -172,6 +172,7 @@ Route::middleware('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/intakes', [IntakesController::class, 'index']);
         Route::post('/intakes', [IntakesController::class, 'store']);
+        Route::patch('/programs/{program}/delivery-modes', [ProgramsController::class, 'updateDeliveryModes']);
         Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
         Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
         Route::get('/audit-logs', [AdminAuditController::class, 'index']);

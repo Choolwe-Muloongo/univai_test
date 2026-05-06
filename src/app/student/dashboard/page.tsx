@@ -16,6 +16,7 @@ import { type Program } from '@/lib/api/types';
 import { getProgram, getStudentDashboard } from '@/lib/api';
 import type { StudentDashboardAction, StudentDashboardDeadline, StudentDashboardWallet } from '@/lib/api/types';
 import { useSession } from '@/components/providers/session-provider';
+import { deliveryModeLabel } from '@/lib/delivery-modes';
 
 export default function DashboardPage() {
   const { session } = useSession();
@@ -147,7 +148,7 @@ export default function DashboardPage() {
         <StatCard
           title="Program Progress"
           value={`${program.progress}%`}
-          helper={program.title}
+          helper={`${program.title} · ${deliveryModeLabel(program.deliveryMode)}`}
           icon={<GraduationCap className="h-4 w-4" />}
         />
         <StatCard
@@ -169,7 +170,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>My Program</CardTitle>
-              <CardDescription>Your central hub for course materials, progress, and modules.</CardDescription>
+              <CardDescription>Your selected mode controls course access, timetable, exams, fees, and content availability.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="mb-4 flex items-center gap-4">
@@ -178,7 +179,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-lg font-semibold">{program.title}</p>
-                  <p className="text-sm text-muted-foreground">{schoolLabel}</p>
+                  <p className="text-sm text-muted-foreground">{schoolLabel} · {deliveryModeLabel(program.deliveryMode)}</p>
                 </div>
               </div>
               <div className="space-y-2">

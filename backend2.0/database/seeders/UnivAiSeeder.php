@@ -353,6 +353,12 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['id'], ['title', 'description', 'progress', 'image_id', 'updated_at']);
 
+        DB::table('programs')->where('id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('programs')->where('id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('programs')->where('id', 'nur201')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('programs')->where('id', 'eng401')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('programs')->where('id', 'edu110')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical'])]);
+
         DB::table('curriculum_versions')->upsert([
             [
                 'id' => 'cs101-v2026',
@@ -431,7 +437,7 @@ class UnivAiSeeder extends Seeder
                 'program_id' => 'cs101',
                 'curriculum_version_id' => 'cs101-v2026',
                 'name' => 'Jun 2026 Intake',
-                'delivery_mode' => 'online',
+                'delivery_mode' => 'software_only',
                 'campus' => null,
                 'capacity' => 300,
                 'start_date' => now()->addMonths(4)->toDateString(),
@@ -459,7 +465,7 @@ class UnivAiSeeder extends Seeder
                 'program_id' => 'bus301',
                 'curriculum_version_id' => 'bus301-v2026',
                 'name' => 'Jun 2026 Intake',
-                'delivery_mode' => 'online',
+                'delivery_mode' => 'software_only',
                 'campus' => null,
                 'capacity' => 150,
                 'start_date' => now()->addMonths(5)->toDateString(),
@@ -612,6 +618,12 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now(),
             ],
         ], ['id'], ['title', 'description', 'progress', 'semester', 'is_exam_available', 'is_core', 'curriculum_version_id', 'updated_at']);
+
+        DB::table('program_modules')->where('program_id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('program_modules')->where('program_id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('program_modules')->where('program_id', 'nur201')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('program_modules')->where('program_id', 'eng401')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('program_modules')->where('program_id', 'edu110')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical'])]);
 
         DB::table('lessons')->upsert([
             [
@@ -1003,7 +1015,7 @@ class UnivAiSeeder extends Seeder
                 ]),
                 'subject_count' => 6,
                 'total_points' => 34,
-                'delivery_mode' => 'online',
+                'delivery_mode' => 'software_only',
                 'learning_style' => 'personalized',
                 'study_pace' => 'flex',
                 'country' => 'Zambia',

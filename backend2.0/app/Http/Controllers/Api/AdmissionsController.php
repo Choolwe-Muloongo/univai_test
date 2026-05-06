@@ -10,6 +10,7 @@ use App\Models\Enrollment;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -65,7 +66,7 @@ class AdmissionsController extends Controller
             'subject_points' => $subjectPoints,
             'subject_count' => $subjectCount,
             'total_points' => $totalPoints,
-            'delivery_mode' => $payload['deliveryMode'] ?? 'hybrid',
+            'delivery_mode' => DeliveryModes::normalize($payload['deliveryMode'] ?? null),
             'learning_style' => $payload['learningStyle'] ?? 'traditional',
             'study_pace' => $payload['studyPace'] ?? 'standard',
             'country' => $payload['country'] ?? null,
@@ -276,6 +277,7 @@ class AdmissionsController extends Controller
                 [
                     'status' => 'pending',
                     'enrolled_at' => now(),
+                    'delivery_mode' => DeliveryModes::normalize($application->delivery_mode),
                 ]
             );
 
@@ -410,6 +412,7 @@ class AdmissionsController extends Controller
                         [
                             'status' => 'active',
                             'enrolled_at' => now(),
+                            'delivery_mode' => DeliveryModes::normalize($application->delivery_mode),
                         ]
                     );
 
@@ -695,11 +698,12 @@ class AdmissionsController extends Controller
             return;
         }
 
-        $amount = (float) env('DEFAULT_TUITION_FEE', 650);
+        $mode = DeliveryModes::normalize($application->delivery_mode);
+        $amount = round(((float) env('DEFAULT_TUITION_FEE', 650)) * DeliveryModes::feeMultiplier($mode), 2);
         Invoice::create([
             'student_id' => $user->id,
             'intake_id' => $application->intake_id,
-            'title' => 'Semester 1 Tuition',
+            'title' => 'Semester 1 Tuition (' . str_replace('_', '-', $mode) . ')',
             'amount' => $amount,
             'paid_amount' => 0,
             'status' => 'unpaid',

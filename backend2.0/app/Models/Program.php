@@ -18,6 +18,11 @@ class Program extends Model
         'description',
         'progress',
         'image_id',
+        'supported_delivery_modes',
+    ];
+
+    protected $casts = [
+        'supported_delivery_modes' => 'array',
     ];
 
     public function modules(): HasMany

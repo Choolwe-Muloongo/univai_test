@@ -22,12 +22,14 @@ class ProgramModule extends Model
         'progress',
         'semester',
         'is_exam_available',
+        'supported_delivery_modes',
         'is_core',
         'track',
     ];
 
     protected $casts = [
         'is_exam_available' => 'boolean',
+        'supported_delivery_modes' => 'array',
         'is_core' => 'boolean',
         'credits' => 'integer',
         'hours_per_week' => 'integer',

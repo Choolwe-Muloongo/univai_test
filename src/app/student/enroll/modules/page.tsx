@@ -4,15 +4,24 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getProgramModules, getEnrollment, saveEnrollmentModules } from '@/lib/api';
+import { deliveryModeLabel, deliveryModes } from '@/lib/delivery-modes';
 import type { EnrollmentData } from '@/lib/api/types';
 import type { ProgramModule } from '@/lib/api/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+
+function modeSupported(supportedModes: string[] | undefined, selectedMode: string) {
+  return !supportedModes || supportedModes.length === 0 || supportedModes.includes(selectedMode);
+}
 
 export default function EnrollmentModulesPage() {
   const { toast } = useToast();
   const [modules, setModules] = useState<ProgramModule[]>([]);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [deliveryMode, setDeliveryMode] = useState('hybrid');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -26,7 +35,9 @@ export default function EnrollmentModulesPage() {
         ]);
         setModules(moduleList);
         const existingSelection = (enrollment as EnrollmentData | null)?.selectedModules ?? [];
-        setSelectedModules(existingSelection.length ? existingSelection : moduleList.map((item) => item.id));
+        const existingMode = (enrollment as EnrollmentData | null)?.deliveryMode ?? 'hybrid';
+        setDeliveryMode(existingMode);
+        setSelectedModules(existingSelection.length ? existingSelection : moduleList.filter((item) => modeSupported(item.supportedDeliveryModes, existingMode)).map((item) => item.id));
       } catch (error) {
         console.error('Failed to load modules', error);
       } finally {
@@ -53,7 +64,7 @@ export default function EnrollmentModulesPage() {
     }
     setSaving(true);
     try {
-      await saveEnrollmentModules(selectedModules);
+      await saveEnrollmentModules(selectedModules, deliveryMode);
       toast({ title: 'Modules saved', description: 'Your semester selection has been updated.' });
     } catch (error: any) {
       toast({
@@ -80,21 +91,42 @@ export default function EnrollmentModulesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Semester Modules</CardTitle>
-          <CardDescription>Default modules are pre-selected for your program.</CardDescription>
+          <CardDescription>Default modules are pre-selected for your selected delivery mode.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Delivery Mode</Label>
+            <Select
+              value={deliveryMode}
+              onValueChange={(value) => {
+                setDeliveryMode(value);
+                setSelectedModules((prev) => prev.filter((id) => modeSupported(modules.find((item) => item.id === id)?.supportedDeliveryModes, value)));
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Select delivery mode" /></SelectTrigger>
+              <SelectContent>
+                {deliveryModes.map((mode) => (
+                  <SelectItem key={mode.value} value={mode.value}>{mode.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Access, timetables, exam bookings, fees, and content availability follow this selection.</p>
+          </div>
           {modules.map((module) => {
+            const available = modeSupported(module.supportedDeliveryModes, deliveryMode);
             const selected = selectedModules.includes(module.id);
             return (
               <div key={module.id} className="flex items-center justify-between rounded-lg border p-4">
                 <div>
                   <p className="font-medium">{module.title}</p>
-                  <p className="text-sm text-muted-foreground">Semester {module.semester}</p>
+                  <p className="text-sm text-muted-foreground">Semester {module.semester} · {deliveryModeLabel(deliveryMode)}</p>
+                  {!available ? <p className="text-xs text-destructive">Unavailable in this mode</p> : null}
                 </div>
                 <Button
                   size="sm"
                   variant={selected ? 'default' : 'outline'}
                   onClick={() => toggleModule(module.id)}
+                  disabled={!available}
                 >
                   {selected ? 'Selected' : 'Select'}
                 </Button>
