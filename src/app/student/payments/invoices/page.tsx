@@ -13,6 +13,7 @@ export default function StudentInvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<number | null>(null);
+  const [premiumMessage, setPremiumMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -28,6 +29,13 @@ export default function StudentInvoicesPage() {
     setPayingId(invoiceId);
     const updated = await payInvoice(invoiceId);
     setInvoices((prev) => prev.map((invoice) => (invoice.id === updated.id ? updated : invoice)));
+    if (updated.premiumSubscription?.premiumFeaturesUnlocked) {
+      setPremiumMessage(
+        updated.cashbackCreated
+          ? `Premium is active and ${updated.premiumSubscription.cashbackAmount} ${updated.premiumSubscription.cashbackCurrency} cashback was created.`
+          : 'Premium is active and entitlements are unlocked.'
+      );
+    }
     setPayingId(null);
   };
 
@@ -46,6 +54,12 @@ export default function StudentInvoicesPage() {
           <Link href="/student/payments">Back to Billing</Link>
         </Button>
       </div>
+
+      {premiumMessage && (
+        <Card>
+          <CardContent className="pt-6 text-sm text-primary">{premiumMessage}</CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

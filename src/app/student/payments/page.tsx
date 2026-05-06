@@ -1,14 +1,15 @@
 // src/app/(app)/payments/page.tsx
 'use client';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Check, Star, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/components/providers/session-provider';
 import Link from 'next/link';
-import { getInvoices } from '@/lib/api';
-import type { Invoice } from '@/lib/api/types';
+import { getInvoices, getPremiumSubscription } from '@/lib/api';
+import type { Invoice, PremiumSubscription } from '@/lib/api/types';
 
 const freemiumFeatures = [
   { text: 'Access to introductory modules of all courses', included: true },
@@ -34,17 +35,22 @@ export default function PaymentsPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showAllTotals, setShowAllTotals] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [subscription, setSubscription] = useState<PremiumSubscription | null>(null);
 
   useEffect(() => {
     setUserRole(session?.user?.role ?? null);
   }, [session]);
 
   useEffect(() => {
-    const loadInvoices = async () => {
-      const data = await getInvoices();
-      setInvoices(data);
+    const loadBilling = async () => {
+      const [invoiceData, subscriptionData] = await Promise.all([
+        getInvoices(),
+        getPremiumSubscription(),
+      ]);
+      setInvoices(invoiceData);
+      setSubscription(subscriptionData);
     };
-    loadInvoices();
+    loadBilling();
   }, []);
 
   const feeTotals = useMemo(() => {
@@ -74,6 +80,11 @@ export default function PaymentsPage() {
     router.push('/student/checkout');
   };
 
+  const subscriptionStates = subscription?.availableStates ?? ['trial', 'active', 'past_due', 'expired', 'cancelled', 'suspended'];
+  const activeEntitlementCount = subscription?.entitlements.length ?? 0;
+  const cashbackLabel = subscription?.cashbackStatus === 'created'
+    ? `${subscription.cashbackAmount} ${subscription.cashbackCurrency}`
+    : 'Not yet earned';
   const isFreemium = userRole === 'freemium-student';
 
   return (
@@ -107,6 +118,53 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
       </div>
+
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Premium Subscription State</CardTitle>
+          <CardDescription>Premium access is controlled by explicit subscription states and entitlement activation.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-semibold text-muted-foreground">Current State</p>
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant={subscription?.status === 'active' ? 'secondary' : 'outline'}>
+                {(subscription?.statusLabel ?? 'Trial').toUpperCase()}
+              </Badge>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {subscription?.currentPeriodEndsAt
+                ? `Renews or expires ${subscription.currentPeriodEndsAt}`
+                : subscription?.trialEndsAt
+                  ? `Trial ends ${subscription.trialEndsAt}`
+                  : 'No billing date available'}
+            </p>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-semibold text-muted-foreground">Entitlements</p>
+            <p className="mt-2 text-2xl font-bold">
+              {subscription?.premiumFeaturesUnlocked ? 'Unlocked' : 'Locked'}
+            </p>
+            <p className="text-xs text-muted-foreground">{activeEntitlementCount} premium features active</p>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-semibold text-muted-foreground">Qualified Cashback</p>
+            <p className="mt-2 text-2xl font-bold">{cashbackLabel}</p>
+            <p className="text-xs text-muted-foreground">Created only after eligible successful premium payments.</p>
+          </div>
+          <div className="md:col-span-3 rounded-lg border border-dashed p-4">
+            <p className="text-sm font-semibold">Supported premium states</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {subscriptionStates.map((state) => (
+                <Badge key={state} variant={subscription?.status === state ? 'secondary' : 'outline'}>
+                  {state.replace('_', ' ').toUpperCase()}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

@@ -27,6 +27,7 @@ import type {
   ResearchOpportunity,
   School,
   Session,
+  CheckoutResponse,
   StudentDashboardData,
   LecturerDashboardData,
   EmployerDashboardData,
@@ -60,6 +61,7 @@ import type {
   SupportMessage,
   WalletSettings,
   PaymentMethod,
+  PremiumSubscription,
   ScholarshipApplication,
   PortfolioItem,
   FinanceReportRow,
@@ -464,6 +466,10 @@ export async function getPayments(): Promise<Payment[]> {
   return apiFetch('/students/me/payments');
 }
 
+export async function getPremiumSubscription(): Promise<PremiumSubscription | null> {
+  return apiFetch('/students/me/subscription');
+}
+
 export async function getSupportTickets(): Promise<SupportTicket[]> {
   return apiFetch('/students/me/support/tickets');
 }
@@ -857,7 +863,7 @@ export async function getSession(): Promise<Session> {
   return apiFetch('/auth/me');
 }
 
-export async function completeCheckout(role: string): Promise<Session> {
+export async function completeCheckout(role: string): Promise<CheckoutResponse> {
   return apiFetch('/students/checkout', {
     method: 'POST',
     body: JSON.stringify({ role }),

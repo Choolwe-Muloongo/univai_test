@@ -107,6 +107,7 @@ Route::middleware('api')->group(function () {
         Route::get('/students/me/invoices', [BillingController::class, 'invoices']);
         Route::post('/students/me/invoices/{invoice}/pay', [BillingController::class, 'pay']);
         Route::get('/students/me/payments', [BillingController::class, 'payments']);
+        Route::get('/students/me/subscription', [BillingController::class, 'subscription']);
         Route::get('/students/me/grades', [GradesController::class, 'studentGrades']);
         Route::get('/students/me/assignments', [StudentAssignmentsController::class, 'index']);
         Route::get('/students/me/assignments/submissions', [StudentAssignmentsController::class, 'submissions']);

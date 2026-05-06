@@ -23,11 +23,13 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      await completeCheckout('premium-student');
+      const checkout = await completeCheckout('premium-student');
       await refresh();
       toast({
         title: 'Upgrade Successful!',
-        description: 'Welcome to Premium. You now have access to all features.',
+        description: checkout.cashbackCreated && checkout.premiumSubscription
+          ? `Premium features unlocked. ${checkout.premiumSubscription.cashbackAmount} ${checkout.premiumSubscription.cashbackCurrency} cashback was created.`
+          : 'Welcome to Premium. You now have access to all features.',
       });
       router.push('/student/dashboard');
     } catch (error) {

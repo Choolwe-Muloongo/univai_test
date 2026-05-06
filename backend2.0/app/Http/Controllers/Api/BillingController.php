@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PremiumSubscription;
+use App\Models\User;
+use App\Services\PremiumSubscriptionService;
 use App\Support\AuditLogger;
 use Illuminate\Http\Request;
 
@@ -52,13 +55,25 @@ class BillingController extends Controller
         $invoice->status = $invoice->paid_amount >= $invoice->amount ? 'paid' : 'partial';
         $invoice->save();
 
-        Payment::create([
+        $payment = Payment::create([
             'invoice_id' => $invoice->id,
             'amount' => $amount,
             'method' => $payload['method'] ?? 'card',
             'status' => 'completed',
             'paid_at' => now(),
         ]);
+
+        $premiumResult = null;
+        $student = User::find($studentId);
+        $premiumService = app(PremiumSubscriptionService::class);
+        if ($student && $premiumService->paymentUnlocksPremium($payment)) {
+            $premiumResult = $premiumService->activateFromSuccessfulPayment($student, $payment);
+
+            if (is_array($user)) {
+                $user['role'] = 'premium-student';
+                $request->session()->put('user', $user);
+            }
+        }
 
         AuditLogger::log($request, 'invoice.paid', 'invoice', (string) $invoice->id, [
             'amount' => $amount,
@@ -71,6 +86,10 @@ class BillingController extends Controller
             'paidAmount' => (string) $invoice->paid_amount,
             'status' => $invoice->status,
             'dueDate' => optional($invoice->due_date)->toDateString(),
+            'premiumSubscription' => $premiumResult
+                ? $premiumService->mapSubscription($premiumResult['subscription'])
+                : null,
+            'cashbackCreated' => $premiumResult['cashbackCreated'] ?? false,
         ];
     }
 
@@ -95,5 +114,25 @@ class BillingController extends Controller
                 'status' => $payment->status,
                 'paidAt' => optional($payment->paid_at)->toISOString(),
             ]);
+    }
+
+    public function subscription(Request $request)
+    {
+        $user = $request->session()->get('user');
+        $studentId = is_array($user) ? ($user['id'] ?? null) : null;
+
+        if (!$studentId || !is_numeric($studentId)) {
+            return response()->json(null, 404);
+        }
+
+        $student = User::find($studentId);
+        if (!$student) {
+            return response()->json(null, 404);
+        }
+
+        $subscription = PremiumSubscription::query()->where('user_id', $student->id)->first()
+            ?? app(PremiumSubscriptionService::class)->trialFor($student);
+
+        return app(PremiumSubscriptionService::class)->mapSubscription($subscription);
     }
 }

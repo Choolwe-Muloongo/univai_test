@@ -20,6 +20,11 @@ export type Session = {
   user: SessionUser | null;
 };
 
+export type CheckoutResponse = Session & {
+  premiumSubscription?: PremiumSubscription | null;
+  cashbackCreated?: boolean;
+};
+
 export type School = {
   id: string;
   name: string;
@@ -573,6 +578,24 @@ export type SessionRosterStudent = {
   email?: string | null;
 };
 
+export type PremiumSubscriptionStatus = 'trial' | 'active' | 'past_due' | 'expired' | 'cancelled' | 'suspended';
+
+export type PremiumSubscription = {
+  id: number;
+  status: PremiumSubscriptionStatus;
+  statusLabel: string;
+  entitlements: string[];
+  premiumFeaturesUnlocked: boolean;
+  entitlementsActivatedAt?: string | null;
+  trialEndsAt?: string | null;
+  currentPeriodEndsAt?: string | null;
+  cashbackAmount: string;
+  cashbackCurrency: string;
+  cashbackStatus: string;
+  cashbackCreatedAt?: string | null;
+  availableStates: PremiumSubscriptionStatus[];
+};
+
 export type Invoice = {
   id: number;
   title: string;
@@ -580,6 +603,8 @@ export type Invoice = {
   paidAmount: string;
   status: string;
   dueDate?: string | null;
+  premiumSubscription?: PremiumSubscription | null;
+  cashbackCreated?: boolean;
 };
 
 export type Payment = {

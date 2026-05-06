@@ -7,10 +7,12 @@ use App\Models\CourseAttempt;
 use App\Models\CourseLecturerAssignment;
 use App\Models\Enrollment;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Intake;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
+use App\Services\PremiumSubscriptionService;
 use Illuminate\Http\Request;
 
 class StudentsController extends Controller
@@ -33,20 +35,59 @@ class StudentsController extends Controller
             $user['programId'] = $user['programId'] ?? 'cs101';
         }
 
+        $premiumResult = null;
         if (is_array($user) && isset($user['id']) && is_numeric($user['id'])) {
             $dbUser = User::find($user['id']);
             if ($dbUser) {
                 $dbUser->update([
-                    'role' => 'premium-student',
                     'school_id' => $user['schoolId'] ?? $dbUser->school_id,
                     'program_id' => $user['programId'] ?? $dbUser->program_id,
                 ]);
+
+                $invoice = Invoice::query()->firstOrCreate(
+                    [
+                        'student_id' => $dbUser->id,
+                        'title' => 'UnivAI Premium Plan (1 Year)',
+                    ],
+                    [
+                        'intake_id' => $dbUser->intake_id,
+                        'amount' => 250,
+                        'paid_amount' => 0,
+                        'status' => 'unpaid',
+                        'due_date' => now()->toDateString(),
+                    ]
+                );
+
+                $amountDue = max(0, (float) $invoice->amount - (float) $invoice->paid_amount);
+                $paymentAmount = $amountDue > 0 ? $amountDue : (float) $invoice->amount;
+
+                $invoice->update([
+                    'paid_amount' => $invoice->amount,
+                    'status' => 'paid',
+                ]);
+
+                $payment = Payment::create([
+                    'invoice_id' => $invoice->id,
+                    'amount' => $paymentAmount,
+                    'method' => $request->input('method', 'card'),
+                    'status' => 'completed',
+                    'paid_at' => now(),
+                ]);
+
+                $premiumResult = app(PremiumSubscriptionService::class)->activateFromSuccessfulPayment($dbUser, $payment);
+                $user['role'] = 'premium-student';
             }
         }
 
         $request->session()->put('user', $user);
 
-        return response()->json(['user' => $user]);
+        return response()->json([
+            'user' => $user,
+            'premiumSubscription' => $premiumResult
+                ? app(PremiumSubscriptionService::class)->mapSubscription($premiumResult['subscription'])
+                : null,
+            'cashbackCreated' => $premiumResult['cashbackCreated'] ?? false,
+        ]);
     }
 
     public function enrollment(Request $request)
