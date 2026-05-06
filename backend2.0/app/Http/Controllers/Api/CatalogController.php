@@ -35,6 +35,12 @@ class CatalogController extends Controller
                 'schoolId' => $course->school_id,
                 'progress' => $course->progress,
                 'imageId' => $course->image_id,
+                'certificateType' => $course->certificate_type,
+                'pricingType' => $course->pricing_type,
+                'price' => $course->price,
+                'currency' => $course->currency,
+                'durationHours' => $course->duration_hours,
+                'level' => $course->level,
             ]);
     }
 
@@ -52,6 +58,12 @@ class CatalogController extends Controller
             'schoolId' => $course->school_id,
             'progress' => $course->progress,
             'imageId' => $course->image_id,
+            'certificateType' => $course->certificate_type,
+            'pricingType' => $course->pricing_type,
+            'price' => $course->price,
+            'currency' => $course->currency,
+            'durationHours' => $course->duration_hours,
+            'level' => $course->level,
         ];
     }
 
@@ -63,6 +75,12 @@ class CatalogController extends Controller
             ->orderBy('display_order')
             ->orderBy('title')
             ->get()
+        $course = Course::find($courseId);
+        if (!$course) {
+            return response()->json([], 404);
+        }
+
+        return $course->lessons
             ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $courseId));
     }
 
@@ -73,7 +91,9 @@ class CatalogController extends Controller
             return response()->json(null, 404);
         }
 
-        return $this->mapLesson($lesson, $lesson->course_id);
+        $courseId = $lesson->shortCourses()->value('short_courses.id');
+
+        return $this->mapLesson($lesson, $courseId);
     }
 
     public function lessons()
@@ -84,7 +104,7 @@ class CatalogController extends Controller
             ->orderBy('display_order')
             ->orderBy('title')
             ->get()
-            ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $lesson->course_id));
+            ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $lesson->shortCourses()->value('short_courses.id')));
     }
 
     public function updateLesson(Request $request, string $lessonId)
@@ -125,6 +145,9 @@ class CatalogController extends Controller
         }
 
         return $this->mapLesson($lesson->fresh('learningObjects'), $lesson->course_id);
+        $courseId = $lesson->shortCourses()->value('short_courses.id');
+
+        return $this->mapLesson($lesson, $courseId);
     }
 
     public function courseExam(string $courseId)
@@ -140,7 +163,7 @@ class CatalogController extends Controller
             ]);
     }
 
-    private function mapLesson(Lesson $lesson, string $courseId): array
+    private function mapLesson(Lesson $lesson, ?string $courseId): array
     {
         $objects = $lesson->relationLoaded('learningObjects')
             ? $lesson->learningObjects
@@ -155,6 +178,8 @@ class CatalogController extends Controller
             'id' => $lesson->id,
             'title' => $lesson->title,
             'content' => $content?->body ?? $lesson->summary ?? '',
+            'summary' => $lesson->summary,
+            'content' => $lesson->content,
             'courseId' => $courseId,
             'videoUrl' => $video?->asset_url,
             'exercise' => $exercise?->body,

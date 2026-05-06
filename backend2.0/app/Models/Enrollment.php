@@ -11,6 +11,7 @@ class Enrollment extends Model
         'user_id',
         'intake_id',
         'selected_modules',
+        'delivery_mode',
         'status',
         'standing',
         'probation_count',

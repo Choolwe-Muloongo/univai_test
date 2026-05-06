@@ -14,11 +14,17 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('courses', function (Blueprint $table) {
+        Schema::create('short_courses', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('school_id');
             $table->string('title');
             $table->text('description');
+            $table->string('certificate_type')->default('certificate');
+            $table->string('pricing_type')->default('free');
+            $table->decimal('price', 10, 2)->default(0);
+            $table->string('currency', 3)->default('USD');
+            $table->unsignedInteger('duration_hours')->default(0);
+            $table->string('level')->default('beginner');
             $table->integer('progress')->default(0);
             $table->string('image_id')->nullable();
             $table->timestamps();
@@ -29,6 +35,11 @@ return new class extends Migration
             $table->string('school_id');
             $table->string('title');
             $table->text('description');
+            $table->string('award_type')->default('degree');
+            $table->string('qualification_level')->nullable();
+            $table->unsignedInteger('duration_semesters')->default(1);
+            $table->unsignedInteger('total_credits')->default(0);
+            $table->string('delivery_mode')->default('online');
             $table->integer('progress')->default(0);
             $table->string('image_id')->nullable();
             $table->timestamps();
@@ -47,7 +58,6 @@ return new class extends Migration
 
         Schema::create('lessons', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->string('course_id');
             $table->string('title');
             $table->text('summary')->nullable();
             $table->unsignedInteger('display_order')->default(0);
@@ -79,6 +89,10 @@ return new class extends Migration
             $table->timestamp('reviewed_at')->nullable();
             $table->timestamp('published_at')->nullable();
             $table->timestamp('retracted_at')->nullable();
+            $table->text('content')->nullable();
+            $table->string('video_url')->nullable();
+            $table->json('quiz')->nullable();
+            $table->text('exercise')->nullable();
             $table->timestamps();
 
             $table->index(['type', 'review_status', 'publication_status']);
@@ -102,6 +116,52 @@ return new class extends Migration
             $table->unique(['lesson_id', 'learning_object_id']);
             $table->index(['lesson_id', 'position']);
             $table->index(['publication_status', 'available_from', 'available_until']);
+        });
+
+        Schema::create('learning_objects', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('type');
+            $table->string('title');
+            $table->longText('body')->nullable();
+            $table->string('url')->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lesson_learning_object', function (Blueprint $table) {
+            $table->id();
+            $table->string('lesson_id');
+            $table->string('learning_object_id');
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->timestamps();
+
+            $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
+            $table->foreign('learning_object_id')->references('id')->on('learning_objects')->cascadeOnDelete();
+            $table->unique(['lesson_id', 'learning_object_id']);
+        });
+
+        Schema::create('short_course_lessons', function (Blueprint $table) {
+            $table->id();
+            $table->string('short_course_id');
+            $table->string('lesson_id');
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->timestamps();
+
+            $table->foreign('short_course_id')->references('id')->on('short_courses')->cascadeOnDelete();
+            $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
+            $table->unique(['short_course_id', 'lesson_id']);
+        });
+
+        Schema::create('program_module_lessons', function (Blueprint $table) {
+            $table->id();
+            $table->string('program_module_id');
+            $table->string('lesson_id');
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->timestamps();
+
+            $table->foreign('program_module_id')->references('id')->on('program_modules')->cascadeOnDelete();
+            $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
+            $table->unique(['program_module_id', 'lesson_id']);
         });
 
         Schema::create('job_postings', function (Blueprint $table) {
@@ -212,11 +272,14 @@ return new class extends Migration
         Schema::dropIfExists('research_opportunities');
         Schema::dropIfExists('job_postings');
         Schema::dropIfExists('lesson_learning_objects');
+        Schema::dropIfExists('program_module_lessons');
+        Schema::dropIfExists('short_course_lessons');
+        Schema::dropIfExists('lesson_learning_object');
         Schema::dropIfExists('learning_objects');
         Schema::dropIfExists('lessons');
         Schema::dropIfExists('program_modules');
         Schema::dropIfExists('programs');
-        Schema::dropIfExists('courses');
+        Schema::dropIfExists('short_courses');
         Schema::dropIfExists('schools');
     }
 };

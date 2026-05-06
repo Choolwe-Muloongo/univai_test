@@ -56,6 +56,8 @@ import type {
   RouteChangeRequest,
   Program,
   ProgramModule,
+  ProgramPayload,
+  QualificationLevel,
   SupportTicket,
   SupportMessage,
   WalletSettings,
@@ -67,6 +69,15 @@ import type {
   LecturerApplication,
   AiResponse,
   SystemHealthData,
+  ExamCentre,
+  ExamRoom,
+  ExamInvigilator,
+  ExamClinicSession,
+  ExamBooking,
+  ExamIncident,
+  ExamResultsSyncLog,
+  ExamClinicOverview,
+  StudentEntitlementsResponse,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -81,8 +92,19 @@ export async function getPrograms(): Promise<Program[]> {
   return apiFetch('/programs');
 }
 
+export async function getQualificationLevels(): Promise<QualificationLevel[]> {
+  return apiFetch('/admin/qualification-levels');
+}
+
 export async function getProgramModulesByProgram(programId: string): Promise<ProgramModule[]> {
   return apiFetch(`/programs/${programId}/modules`);
+}
+
+export async function updateProgramDeliveryModes(programId: string, supportedDeliveryModes: string[]): Promise<Program> {
+  return apiFetch(`/admin/programs/${programId}/delivery-modes`, {
+    method: 'PATCH',
+    body: JSON.stringify({ supportedDeliveryModes }),
+  });
 }
 
 export async function createSchool(name: string): Promise<School> {
@@ -99,12 +121,23 @@ export async function createCourse(course: Course): Promise<Course> {
   });
 }
 
+export async function createProgram(program: ProgramPayload): Promise<Program> {
+  return apiFetch('/admin/programs', {
+    method: 'POST',
+    body: JSON.stringify(program),
+  });
+}
+
 export async function deleteSchool(id: string): Promise<void> {
   await apiFetch(`/admin/schools/${id}`, { method: 'DELETE', parseJson: false });
 }
 
 export async function deleteCourse(id: string): Promise<void> {
   await apiFetch(`/admin/courses/${id}`, { method: 'DELETE', parseJson: false });
+}
+
+export async function deleteProgram(id: string): Promise<void> {
+  await apiFetch(`/admin/programs/${id}`, { method: 'DELETE', parseJson: false });
 }
 
 export async function getCourseById(id: string): Promise<Course | null> {
@@ -168,6 +201,7 @@ export async function createCurriculumModule(
     semester: number;
     isCore?: boolean;
     track?: string | null;
+    supportedDeliveryModes?: string[];
   }
 ): Promise<CurriculumModule> {
   return apiFetch(`/admin/curriculum/versions/${versionId}/modules`, {
@@ -495,6 +529,10 @@ export async function getWalletSettings(): Promise<WalletSettings> {
   return apiFetch('/students/me/wallet/settings');
 }
 
+export async function getStudentEntitlements(): Promise<StudentEntitlementsResponse> {
+  return apiFetch('/students/me/entitlements');
+}
+
 export async function updateWalletSettings(payload: {
   walletAddress: string;
   payoutCurrency: string;
@@ -596,10 +634,10 @@ export async function getEnrollment(): Promise<EnrollmentData | null> {
   }
 }
 
-export async function saveEnrollmentModules(modules: string[]): Promise<EnrollmentData> {
+export async function saveEnrollmentModules(modules: string[], deliveryMode: string): Promise<EnrollmentData> {
   return apiFetch('/students/me/enrollment/modules', {
     method: 'POST',
-    body: JSON.stringify({ modules }),
+    body: JSON.stringify({ modules, deliveryMode }),
   });
 }
 
@@ -857,10 +895,10 @@ export async function getSession(): Promise<Session> {
   return apiFetch('/auth/me');
 }
 
-export async function completeCheckout(role: string): Promise<Session> {
+export async function completeCheckout(role: string, accessTier?: string): Promise<Session> {
   return apiFetch('/students/checkout', {
     method: 'POST',
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ role, accessTier }),
   });
 }
 
@@ -984,3 +1022,82 @@ export async function runSystemDiagnostics(): Promise<any> {
   });
 }
 
+
+export async function getExamClinicOverview(): Promise<ExamClinicOverview> {
+  return apiFetch('/admin/exam-clinic');
+}
+
+export async function createExamCentre(payload: {
+  name: string;
+  code?: string;
+  location: string;
+  timezone?: string;
+  capacity?: number;
+  approvalStatus?: string;
+  approvalNotes?: string;
+}): Promise<ExamCentre> {
+  return apiFetch('/admin/exam-clinic/centres', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateExamCentreApproval(id: number, payload: { approvalStatus: string; approvalNotes?: string }): Promise<ExamCentre> {
+  return apiFetch(`/admin/exam-clinic/centres/${id}/approval`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function createExamRoom(payload: { centreId: number; name: string; code?: string; capacity: number; accessibilityNotes?: string; equipment?: string[]; status?: string }): Promise<ExamRoom> {
+  return apiFetch('/admin/exam-clinic/rooms', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function createExamInvigilator(payload: { name: string; email: string; phone?: string; certifications?: string[]; status?: string }): Promise<ExamInvigilator> {
+  return apiFetch('/admin/exam-clinic/invigilators', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function createExamClinicSession(payload: {
+  centreId: number;
+  roomId?: number | null;
+  invigilatorId?: number | null;
+  examId: string;
+  title: string;
+  programId?: string | null;
+  moduleId?: string | null;
+  courseId?: string | null;
+  deliveryMode: string;
+  startsAt: string;
+  endsAt: string;
+  capacity: number;
+  status?: string;
+  rules?: string[];
+}): Promise<ExamClinicSession> {
+  return apiFetch('/admin/exam-clinic/sessions', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateExamClinicSession(id: number, payload: { status?: string; capacity?: number; invigilatorId?: number }): Promise<ExamClinicSession> {
+  return apiFetch(`/admin/exam-clinic/sessions/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function createExamIncident(sessionId: number, payload: { bookingId?: number | null; severity: string; category: string; description: string; status?: string; actions?: string[] }): Promise<ExamIncident> {
+  return apiFetch(`/admin/exam-clinic/sessions/${sessionId}/incidents`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function markExamAttendance(bookingId: number, payload: { status: string; notes?: string }): Promise<ExamBooking> {
+  return apiFetch(`/admin/exam-clinic/bookings/${bookingId}/attendance`, { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function syncExamResults(payload: { sessionId?: number | null; recordsSynced?: number; message?: string }): Promise<ExamResultsSyncLog> {
+  return apiFetch('/admin/exam-clinic/results-sync', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function getStudentExamClinicSessions(): Promise<ExamClinicSession[]> {
+  return apiFetch('/students/me/exam-clinic/sessions');
+}
+
+export async function getStudentExamBookings(): Promise<ExamBooking[]> {
+  return apiFetch('/students/me/exam-clinic/bookings');
+}
+
+export async function bookExamClinicSession(sessionId: number, accommodations?: string): Promise<ExamBooking> {
+  return apiFetch('/students/me/exam-clinic/bookings', { method: 'POST', body: JSON.stringify({ sessionId, accommodations }) });
+}
+
+export async function cancelExamBooking(bookingId: number): Promise<ExamBooking> {
+  return apiFetch(`/students/me/exam-clinic/bookings/${bookingId}`, { method: 'DELETE' });
+}

@@ -8,6 +8,7 @@ use App\Models\CourseLecturerAssignment;
 use App\Models\CourseSession;
 use App\Models\Enrollment;
 use App\Support\AuditLogger;
+use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
 
 class CourseSessionsController extends Controller
@@ -46,6 +47,7 @@ class CourseSessionsController extends Controller
             'intakeId' => ['required', 'string'],
             'title' => ['required', 'string'],
             'sessionType' => ['nullable', 'string'],
+            'deliveryMode' => ['nullable', 'string'],
             'dayOfWeek' => ['nullable', 'string'],
             'startTime' => ['nullable', 'string'],
             'endTime' => ['nullable', 'string'],
@@ -75,6 +77,7 @@ class CourseSessionsController extends Controller
             'intake_id' => $payload['intakeId'],
             'title' => $payload['title'],
             'session_type' => $payload['sessionType'] ?? 'lecture',
+            'delivery_mode' => DeliveryModes::normalize($payload['deliveryMode'] ?? null),
             'day_of_week' => $payload['dayOfWeek'] ?? null,
             'start_time' => $payload['startTime'] ?? null,
             'end_time' => $payload['endTime'] ?? null,
@@ -176,8 +179,14 @@ class CourseSessionsController extends Controller
             return [];
         }
 
+        $selectedMode = DeliveryModes::normalize(Enrollment::query()
+            ->where('user_id', $studentId)
+            ->where('intake_id', $intakeId)
+            ->value('delivery_mode'));
+
         $sessions = CourseSession::with('course')
             ->where('intake_id', $intakeId)
+            ->whereIn('delivery_mode', [$selectedMode, DeliveryModes::HYBRID])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -198,6 +207,7 @@ class CourseSessionsController extends Controller
                 'courseTitle' => $session->course?->title,
                 'title' => $session->title,
                 'sessionType' => $session->session_type,
+                'deliveryMode' => DeliveryModes::normalize($session->delivery_mode),
                 'dayOfWeek' => $session->day_of_week,
                 'startTime' => $session->start_time?->format('H:i'),
                 'endTime' => $session->end_time?->format('H:i'),
@@ -216,6 +226,7 @@ class CourseSessionsController extends Controller
             'intakeId' => $session->intake_id,
             'title' => $session->title,
             'sessionType' => $session->session_type,
+            'deliveryMode' => DeliveryModes::normalize($session->delivery_mode),
             'dayOfWeek' => $session->day_of_week,
             'startTime' => $session->start_time?->format('H:i'),
             'endTime' => $session->end_time?->format('H:i'),

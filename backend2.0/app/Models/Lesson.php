@@ -13,12 +13,15 @@ class Lesson extends Model
 
     protected $fillable = [
         'id',
-        'course_id',
         'title',
         'summary',
         'display_order',
         'publication_status',
         'published_at',
+        'content',
+        'video_url',
+        'quiz',
+        'exercise',
     ];
 
     protected $casts = [
@@ -26,9 +29,26 @@ class Lesson extends Model
         'published_at' => 'datetime',
     ];
 
-    public function course(): BelongsTo
+    public function shortCourses(): BelongsToMany
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsToMany(ShortCourse::class, 'short_course_lessons', 'lesson_id', 'short_course_id')
+            ->withPivot('sort_order')
+            ->withTimestamps();
+    }
+
+    public function programModules(): BelongsToMany
+    {
+        return $this->belongsToMany(ProgramModule::class, 'program_module_lessons', 'lesson_id', 'program_module_id')
+            ->withPivot('sort_order')
+            ->withTimestamps();
+    }
+
+    public function learningObjects(): BelongsToMany
+    {
+        return $this->belongsToMany(LearningObject::class, 'lesson_learning_object')
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderBy('lesson_learning_object.sort_order');
     }
 
     public function learningObjects(): BelongsToMany

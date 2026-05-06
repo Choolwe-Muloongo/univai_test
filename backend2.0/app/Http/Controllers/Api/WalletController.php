@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\WalletSetting;
+use App\Support\StudentAccess;
 use Illuminate\Http\Request;
 
 class WalletController extends Controller
 {
     public function show(Request $request)
     {
+        $sessionUser = StudentAccess::sessionPayload($request->session()->get('user') ?? []);
+        $request->session()->put('user', $sessionUser);
         $userId = $this->resolveUserId($request);
         if (!$userId) {
             return response()->json(null, 404);
@@ -22,6 +25,7 @@ class WalletController extends Controller
                 'walletAddress' => null,
                 'payoutCurrency' => 'AFTA',
                 'status' => 'not_set',
+                'cashbackEligible' => $sessionUser['cashbackEligible'] ?? false,
             ]);
         }
 
@@ -29,11 +33,14 @@ class WalletController extends Controller
             'walletAddress' => $settings->wallet_address,
             'payoutCurrency' => $settings->payout_currency,
             'status' => $settings->status,
+            'cashbackEligible' => $sessionUser['cashbackEligible'] ?? false,
         ]);
     }
 
     public function update(Request $request)
     {
+        $sessionUser = StudentAccess::sessionPayload($request->session()->get('user') ?? []);
+        $request->session()->put('user', $sessionUser);
         $userId = $this->resolveUserId($request);
         if (!$userId) {
             return response()->json(['message' => 'User not found'], 404);
@@ -57,6 +64,7 @@ class WalletController extends Controller
             'walletAddress' => $settings->wallet_address,
             'payoutCurrency' => $settings->payout_currency,
             'status' => $settings->status,
+            'cashbackEligible' => $sessionUser['cashbackEligible'] ?? false,
         ]);
     }
 
