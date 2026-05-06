@@ -16,8 +16,18 @@ class Program extends Model
         'school_id',
         'title',
         'description',
+        'award_type',
+        'qualification_level',
+        'duration_semesters',
+        'total_credits',
+        'delivery_mode',
         'progress',
         'image_id',
+    ];
+
+    protected $casts = [
+        'duration_semesters' => 'integer',
+        'total_credits' => 'integer',
     ];
 
     public function modules(): HasMany
