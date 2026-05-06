@@ -1,14 +1,26 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { format } from 'date-fns';
-import { Award } from 'lucide-react';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { format } from "date-fns";
+import { Award } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getExamResults } from '@/lib/api';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { getExamResults } from "@/lib/api";
+import { useSession } from "@/components/providers/session-provider";
+import {
+  STUDENT_ENTITLEMENT,
+  hasStudentEntitlement,
+  roleToStudentAccessTier,
+} from "@/lib/auth/roles";
 
 type ExamResult = {
   courseTitle: string;
@@ -20,11 +32,24 @@ type ExamResult = {
 type CertificateRow = ExamResult & { id: string };
 
 export default function CertificatesPage() {
+  const { session } = useSession();
   const [certificates, setCertificates] = useState<CertificateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const accessTier = roleToStudentAccessTier(session?.user?.role);
+  const hasCertificateAccess = hasStudentEntitlement(
+    STUDENT_ENTITLEMENT.CERTIFICATE,
+    session?.user?.entitlements,
+    accessTier,
+  );
+
   useEffect(() => {
+    if (!hasCertificateAccess) {
+      setLoading(false);
+      return;
+    }
+
     const loadCertificates = async () => {
       try {
         const results = (await getExamResults()) as Record<string, ExamResult>;
@@ -32,20 +57,47 @@ export default function CertificatesPage() {
           id,
           ...result,
         }));
-        rows.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+        rows.sort(
+          (a, b) =>
+            new Date(b.completedAt).getTime() -
+            new Date(a.completedAt).getTime(),
+        );
         setCertificates(rows);
       } catch (err) {
         console.error(err);
-        setError('Unable to load certificates right now.');
+        setError("Unable to load certificates right now.");
       } finally {
         setLoading(false);
       }
     };
     loadCertificates();
-  }, []);
+  }, [hasCertificateAccess]);
 
   if (loading) {
-    return <div className="text-sm text-muted-foreground">Loading certificates...</div>;
+    return (
+      <div className="text-sm text-muted-foreground">
+        Loading certificates...
+      </div>
+    );
+  }
+
+  if (!hasCertificateAccess) {
+    return (
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Certificates require paid access</CardTitle>
+          <CardDescription>
+            Free learning includes short-course previews only. Buy certificate
+            access to save exam results and download verified credentials.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link href="/student/payments">Compare Access Tiers</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (error) {
@@ -53,7 +105,9 @@ export default function CertificatesPage() {
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>Certificates</CardTitle>
-          <CardDescription>We could not load your certificates.</CardDescription>
+          <CardDescription>
+            We could not load your certificates.
+          </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-destructive">{error}</CardContent>
       </Card>
@@ -91,7 +145,10 @@ export default function CertificatesPage() {
                 <div>
                   <CardTitle className="text-lg">{cert.courseTitle}</CardTitle>
                   <CardDescription>
-                    Issued {cert.completedAt ? format(new Date(cert.completedAt), 'MMM d, yyyy') : 'Recently'}
+                    Issued{" "}
+                    {cert.completedAt
+                      ? format(new Date(cert.completedAt), "MMM d, yyyy")
+                      : "Recently"}
                   </CardDescription>
                 </div>
                 <Badge variant="secondary" className="flex items-center gap-1">
@@ -101,15 +158,23 @@ export default function CertificatesPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-sm text-muted-foreground">
-                  Awarded to <span className="font-medium text-foreground">{cert.studentName}</span>
+                  Awarded to{" "}
+                  <span className="font-medium text-foreground">
+                    {cert.studentName}
+                  </span>
                 </div>
-                {typeof cert.score === 'number' && (
+                {typeof cert.score === "number" && (
                   <div className="text-sm text-muted-foreground">
-                    Final score <span className="font-semibold text-foreground">{cert.score}%</span>
+                    Final score{" "}
+                    <span className="font-semibold text-foreground">
+                      {cert.score}%
+                    </span>
                   </div>
                 )}
                 <Button asChild variant="outline">
-                  <Link href={`/student/certificate/${cert.id}`}>View Certificate</Link>
+                  <Link href={`/student/certificate/${cert.id}`}>
+                    View Certificate
+                  </Link>
                 </Button>
               </CardContent>
             </Card>

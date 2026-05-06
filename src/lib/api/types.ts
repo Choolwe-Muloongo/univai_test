@@ -405,6 +405,7 @@ export type StudentDashboardWallet = {
   label: string;
   value: string;
   note?: string;
+  cashbackEligible?: boolean;
 };
 
 export type StudentDashboardData = {
@@ -685,6 +686,13 @@ export type WalletSettings = {
   walletAddress?: string | null;
   payoutCurrency?: string | null;
   status?: string | null;
+  cashbackEligible?: boolean;
+};
+
+export type StudentEntitlementsResponse = {
+  accessTier: string;
+  entitlements: string[];
+  cashbackEligible: boolean;
 };
 
 export type PaymentMethod = {

@@ -67,6 +67,7 @@ import type {
   LecturerApplication,
   AiResponse,
   SystemHealthData,
+  StudentEntitlementsResponse,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -495,6 +496,10 @@ export async function getWalletSettings(): Promise<WalletSettings> {
   return apiFetch('/students/me/wallet/settings');
 }
 
+export async function getStudentEntitlements(): Promise<StudentEntitlementsResponse> {
+  return apiFetch('/students/me/entitlements');
+}
+
 export async function updateWalletSettings(payload: {
   walletAddress: string;
   payoutCurrency: string;
@@ -857,10 +862,10 @@ export async function getSession(): Promise<Session> {
   return apiFetch('/auth/me');
 }
 
-export async function completeCheckout(role: string): Promise<Session> {
+export async function completeCheckout(role: string, accessTier?: string): Promise<Session> {
   return apiFetch('/students/checkout', {
     method: 'POST',
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ role, accessTier }),
   });
 }
 
