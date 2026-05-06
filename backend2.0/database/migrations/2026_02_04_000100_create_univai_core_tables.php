@@ -49,11 +49,59 @@ return new class extends Migration
             $table->string('id')->primary();
             $table->string('course_id');
             $table->string('title');
-            $table->text('content');
-            $table->string('video_url')->nullable();
-            $table->json('quiz')->nullable();
-            $table->text('exercise')->nullable();
+            $table->text('summary')->nullable();
+            $table->unsignedInteger('display_order')->default(0);
+            $table->string('publication_status')->default('draft');
+            $table->timestamp('published_at')->nullable();
             $table->timestamps();
+        });
+
+        Schema::create('learning_objects', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('type');
+            $table->string('title');
+            $table->text('description')->nullable();
+            $table->longText('body')->nullable();
+            $table->string('asset_url')->nullable();
+            $table->string('storage_path')->nullable();
+            $table->string('mime_type')->nullable();
+            $table->json('payload')->nullable();
+            $table->json('access_rules')->nullable();
+            $table->unsignedInteger('version')->default(1);
+            $table->string('version_label')->nullable();
+            $table->boolean('is_current')->default(true);
+            $table->boolean('is_reusable')->default(true);
+            $table->string('review_status')->default('draft');
+            $table->string('publication_status')->default('draft');
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->timestamp('published_at')->nullable();
+            $table->timestamp('retracted_at')->nullable();
+            $table->timestamps();
+
+            $table->index(['type', 'review_status', 'publication_status']);
+            $table->index(['is_current', 'is_reusable']);
+        });
+
+        Schema::create('lesson_learning_objects', function (Blueprint $table) {
+            $table->id();
+            $table->string('lesson_id');
+            $table->string('learning_object_id');
+            $table->unsignedInteger('position')->default(0);
+            $table->boolean('is_required')->default(true);
+            $table->json('access_rules')->nullable();
+            $table->string('publication_status')->default('draft');
+            $table->timestamp('available_from')->nullable();
+            $table->timestamp('available_until')->nullable();
+            $table->timestamps();
+
+            $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
+            $table->foreign('learning_object_id')->references('id')->on('learning_objects')->cascadeOnDelete();
+            $table->unique(['lesson_id', 'learning_object_id']);
+            $table->index(['lesson_id', 'position']);
+            $table->index(['publication_status', 'available_from', 'available_until']);
         });
 
         Schema::create('job_postings', function (Blueprint $table) {
@@ -163,6 +211,8 @@ return new class extends Migration
         Schema::dropIfExists('discussions');
         Schema::dropIfExists('research_opportunities');
         Schema::dropIfExists('job_postings');
+        Schema::dropIfExists('lesson_learning_objects');
+        Schema::dropIfExists('learning_objects');
         Schema::dropIfExists('lessons');
         Schema::dropIfExists('program_modules');
         Schema::dropIfExists('programs');

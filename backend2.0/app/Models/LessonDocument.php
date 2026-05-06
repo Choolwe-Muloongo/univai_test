@@ -9,6 +9,7 @@ class LessonDocument extends Model
 {
     protected $fillable = [
         'lesson_id',
+        'learning_object_id',
         'intake_id',
         'source',
         'status',
@@ -29,6 +30,11 @@ class LessonDocument extends Model
     public function lesson(): BelongsTo
     {
         return $this->belongsTo(Lesson::class);
+    }
+
+    public function learningObject(): BelongsTo
+    {
+        return $this->belongsTo(LearningObject::class);
     }
 
     public function intake(): BelongsTo

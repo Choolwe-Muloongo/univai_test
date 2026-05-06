@@ -613,7 +613,7 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['id'], ['title', 'description', 'progress', 'semester', 'is_exam_available', 'is_core', 'curriculum_version_id', 'updated_at']);
 
-        DB::table('lessons')->upsert([
+        $lessonRows = [
             [
                 'id' => 'l1-cs101',
                 'course_id' => 'cs101',
@@ -720,7 +720,207 @@ class UnivAiSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'content', 'course_id', 'video_url', 'quiz', 'exercise', 'updated_at']);
+        ];
+
+        DB::table('lessons')->upsert(
+            collect($lessonRows)->map(fn (array $lesson) => [
+                'id' => $lesson['id'],
+                'course_id' => $lesson['course_id'],
+                'title' => $lesson['title'],
+                'summary' => $lesson['content'] ?? null,
+                'publication_status' => 'published',
+                'published_at' => now()->subDays(7),
+                'created_at' => $lesson['created_at'],
+                'updated_at' => $lesson['updated_at'],
+            ])->all(),
+            ['id'],
+            ['title', 'summary', 'course_id', 'publication_status', 'published_at', 'updated_at']
+        );
+
+        $learningObjectRows = [];
+        $lessonLearningObjectRows = [];
+        $learningObjectTypes = [
+            'content' => ['position' => 1, 'title' => 'Lesson Notes'],
+            'video' => ['position' => 2, 'title' => 'Lesson Video'],
+            'quiz' => ['position' => 3, 'title' => 'Knowledge Check'],
+            'exercise' => ['position' => 4, 'title' => 'Practice Exercise'],
+        ];
+
+        foreach ($lessonRows as $lesson) {
+            foreach ($learningObjectTypes as $type => $meta) {
+                $hasObject = $type === 'content'
+                    ? !empty($lesson['content'])
+                    : ($type === 'video'
+                        ? !empty($lesson['video_url'])
+                        : ($type === 'quiz'
+                            ? !empty($lesson['quiz'])
+                            : !empty($lesson['exercise'])));
+
+                if (!$hasObject) {
+                    continue;
+                }
+
+                $learningObjectId = "{$lesson['id']}-{$type}-v1";
+                $learningObjectRows[] = [
+                    'id' => $learningObjectId,
+                    'type' => $type,
+                    'title' => "{$lesson['title']} {$meta['title']}",
+                    'description' => $type === 'content' ? $lesson['content'] : null,
+                    'body' => in_array($type, ['content', 'exercise'], true) ? ($type === 'content' ? $lesson['content'] : $lesson['exercise']) : null,
+                    'asset_url' => $type === 'video' ? $lesson['video_url'] : null,
+                    'payload' => $type === 'quiz' ? $lesson['quiz'] : null,
+                    'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                    'version' => 1,
+                    'version_label' => '2026.1',
+                    'is_current' => true,
+                    'is_reusable' => true,
+                    'review_status' => 'approved',
+                    'publication_status' => 'published',
+                    'reviewed_at' => now()->subDays(8),
+                    'published_at' => now()->subDays(7),
+                    'created_at' => $lesson['created_at'],
+                    'updated_at' => $lesson['updated_at'],
+                ];
+                $lessonLearningObjectRows[] = [
+                    'lesson_id' => $lesson['id'],
+                    'learning_object_id' => $learningObjectId,
+                    'position' => $meta['position'],
+                    'is_required' => true,
+                    'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]),
+                    'publication_status' => 'published',
+                    'created_at' => $lesson['created_at'],
+                    'updated_at' => $lesson['updated_at'],
+                ];
+            }
+        }
+
+        $learningObjectRows = array_merge($learningObjectRows, [
+            [
+                'id' => 'l1-cs101-slides-v1',
+                'type' => 'slides',
+                'title' => 'Digital Systems Overview Slides',
+                'description' => 'Reusable lecture deck covering hardware, software, and network components.',
+                'asset_url' => 'https://example.edu/learning-objects/digital-systems-slides.pdf',
+                'mime_type' => 'application/pdf',
+                'payload' => json_encode(['slideCount' => 18]),
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDays(8),
+                'published_at' => now()->subDays(7),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l3-cs101-flashcards-v1',
+                'type' => 'flashcards',
+                'title' => 'Python Basics Flashcards',
+                'description' => 'Reusable terminology flashcards for beginner Python concepts.',
+                'payload' => json_encode(['cards' => [
+                    ['front' => 'Variable', 'back' => 'A named reference to a value.'],
+                    ['front' => 'Conditional', 'back' => 'Logic that runs only when a condition is true.'],
+                ]]),
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDays(4),
+                'published_at' => now()->subDays(3),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l8-cs101-rubric-v1',
+                'type' => 'rubric',
+                'title' => 'Programming Lab Rubric',
+                'description' => 'Assessment rubric for introductory programming labs.',
+                'payload' => json_encode(['criteria' => [
+                    ['name' => 'Correctness', 'points' => 10],
+                    ['name' => 'Code clarity', 'points' => 5],
+                    ['name' => 'Reflection', 'points' => 5],
+                ]]),
+                'access_rules' => json_encode(['roles' => ['lecturer'], 'requiresEnrollment' => false]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'pending_review',
+                'publication_status' => 'draft',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l1-bus301-document-v1',
+                'type' => 'document',
+                'title' => 'Strategic Leadership Brief',
+                'description' => 'Downloadable briefing document for leadership frameworks.',
+                'storage_path' => 'seeded/strategic-leadership-brief.md',
+                'mime_type' => 'text/markdown',
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDay(),
+                'published_at' => now()->subDay(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $lessonLearningObjectRows = array_merge($lessonLearningObjectRows, [
+            ['lesson_id' => 'l1-cs101', 'learning_object_id' => 'l1-cs101-slides-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'l3-cs101-flashcards-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l8-cs101', 'learning_object_id' => 'l8-cs101-rubric-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['lecturer'], 'requiresEnrollment' => false]), 'publication_status' => 'draft', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l1-bus301', 'learning_object_id' => 'l1-bus301-document-v1', 'position' => 5, 'is_required' => true, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $learningObjectDefaults = [
+            'description' => null,
+            'body' => null,
+            'asset_url' => null,
+            'storage_path' => null,
+            'mime_type' => null,
+            'payload' => null,
+            'access_rules' => null,
+            'version' => 1,
+            'version_label' => null,
+            'is_current' => true,
+            'is_reusable' => true,
+            'review_status' => 'draft',
+            'publication_status' => 'draft',
+            'created_by' => null,
+            'updated_by' => null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'published_at' => null,
+            'retracted_at' => null,
+        ];
+        $learningObjectRows = array_map(
+            fn (array $row) => array_merge($learningObjectDefaults, $row),
+            $learningObjectRows
+        );
+
+        DB::table('learning_objects')->upsert(
+            $learningObjectRows,
+            ['id'],
+            ['type', 'title', 'description', 'body', 'asset_url', 'storage_path', 'mime_type', 'payload', 'access_rules', 'version', 'version_label', 'is_current', 'is_reusable', 'review_status', 'publication_status', 'reviewed_at', 'published_at', 'updated_at']
+        );
+
+        DB::table('lesson_learning_objects')->upsert(
+            $lessonLearningObjectRows,
+            ['lesson_id', 'learning_object_id'],
+            ['position', 'is_required', 'access_rules', 'publication_status', 'updated_at']
+        );
 
         DB::table('assignments')->upsert([
             [
@@ -1090,6 +1290,7 @@ class UnivAiSeeder extends Seeder
                 [
                     'id' => 1,
                     'lesson_id' => 'l1-cs101',
+                    'learning_object_id' => 'l1-cs101-slides-v1',
                     'intake_id' => 'cs101-2026-jan',
                     'source' => 'manual',
                     'status' => 'approved',
@@ -1107,6 +1308,7 @@ class UnivAiSeeder extends Seeder
                 [
                     'id' => 2,
                     'lesson_id' => 'l3-cs101',
+                    'learning_object_id' => 'l3-cs101-exercise-v1',
                     'intake_id' => 'cs101-2026-jan',
                     'source' => 'manual',
                     'status' => 'pending',
@@ -1124,6 +1326,7 @@ class UnivAiSeeder extends Seeder
                 [
                     'id' => 3,
                     'lesson_id' => 'l1-bus301',
+                    'learning_object_id' => 'l1-bus301-document-v1',
                     'intake_id' => 'bus301-2026-jan',
                     'source' => 'manual',
                     'status' => 'approved',
@@ -1138,7 +1341,7 @@ class UnivAiSeeder extends Seeder
                     'created_at' => now()->subDay(),
                     'updated_at' => now()->subHours(12),
                 ],
-            ], ['id'], ['lesson_id', 'intake_id', 'status', 'approved_by', 'approved_at', 'file_name', 'mime_type', 'storage_path', 'extracted_text', 'review_notes', 'updated_at']);
+            ], ['id'], ['lesson_id', 'learning_object_id', 'intake_id', 'status', 'approved_by', 'approved_at', 'file_name', 'mime_type', 'storage_path', 'extracted_text', 'review_notes', 'updated_at']);
         }
 
         DB::table('enrollments')->upsert([

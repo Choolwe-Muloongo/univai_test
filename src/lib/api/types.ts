@@ -70,6 +70,31 @@ export type Lesson = {
   videoUrl?: string | null;
   exercise?: string | null;
   quiz?: LessonQuiz | null;
+  learningObjects?: LearningObject[];
+};
+
+export type LearningObject = {
+  id: string;
+  type: 'content' | 'video' | 'quiz' | 'exercise' | 'slides' | 'flashcards' | 'document' | 'rubric' | string;
+  title: string;
+  description?: string | null;
+  body?: string | null;
+  assetUrl?: string | null;
+  storagePath?: string | null;
+  mimeType?: string | null;
+  payload?: Record<string, any> | null;
+  accessRules?: Record<string, any> | null;
+  version: number;
+  versionLabel?: string | null;
+  isCurrent: boolean;
+  isReusable: boolean;
+  reviewStatus: string;
+  publicationStatus: string;
+  position?: number | null;
+  isRequired?: boolean | null;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
+  publishedAt?: string | null;
 };
 
 export type LessonQuiz = {
@@ -531,6 +556,7 @@ export type AiResponse = {
 export type LessonDocument = {
   id: number;
   lessonId: string;
+  learningObjectId?: string | null;
   intakeId?: string | null;
   fileName: string;
   mimeType?: string | null;

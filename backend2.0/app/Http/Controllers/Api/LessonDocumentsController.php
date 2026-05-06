@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\LearningObject;
+use App\Models\Lesson;
 use App\Models\LessonDocument;
 use App\Support\AuditLogger;
 use Illuminate\Http\Request;
@@ -27,6 +29,7 @@ class LessonDocumentsController extends Controller
         return $query->orderBy('created_at', 'desc')->get()->map(fn (LessonDocument $doc) => [
             'id' => $doc->id,
             'lessonId' => $doc->lesson_id,
+            'learningObjectId' => $doc->learning_object_id,
             'intakeId' => $doc->intake_id,
             'fileName' => $doc->file_name,
             'mimeType' => $doc->mime_type,
@@ -47,6 +50,11 @@ class LessonDocumentsController extends Controller
             'file' => ['nullable', 'file', 'max:10240'],
             'source' => ['nullable', 'string'],
         ]);
+
+        $lesson = Lesson::find($lessonId);
+        if (!$lesson) {
+            return response()->json(['message' => 'Lesson not found'], 404);
+        }
 
         $file = $request->file('file');
         $extractedText = trim($payload['text'] ?? '');
@@ -106,6 +114,34 @@ class LessonDocumentsController extends Controller
             'extracted_text' => $extractedText !== '' ? $extractedText : null,
         ]);
 
+        $learningObject = LearningObject::create([
+            'id' => "{$lessonId}-document-{$document->id}-v1",
+            'type' => 'document',
+            'title' => $fileName,
+            'description' => $extractedText !== '' ? Str::limit($extractedText, 240) : null,
+            'body' => $extractedText !== '' ? $extractedText : null,
+            'storage_path' => $storagePath,
+            'mime_type' => $mimeType,
+            'access_rules' => ['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true, 'intakeId' => $payload['intakeId'] ?? null],
+            'version' => 1,
+            'version_label' => 'uploaded',
+            'review_status' => $autoApproved ? 'approved' : 'pending_review',
+            'publication_status' => $autoApproved ? 'published' : 'draft',
+            'created_by' => $uploaderId,
+            'updated_by' => $uploaderId,
+            'reviewed_by' => $autoApproved ? $uploaderId : null,
+            'reviewed_at' => $autoApproved ? now() : null,
+            'published_at' => $autoApproved ? now() : null,
+        ]);
+
+        $lesson->learningObjects()->attach($learningObject->id, [
+            'position' => ((int) $lesson->learningObjects()->max('lesson_learning_objects.position')) + 1,
+            'is_required' => false,
+            'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true, 'intakeId' => $payload['intakeId'] ?? null]),
+            'publication_status' => $autoApproved ? 'published' : 'draft',
+        ]);
+        $document->update(['learning_object_id' => $learningObject->id]);
+
         AuditLogger::log($request, 'lesson_document.uploaded', 'lesson_document', (string) $document->id, [
             'lessonId' => $lessonId,
             'intakeId' => $payload['intakeId'] ?? null,
@@ -115,6 +151,7 @@ class LessonDocumentsController extends Controller
         return response()->json([
             'id' => $document->id,
             'lessonId' => $document->lesson_id,
+            'learningObjectId' => $document->learning_object_id,
             'intakeId' => $document->intake_id,
             'fileName' => $document->file_name,
             'mimeType' => $document->mime_type,
@@ -154,6 +191,19 @@ class LessonDocumentsController extends Controller
             'approved_at' => $payload['status'] === 'approved' ? now() : null,
         ]);
 
+        if ($document->learningObject) {
+            $document->learningObject->update([
+                'review_status' => $payload['status'] === 'approved' ? 'approved' : 'changes_requested',
+                'publication_status' => $payload['status'] === 'approved' ? 'published' : 'draft',
+                'reviewed_by' => $payload['status'] === 'approved' ? $approverId : null,
+                'reviewed_at' => $payload['status'] === 'approved' ? now() : null,
+                'published_at' => $payload['status'] === 'approved' ? now() : null,
+            ]);
+            $document->lesson?->learningObjects()->updateExistingPivot($document->learning_object_id, [
+                'publication_status' => $payload['status'] === 'approved' ? 'published' : 'draft',
+            ]);
+        }
+
         AuditLogger::log($request, 'lesson_document.reviewed', 'lesson_document', (string) $document->id, [
             'status' => $payload['status'],
         ]);
@@ -161,6 +211,7 @@ class LessonDocumentsController extends Controller
         return [
             'id' => $document->id,
             'lessonId' => $document->lesson_id,
+            'learningObjectId' => $document->learning_object_id,
             'intakeId' => $document->intake_id,
             'fileName' => $document->file_name,
             'mimeType' => $document->mime_type,
