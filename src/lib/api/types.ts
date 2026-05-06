@@ -14,6 +14,13 @@ export type SessionUser = {
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
+  accountState?: string | null;
+  verificationStatus?: string | null;
+  profileCompleted?: boolean | null;
+  profileStarted?: boolean | null;
+  subscriptionStatus?: string | null;
+  subscriptionTier?: string | null;
+  entitlements?: string[] | null;
 };
 
 export type Session = {
@@ -442,6 +449,7 @@ export type StudentDashboardWallet = {
   label: string;
   value: string;
   note?: string;
+  cashbackEligible?: boolean;
 };
 
 export type StudentDashboardData = {
@@ -722,6 +730,13 @@ export type WalletSettings = {
   walletAddress?: string | null;
   payoutCurrency?: string | null;
   status?: string | null;
+  cashbackEligible?: boolean;
+};
+
+export type StudentEntitlementsResponse = {
+  accessTier: string;
+  entitlements: string[];
+  cashbackEligible: boolean;
 };
 
 export type PaymentMethod = {

@@ -17,23 +17,18 @@ class Program extends Model
         'qualification_level_id',
         'title',
         'description',
-        'credits',
-        'duration_months',
-        'admission_requirements',
-        'delivery_modes',
-        'exam_clinic_required',
-        'requires_accreditation_approval',
-        'accreditation_approved_at',
-        'launch_status',
+        'award_type',
+        'qualification_level',
+        'duration_semesters',
+        'total_credits',
+        'delivery_mode',
         'progress',
         'image_id',
     ];
 
     protected $casts = [
-        'delivery_modes' => 'array',
-        'exam_clinic_required' => 'boolean',
-        'requires_accreditation_approval' => 'boolean',
-        'accreditation_approved_at' => 'datetime',
+        'duration_semesters' => 'integer',
+        'total_credits' => 'integer',
     ];
 
     public function modules(): HasMany

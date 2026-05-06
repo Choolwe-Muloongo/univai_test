@@ -55,6 +55,12 @@ class AdminCatalogController extends Controller
             'accreditationApproved' => ['nullable', 'boolean'],
             'launchStatus' => ['nullable', 'string'],
             'imageId' => ['nullable', 'string'],
+            'certificateType' => ['nullable', 'string'],
+            'pricingType' => ['nullable', 'in:free,paid'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', 'size:3'],
+            'durationHours' => ['nullable', 'integer', 'min:0'],
+            'level' => ['nullable', 'string'],
         ]);
 
         $level = QualificationLevel::findOrFail($payload['qualificationLevelId']);
@@ -86,15 +92,29 @@ class AdminCatalogController extends Controller
                 'launch_status' => $launchStatus,
                 'progress' => 0,
                 'image_id' => $payload['imageId'] ?? null,
+                'certificate_type' => $payload['certificateType'] ?? 'certificate',
+                'pricing_type' => $payload['pricingType'] ?? 'free',
+                'price' => $payload['price'] ?? 0,
+                'currency' => $payload['currency'] ?? 'USD',
+                'duration_hours' => $payload['durationHours'] ?? 0,
+                'level' => $payload['level'] ?? 'beginner',
             ]
         );
 
-        return $this->mapProgram($program->load('qualificationLevel'));
-    }
-
-    public function createCourse(Request $request)
-    {
-        return $this->createProgram($request);
+        return [
+            'id' => $course->id,
+            'title' => $course->title,
+            'description' => $course->description,
+            'schoolId' => $course->school_id,
+            'progress' => $course->progress,
+            'imageId' => $course->image_id,
+            'certificateType' => $course->certificate_type,
+            'pricingType' => $course->pricing_type,
+            'price' => $course->price,
+            'currency' => $course->currency,
+            'durationHours' => $course->duration_hours,
+            'level' => $course->level,
+        ];
     }
 
     public function deleteSchool(string $id)

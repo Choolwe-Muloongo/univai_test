@@ -31,6 +31,11 @@ class ProgramsController extends Controller
                 'launchStatus' => $program->launch_status,
                 'progress' => $program->progress,
                 'imageId' => $program->image_id,
+                'awardType' => $program->award_type,
+                'qualificationLevel' => $program->qualification_level,
+                'durationSemesters' => $program->duration_semesters,
+                'totalCredits' => $program->total_credits,
+                'deliveryMode' => $program->delivery_mode,
             ]);
     }
 

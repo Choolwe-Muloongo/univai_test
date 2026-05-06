@@ -79,6 +79,10 @@ class ProgramController extends Controller
             'campus' => $intake?->campus,
             'progress' => $overallProgress,
             'imageId' => $program->image_id,
+            'awardType' => $program->award_type,
+            'qualificationLevel' => $program->qualification_level,
+            'durationSemesters' => $program->duration_semesters,
+            'totalCredits' => $program->total_credits,
             'intakeId' => $intakeId,
             'curriculumVersion' => $curriculumVersion ? [
                 'id' => $curriculumVersion->id,
