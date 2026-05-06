@@ -14,10 +14,26 @@ class Program extends Model
     protected $fillable = [
         'id',
         'school_id',
+        'qualification_level_id',
         'title',
         'description',
+        'credits',
+        'duration_months',
+        'admission_requirements',
+        'delivery_modes',
+        'exam_clinic_required',
+        'requires_accreditation_approval',
+        'accreditation_approved_at',
+        'launch_status',
         'progress',
         'image_id',
+    ];
+
+    protected $casts = [
+        'delivery_modes' => 'array',
+        'exam_clinic_required' => 'boolean',
+        'requires_accreditation_approval' => 'boolean',
+        'accreditation_approved_at' => 'datetime',
     ];
 
     public function modules(): HasMany
@@ -33,5 +49,10 @@ class Program extends Model
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function qualificationLevel(): BelongsTo
+    {
+        return $this->belongsTo(QualificationLevel::class);
     }
 }

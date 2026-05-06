@@ -185,9 +185,12 @@ Route::middleware('api')->group(function () {
         Route::delete('/modules/{module}', [AdminCurriculumController::class, 'deleteModule']);
         Route::get('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'prerequisites']);
         Route::post('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'addPrerequisite']);
+        Route::get('/qualification-levels', [AdminCatalogController::class, 'qualificationLevels']);
         Route::post('/schools', [AdminCatalogController::class, 'createSchool']);
+        Route::post('/programs', [AdminCatalogController::class, 'createProgram']);
         Route::post('/courses', [AdminCatalogController::class, 'createCourse']);
         Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool']);
+        Route::delete('/programs/{id}', [AdminCatalogController::class, 'deleteProgram']);
         Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse']);
 
         Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);
