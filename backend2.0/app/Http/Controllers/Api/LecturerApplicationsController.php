@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LecturerApplication;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -42,6 +43,18 @@ class LecturerApplicationsController extends Controller
         AuditLogger::log($request, 'lecturer.application.submitted', 'lecturer_application', (string) $application->id, [
             'email' => $application->email,
         ]);
+
+        app(NotificationService::class)->stateChange(
+            'lecturer.application_submitted',
+            'lecturer_approvals',
+            'Lecturer application submitted',
+            'Your lecturer application has been received and is awaiting approval.',
+            $application->email,
+            $application,
+            '/lecturer/apply',
+            ['applicationId' => $application->id, 'status' => $application->status],
+            'normal'
+        );
 
         return response()->json($this->mapApplication($application), 201);
     }
@@ -96,6 +109,20 @@ class LecturerApplicationsController extends Controller
         AuditLogger::log($request, 'lecturer.application.reviewed', 'lecturer_application', (string) $lecturerApplication->id, [
             'status' => $payload['status'],
         ]);
+
+        app(NotificationService::class)->stateChange(
+            'lecturer.application_reviewed',
+            'lecturer_approvals',
+            'Lecturer application ' . $lecturerApplication->status,
+            $lecturerApplication->status === 'approved'
+                ? 'Your lecturer application was approved. You can now sign in to your lecturer dashboard.'
+                : 'Your lecturer application status is now ' . $lecturerApplication->status . '.',
+            isset($user) ? $user : $lecturerApplication->email,
+            $lecturerApplication,
+            '/lecturer/dashboard',
+            ['applicationId' => $lecturerApplication->id, 'status' => $lecturerApplication->status],
+            'high'
+        );
 
         $response = $this->mapApplication($lecturerApplication);
         if ($temporaryPassword) {

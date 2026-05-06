@@ -400,10 +400,25 @@ export type StudentDashboardWallet = {
   note?: string;
 };
 
+export type NotificationItem = {
+  id: number;
+  type: string;
+  category: string;
+  title: string;
+  message: string;
+  actionUrl?: string | null;
+  priority: 'normal' | 'high' | 'critical' | string;
+  channels: string[];
+  data: Record<string, unknown>;
+  readAt?: string | null;
+  createdAt?: string | null;
+};
+
 export type StudentDashboardData = {
   actions: StudentDashboardAction[];
   deadlines: StudentDashboardDeadline[];
   wallet?: StudentDashboardWallet;
+  notifications?: NotificationItem[];
 };
 
 export type LecturerDashboardCourse = {

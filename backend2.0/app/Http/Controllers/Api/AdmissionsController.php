@@ -10,10 +10,10 @@ use App\Models\Enrollment;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail;
 
 class AdmissionsController extends Controller
 {
@@ -72,6 +72,18 @@ class AdmissionsController extends Controller
         ]);
 
         $request->session()->put('admission_reference', $application->reference);
+
+        app(NotificationService::class)->stateChange(
+            'application.submitted',
+            'applications',
+            'Admissions application submitted',
+            'Your admissions application ' . $application->reference . ' has been received.',
+            $application->user ?? $application->email,
+            $application,
+            '/admissions/status',
+            ['reference' => $application->reference, 'status' => $application->status],
+            'high'
+        );
 
         return response()->json(['status' => $application->status]);
     }
@@ -158,6 +170,18 @@ class AdmissionsController extends Controller
             'status' => 'fee_paid',
             'admission_fee_paid' => true,
         ]);
+
+        app(NotificationService::class)->stateChange(
+            'payment.completed',
+            'payments',
+            'Admissions fee received',
+            'Your admissions fee has been received and your application is ready for academic review.',
+            $application->user ?? $application->email,
+            $application,
+            '/admissions/status',
+            ['reference' => $application->reference, 'status' => $application->status],
+            'high'
+        );
 
         return response()->json([
             'status' => $application->status,
@@ -452,6 +476,18 @@ class AdmissionsController extends Controller
             'review_notes' => $payload['reviewNotes'] ?? $document->review_notes,
         ]);
 
+        app(NotificationService::class)->stateChange(
+            'application.document_reviewed',
+            'applications',
+            'Admissions document ' . $document->status,
+            'Your ' . $document->document_type . ' document has been ' . $document->status . '.',
+            $application->user ?? $application->email,
+            $document,
+            '/admissions/portal',
+            ['reference' => $application->reference, 'documentId' => $document->id, 'status' => $document->status],
+            $document->status === 'rejected' ? 'high' : 'normal'
+        );
+
         AuditLogger::log($request, 'admission.document.reviewed', 'application_document', (string) $document->id, [
             'status' => $payload['status'],
         ]);
@@ -666,17 +702,17 @@ class AdmissionsController extends Controller
 
     private function notifyApplicant(Application $application, string $subject, string $message): void
     {
-        try {
-            Mail::raw($message, function ($mail) use ($application, $subject) {
-                $mail->to($application->email)
-                    ->subject($subject);
-            });
-        } catch (\Throwable $exception) {
-            logger()->warning('Failed to send applicant email', [
-                'application' => $application->reference,
-                'error' => $exception->getMessage(),
-            ]);
-        }
+        app(NotificationService::class)->stateChange(
+            'application.status_changed',
+            'applications',
+            $subject,
+            $message,
+            $application->user ?? $application->email,
+            $application,
+            '/admissions/status',
+            ['reference' => $application->reference, 'status' => $application->status],
+            in_array($application->status, ['needs_info', 'offer_sent', 'approved'], true) ? 'high' : 'normal'
+        );
     }
 
     private function ensureEnrollmentInvoice(Application $application, ?User $user = null): void

@@ -12,6 +12,7 @@ use App\Models\JobPosting;
 use App\Models\Lesson;
 use App\Models\LessonDocument;
 use App\Models\Payment;
+use App\Models\Notification;
 use App\Models\ProgramModule;
 use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
@@ -48,6 +49,25 @@ class DashboardController extends Controller
             $walletNote = 'Tuition paid to date';
         }
 
+        $notifications = collect();
+        $sessionEmail = is_array($sessionUser) ? ($sessionUser['email'] ?? null) : null;
+        if ($studentId || $sessionEmail) {
+            $notifications = Notification::query()
+                ->where(function ($query) use ($studentId, $sessionEmail) {
+                    if ($studentId && is_numeric($studentId)) {
+                        $query->orWhere('user_id', (int) $studentId);
+                    }
+                    if ($sessionEmail) {
+                        $query->orWhere('recipient_email', $sessionEmail);
+                    }
+                })
+                ->whereNull('read_at')
+                ->orderByRaw("case priority when 'critical' then 0 when 'high' then 1 else 2 end")
+                ->orderByDesc('created_at')
+                ->limit(10)
+                ->get();
+        }
+
         return response()->json([
             'actions' => $actions->map(fn ($item) => [
                 'id' => $item->id,
@@ -66,6 +86,19 @@ class DashboardController extends Controller
                 'value' => $walletValue,
                 'note' => $walletNote,
             ],
+            'notifications' => $notifications->map(fn (Notification $notification) => [
+                'id' => $notification->id,
+                'type' => $notification->type,
+                'category' => $notification->category,
+                'title' => $notification->title,
+                'message' => $notification->message,
+                'actionUrl' => $notification->action_url,
+                'priority' => $notification->priority,
+                'channels' => $notification->channels ?? [],
+                'data' => $notification->data ?? [],
+                'readAt' => optional($notification->read_at)->toISOString(),
+                'createdAt' => optional($notification->created_at)->toISOString(),
+            ]),
         ]);
     }
 

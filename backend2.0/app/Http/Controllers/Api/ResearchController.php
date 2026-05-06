@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -45,6 +47,25 @@ class ResearchController extends Controller
             'description' => $data['description'],
         ]);
 
+        $sessionUser = $request->session()->get('user');
+        $employer = is_array($sessionUser) && isset($sessionUser['id']) && is_numeric($sessionUser['id'])
+            ? User::find((int) $sessionUser['id'])
+            : null;
+
+        if ($employer) {
+            app(NotificationService::class)->stateChange(
+                'employer.verification_pending',
+                'employer_verification',
+                'Employer research post queued for verification',
+                'Your research opportunity has been created. Keep your employer profile verified to increase student trust.',
+                $employer,
+                $opp,
+                '/employer/settings',
+                ['researchId' => $opp->id],
+                'normal'
+            );
+        }
+
         return $this->mapOpportunity($opp);
     }
 
@@ -70,6 +91,18 @@ class ResearchController extends Controller
             'availability' => $data['availability'] ?? null,
             'status' => 'submitted',
         ]);
+
+        app(NotificationService::class)->stateChange(
+            'application.submitted',
+            'applications',
+            'Research application submitted',
+            'Your application for ' . $opp->title . ' has been submitted.',
+            $application->email,
+            $application,
+            '/student/research/my-labs',
+            ['researchId' => $opp->id, 'applicationId' => $application->id],
+            'normal'
+        );
 
         return response()->json([
             'status' => 'submitted',
@@ -111,6 +144,18 @@ class ResearchController extends Controller
         ]);
 
         $application->update(['status' => $payload['status']]);
+
+        app(NotificationService::class)->stateChange(
+            'application.status_changed',
+            'applications',
+            'Research application updated',
+            'Your application for ' . $opp->title . ' is now ' . $application->status . '.',
+            $application->email,
+            $application,
+            '/student/research/my-labs',
+            ['researchId' => $opp->id, 'applicationId' => $application->id, 'status' => $application->status],
+            'high'
+        );
 
         return response()->json([
             'id' => $application->id,

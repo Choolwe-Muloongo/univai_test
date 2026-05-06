@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\AuditLogger;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class BillingController extends Controller
@@ -52,13 +53,38 @@ class BillingController extends Controller
         $invoice->status = $invoice->paid_amount >= $invoice->amount ? 'paid' : 'partial';
         $invoice->save();
 
-        Payment::create([
+        $payment = Payment::create([
             'invoice_id' => $invoice->id,
             'amount' => $amount,
             'method' => $payload['method'] ?? 'card',
             'status' => 'completed',
             'paid_at' => now(),
         ]);
+
+        app(NotificationService::class)->stateChange(
+            'payment.completed',
+            'payments',
+            'Payment received',
+            'Your payment of ' . number_format((float) $amount, 2) . ' for ' . $invoice->title . ' has been recorded.',
+            $invoice->student,
+            $payment,
+            '/student/payments/history',
+            ['invoiceId' => $invoice->id, 'paymentId' => $payment->id, 'status' => $invoice->status],
+            'high'
+        );
+
+        app(NotificationService::class)->stateChange(
+            'cashback.earned',
+            'cashback',
+            'AFTACOIN cashback updated',
+            'Your wallet rewards have been updated after this tuition payment.',
+            $invoice->student,
+            $payment,
+            '/student/wallet/rewards',
+            ['paymentId' => $payment->id, 'amount' => $amount],
+            'normal',
+            ['dashboard', 'email']
+        );
 
         AuditLogger::log($request, 'invoice.paid', 'invoice', (string) $invoice->id, [
             'amount' => $amount,

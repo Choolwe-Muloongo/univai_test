@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\JobApplication;
 use App\Models\JobPosting;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -47,6 +49,25 @@ class JobsController extends Controller
             'description' => $data['description'] ?? null,
         ]);
 
+        $sessionUser = $request->session()->get('user');
+        $employer = is_array($sessionUser) && isset($sessionUser['id']) && is_numeric($sessionUser['id'])
+            ? User::find((int) $sessionUser['id'])
+            : null;
+
+        if ($employer) {
+            app(NotificationService::class)->stateChange(
+                'employer.verification_pending',
+                'employer_verification',
+                'Employer listing queued for verification',
+                'Your job listing has been created. Keep your employer profile verified to increase student trust.',
+                $employer,
+                $job,
+                '/employer/settings',
+                ['jobId' => $job->id],
+                'normal'
+            );
+        }
+
         return $this->mapJob($job);
     }
 
@@ -72,6 +93,18 @@ class JobsController extends Controller
             'cover_letter' => $data['coverLetter'] ?? null,
             'status' => 'submitted',
         ]);
+
+        app(NotificationService::class)->stateChange(
+            'application.submitted',
+            'applications',
+            'Job application submitted',
+            'Your application for ' . $job->title . ' at ' . $job->company . ' has been submitted.',
+            $application->email,
+            $application,
+            '/student/jobs/applications',
+            ['jobId' => $job->id, 'applicationId' => $application->id],
+            'normal'
+        );
 
         return response()->json([
             'status' => 'submitted',

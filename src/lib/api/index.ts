@@ -67,6 +67,7 @@ import type {
   LecturerApplication,
   AiResponse,
   SystemHealthData,
+  NotificationItem,
 } from '@/lib/api/types';
 
 export async function getSchools(): Promise<School[]> {
@@ -881,6 +882,14 @@ export async function getLatestExamId() {
 
 export async function getStudentDashboard(): Promise<StudentDashboardData> {
   return apiFetch('/students/me/dashboard');
+}
+
+export async function getNotifications(): Promise<NotificationItem[]> {
+  return apiFetch('/notifications');
+}
+
+export async function markNotificationRead(id: number | string): Promise<NotificationItem> {
+  return apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
 }
 
 export async function getStudentGrades(): Promise<StudentGradesResponse> {

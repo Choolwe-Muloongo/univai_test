@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Http\Controllers\Api\NotificationsController;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -53,6 +54,11 @@ Route::middleware('api')->group(function () {
     Route::post('/auth/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:login');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('session.auth');
     Route::get('/auth/me', [AuthController::class, 'me'])->middleware('session.auth');
+
+    Route::middleware('session.auth')->group(function () {
+        Route::get('/notifications', [NotificationsController::class, 'index']);
+        Route::patch('/notifications/{notification}/read', [NotificationsController::class, 'markRead']);
+    });
 
     Route::get('/schools', [CatalogController::class, 'schools']);
     Route::get('/programs', [ProgramsController::class, 'index']);

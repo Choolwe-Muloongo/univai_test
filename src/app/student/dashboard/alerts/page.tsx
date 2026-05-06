@@ -12,15 +12,17 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarClock, ShieldAlert } from 'lucide-react';
-import { getStudentDashboard } from '@/lib/api';
+import { getStudentDashboard, markNotificationRead } from '@/lib/api';
 import type { StudentDashboardAction, StudentDashboardDeadline } from '@/lib/api/types';
 
 type AlertItem = {
   id: string;
+  notificationId?: number;
   title: string;
   detail: string;
   type: string;
   action: string;
+  priority?: string;
 };
 
 export default function DashboardAlertsPage() {
@@ -46,8 +48,17 @@ export default function DashboardAlertsPage() {
           type: deadline.type || 'Deadline',
           action: deadline.type === 'Exam' ? '/student/exams' : '/student/assignments',
         }));
+        const notifications = (dashboard.notifications || []).map((notification) => ({
+          id: `notification-${notification.id}`,
+          notificationId: notification.id,
+          title: notification.title,
+          detail: notification.message,
+          type: notification.category.replace(/_/g, ' '),
+          action: notification.actionUrl || '/student/dashboard/alerts',
+          priority: notification.priority,
+        }));
         setDeadlinesCount(deadlines.length);
-        setAlerts([...actions, ...deadlines]);
+        setAlerts([...notifications, ...actions, ...deadlines]);
       } catch (error) {
         console.error('Failed to load alerts', error);
         setAlerts([]);
@@ -57,6 +68,19 @@ export default function DashboardAlertsPage() {
     };
     loadAlerts();
   }, []);
+
+  const handleMarkRead = async (notificationId?: number) => {
+    if (!notificationId) {
+      return;
+    }
+
+    try {
+      await markNotificationRead(notificationId);
+      setAlerts((current) => current.filter((alert) => alert.notificationId !== notificationId));
+    } catch (error) {
+      console.error('Failed to mark notification as read', error);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -116,12 +140,19 @@ export default function DashboardAlertsPage() {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <Badge variant={alert.type === 'Attendance' ? 'destructive' : 'secondary'}>
+                  <Badge variant={alert.type === 'Attendance' || alert.priority === 'critical' ? 'destructive' : 'secondary'}>
                     {alert.type}
                   </Badge>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={alert.action}>View</Link>
-                  </Button>
+                  <div className="flex gap-2">
+                    {alert.notificationId ? (
+                      <Button variant="ghost" size="sm" onClick={() => handleMarkRead(alert.notificationId)}>
+                        Dismiss
+                      </Button>
+                    ) : null}
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={alert.action}>View</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))
