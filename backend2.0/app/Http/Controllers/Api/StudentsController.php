@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Application;
 use App\Models\CourseAttempt;
 use App\Models\CourseLecturerAssignment;
 use App\Models\Enrollment;
@@ -154,6 +155,17 @@ class StudentsController extends Controller
                 $user->update([
                     'role' => 'premium-student',
                 ]);
+
+                Application::query()
+                    ->where('email', $user->email)
+                    ->where('intake_id', $enrollment->intake_id)
+                    ->latest('created_at')
+                    ->first()?->update([
+                        'status' => 'enrolled',
+                        'entitlements_activated_at' => now(),
+                        'enrolled_at' => now(),
+                        'premium_requirement_status' => 'complete',
+                    ]);
             }
         }
 

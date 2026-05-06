@@ -1,8 +1,10 @@
 export type AdmissionStatus = {
-  status: string;
+  status: ApplicationStatus | string;
   admissionFeePaid: boolean;
   offerIssuedAt?: string | null;
   offerAcceptedAt?: string | null;
+  premiumRequirementStatus?: 'pending' | 'complete' | string;
+  flow?: ApplicationStatus[];
 };
 
 export type SessionUser = {
@@ -290,13 +292,13 @@ export type ApplicationPayload = {
 export type ApplicationStatus =
   | 'draft'
   | 'submitted'
-  | 'fee_paid'
   | 'under_review'
   | 'needs_info'
-  | 'offer_sent'
   | 'approved'
   | 'rejected'
-  | 'admitted';
+  | 'waitlisted'
+  | 'admitted_pending_payment'
+  | 'enrolled';
 
 export type ApplicationSummary = {
   id: string;
@@ -306,7 +308,7 @@ export type ApplicationSummary = {
   intakeId?: string | null;
   schoolId: string;
   status: ApplicationStatus;
-  submittedAt: string;
+  submittedAt: string | null;
   subjectCount: number;
   totalPoints: number;
 };
@@ -325,6 +327,14 @@ export type ApplicationDetail = ApplicationSummary & {
   offerAcceptedAt?: string | null;
   needsInfoMessage?: string | null;
   needsInfoAt?: string | null;
+  reviewStartedAt?: string | null;
+  premiumRequirements?: Array<{ key: string; label: string; complete: boolean }>;
+  premiumRequirementStatus?: 'pending' | 'complete' | string;
+  invoiceId?: number | null;
+  cohortId?: string | null;
+  cohortName?: string | null;
+  entitlementsActivatedAt?: string | null;
+  enrolledAt?: string | null;
 };
 
 export type ApplicationDocument = {

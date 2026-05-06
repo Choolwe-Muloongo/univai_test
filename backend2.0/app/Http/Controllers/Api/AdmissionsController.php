@@ -17,6 +17,18 @@ use Illuminate\Support\Facades\Mail;
 
 class AdmissionsController extends Controller
 {
+    private const VALID_STATUSES = [
+        'draft',
+        'submitted',
+        'under_review',
+        'needs_info',
+        'approved',
+        'rejected',
+        'waitlisted',
+        'admitted_pending_payment',
+        'enrolled',
+    ];
+
     public function submit(Request $request)
     {
         $settings = AdmissionsSetting::query()->first();
@@ -36,6 +48,7 @@ class AdmissionsController extends Controller
             'studyPace' => ['nullable', 'string'],
             'country' => ['nullable', 'string'],
             'subjectPoints' => ['nullable', 'array'],
+            'status' => ['nullable', 'in:draft,submitted'],
         ]);
 
         $subjectPoints = $payload['subjectPoints'] ?? [];
@@ -60,8 +73,8 @@ class AdmissionsController extends Controller
             'email' => $payload['email'],
             'program_id' => $payload['programId'],
             'school_id' => $payload['schoolId'],
-            'status' => 'submitted',
-            'submitted_at' => now(),
+            'status' => $payload['status'] ?? 'submitted',
+            'submitted_at' => ($payload['status'] ?? 'submitted') === 'submitted' ? now() : null,
             'subject_points' => $subjectPoints,
             'subject_count' => $subjectCount,
             'total_points' => $totalPoints,
@@ -69,6 +82,8 @@ class AdmissionsController extends Controller
             'learning_style' => $payload['learningStyle'] ?? 'traditional',
             'study_pace' => $payload['studyPace'] ?? 'standard',
             'country' => $payload['country'] ?? null,
+            'premium_requirement_status' => 'pending',
+            'premium_requirements' => $this->premiumRequirements(),
         ]);
 
         $request->session()->put('admission_reference', $application->reference);
@@ -136,6 +151,7 @@ class AdmissionsController extends Controller
             return response()->json([
                 'status' => 'draft',
                 'admissionFeePaid' => false,
+                'flow' => $this->admissionsFlow(),
             ]);
         }
 
@@ -144,6 +160,8 @@ class AdmissionsController extends Controller
             'admissionFeePaid' => (bool) $application->admission_fee_paid,
             'offerIssuedAt' => optional($application->offer_issued_at)->toISOString(),
             'offerAcceptedAt' => optional($application->offer_accepted_at)->toISOString(),
+            'premiumRequirementStatus' => $this->premiumRequirementStatus($application),
+            'flow' => $this->admissionsFlow(),
         ]);
     }
 
@@ -154,9 +172,18 @@ class AdmissionsController extends Controller
             return response()->json(['status' => 'submitted', 'admissionFeePaid' => false]);
         }
 
+        $nextStatus = $application->status === 'submitted' ? 'under_review' : $application->status;
+
         $application->update([
-            'status' => 'fee_paid',
+            'status' => $nextStatus,
             'admission_fee_paid' => true,
+            'review_started_at' => $nextStatus === 'under_review' && !$application->review_started_at ? now() : $application->review_started_at,
+        ]);
+
+        $application->refresh();
+        $application->update([
+            'premium_requirement_status' => $this->premiumRequirementStatus($application),
+            'premium_requirements' => $this->premiumRequirements($application),
         ]);
 
         return response()->json([
@@ -246,7 +273,7 @@ class AdmissionsController extends Controller
             return response()->json(['message' => 'Application not found'], 404);
         }
 
-        if (!in_array($application->status, ['offer_sent', 'approved'], true)) {
+        if ($application->status !== 'approved') {
             return response()->json(['message' => 'Offer is not available for acceptance'], 422);
         }
 
@@ -255,32 +282,12 @@ class AdmissionsController extends Controller
         }
 
         $application->update([
-            'status' => 'admitted',
+            'status' => 'admitted_pending_payment',
             'offer_accepted_at' => now(),
         ]);
 
-        $user = User::where('email', $application->email)->first();
-        if ($user) {
-            $user->update([
-                'role' => 'enrolled',
-                'school_id' => $application->school_id,
-                'program_id' => $application->program_id,
-                'intake_id' => $application->intake_id,
-            ]);
-
-            Enrollment::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'intake_id' => $application->intake_id,
-                ],
-                [
-                    'status' => 'pending',
-                    'enrolled_at' => now(),
-                ]
-            );
-
-            $this->ensureEnrollmentInvoice($application, $user);
-        }
+        $user = $this->prepareApplicantForEnrollment($application, $application->intake_id);
+        $this->ensureEnrollmentInvoice($application, $user);
 
         $sessionUser = $request->session()->get('user');
         if (is_array($sessionUser)) {
@@ -298,6 +305,8 @@ class AdmissionsController extends Controller
             'UnivAI Offer Accepted',
             'Your offer has been accepted successfully. Please continue to enrollment in your student portal.'
         );
+
+        $application->refresh();
 
         return response()->json($this->mapApplication($application));
     }
@@ -339,7 +348,7 @@ class AdmissionsController extends Controller
         }
 
         $payload = $request->validate([
-            'status' => ['required', 'string'],
+            'status' => ['required', 'in:' . implode(',', self::VALID_STATUSES)],
             'notes' => ['nullable', 'string'],
             'intakeId' => ['nullable', 'string'],
             'offerMessage' => ['nullable', 'string'],
@@ -347,11 +356,13 @@ class AdmissionsController extends Controller
             'needsInfoMessage' => ['nullable', 'string'],
         ]);
 
-        if (in_array($payload['status'], ['approved', 'admitted', 'offer_sent'], true) && empty($payload['intakeId'])) {
+        if (in_array($payload['status'], ['approved', 'admitted_pending_payment', 'enrolled'], true) && empty($payload['intakeId'])) {
             return response()->json([
-                'message' => 'Intake is required to approve or admit a student.',
+                'message' => 'Intake/cohort placement is required before approval, payment admission, or enrollment.',
             ], 422);
         }
+
+        $previousStatus = $application->status;
 
         $application->update([
             'status' => $payload['status'],
@@ -361,20 +372,24 @@ class AdmissionsController extends Controller
             'offer_letter_url' => $payload['offerLetterUrl'] ?? $application->offer_letter_url,
             'needs_info_message' => $payload['needsInfoMessage'] ?? $application->needs_info_message,
             'needs_info_at' => $payload['status'] === 'needs_info' ? now() : $application->needs_info_at,
+            'review_started_at' => $payload['status'] === 'under_review' && !$application->review_started_at ? now() : $application->review_started_at,
+            'premium_requirement_status' => $this->premiumRequirementStatus($application),
         ]);
+
+        $application->refresh();
 
         AuditLogger::log($request, 'admission.updated', 'application', $application->reference, [
             'status' => $payload['status'],
             'intakeId' => $payload['intakeId'] ?? $application->intake_id,
         ]);
 
-        if (in_array($payload['status'], ['offer_sent', 'approved'], true) && !$application->offer_issued_at) {
+        if ($payload['status'] === 'approved' && !$application->offer_issued_at) {
             $application->update([
                 'offer_issued_at' => now(),
             ]);
         }
 
-        if (in_array($payload['status'], ['offer_sent', 'approved'], true)) {
+        if ($payload['status'] === 'approved') {
             $this->ensureOfferLetter($application);
             $this->notifyApplicant(
                 $application,
@@ -391,32 +406,27 @@ class AdmissionsController extends Controller
             );
         }
 
-        if (in_array($payload['status'], ['admitted'], true)) {
-            $user = User::where('email', $application->email)->first();
-            if ($user) {
-                $user->update([
-                    'role' => 'enrolled',
-                    'school_id' => $application->school_id,
-                    'program_id' => $application->program_id,
-                    'intake_id' => $payload['intakeId'] ?? $application->intake_id,
-                ]);
-
-                if (!empty($payload['intakeId'])) {
-                    Enrollment::updateOrCreate(
-                        [
-                            'user_id' => $user->id,
-                            'intake_id' => $payload['intakeId'],
-                        ],
-                        [
-                            'status' => 'active',
-                            'enrolled_at' => now(),
-                        ]
-                    );
-
-                    $this->ensureEnrollmentInvoice($application, $user);
-                }
-            }
+        if ($payload['status'] === 'admitted_pending_payment') {
+            $user = $this->prepareApplicantForEnrollment($application, $payload['intakeId'] ?? $application->intake_id);
+            $this->ensureEnrollmentInvoice($application, $user);
         }
+
+        if ($payload['status'] === 'enrolled') {
+            $this->activateEntitlements($application, $request);
+        }
+
+        if ($previousStatus !== $payload['status'] && $payload['status'] === 'waitlisted') {
+            $this->notifyApplicant(
+                $application,
+                'UnivAI Admissions - Waitlist Update',
+                'Your application has been placed on the waitlist. Admissions will contact you when a seat becomes available.'
+            );
+        }
+
+        $application->update([
+            'premium_requirement_status' => $this->premiumRequirementStatus($application),
+            'premium_requirements' => $this->premiumRequirements($application),
+        ]);
 
         return $this->adminShow($id);
     }
@@ -454,6 +464,12 @@ class AdmissionsController extends Controller
 
         AuditLogger::log($request, 'admission.document.reviewed', 'application_document', (string) $document->id, [
             'status' => $payload['status'],
+        ]);
+
+        $application->refresh();
+        $application->update([
+            'premium_requirement_status' => $this->premiumRequirementStatus($application),
+            'premium_requirements' => $this->premiumRequirements($application),
         ]);
 
         return response()->json($this->mapDocument($document));
@@ -541,6 +557,14 @@ class AdmissionsController extends Controller
             'offerAcceptedAt' => optional($application->offer_accepted_at)->toISOString(),
             'needsInfoMessage' => $application->needs_info_message,
             'needsInfoAt' => optional($application->needs_info_at)->toISOString(),
+            'reviewStartedAt' => optional($application->review_started_at)->toISOString(),
+            'premiumRequirements' => $this->premiumRequirements($application),
+            'premiumRequirementStatus' => $this->premiumRequirementStatus($application),
+            'invoiceId' => $this->latestInvoiceId($application),
+            'cohortId' => $application->intake_id,
+            'cohortName' => optional(\App\Models\Intake::find($application->intake_id))->name,
+            'entitlementsActivatedAt' => optional($application->entitlements_activated_at)->toISOString(),
+            'enrolledAt' => optional($application->enrolled_at)->toISOString(),
         ];
     }
 
@@ -676,6 +700,145 @@ class AdmissionsController extends Controller
                 'application' => $application->reference,
                 'error' => $exception->getMessage(),
             ]);
+        }
+    }
+
+    private function admissionsFlow(): array
+    {
+        return self::VALID_STATUSES;
+    }
+
+    private function premiumRequirements(?Application $application = null): array
+    {
+        $documentsVerified = $application ? $this->documentsVerified($application) : false;
+
+        return [
+            ['key' => 'mode_selection', 'label' => 'Mode selection', 'complete' => $application ? !empty($application->delivery_mode) : false],
+            ['key' => 'admission_fee', 'label' => 'Admission fee', 'complete' => $application ? (bool) $application->admission_fee_paid : false],
+            ['key' => 'documents', 'label' => 'Required documents verified', 'complete' => $documentsVerified],
+            ['key' => 'admin_review', 'label' => 'Admin review completed', 'complete' => $application ? in_array($application->status, ['approved', 'admitted_pending_payment', 'enrolled'], true) : false],
+            ['key' => 'cohort', 'label' => 'Intake/cohort placement', 'complete' => $application ? !empty($application->intake_id) : false],
+            ['key' => 'invoice', 'label' => 'Tuition invoice generated', 'complete' => $application ? (bool) $this->latestInvoiceId($application) : false],
+            ['key' => 'entitlements', 'label' => 'Premium entitlements activated', 'complete' => $application ? !empty($application->entitlements_activated_at) : false],
+        ];
+    }
+
+    private function premiumRequirementStatus(Application $application): string
+    {
+        $requirements = $this->premiumRequirements($application);
+        $complete = collect($requirements)->every(fn (array $requirement) => (bool) $requirement['complete']);
+
+        return $complete ? 'complete' : 'pending';
+    }
+
+    private function documentsVerified(Application $application): bool
+    {
+        $documents = ApplicationDocument::query()->where('application_id', $application->id)->get();
+        if ($documents->isEmpty()) {
+            return false;
+        }
+
+        $requiredTypes = ['national_id', 'certificate', 'certified_results'];
+        foreach ($requiredTypes as $type) {
+            $verified = $documents->contains(fn (ApplicationDocument $document) => $document->document_type === $type && $document->status === 'verified');
+            if (!$verified) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function latestInvoiceId(Application $application): ?int
+    {
+        $user = User::where('email', $application->email)->first();
+        if (!$user || empty($application->intake_id)) {
+            return null;
+        }
+
+        return Invoice::query()
+            ->where('student_id', $user->id)
+            ->where('intake_id', $application->intake_id)
+            ->latest('created_at')
+            ->value('id');
+    }
+
+    private function prepareApplicantForEnrollment(Application $application, ?string $intakeId): ?User
+    {
+        $user = User::where('email', $application->email)->first();
+        if (!$user) {
+            return null;
+        }
+
+        $user->update([
+            'role' => 'enrolled',
+            'school_id' => $application->school_id,
+            'program_id' => $application->program_id,
+            'intake_id' => $intakeId,
+        ]);
+
+        if ($intakeId) {
+            Enrollment::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'intake_id' => $intakeId,
+                ],
+                [
+                    'status' => 'pending_payment',
+                    'enrolled_at' => now(),
+                ]
+            );
+        }
+
+        return $user;
+    }
+
+    public function activateEntitlements(Application $application, ?Request $request = null): void
+    {
+        if (empty($application->intake_id)) {
+            return;
+        }
+
+        $user = User::where('email', $application->email)->first();
+        if (!$user) {
+            return;
+        }
+
+        $user->update([
+            'role' => 'premium-student',
+            'school_id' => $application->school_id,
+            'program_id' => $application->program_id,
+            'intake_id' => $application->intake_id,
+        ]);
+
+        Enrollment::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'intake_id' => $application->intake_id,
+            ],
+            [
+                'status' => 'active',
+                'enrolled_at' => $application->enrolled_at ?? now(),
+                'confirmed_at' => now(),
+            ]
+        );
+
+        $application->update([
+            'status' => 'enrolled',
+            'entitlements_activated_at' => $application->entitlements_activated_at ?? now(),
+            'enrolled_at' => $application->enrolled_at ?? now(),
+            'premium_requirement_status' => 'complete',
+        ]);
+
+        if ($request) {
+            $sessionUser = $request->session()->get('user');
+            if (is_array($sessionUser) && (string) ($sessionUser['email'] ?? '') === (string) $application->email) {
+                $sessionUser['role'] = 'premium-student';
+                $sessionUser['schoolId'] = $application->school_id;
+                $sessionUser['programId'] = $application->program_id;
+                $sessionUser['intakeId'] = $application->intake_id;
+                $request->session()->put('user', $sessionUser);
+            }
         }
     }
 

@@ -35,7 +35,8 @@ export default function AdmissionStatusPage() {
     loadStatus();
   }, []);
 
-  const offerReady = ['offer_sent', 'approved', 'admitted'].includes(applicationStatus);
+  const offerReady = ['approved', 'admitted_pending_payment', 'enrolled'].includes(applicationStatus);
+  const enrolled = applicationStatus === 'enrolled';
   const steps: StatusStep[] = [
     {
       title: 'Application Submitted',
@@ -57,13 +58,13 @@ export default function AdmissionStatusPage() {
     },
     {
       title: 'Offer Letter',
-      description: offerReady ? 'Offer sent. Please accept to enroll.' : 'Receive your official offer and enrollment instructions.',
+      description: offerReady ? 'Decision made. Accept your offer and complete payment.' : 'Receive your official offer and enrollment instructions.',
       icon: <CheckCircle2 className="h-4 w-4" />,
-      state: offerReady ? 'current' : feePaid ? 'locked' : 'locked',
+      state: enrolled ? 'done' : offerReady ? 'current' : feePaid ? 'locked' : 'locked',
     },
   ];
 
-  const progressValue = offerReady ? 75 : feePaid ? 50 : 25;
+  const progressValue = enrolled ? 100 : applicationStatus === 'admitted_pending_payment' ? 85 : offerReady ? 75 : feePaid ? 50 : 25;
 
   return (
     <div className="min-h-screen bg-background px-4 py-10">

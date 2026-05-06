@@ -18,13 +18,13 @@ const requiredSubjects = ['english-language', 'mathematics'];
 const statusLabels: Record<ApplicationStatus, string> = {
   draft: 'Draft',
   submitted: 'Submitted',
-  fee_paid: 'Fee Paid',
   under_review: 'Under Review',
   needs_info: 'Needs Info',
-  offer_sent: 'Offer Sent',
   approved: 'Approved',
   rejected: 'Rejected',
-  admitted: 'Admitted',
+  waitlisted: 'Waitlisted',
+  admitted_pending_payment: 'Admitted - Payment Pending',
+  enrolled: 'Enrolled',
 };
 
 export default function AdmissionDetailPage() {
@@ -75,7 +75,7 @@ export default function AdmissionDetailPage() {
 
   const handleStatusChange = async (status: ApplicationStatus) => {
     if (!application) return;
-    if ((status === 'offer_sent' || status === 'admitted' || status === 'approved') && !selectedIntake) {
+    if ((status === 'admitted_pending_payment' || status === 'enrolled' || status === 'approved') && !selectedIntake) {
       toast({
         title: 'Select an intake first',
         description: 'Assign the applicant to an intake before approval.',
@@ -180,7 +180,7 @@ export default function AdmissionDetailPage() {
             </div>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
-            Select an intake before sending an offer or marking the applicant admitted.
+            Select an intake/cohort before approval, payment admission, or enrollment.
           </CardFooter>
         </Card>
 
@@ -213,6 +213,34 @@ export default function AdmissionDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            Premium Requirements & Activation
+          </CardTitle>
+          <CardDescription>Confirm requirements, invoice readiness, and entitlement activation before closing the file.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          {(application.premiumRequirements ?? []).map((requirement) => (
+            <div key={requirement.key} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+              <span>{requirement.label}</span>
+              <Badge variant={requirement.complete ? 'default' : 'outline'}>{requirement.complete ? 'Complete' : 'Pending'}</Badge>
+            </div>
+          ))}
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="text-xs text-muted-foreground">Invoice</p>
+            <p className="font-semibold">{application.invoiceId ? `#${application.invoiceId}` : 'Not generated'}</p>
+          </div>
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="text-xs text-muted-foreground">Cohort</p>
+            <p className="font-semibold">{application.cohortName ?? application.cohortId ?? 'Unassigned'}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -258,11 +286,17 @@ export default function AdmissionDetailPage() {
           <Button variant="outline" onClick={() => handleStatusChange('needs_info')}>
             Send Needs Info
           </Button>
-          <Button onClick={() => handleStatusChange('offer_sent')}>
-            Send Offer
+          <Button onClick={() => handleStatusChange('approved')}>
+            Approve / Send Offer
           </Button>
-          <Button variant="secondary" onClick={() => handleStatusChange('admitted')}>
-            Mark Admitted
+          <Button variant="secondary" onClick={() => handleStatusChange('admitted_pending_payment')}>
+            Admit Pending Payment
+          </Button>
+          <Button variant="outline" onClick={() => handleStatusChange('waitlisted')}>
+            Waitlist
+          </Button>
+          <Button variant="secondary" onClick={() => handleStatusChange('enrolled')}>
+            Activate Entitlements
           </Button>
           <Button variant="destructive" onClick={() => handleStatusChange('rejected')}>
             Reject Application

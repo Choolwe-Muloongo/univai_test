@@ -22,25 +22,25 @@ type RecordState = 'active' | 'archived' | 'deleted';
 const statusLabels: Record<ApplicationStatus, string> = {
   draft: 'Draft',
   submitted: 'Submitted',
-  fee_paid: 'Fee Paid',
   under_review: 'Under Review',
   needs_info: 'Needs Info',
-  offer_sent: 'Offer Sent',
   approved: 'Approved',
   rejected: 'Rejected',
-  admitted: 'Admitted',
+  waitlisted: 'Waitlisted',
+  admitted_pending_payment: 'Admitted - Payment Pending',
+  enrolled: 'Enrolled',
 };
 
 const statusBadgeVariant: Record<ApplicationStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   draft: 'outline',
   submitted: 'secondary',
-  fee_paid: 'secondary',
   under_review: 'default',
   needs_info: 'outline',
-  offer_sent: 'default',
   approved: 'default',
   rejected: 'destructive',
-  admitted: 'default',
+  waitlisted: 'outline',
+  admitted_pending_payment: 'secondary',
+  enrolled: 'default',
 };
 
 export default function AdmissionsDashboardPage() {

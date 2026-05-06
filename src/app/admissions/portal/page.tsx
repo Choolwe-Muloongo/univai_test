@@ -25,13 +25,13 @@ import { AlertCircle, CheckCircle2, FileText, ShieldCheck, Wallet } from 'lucide
 const statusLabels: Record<string, string> = {
   draft: 'Draft',
   submitted: 'Submitted',
-  fee_paid: 'Fee Paid',
   under_review: 'Under Review',
   needs_info: 'Needs Info',
-  offer_sent: 'Offer Sent',
-  approved: 'Offer Sent',
-  admitted: 'Admitted',
+  approved: 'Approved',
   rejected: 'Rejected',
+  waitlisted: 'Waitlisted',
+  admitted_pending_payment: 'Admitted - Payment Pending',
+  enrolled: 'Enrolled',
 };
 
 export default function AdmissionsPortalPage() {
@@ -137,9 +137,9 @@ export default function AdmissionsPortalPage() {
 
   const statusLabel = statusLabels[application.status] ?? application.status;
   const feePaid = Boolean(application.admissionFeePaid);
-  const offerReady = ['offer_sent', 'approved'].includes(application.status);
+  const offerReady = application.status === 'approved';
   const needsInfo = application.status === 'needs_info';
-  const reviewInProgress = ['under_review', 'needs_info', 'offer_sent', 'approved', 'admitted'].includes(application.status);
+  const reviewInProgress = ['under_review', 'needs_info', 'approved', 'waitlisted', 'admitted_pending_payment', 'enrolled'].includes(application.status);
 
   const steps = [
     {
@@ -165,7 +165,7 @@ export default function AdmissionsPortalPage() {
     {
       id: 'offer',
       label: 'Offer',
-      status: offerReady || application.status === 'admitted' ? 'complete' : 'pending',
+      status: ['approved', 'admitted_pending_payment', 'enrolled'].includes(application.status) ? 'complete' : 'pending',
     },
   ];
 
@@ -205,7 +205,7 @@ export default function AdmissionsPortalPage() {
       <Card>
         <CardHeader>
           <CardTitle>Admissions Progress</CardTitle>
-          <CardDescription>Follow the steps below to complete your admission.</CardDescription>
+          <CardDescription>Follow the draft → submitted → review → decision → payment → enrolled programme admissions flow.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -274,10 +274,26 @@ export default function AdmissionsPortalPage() {
         </Card>
       </div>
 
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Premium Requirements</CardTitle>
+          <CardDescription>These checks must be completed before premium entitlements activate.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          {(application.premiumRequirements ?? []).map((requirement) => (
+            <div key={requirement.key} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+              <span>{requirement.label}</span>
+              <Badge variant={requirement.complete ? 'default' : 'outline'}>{requirement.complete ? 'Complete' : 'Pending'}</Badge>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       <Card id="documents">
         <CardHeader>
           <CardTitle>Upload Documents</CardTitle>
-          <CardDescription>Submit or replace required documentation.</CardDescription>
+          <CardDescription>Submit or replace required documentation for premium programme review.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {needsInfo && (
@@ -361,18 +377,36 @@ export default function AdmissionsPortalPage() {
         </Card>
       )}
 
-      {application.status === 'admitted' && (
+
+      {application.status === 'enrolled' && (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <CheckCircle2 className="h-5 w-5" />
+              Entitlements Active
+            </CardTitle>
+            <CardDescription>Your premium student access is active for {application.cohortName ?? application.cohortId ?? 'your assigned cohort'}.</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/student/program">Go to Student Dashboard</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {application.status === 'admitted_pending_payment' && (
         <Card className="border-primary/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
               <AlertCircle className="h-5 w-5" />
-              Enrollment Required
+              Payment Required
             </CardTitle>
-            <CardDescription>Complete enrollment to activate your student dashboard.</CardDescription>
+            <CardDescription>Pay the generated tuition invoice and confirm enrollment to activate premium entitlements.</CardDescription>
           </CardHeader>
           <CardFooter>
             <Button asChild>
-              <Link href="/student/enroll">Complete Enrollment</Link>
+              <Link href="/student/enroll/payment">Pay Invoice</Link>
             </Button>
           </CardFooter>
         </Card>

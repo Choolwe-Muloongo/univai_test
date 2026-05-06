@@ -6,9 +6,9 @@ import { getApplications } from '@/lib/api';
 export default async function EnrollmentReportsPage() {
   const applications = await getApplications();
   const submitted = applications.length;
-  const offersIssued = applications.filter((app) => ['offer_sent', 'approved'].includes(app.status)).length;
-  const accepted = applications.filter((app) => app.status === 'admitted').length;
-  const enrolled = accepted;
+  const offersIssued = applications.filter((app) => ['approved', 'admitted_pending_payment', 'enrolled'].includes(app.status)).length;
+  const accepted = applications.filter((app) => ['admitted_pending_payment', 'enrolled'].includes(app.status)).length;
+  const enrolled = applications.filter((app) => app.status === 'enrolled').length;
 
   return (
     <div className="space-y-8">
@@ -87,7 +87,7 @@ export default async function EnrollmentReportsPage() {
                 return (
                   <div className="rounded-lg border border-dashed p-4">
                     <p className="font-semibold text-foreground">No pending document follow-ups</p>
-                    <p className="mt-1">Next action: move qualified applicants to offer issuance and monitor acceptance.</p>
+                    <p className="mt-1">Next action: move qualified applicants to approval, payment admission, and enrollment.</p>
                     <div className="mt-3">
                       <Button size="sm" variant="outline" asChild>
                         <Link href="/admin/admissions">Review all applications</Link>
