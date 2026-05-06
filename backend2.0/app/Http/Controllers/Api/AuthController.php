@@ -133,6 +133,9 @@ class AuthController extends Controller
         return [
             'student.premium@univai.edu' => 'premium-student',
             'student.freemium@univai.edu' => 'freemium-student',
+            'student.free@univai.edu' => 'free-student',
+            'student.certificate@univai.edu' => 'paid-certificate-student',
+            'student.programme@univai.edu' => 'programme-student',
             'lecturer@univai.edu' => 'lecturer',
             'employer@univai.edu' => 'employer',
             'admin@univai.edu' => 'admin',
@@ -142,13 +145,31 @@ class AuthController extends Controller
     private function demoUser(string $role): array
     {
         return match ($role) {
-            'freemium-student' => [
-                'id' => 'student-freemium',
-                'name' => 'Freemium Student',
-                'email' => 'student.freemium@univai.edu',
-                'role' => 'freemium-student',
+            'free-student', 'freemium-student' => [
+                'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
+                'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
+                'email' => $role === 'free-student' ? 'student.free@univai.edu' : 'student.freemium@univai.edu',
+                'role' => $role,
                 'schoolId' => null,
                 'programId' => null,
+            ],
+            'paid-certificate-student' => [
+                'id' => 'student-certificate',
+                'name' => 'Paid Certificate Student',
+                'email' => 'student.certificate@univai.edu',
+                'role' => 'paid-certificate-student',
+                'schoolId' => 'ict',
+                'programId' => 'cs101',
+                'intakeId' => 'cs101-2026-jan',
+            ],
+            'programme-student' => [
+                'id' => 'student-programme',
+                'name' => 'Programme Student',
+                'email' => 'student.programme@univai.edu',
+                'role' => 'programme-student',
+                'schoolId' => 'ict',
+                'programId' => 'cs101',
+                'intakeId' => 'cs101-2026-jan',
             ],
             'lecturer' => [
                 'id' => 'lecturer-1',

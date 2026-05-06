@@ -5,11 +5,18 @@ import { GenerateContentInputSchema } from '@/lib/schemas';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
-async function callAi(prompt: string, mode: string, context?: string | null) {
+async function callAi(prompt: string, mode: string, context?: string | null, approvedMaterials?: string | null, accessTier?: string | null, feature?: string | null) {
   const response = await fetch(`${API_BASE_URL}/ai/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, mode, context: context || undefined }),
+    body: JSON.stringify({
+      prompt,
+      mode,
+      context: context || undefined,
+      approvedMaterials: approvedMaterials || undefined,
+      accessTier: accessTier || undefined,
+      feature: feature || undefined,
+    }),
     cache: 'no-store',
   });
 
@@ -47,12 +54,13 @@ export async function generateStudyPlanAction(prevState: any, formData: FormData
   try {
     const { learningHistory, goals, availableTime } = validatedFields.data;
     const context = (formData.get('context') as string) || null;
+    const accessTier = (formData.get('accessTier') as string) || null;
     const prompt = `Create a 4-week study plan for a university student.
 Learning history: ${learningHistory}
 Goals: ${goals}
 Weekly time allocation: ${availableTime}
 Return a structured plan with weeks and bullet points.`;
-    const plan = await callAi(prompt, 'lesson', context);
+    const plan = await callAi(prompt, 'lesson', context, null, accessTier, 'studyPlan');
     return { message: 'Success', studyPlan: plan, errors: null };
   } catch (error) {
     return { message: 'An error occurred while generating the plan.', studyPlan: null, errors: null };
@@ -82,12 +90,13 @@ export async function aiTutorAction(prevState: any, formData: FormData) {
       try {
         const { question, courseMaterial } = validatedFields.data;
         const context = (formData.get('context') as string) || null;
+        const accessTier = (formData.get('accessTier') as string) || null;
         const moduleContext = (formData.get('moduleContext') as string) || '';
         const moduleBlock = moduleContext ? `Module context: ${moduleContext}\n` : '';
         const prompt = `Student question: ${question}
 ${moduleBlock}Course material: ${courseMaterial}
 Respond with a clear, step-by-step explanation and a short check-for-understanding question.`;
-        const answer = await callAi(prompt, 'tutor', context);
+        const answer = await callAi(prompt, 'tutor', context, courseMaterial, accessTier, 'tutor');
         return { message: 'Success', answer, errors: null };
       } catch (error) {
         return { message: 'An error occurred while getting an answer.', answer: null, errors: null };

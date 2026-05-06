@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { aiTutorAction } from '@/app/actions';
 import { Loader2, Sparkles } from 'lucide-react';
+import { useSession } from '@/components/providers/session-provider';
+import { getAiAccessPolicy } from '@/lib/ai-access';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAiContext } from '@/lib/ai-context';
 import { getProgram } from '@/lib/api';
@@ -54,6 +56,8 @@ const initialState = { message: null, answer: null, errors: null };
   const [state, dispatch] = useActionState<TutorState, FormData>(aiTutorAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const context = useAiContext();
+  const { session } = useSession();
+  const policy = getAiAccessPolicy(session?.user?.role);
   const [modules, setModules] = useState<{ id: string; title: string; semester?: number | null }[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
 
@@ -94,7 +98,7 @@ const initialState = { message: null, answer: null, errors: null };
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold">AI Tutor</CardTitle>
           <CardDescription>
-            Stuck on a concept? Paste the relevant course material and ask your question.
+            Stuck on a concept? Paste the relevant course material and ask your question. {policy.features.groundedAnswers ? 'Programme answers are grounded in approved module materials.' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -110,6 +114,7 @@ const initialState = { message: null, answer: null, errors: null };
           )}
           <form ref={formRef} action={dispatch} className="space-y-6">
             <input type="hidden" name="context" value={context} />
+            <input type="hidden" name="accessTier" value={policy.tier} />
             <input type="hidden" name="moduleContext" value={moduleContextText} />
             <div className="space-y-2">
               <Label>Module Context (optional)</Label>
@@ -127,11 +132,11 @@ const initialState = { message: null, answer: null, errors: null };
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="courseMaterial">Course Material</Label>
+              <Label htmlFor="courseMaterial">{policy.features.groundedAnswers ? 'Approved Module Material' : 'Course Material'}</Label>
               <Textarea
                 id="courseMaterial"
                 name="courseMaterial"
-                placeholder="Paste relevant text from your course here..."
+                placeholder={policy.features.groundedAnswers ? 'Paste approved module material for the tutor to use...' : 'Paste relevant text from your course here...'}
                 className="min-h-32"
                 required
               />

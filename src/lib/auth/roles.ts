@@ -3,7 +3,10 @@ export const ROLE = {
   LECTURER: 'lecturer',
   EMPLOYER: 'employer',
   STUDENT: 'student',
+  FREE_STUDENT: 'free-student',
+  PAID_CERTIFICATE_STUDENT: 'paid-certificate-student',
   PREMIUM_STUDENT: 'premium-student',
+  PROGRAMME_STUDENT: 'programme-student',
   FREEMIUM_STUDENT: 'freemium-student',
   ENROLLED: 'enrolled',
   APPLICANT: 'applicant',
@@ -15,7 +18,10 @@ export type UserRole = (typeof ROLE)[keyof typeof ROLE];
 
 export const STUDENT_ROLES: readonly UserRole[] = [
   ROLE.STUDENT,
+  ROLE.FREE_STUDENT,
+  ROLE.PAID_CERTIFICATE_STUDENT,
   ROLE.PREMIUM_STUDENT,
+  ROLE.PROGRAMME_STUDENT,
   ROLE.FREEMIUM_STUDENT,
   ROLE.ENROLLED,
 ];
@@ -35,7 +41,10 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [ROLE.LECTURER]: 'Lecturer',
   [ROLE.EMPLOYER]: 'Employer',
   [ROLE.STUDENT]: 'Student',
+  [ROLE.FREE_STUDENT]: 'Free Student',
+  [ROLE.PAID_CERTIFICATE_STUDENT]: 'Paid Certificate Student',
   [ROLE.PREMIUM_STUDENT]: 'Premium Student',
+  [ROLE.PROGRAMME_STUDENT]: 'Programme Student',
   [ROLE.FREEMIUM_STUDENT]: 'Freemium Student',
   [ROLE.ENROLLED]: 'Enrolled Student',
   [ROLE.APPLICANT]: 'Applicant',

@@ -9,9 +9,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { API_BASE_URL } from '@/lib/api/client';
 import { Loader2 } from 'lucide-react';
 import { useAiContext } from '@/lib/ai-context';
+import { useSession } from '@/components/providers/session-provider';
+import { getAiAccessPolicy } from '@/lib/ai-access';
 
 export default function AiCareerPage() {
   const context = useAiContext();
+  const { session } = useSession();
+  const policy = getAiAccessPolicy(session?.user?.role);
   const [targetRole, setTargetRole] = useState('');
   const [experience, setExperience] = useState('');
   const [resumeDraft, setResumeDraft] = useState('');
@@ -20,7 +24,10 @@ export default function AiCareerPage() {
   const [loadingInterview, setLoadingInterview] = useState(false);
 
   const generateResume = async () => {
-    if (!targetRole.trim() || !experience.trim()) return;
+    if (!targetRole.trim() || !experience.trim() || !policy.features.career) {
+      if (!policy.features.career) setResumeDraft(`${policy.label} does not include AI career prep.`);
+      return;
+    }
     setLoadingResume(true);
     try {
       if (!API_BASE_URL) {
@@ -30,10 +37,13 @@ export default function AiCareerPage() {
       const response = await fetch(`${API_BASE_URL}/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           prompt: `Create a resume draft for the role ${targetRole}. Use this experience: ${experience}. Provide bullet points and strong action verbs.`,
           mode: 'summary',
           context,
+          accessTier: policy.tier,
+          feature: 'career',
         }),
       });
       const data = await response.json();
@@ -47,7 +57,10 @@ export default function AiCareerPage() {
   };
 
   const startPracticeInterview = async () => {
-    if (!targetRole.trim()) return;
+    if (!targetRole.trim() || !policy.features.career) {
+      if (!policy.features.career) setInterviewNotes(`${policy.label} does not include AI career prep.`);
+      return;
+    }
     setLoadingInterview(true);
     try {
       if (!API_BASE_URL) {
@@ -57,10 +70,13 @@ export default function AiCareerPage() {
       const response = await fetch(`${API_BASE_URL}/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           prompt: `Create 5 interview questions for a ${targetRole} candidate and include short guidance on how to answer.`,
           mode: 'tutor',
           context,
+          accessTier: policy.tier,
+          feature: 'career',
         }),
       });
       const data = await response.json();
@@ -77,7 +93,7 @@ export default function AiCareerPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">AI Career Prep</h1>
-        <p className="text-muted-foreground">Build your resume and prep for interviews with AI.</p>
+        <p className="text-muted-foreground">Build your resume and prep for interviews with AI when included in your {policy.label.toLowerCase()} access.</p>
       </div>
 
       <Card>
@@ -105,7 +121,7 @@ export default function AiCareerPage() {
           {resumeDraft && <Textarea value={resumeDraft} readOnly className="min-h-40" />}
         </CardContent>
         <CardFooter>
-          <Button onClick={generateResume} disabled={loadingResume}>
+          <Button onClick={generateResume} disabled={loadingResume || !policy.features.career}>
             {loadingResume ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Generate Resume Draft
           </Button>
@@ -118,7 +134,7 @@ export default function AiCareerPage() {
           <CardDescription>Get AI-generated questions and feedback.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button variant="outline" onClick={startPracticeInterview} disabled={loadingInterview}>
+          <Button variant="outline" onClick={startPracticeInterview} disabled={loadingInterview || !policy.features.career}>
             {loadingInterview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Start Practice Interview
           </Button>

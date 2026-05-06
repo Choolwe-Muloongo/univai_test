@@ -21,6 +21,8 @@ const PersonalizedStudyPlanInputSchema = z.object({
   availableTime: z
     .string()
     .describe('The amount of time the student has available to study each week.'),
+  accessTier: z.enum(['free', 'paid-certificate', 'premium', 'programme']).default('premium').describe('The student AI access tier.'),
+  approvedModuleMaterials: z.string().optional().describe('Approved module materials that programme-student plans should use as boundaries.'),
 });
 export type PersonalizedStudyPlanInput = z.infer<typeof PersonalizedStudyPlanInputSchema>;
 
@@ -37,11 +39,15 @@ const prompt = ai.definePrompt({
   name: 'personalizedStudyPlanPrompt',
   input: {schema: PersonalizedStudyPlanInputSchema},
   output: {schema: PersonalizedStudyPlanOutputSchema},
-  prompt: `You are an AI-powered study plan generator. You will take a student's learning history, goals, and available time, and generate a personalized study plan for them.
+  prompt: `You are an AI-powered study plan generator. You will take a student's learning history, goals, available time, and AI access tier to generate an appropriate study plan.
+
+Free students should receive only brief next-step guidance and no cashback. Paid-certificate students should receive certificate-focused plans. Premium students should receive advanced tutor, study plan, flashcard, mock exam, and weak-area support. Programme students should receive plans grounded in approved module materials.
 
 Learning History: {{{learningHistory}}}
 Goals: {{{goals}}}
 Available Time: {{{availableTime}}}
+AI Access Tier: {{{accessTier}}}
+Approved Module Materials: {{{approvedModuleMaterials}}}
 
 Based on this information, create a study plan that includes specific topics to study, resources to use, and a schedule to follow. The study plan should be realistic and achievable, given the student's available time and learning history.`,
 });

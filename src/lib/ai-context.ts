@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getProgram, getStudentDashboard, getStudentGrades } from '@/lib/api';
 import { useSession } from '@/components/providers/session-provider';
+import { aiAccessSummaryFor } from '@/lib/ai-access';
 
 export function useAiContext() {
   const { session } = useSession();
@@ -35,6 +36,7 @@ export function useAiContext() {
         const summary = [
           `Student name: ${name}`,
           `Role: ${role}`,
+          aiAccessSummaryFor(session?.user),
           program?.title ? `Program: ${program.title}` : null,
           program?.schoolName ? `School: ${program.schoolName}` : null,
           program?.intakeId ? `Intake: ${program.intakeId}` : null,

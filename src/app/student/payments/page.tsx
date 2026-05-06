@@ -12,8 +12,8 @@ import type { Invoice } from '@/lib/api/types';
 
 const freemiumFeatures = [
   { text: 'Access to introductory modules of all courses', included: true },
-  { text: 'Read-only access to community discussions', included: true },
-  { text: 'AI Tutor and Study Planner', included: false },
+  { text: 'Limited AI support for short study questions', included: true },
+  { text: 'No cashback or AFTACOIN rewards', included: false },
   { text: 'Verified Certificate upon completion', included: false },
   { text: 'Full access to Career & Job Hub', included: false },
   { text: 'Ability to post in community and message peers', included: false },
@@ -21,7 +21,7 @@ const freemiumFeatures = [
 
 const premiumFeatures = [
   { text: 'Unlimited access to all course content', included: true },
-  { text: 'Full access to AI Tutor and Study Planner', included: true },
+  { text: 'Advanced AI Tutor, Study Planner, Flashcards, Mock Exams, and Weak-Area Coach', included: true },
   { text: 'Verified Certificate upon completion', included: true },
   { text: 'Full community access (posting, messaging)', included: true },
   { text: 'Full access to Career & Job Hub', included: true },
@@ -74,7 +74,7 @@ export default function PaymentsPage() {
     router.push('/student/checkout');
   };
 
-  const isFreemium = userRole === 'freemium-student';
+  const isFreemium = userRole === 'freemium-student' || userRole === 'free-student';
 
   return (
     <div className="space-y-8">
@@ -141,7 +141,7 @@ export default function PaymentsPage() {
         <Card className="border-2">
           <CardHeader>
             <CardTitle className="text-2xl">Freemium</CardTitle>
-            <CardDescription>Get a taste of our platform with limited access.</CardDescription>
+            <CardDescription>Get a taste of our platform with limited AI support and no cashback.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-4xl font-bold">Free</p>

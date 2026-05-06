@@ -39,8 +39,10 @@ class DashboardController extends Controller
         $sessionUser = $request->session()->get('user');
         $studentId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
         $walletValue = '0 AFTA';
-        $walletNote = 'AFTACOIN Balance';
-        if ($studentId && is_numeric($studentId)) {
+        $walletNote = in_array($role, ['free-student', 'freemium-student'], true)
+            ? 'Cashback is not available on the free tier'
+            : 'AFTACOIN Balance';
+        if ($studentId && is_numeric($studentId) && !in_array($role, ['free-student', 'freemium-student'], true)) {
             $totalPaid = Payment::query()
                 ->whereHas('invoice', fn ($query) => $query->where('student_id', $studentId))
                 ->sum('amount');

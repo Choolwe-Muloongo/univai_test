@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { API_BASE_URL } from '@/lib/api/client';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useAiContext } from '@/lib/ai-context';
+import { useSession } from '@/components/providers/session-provider';
+import { getAiAccessPolicy } from '@/lib/ai-access';
 
 type LessonCompanionClientProps = {
   lessonId: string;
@@ -16,7 +18,7 @@ type LessonCompanionClientProps = {
   supplementalText?: string | null;
 };
 
-async function requestAi(prompt: string, mode: string, context: string) {
+async function requestAi(prompt: string, mode: string, context: string, accessTier: string, approvedMaterials?: string | null) {
   if (!API_BASE_URL) {
     return 'AI is not connected yet. Configure NEXT_PUBLIC_API_BASE_URL to enable live responses.';
   }
@@ -24,7 +26,8 @@ async function requestAi(prompt: string, mode: string, context: string) {
   const response = await fetch(`${API_BASE_URL}/ai/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, mode, context }),
+    credentials: 'include',
+    body: JSON.stringify({ prompt, mode, context, accessTier, approvedMaterials: approvedMaterials || undefined, feature: 'lessonCompanion' }),
   });
 
   if (!response.ok) {
@@ -44,6 +47,8 @@ export function LessonCompanionClient({
   supplementalText,
 }: LessonCompanionClientProps) {
   const baseContext = useAiContext();
+  const { session } = useSession();
+  const policy = getAiAccessPolicy(session?.user?.role);
   const [summary, setSummary] = useState('');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -68,10 +73,14 @@ export function LessonCompanionClient({
   }, [baseContext, lessonContext]);
 
   const handleSummary = async () => {
+    if (!policy.features.lessonCompanion) {
+      setSummary(`${policy.label} does not include Lesson Companion access.`);
+      return;
+    }
     setLoadingSummary(true);
     try {
       const prompt = `Summarize the lesson "${lessonTitle}" for a university student. Highlight objectives, key concepts, and 3 short takeaways.`;
-      const text = await requestAi(prompt, 'summary', context);
+      const text = await requestAi(prompt, 'summary', context, policy.tier, lessonContent || supplementalText);
       setSummary(text.trim() || 'No summary returned.');
     } catch (error) {
       console.error(error);
@@ -82,11 +91,14 @@ export function LessonCompanionClient({
   };
 
   const handleQuestion = async () => {
-    if (!question.trim()) return;
+    if (!question.trim() || !policy.features.lessonCompanion) {
+      if (!policy.features.lessonCompanion) setAnswer(`${policy.label} does not include Lesson Companion access.`);
+      return;
+    }
     setLoadingAnswer(true);
     try {
       const prompt = `Answer this question based on the lesson content: "${question}". Provide a concise, student-friendly explanation.`;
-      const text = await requestAi(prompt, 'tutor', context);
+      const text = await requestAi(prompt, 'tutor', context, policy.tier, lessonContent || supplementalText);
       setAnswer(text.trim() || 'No answer returned.');
     } catch (error) {
       console.error(error);
@@ -97,10 +109,14 @@ export function LessonCompanionClient({
   };
 
   const handlePractice = async () => {
+    if (!policy.features.lessonCompanion) {
+      setPractice(`${policy.label} does not include Lesson Companion access.`);
+      return;
+    }
     setLoadingPractice(true);
     try {
       const prompt = `Create 5 practice questions with answer keys for the lesson "${lessonTitle}".`;
-      const text = await requestAi(prompt, 'quiz', context);
+      const text = await requestAi(prompt, 'quiz', context, policy.tier, lessonContent || supplementalText);
       setPractice(text.trim() || 'No practice questions returned.');
     } catch (error) {
       console.error(error);
@@ -115,7 +131,7 @@ export function LessonCompanionClient({
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Lesson Companion</h1>
         <p className="text-muted-foreground">
-          AI support for lesson {lessonId}. Use the tools below to study smarter.
+          AI support for lesson {lessonId}. {policy.features.groundedAnswers ? 'Programme answers use approved lesson and lecturer materials.' : 'Use the tools below to study smarter.'}
         </p>
       </div>
 
@@ -135,7 +151,7 @@ export function LessonCompanionClient({
           )}
         </CardContent>
         <CardFooter>
-          <Button onClick={handleSummary} disabled={loadingSummary}>
+          <Button onClick={handleSummary} disabled={loadingSummary || !policy.features.lessonCompanion}>
             {loadingSummary ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Generate Summary
           </Button>
@@ -156,7 +172,7 @@ export function LessonCompanionClient({
           {answer && <Textarea value={answer} readOnly className="min-h-32" />}
         </CardContent>
         <CardFooter>
-          <Button onClick={handleQuestion} disabled={loadingAnswer || !question.trim()}>
+          <Button onClick={handleQuestion} disabled={loadingAnswer || !question.trim() || !policy.features.lessonCompanion}>
             {loadingAnswer ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Send Question
           </Button>
