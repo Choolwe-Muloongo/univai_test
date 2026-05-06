@@ -14,6 +14,13 @@ export type SessionUser = {
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
+  accountState?: string | null;
+  verificationStatus?: string | null;
+  profileCompleted?: boolean | null;
+  profileStarted?: boolean | null;
+  subscriptionStatus?: string | null;
+  subscriptionTier?: string | null;
+  entitlements?: string[] | null;
 };
 
 export type Session = {
