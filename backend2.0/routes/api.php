@@ -56,9 +56,14 @@ Route::middleware('api')->group(function () {
 
     Route::get('/schools', [CatalogController::class, 'schools']);
     Route::get('/programs', [ProgramsController::class, 'index']);
+    Route::get('/programmes', [ProgramsController::class, 'index']);
     Route::get('/programs/{programId}/modules', [ProgramController::class, 'modulesByProgram']);
+    Route::get('/programmes/{programId}/modules', [ProgramController::class, 'modulesByProgram']);
+    Route::get('/short-courses', [CatalogController::class, 'courses']);
     Route::get('/courses', [CatalogController::class, 'courses']);
+    Route::get('/short-courses/{id}', [CatalogController::class, 'course']);
     Route::get('/courses/{id}', [CatalogController::class, 'course']);
+    Route::get('/short-courses/{courseId}/lessons', [CatalogController::class, 'lessonsByCourse']);
     Route::get('/courses/{courseId}/lessons', [CatalogController::class, 'lessonsByCourse']);
     Route::get('/courses/{courseId}/exam', [CatalogController::class, 'courseExam']);
     Route::get('/lessons', [CatalogController::class, 'lessons']);
