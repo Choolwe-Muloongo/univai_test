@@ -13,6 +13,8 @@ class Application extends Model
         'email',
         'program_id',
         'intake_id',
+        'cohort_id',
+        'section_id',
         'school_id',
         'status',
         'submitted_at',

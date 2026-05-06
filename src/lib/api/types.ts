@@ -14,6 +14,8 @@ export type SessionUser = {
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
+  cohortId?: string | null;
+  sectionId?: string | null;
 };
 
 export type Session = {
@@ -304,6 +306,8 @@ export type ApplicationSummary = {
   email: string;
   programId: string;
   intakeId?: string | null;
+  cohortId?: string | null;
+  sectionId?: string | null;
   schoolId: string;
   status: ApplicationStatus;
   submittedAt: string;
@@ -431,6 +435,31 @@ export type Intake = {
   startDate?: string | null;
   endDate?: string | null;
   status: string;
+};
+
+
+export type CohortSection = {
+  id: string;
+  cohortId: string;
+  name: string;
+  code?: string | null;
+  timetable?: Record<string, unknown> | null;
+  capacity?: number | null;
+  status: string;
+};
+
+export type Cohort = {
+  id: string;
+  intakeId?: string | null;
+  programId: string;
+  curriculumVersionId?: string | null;
+  name: string;
+  deliveryMode: string;
+  centre?: string | null;
+  timetable?: Record<string, unknown> | null;
+  capacity?: number | null;
+  status: string;
+  sections: CohortSection[];
 };
 
 export type CurriculumVersion = {
@@ -594,6 +623,8 @@ export type Payment = {
 export type EnrollmentData = {
   status: string;
   intakeId?: string | null;
+  cohortId?: string | null;
+  sectionId?: string | null;
   selectedModules?: string[];
   enrolledAt?: string | null;
   confirmedAt?: string | null;

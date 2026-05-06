@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\StudentsController;
 use App\Http\Controllers\Api\AiController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\IntakesController;
+use App\Http\Controllers\Api\CohortsController;
 use App\Http\Controllers\Api\AdminAssignmentsController;
 use App\Http\Controllers\Api\LecturerAssignmentsController;
 use App\Http\Controllers\Api\LessonDocumentsController;
@@ -172,6 +173,10 @@ Route::middleware('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/intakes', [IntakesController::class, 'index']);
         Route::post('/intakes', [IntakesController::class, 'store']);
+        Route::get('/cohorts', [CohortsController::class, 'index']);
+        Route::post('/cohorts', [CohortsController::class, 'store']);
+        Route::patch('/cohorts/{cohort}', [CohortsController::class, 'update']);
+        Route::post('/cohorts/{cohort}/sections', [CohortsController::class, 'storeSection']);
         Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
         Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
         Route::get('/audit-logs', [AdminAuditController::class, 'index']);

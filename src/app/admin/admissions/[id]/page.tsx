@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getApplicationById, updateApplicationStatus, getIntakes, getApplicationDocuments, reviewApplicationDocument } from '@/lib/api';
-import type { ApplicationDetail, ApplicationStatus, Intake, ApplicationDocument } from '@/lib/api/types';
+import { getApplicationById, updateApplicationStatus, getIntakes, getCohorts, getApplicationDocuments, reviewApplicationDocument } from '@/lib/api';
+import type { ApplicationDetail, ApplicationStatus, Intake, Cohort, ApplicationDocument } from '@/lib/api/types';
 import { ClipboardCheck, Mail, ShieldCheck, User, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminActionPanel } from '@/components/admin/admin-action-panel';
@@ -38,6 +38,9 @@ export default function AdmissionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [intakes, setIntakes] = useState<Intake[]>([]);
   const [selectedIntake, setSelectedIntake] = useState<string>('');
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [selectedCohort, setSelectedCohort] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
   const [documents, setDocuments] = useState<ApplicationDocument[]>([]);
   const [docNotes, setDocNotes] = useState<Record<number, string>>({});
 
@@ -49,6 +52,7 @@ export default function AdmissionDetailPage() {
         getIntakes(),
         getApplicationDocuments(id as string),
       ]);
+      const cohortList = await getCohorts({ programId: data?.programId });
       setApplication(data);
       setNotes(data?.notes || '');
       setOfferMessage(data?.offerLetterMessage ?? '');
@@ -56,6 +60,9 @@ export default function AdmissionDetailPage() {
       setNeedsInfoMessage(data?.needsInfoMessage ?? '');
       setIntakes(intakeList.filter((intake) => intake.programId === data?.programId));
       setSelectedIntake(data?.intakeId || '');
+      setCohorts(cohortList);
+      setSelectedCohort(data?.cohortId || cohortList.find((cohort) => cohort.intakeId === data?.intakeId)?.id || '');
+      setSelectedSection(data?.sectionId || '');
       setDocuments(docList);
       setLoading(false);
     };
@@ -73,6 +80,9 @@ export default function AdmissionDetailPage() {
     };
   }, [application]);
 
+  const intakeCohorts = useMemo(() => cohorts.filter((cohort) => cohort.intakeId === selectedIntake), [cohorts, selectedIntake]);
+  const cohortSections = useMemo(() => cohorts.find((cohort) => cohort.id === selectedCohort)?.sections ?? [], [cohorts, selectedCohort]);
+
   const handleStatusChange = async (status: ApplicationStatus) => {
     if (!application) return;
     if ((status === 'offer_sent' || status === 'admitted' || status === 'approved') && !selectedIntake) {
@@ -83,11 +93,21 @@ export default function AdmissionDetailPage() {
       });
       return;
     }
+    if ((status === 'offer_sent' || status === 'admitted' || status === 'approved') && !selectedCohort) {
+      toast({
+        title: 'Select a cohort first',
+        description: 'Attach the applicant to a cohort before approval.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       const updated = await updateApplicationStatus(application.id, status, notes, selectedIntake || null, {
         offerMessage,
         offerLetterUrl,
         needsInfoMessage,
+        cohortId: selectedCohort || null,
+        sectionId: selectedSection || null,
       });
       if (updated) {
         setApplication(updated);
@@ -164,7 +184,7 @@ export default function AdmissionDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Assigned Intake</p>
-                <Select value={selectedIntake} onValueChange={setSelectedIntake}>
+                <Select value={selectedIntake} onValueChange={(value) => { setSelectedIntake(value); const nextCohort = cohorts.find((cohort) => cohort.intakeId === value); setSelectedCohort(nextCohort?.id ?? ''); setSelectedSection(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select intake" />
                   </SelectTrigger>
@@ -177,10 +197,40 @@ export default function AdmissionDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Assigned Cohort</p>
+                <Select value={selectedCohort} onValueChange={(value) => { setSelectedCohort(value); setSelectedSection(''); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {intakeCohorts.map((cohort) => (
+                      <SelectItem key={cohort.id} value={cohort.id}>
+                        {cohort.name} - {cohort.centre ?? cohort.deliveryMode}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Assigned Section (optional)</p>
+                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohortSections.map((section) => (
+                      <SelectItem key={section.id} value={section.id}>
+                        {section.name}{section.code ? ` (${section.code})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
-            Select an intake before sending an offer or marking the applicant admitted.
+            Select an intake and cohort before sending an offer or marking the applicant admitted. Sections are optional.
           </CardFooter>
         </Card>
 

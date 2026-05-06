@@ -10,6 +10,8 @@ class Enrollment extends Model
     protected $fillable = [
         'user_id',
         'intake_id',
+        'cohort_id',
+        'section_id',
         'selected_modules',
         'status',
         'standing',
@@ -34,5 +36,15 @@ class Enrollment extends Model
     public function intake(): BelongsTo
     {
         return $this->belongsTo(Intake::class);
+    }
+
+    public function cohort(): BelongsTo
+    {
+        return $this->belongsTo(Cohort::class);
+    }
+
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
+use App\Models\Cohort;
 use App\Models\AdmissionsSetting;
 use App\Models\Enrollment;
 use App\Models\Invoice;
@@ -254,6 +255,11 @@ class AdmissionsController extends Controller
             return response()->json(['message' => 'Offer missing intake assignment'], 422);
         }
 
+        $placement = $this->resolvePlacement($application->intake_id, $application->cohort_id, $application->section_id);
+        if (empty($placement['cohortId'])) {
+            return response()->json(['message' => 'Offer missing cohort assignment'], 422);
+        }
+
         $application->update([
             'status' => 'admitted',
             'offer_accepted_at' => now(),
@@ -274,6 +280,8 @@ class AdmissionsController extends Controller
                     'intake_id' => $application->intake_id,
                 ],
                 [
+                    'cohort_id' => $placement['cohortId'],
+                    'section_id' => $placement['sectionId'],
                     'status' => 'pending',
                     'enrolled_at' => now(),
                 ]
@@ -288,6 +296,8 @@ class AdmissionsController extends Controller
             $sessionUser['schoolId'] = $application->school_id;
             $sessionUser['programId'] = $application->program_id;
             $sessionUser['intakeId'] = $application->intake_id;
+            $sessionUser['cohortId'] = $placement['cohortId'];
+            $sessionUser['sectionId'] = $placement['sectionId'];
             $request->session()->put('user', $sessionUser);
         }
 
@@ -313,6 +323,8 @@ class AdmissionsController extends Controller
                 'email' => $application->email,
                 'programId' => $application->program_id,
                 'intakeId' => $application->intake_id,
+                'cohortId' => $application->cohort_id,
+                'sectionId' => $application->section_id,
                 'schoolId' => $application->school_id,
                 'status' => $application->status,
                 'submittedAt' => optional($application->submitted_at)->toISOString(),
@@ -345,6 +357,8 @@ class AdmissionsController extends Controller
             'offerMessage' => ['nullable', 'string'],
             'offerLetterUrl' => ['nullable', 'string'],
             'needsInfoMessage' => ['nullable', 'string'],
+            'cohortId' => ['nullable', 'string', 'exists:cohorts,id'],
+            'sectionId' => ['nullable', 'string', 'exists:sections,id'],
         ]);
 
         if (in_array($payload['status'], ['approved', 'admitted', 'offer_sent'], true) && empty($payload['intakeId'])) {
@@ -353,10 +367,19 @@ class AdmissionsController extends Controller
             ], 422);
         }
 
+        $placement = $this->resolvePlacement($payload['intakeId'] ?? $application->intake_id, $payload['cohortId'] ?? null, $payload['sectionId'] ?? null);
+        if (in_array($payload['status'], ['approved', 'admitted', 'offer_sent'], true) && empty($placement['cohortId'])) {
+            return response()->json([
+                'message' => 'Cohort is required to approve or admit a student. Create or select a cohort for this intake first.',
+            ], 422);
+        }
+
         $application->update([
             'status' => $payload['status'],
             'notes' => $payload['notes'] ?? $application->notes,
             'intake_id' => $payload['intakeId'] ?? $application->intake_id,
+            'cohort_id' => $placement['cohortId'] ?? $application->cohort_id,
+            'section_id' => $placement['sectionId'] ?? $application->section_id,
             'offer_letter_message' => $payload['offerMessage'] ?? $application->offer_letter_message,
             'offer_letter_url' => $payload['offerLetterUrl'] ?? $application->offer_letter_url,
             'needs_info_message' => $payload['needsInfoMessage'] ?? $application->needs_info_message,
@@ -366,6 +389,8 @@ class AdmissionsController extends Controller
         AuditLogger::log($request, 'admission.updated', 'application', $application->reference, [
             'status' => $payload['status'],
             'intakeId' => $payload['intakeId'] ?? $application->intake_id,
+            'cohortId' => $placement['cohortId'] ?? $application->cohort_id,
+            'sectionId' => $placement['sectionId'] ?? $application->section_id,
         ]);
 
         if (in_array($payload['status'], ['offer_sent', 'approved'], true) && !$application->offer_issued_at) {
@@ -408,6 +433,8 @@ class AdmissionsController extends Controller
                             'intake_id' => $payload['intakeId'],
                         ],
                         [
+                            'cohort_id' => $placement['cohortId'],
+                            'section_id' => $placement['sectionId'],
                             'status' => 'active',
                             'enrolled_at' => now(),
                         ]
@@ -487,6 +514,43 @@ class AdmissionsController extends Controller
         return Storage::disk('local')->download($application->offer_letter_url, 'UnivAI-Offer-Letter.pdf');
     }
 
+    private function resolvePlacement(?string $intakeId, ?string $cohortId, ?string $sectionId): array
+    {
+        $cohort = null;
+        if ($cohortId) {
+            $cohort = Cohort::with('sections')->find($cohortId);
+        }
+
+        if (!$cohort && $intakeId) {
+            $cohort = Cohort::with('sections')
+                ->where('intake_id', $intakeId)
+                ->whereIn('status', ['planning', 'open', 'active'])
+                ->orderBy('created_at')
+                ->first();
+        }
+
+        if (!$cohort) {
+            return ['cohortId' => null, 'sectionId' => null];
+        }
+
+        $section = null;
+        if ($sectionId) {
+            $section = $cohort->sections->firstWhere('id', $sectionId);
+        }
+
+        if (!$section) {
+            $section = $cohort->sections
+                ->whereIn('status', ['open', 'active'])
+                ->sortBy('created_at')
+                ->first();
+        }
+
+        return [
+            'cohortId' => $cohort->id,
+            'sectionId' => $section?->id,
+        ];
+    }
+
     private function resolveApplicationForSession(Request $request): ?Application
     {
         $sessionUser = $request->session()->get('user');
@@ -521,6 +585,8 @@ class AdmissionsController extends Controller
             'email' => $application->email,
             'programId' => $application->program_id,
             'intakeId' => $application->intake_id,
+            'cohortId' => $application->cohort_id,
+            'sectionId' => $application->section_id,
             'schoolId' => $application->school_id,
             'status' => $application->status,
             'submittedAt' => optional($application->submitted_at)->toISOString(),

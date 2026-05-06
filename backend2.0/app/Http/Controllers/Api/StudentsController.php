@@ -66,6 +66,8 @@ class StudentsController extends Controller
         return response()->json([
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
+            'cohortId' => $enrollment->cohort_id,
+            'sectionId' => $enrollment->section_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
@@ -77,6 +79,8 @@ class StudentsController extends Controller
         $sessionUser = $request->session()->get('user');
         $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
         $intakeId = is_array($sessionUser) ? ($sessionUser['intakeId'] ?? null) : null;
+        $cohortId = is_array($sessionUser) ? ($sessionUser['cohortId'] ?? null) : null;
+        $sectionId = is_array($sessionUser) ? ($sessionUser['sectionId'] ?? null) : null;
 
         if (!$userId || !is_numeric($userId)) {
             return response()->json(['message' => 'Unauthorized'], 403);
@@ -97,18 +101,24 @@ class StudentsController extends Controller
                 'intake_id' => $intakeId,
             ],
             [
+                'cohort_id' => $cohortId,
+                'section_id' => $sectionId,
                 'status' => 'pending',
                 'enrolled_at' => null,
             ]
         );
 
         $enrollment->update([
+            'cohort_id' => $enrollment->cohort_id ?? $cohortId,
+            'section_id' => $enrollment->section_id ?? $sectionId,
             'selected_modules' => $payload['modules'],
         ]);
 
         return response()->json([
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
+            'cohortId' => $enrollment->cohort_id,
+            'sectionId' => $enrollment->section_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
@@ -160,6 +170,8 @@ class StudentsController extends Controller
         return response()->json([
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
+            'cohortId' => $enrollment->cohort_id,
+            'sectionId' => $enrollment->section_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),

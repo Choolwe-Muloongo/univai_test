@@ -6,28 +6,32 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Intake extends Model
+class Cohort extends Model
 {
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
         'id',
+        'intake_id',
         'program_id',
         'curriculum_version_id',
         'name',
         'delivery_mode',
-        'campus',
+        'centre',
+        'timetable',
         'capacity',
-        'start_date',
-        'end_date',
         'status',
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'timetable' => 'array',
     ];
+
+    public function intake(): BelongsTo
+    {
+        return $this->belongsTo(Intake::class);
+    }
 
     public function program(): BelongsTo
     {
@@ -39,13 +43,13 @@ class Intake extends Model
         return $this->belongsTo(CurriculumVersion::class, 'curriculum_version_id');
     }
 
+    public function sections(): HasMany
+    {
+        return $this->hasMany(Section::class);
+    }
+
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);
-    }
-
-    public function cohorts(): HasMany
-    {
-        return $this->hasMany(Cohort::class);
     }
 }

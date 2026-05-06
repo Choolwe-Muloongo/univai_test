@@ -13,6 +13,8 @@ import type {
   CreateJobPayload,
   CreateResearchPayload,
   CreateDiscussionPayload,
+  Cohort,
+  CohortSection,
   CurriculumModule,
   CurriculumPolicyAssignment,
   CurriculumVersion,
@@ -125,6 +127,31 @@ export async function getAvailableIntakes(): Promise<Intake[]> {
 
 export async function createIntake(payload: Omit<Intake, 'id'>) {
   return apiFetch('/admin/intakes', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getCohorts(params?: { intakeId?: string; programId?: string }): Promise<Cohort[]> {
+  const query = new URLSearchParams();
+  if (params?.intakeId) query.set('intakeId', params.intakeId);
+  if (params?.programId) query.set('programId', params.programId);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  return apiFetch(`/admin/cohorts${suffix}`);
+}
+
+export async function createCohort(payload: Omit<Cohort, 'id' | 'sections'>): Promise<Cohort> {
+  return apiFetch('/admin/cohorts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createCohortSection(
+  cohortId: string,
+  payload: Omit<CohortSection, 'id' | 'cohortId'>
+): Promise<CohortSection> {
+  return apiFetch(`/admin/cohorts/${cohortId}/sections`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -792,7 +819,7 @@ export async function updateApplicationStatus(
   status: ApplicationStatus,
   notes?: string,
   intakeId?: string | null,
-  extra?: { offerMessage?: string; offerLetterUrl?: string; needsInfoMessage?: string }
+  extra?: { offerMessage?: string; offerLetterUrl?: string; needsInfoMessage?: string; cohortId?: string | null; sectionId?: string | null }
 ): Promise<ApplicationDetail | null> {
   return apiFetch(`/admin/admissions/${id}`, {
     method: 'PATCH',
