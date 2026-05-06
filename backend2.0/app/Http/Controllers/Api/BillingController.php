@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Enrollment;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\AuditLogger;
+use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
 
 class BillingController extends Controller
@@ -23,14 +25,23 @@ class BillingController extends Controller
             ->where('student_id', $studentId)
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn (Invoice $invoice) => [
+            ->map(function (Invoice $invoice) {
+                $mode = DeliveryModes::normalize(Enrollment::query()
+                    ->where('user_id', $invoice->student_id)
+                    ->where('intake_id', $invoice->intake_id)
+                    ->value('delivery_mode') ?? $invoice->intake?->delivery_mode);
+
+                return [
                 'id' => $invoice->id,
                 'title' => $invoice->title,
                 'amount' => (string) $invoice->amount,
                 'paidAmount' => (string) $invoice->paid_amount,
                 'status' => $invoice->status,
                 'dueDate' => optional($invoice->due_date)->toDateString(),
-            ]);
+                'deliveryMode' => $mode,
+                'feePolicy' => $mode === DeliveryModes::SOFTWARE_ONLY ? 'Software-only rate applied' : ($mode === DeliveryModes::PHYSICAL ? 'Physical learning facilities rate applied' : 'Hybrid learning rate applied'),
+            ];
+            });
     }
 
     public function pay(Request $request, Invoice $invoice)

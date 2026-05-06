@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { deliveryModeLabel, deliveryModes } from '@/lib/delivery-modes';
 import {
   addModulePrerequisite,
   createCurriculumModule,
@@ -37,6 +38,7 @@ export default function AdminCurriculumPage() {
   const [moduleDescription, setModuleDescription] = useState('');
   const [moduleSemester, setModuleSemester] = useState('1');
   const [moduleCredits, setModuleCredits] = useState('3');
+  const [moduleDeliveryModes, setModuleDeliveryModes] = useState<string[]>(['software_only', 'hybrid', 'physical']);
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [selectedPrereqId, setSelectedPrereqId] = useState('');
   const [prerequisites, setPrerequisites] = useState<{ moduleId: string; prerequisiteId: string; prerequisiteTitle?: string | null }[]>([]);
@@ -185,6 +187,7 @@ export default function AdminCurriculumPage() {
         semester: Number(moduleSemester) || 1,
         isCore: true,
         track: null,
+        supportedDeliveryModes: moduleDeliveryModes,
       });
       setModules((prev) => [...prev, created]);
       setModuleStates((prev) => ({ ...prev, [created.id]: 'active' }));
@@ -192,6 +195,7 @@ export default function AdminCurriculumPage() {
       setModuleDescription('');
       setModuleCredits('3');
       setModuleSemester('1');
+      setModuleDeliveryModes(['software_only', 'hybrid', 'physical']);
       pushHistory('CurriculumModule', created.id, 'created');
     } catch (createError) {
       console.error('Failed to create module', createError);
@@ -311,6 +315,25 @@ export default function AdminCurriculumPage() {
               <Label>Credits</Label>
               <Input type="number" min="1" value={moduleCredits} onChange={(event) => setModuleCredits(event.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Supported Delivery Modes</Label>
+              <div className="flex flex-wrap gap-2">
+                {deliveryModes.map((mode) => {
+                  const selected = moduleDeliveryModes.includes(mode.value);
+                  return (
+                    <Button
+                      key={mode.value}
+                      type="button"
+                      size="sm"
+                      variant={selected ? 'default' : 'outline'}
+                      onClick={() => setModuleDeliveryModes((prev) => selected ? prev.filter((item) => item !== mode.value) : [...prev, mode.value])}
+                    >
+                      {mode.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Description</Label>
               <Textarea value={moduleDescription} onChange={(event) => setModuleDescription(event.target.value)} />
@@ -331,7 +354,7 @@ export default function AdminCurriculumPage() {
                       <p className="font-semibold">{module.title}</p>
                       <p className="text-sm text-muted-foreground">{module.description}</p>
                     </div>
-                    <div className="text-sm text-muted-foreground">Semester {module.semester} · {module.credits ?? 3} credits</div>
+                    <div className="text-sm text-muted-foreground">Semester {module.semester} · {module.credits ?? 3} credits · {(module.supportedDeliveryModes ?? []).map(deliveryModeLabel).join(', ') || 'All modes'}</div>
                   </div>
                   <div className="mt-3 flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => setSelectedModuleId(module.id)}>Prerequisites</Button>

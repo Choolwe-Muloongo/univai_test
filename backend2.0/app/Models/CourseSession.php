@@ -13,6 +13,7 @@ class CourseSession extends Model
         'intake_id',
         'title',
         'session_type',
+        'delivery_mode',
         'day_of_week',
         'start_time',
         'end_time',

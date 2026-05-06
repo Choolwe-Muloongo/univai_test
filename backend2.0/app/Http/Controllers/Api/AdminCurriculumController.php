@@ -8,6 +8,7 @@ use App\Models\ModulePrerequisite;
 use App\Models\Program;
 use App\Models\ProgramModule;
 use App\Support\AuditLogger;
+use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -119,6 +120,8 @@ class AdminCurriculumController extends Controller
             'semester' => ['required', 'integer', 'min:1'],
             'isCore' => ['nullable', 'boolean'],
             'track' => ['nullable', 'string'],
+            'supportedDeliveryModes' => ['nullable', 'array'],
+            'supportedDeliveryModes.*' => ['string'],
         ]);
 
         $baseId = Str::slug($version->program_id . '-sem' . $payload['semester'] . '-' . $payload['title']);
@@ -143,6 +146,7 @@ class AdminCurriculumController extends Controller
             'is_exam_available' => false,
             'is_core' => $payload['isCore'] ?? true,
             'track' => $payload['track'] ?? null,
+            'supported_delivery_modes' => DeliveryModes::normalizeMany($payload['supportedDeliveryModes'] ?? null),
         ]);
 
         AuditLogger::log($request, 'module.created', 'program_module', $module->id, [
@@ -201,6 +205,7 @@ class AdminCurriculumController extends Controller
             'semester' => $module->semester,
             'isCore' => (bool) $module->is_core,
             'track' => $module->track,
+            'supportedDeliveryModes' => DeliveryModes::normalizeMany($module->supported_delivery_modes),
         ];
     }
 }

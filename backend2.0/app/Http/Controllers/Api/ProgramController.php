@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\CurriculumVersion;
 use App\Models\CourseAttempt;
 use App\Models\ExamQuestion;
+use App\Models\Enrollment;
 use App\Models\Intake;
 use App\Models\Program;
 use App\Models\ProgramModule;
+use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
 
 class ProgramController extends Controller
@@ -30,8 +32,10 @@ class ProgramController extends Controller
 
         $curriculumVersion = null;
         $intake = null;
+        $selectedMode = DeliveryModes::HYBRID;
         if ($intakeId) {
             $intake = Intake::find($intakeId);
+            $selectedMode = $this->selectedDeliveryMode($studentId, $intakeId, $intake?->delivery_mode);
             if ($intake?->curriculum_version_id) {
                 $curriculumVersion = CurriculumVersion::find($intake->curriculum_version_id);
             }
@@ -58,9 +62,11 @@ class ProgramController extends Controller
                 ->groupBy('module_id');
         }
 
-        $mappedModules = $modules->map(function (ProgramModule $module) use ($attemptsByModule) {
+        $modules = $modules->filter(fn (ProgramModule $module) => DeliveryModes::supports($module->supported_delivery_modes ?? $program->supported_delivery_modes, $selectedMode));
+
+        $mappedModules = $modules->map(function (ProgramModule $module) use ($attemptsByModule, $selectedMode) {
             $attempts = $attemptsByModule->get($module->id, collect());
-            return $this->mapModule($module, $attempts);
+            return $this->mapModule($module, $attempts, $selectedMode);
         });
 
         $totalCredits = $mappedModules->sum(fn (array $module) => (int) ($module['credits'] ?? 0));
@@ -75,7 +81,7 @@ class ProgramController extends Controller
             'description' => $program->description,
             'schoolId' => $program->school_id,
             'schoolName' => $program->school?->name,
-            'deliveryMode' => $intake?->delivery_mode ?? 'online',
+            'deliveryMode' => $selectedMode,
             'campus' => $intake?->campus,
             'progress' => $overallProgress,
             'imageId' => $program->image_id,
@@ -89,7 +95,7 @@ class ProgramController extends Controller
                 'name' => $curriculumVersion->name,
                 'status' => $curriculumVersion->status,
             ] : null,
-            'modules' => $mappedModules,
+            'modules' => $mappedModules->values(),
         ];
     }
 
@@ -104,9 +110,12 @@ class ProgramController extends Controller
             return [];
         }
 
+        $selectedMode = DeliveryModes::HYBRID;
         $curriculumVersionId = null;
         if ($intakeId) {
-            $curriculumVersionId = Intake::query()->where('id', $intakeId)->value('curriculum_version_id');
+            $intake = Intake::query()->where('id', $intakeId)->first();
+            $curriculumVersionId = $intake?->curriculum_version_id;
+            $selectedMode = $this->selectedDeliveryMode($studentId, $intakeId, $intake?->delivery_mode);
         }
         if (!$curriculumVersionId) {
             $curriculumVersionId = CurriculumVersion::query()
@@ -125,7 +134,8 @@ class ProgramController extends Controller
         $modules = $query
             ->orderBy('semester')
             ->orderBy('title')
-            ->get();
+            ->get()
+            ->filter(fn (ProgramModule $module) => DeliveryModes::supports($module->supported_delivery_modes, $selectedMode));
 
         $attemptsByModule = collect();
         if ($studentId) {
@@ -135,10 +145,10 @@ class ProgramController extends Controller
                 ->groupBy('module_id');
         }
 
-        return $modules->map(function (ProgramModule $module) use ($attemptsByModule) {
+        return $modules->map(function (ProgramModule $module) use ($attemptsByModule, $selectedMode) {
             $attempts = $attemptsByModule->get($module->id, collect());
-            return $this->mapModule($module, $attempts);
-        });
+            return $this->mapModule($module, $attempts, $selectedMode);
+        })->values();
     }
 
     public function modulesByProgram(string $programId)
@@ -177,7 +187,22 @@ class ProgramController extends Controller
             ]);
     }
 
-    private function mapModule(ProgramModule $module, $attempts = null): array
+    private function selectedDeliveryMode($studentId, ?string $intakeId, ?string $fallback): string
+    {
+        if ($studentId && is_numeric($studentId) && $intakeId) {
+            $mode = Enrollment::query()
+                ->where('user_id', $studentId)
+                ->where('intake_id', $intakeId)
+                ->value('delivery_mode');
+            if ($mode) {
+                return DeliveryModes::normalize($mode);
+            }
+        }
+
+        return DeliveryModes::normalize($fallback);
+    }
+
+    private function mapModule(ProgramModule $module, $attempts = null, ?string $selectedMode = null): array
     {
         $attempt = null;
         if ($attempts instanceof \Illuminate\Support\Collection && $attempts->isNotEmpty()) {
@@ -202,7 +227,8 @@ class ProgramController extends Controller
             'hoursPerWeek' => $module->hours_per_week,
             'progress' => $progress,
             'semester' => $module->semester,
-            'isExamAvailable' => (bool) $module->is_exam_available,
+            'isExamAvailable' => (bool) $module->is_exam_available && (!$selectedMode || DeliveryModes::supports($module->supported_delivery_modes, $selectedMode)),
+            'supportedDeliveryModes' => DeliveryModes::normalizeMany($module->supported_delivery_modes),
             'isCore' => (bool) $module->is_core,
             'track' => $module->track,
         ];

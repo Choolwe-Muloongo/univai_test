@@ -201,7 +201,7 @@ export default function DashboardPage() {
         <StatCard
           title="Program Progress"
           value={`${program.progress}%`}
-          helper={program.title}
+          helper={`${program.title} · ${deliveryModeLabel(program.deliveryMode)}`}
           icon={<GraduationCap className="h-4 w-4" />}
         />
         <StatCard
@@ -234,7 +234,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-lg font-semibold">{program.title}</p>
-                  <p className="text-sm text-muted-foreground">{schoolLabel}</p>
+                  <p className="text-sm text-muted-foreground">{schoolLabel} · {deliveryModeLabel(program.deliveryMode)}</p>
                 </div>
               </div>
               <div className="space-y-2">

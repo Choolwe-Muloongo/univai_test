@@ -116,6 +116,7 @@ class StudentsController extends Controller
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
+            'deliveryMode' => DeliveryModes::normalize($enrollment->delivery_mode),
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
@@ -134,10 +135,30 @@ class StudentsController extends Controller
         $payload = $request->validate([
             'modules' => ['required', 'array', 'min:1'],
             'modules.*' => ['string'],
+            'deliveryMode' => ['required', 'string'],
         ]);
 
         if (!$intakeId) {
             return response()->json(['message' => 'No intake assigned'], 422);
+        }
+
+        $intake = Intake::find($intakeId);
+        if (!$intake) {
+            return response()->json(['message' => 'Intake not found'], 404);
+        }
+
+        $selectedMode = DeliveryModes::normalize($payload['deliveryMode']);
+        if (!DeliveryModes::supports($intake->program?->supported_delivery_modes, $selectedMode)) {
+            return response()->json(['message' => 'Your program does not support the selected delivery mode.'], 422);
+        }
+
+        $modules = ProgramModule::query()
+            ->whereIn('id', $payload['modules'])
+            ->get();
+
+        $unsupported = $modules->first(fn (ProgramModule $module) => !DeliveryModes::supports($module->supported_delivery_modes, $selectedMode));
+        if ($unsupported) {
+            return response()->json(['message' => "{$unsupported->title} is not available for the selected delivery mode."], 422);
         }
 
         $enrollment = Enrollment::query()->firstOrCreate(
@@ -153,12 +174,14 @@ class StudentsController extends Controller
 
         $enrollment->update([
             'selected_modules' => $payload['modules'],
+            'delivery_mode' => $selectedMode,
         ]);
 
         return response()->json([
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
+            'deliveryMode' => DeliveryModes::normalize($enrollment->delivery_mode),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
     }
@@ -214,6 +237,7 @@ class StudentsController extends Controller
             'status' => $enrollment->status,
             'intakeId' => $enrollment->intake_id,
             'selectedModules' => $enrollment->selected_modules ?? [],
+            'deliveryMode' => DeliveryModes::normalize($enrollment->delivery_mode),
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
@@ -223,6 +247,7 @@ class StudentsController extends Controller
     {
         $user = $request->session()->get('user');
         $intakeId = is_array($user) ? ($user['intakeId'] ?? null) : null;
+        $studentId = is_array($user) ? ($user['id'] ?? null) : null;
 
         if (!$intakeId) {
             return response()->json(null, 404);
@@ -237,6 +262,18 @@ class StudentsController extends Controller
             return response()->json(null, 404);
         }
 
+        $mode = Enrollment::query()
+            ->where('user_id', $studentId ?? null)
+            ->where('intake_id', $intakeId)
+            ->value('delivery_mode') ?? $assignment->intake?->delivery_mode;
+        $normalizedMode = DeliveryModes::normalize($mode);
+        if ($normalizedMode === DeliveryModes::SOFTWARE_ONLY && empty($assignment->meeting_url)) {
+            return response()->json(['message' => 'This meeting is not available for software-only learners.'], 403);
+        }
+        if ($normalizedMode === DeliveryModes::PHYSICAL && empty($assignment->intake?->campus) && empty($assignment->meeting_notes)) {
+            return response()->json(['message' => 'Physical learning venue is not available yet.'], 404);
+        }
+
         return [
             'courseId' => $assignment->course_id,
             'intakeId' => $assignment->intake_id,
@@ -245,6 +282,7 @@ class StudentsController extends Controller
             'meetingUrl' => $assignment->meeting_url,
             'meetingSchedule' => $assignment->meeting_schedule,
             'meetingNotes' => $assignment->meeting_notes,
+            'deliveryMode' => $normalizedMode,
         ];
     }
 

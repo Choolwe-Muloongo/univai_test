@@ -24,6 +24,11 @@ class Program extends Model
         'delivery_mode',
         'progress',
         'image_id',
+        'supported_delivery_modes',
+    ];
+
+    protected $casts = [
+        'supported_delivery_modes' => 'array',
     ];
 
     protected $casts = [
