@@ -67,28 +67,31 @@ Route::middleware('api')->group(function () {
     Route::patch('/lessons/{lessonId}', [CatalogController::class, 'updateLesson']);
 
     Route::get('/jobs', [JobsController::class, 'index']);
-    Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'access:employer.portal']);
     Route::get('/jobs/{id}', [JobsController::class, 'show']);
-    Route::post('/jobs/{id}/apply', [JobsController::class, 'apply'])->middleware(['session.auth', 'role:student']);
+    Route::post('/jobs/{id}/apply', [JobsController::class, 'apply'])->middleware(['session.auth', 'access:student.portal']);
 
     Route::get('/research', [ResearchController::class, 'index']);
-    Route::post('/research', [ResearchController::class, 'store'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/research', [ResearchController::class, 'store'])->middleware(['session.auth', 'access:employer.portal']);
     Route::get('/research/{id}', [ResearchController::class, 'show']);
-    Route::post('/research/{id}/apply', [ResearchController::class, 'apply'])->middleware(['session.auth', 'role:student']);
-    Route::get('/research/{id}/applications', [ResearchController::class, 'applications'])->middleware(['session.auth', 'role:employer']);
-    Route::patch('/research/{id}/applications/{application}', [ResearchController::class, 'updateApplication'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/research/{id}/apply', [ResearchController::class, 'apply'])->middleware(['session.auth', 'access:student.portal']);
+    Route::get('/research/{id}/applications', [ResearchController::class, 'applications'])->middleware(['session.auth', 'access:employer.portal']);
+    Route::patch('/research/{id}/applications/{application}', [ResearchController::class, 'updateApplication'])->middleware(['session.auth', 'access:employer.portal']);
 
     Route::get('/community/discussions', [CommunityController::class, 'index']);
-    Route::post('/community/discussions', [CommunityController::class, 'store'])->middleware(['session.auth', 'role:student']);
+    Route::post('/community/discussions', [CommunityController::class, 'store'])->middleware(['session.auth', 'access:student.portal']);
     Route::get('/community/discussions/{id}', [CommunityController::class, 'show']);
-    Route::post('/community/discussions/{id}/comments', [CommunityController::class, 'storeComment'])->middleware(['session.auth', 'role:student']);
+    Route::post('/community/discussions/{id}/comments', [CommunityController::class, 'storeComment'])->middleware(['session.auth', 'access:student.portal']);
 
-    Route::get('/students/me/badges', [BadgesController::class, 'index'])->middleware(['session.auth', 'role:student']);
+    Route::get('/students/me/badges', [BadgesController::class, 'index'])->middleware(['session.auth', 'access:student.portal']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/admissions/settings', [AdmissionsController::class, 'settings']);
 
-    Route::middleware(['session.auth', 'role:student'])->group(function () {
-        Route::get('/students/me/entitlements', [StudentsController::class, 'entitlements']);
+    Route::middleware(['session.auth', 'access:student.portal'])->group(function () {
+        Route::get('/students/me/program', [ProgramController::class, 'program']);
+        Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
+        Route::get('/students/me/exams/semester-{semesterId}', [ProgramController::class, 'semesterExam']);
+
         Route::post('/students/checkout', [StudentsController::class, 'checkout']);
         Route::get('/students/me/dashboard', [DashboardController::class, 'student']);
         Route::get('/students/me/intakes', [IntakesController::class, 'availableForStudent']);
@@ -138,21 +141,21 @@ Route::middleware('api')->group(function () {
     });
 
     Route::middleware('session.auth')->group(function () {
-        Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware('throttle:admissions');
-        Route::get('/admissions/me', [AdmissionsController::class, 'me']);
-        Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents']);
-        Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument']);
-        Route::get('/admissions/me/documents/{document}', [AdmissionsController::class, 'downloadDocument']);
-        Route::get('/admissions/status', [AdmissionsController::class, 'status']);
-        Route::post('/admissions/fee', [AdmissionsController::class, 'payFee'])->middleware('throttle:admissions');
-        Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware('throttle:admissions');
-        Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter']);
-        Route::post('/ai/generate', [AiController::class, 'generate'])->middleware(['role:student', 'entitlement:' . StudentAccess::ENTITLEMENT_PREMIUM, 'throttle:ai']);
+        Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
+        Route::get('/admissions/me', [AdmissionsController::class, 'me'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents'])->middleware('access:admissions.applicant');
+        Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/me/documents/{document}', [AdmissionsController::class, 'downloadDocument'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/status', [AdmissionsController::class, 'status'])->middleware('access:admissions.applicant');
+        Route::post('/admissions/fee', [AdmissionsController::class, 'payFee'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
+        Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
+        Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter'])->middleware('access:admissions.applicant');
+        Route::post('/ai/generate', [AiController::class, 'generate'])->middleware(['access:ai.generate', 'throttle:ai']);
     });
 
     Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit']);
 
-    Route::prefix('lecturer')->middleware(['session.auth', 'role:lecturer'])->group(function () {
+    Route::prefix('lecturer')->middleware(['session.auth', 'access:lecturer.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'lecturer']);
         Route::post('/grades', [GradesController::class, 'recordGrade']);
         Route::get('/students', [StudentsController::class, 'lecturerStudents']);
@@ -171,11 +174,11 @@ Route::middleware('api')->group(function () {
         Route::patch('/lessons/{lessonId}/documents/{document}', [LessonDocumentsController::class, 'review']);
     });
 
-    Route::prefix('employer')->middleware(['session.auth', 'role:employer'])->group(function () {
+    Route::prefix('employer')->middleware(['session.auth', 'access:employer.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'employer']);
     });
 
-    Route::prefix('admin')->middleware(['session.auth', 'role:admin'])->group(function () {
+    Route::prefix('admin')->middleware(['session.auth', 'access:admin.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/intakes', [IntakesController::class, 'index']);
         Route::post('/intakes', [IntakesController::class, 'store']);
