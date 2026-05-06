@@ -41,12 +41,15 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useEffect, useState } from 'react';
+import { useSession } from '@/components/providers/session-provider';
+import { ADMIN_PERMISSIONS, adminHasPermission, isAdminRole, type AdminPermission } from '@/lib/auth/roles';
 
 type NavLink = {
   href: string;
   label: string;
   icon: React.ElementType;
   key?: string;
+  permission?: AdminPermission;
 };
 
 const allLinks: { [key: string]: NavLink[] } = {
@@ -84,24 +87,24 @@ const allLinks: { [key: string]: NavLink[] } = {
   ],
   admin: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/admin/admissions', label: 'Admissions', icon: ClipboardCheck },
-    { href: '/admin/users', label: 'User Management', icon: Users },
-    { href: '/admin/route-requests', label: 'Route Requests', icon: ArrowLeftRight },
-    { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays },
-    { href: '/admin/assignments', label: 'Assignments', icon: Link2 },
-    { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck },
-    { href: '/admin/ai', label: 'AI Console', icon: Sparkles },
-    { href: '/admin/curriculum', label: 'Curriculum', icon: BookMarked },
-    { href: '/admin/curriculum-ops', label: 'Curriculum Ops', icon: Workflow },
-    { href: '/admin/curriculum-blueprint', label: 'DCE1 Blueprint', icon: BookMarked },
-    { href: '/admin/policies', label: 'Policies', icon: SlidersHorizontal },
-    { href: '/admin/management', label: 'Content Management', icon: Settings },
-    { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
-    { href: '/admin/reports', label: 'Reports & Analytics', icon: BookMarked },
-    { href: '/admin/audit', label: 'Audit Logs', icon: BadgeCheck },
-    { href: '/admin/community', label: 'Manage Community', icon: Users },
-    { href: '/admin/jobs', label: 'Manage Jobs', icon: Briefcase },
-    { href: '/admin/system-health', label: 'System Health', icon: Shield },
+    { href: '/admin/admissions', label: 'Admissions', icon: ClipboardCheck, permission: ADMIN_PERMISSIONS.REGISTRAR_MANAGE },
+    { href: '/admin/users', label: 'User Management', icon: Users, permission: ADMIN_PERMISSIONS.USERS_MANAGE },
+    { href: '/admin/route-requests', label: 'Route Requests', icon: ArrowLeftRight, permission: ADMIN_PERMISSIONS.ACADEMIC_MANAGE },
+    { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays, permission: ADMIN_PERMISSIONS.CENTRE_MANAGE },
+    { href: '/admin/assignments', label: 'Assignments', icon: Link2, permission: ADMIN_PERMISSIONS.ACADEMIC_MANAGE },
+    { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck, permission: ADMIN_PERMISSIONS.REGISTRAR_MANAGE },
+    { href: '/admin/ai', label: 'AI Console', icon: Sparkles, permission: ADMIN_PERMISSIONS.CONTENT_REVIEW },
+    { href: '/admin/curriculum', label: 'Curriculum', icon: BookMarked, permission: ADMIN_PERMISSIONS.CURRICULUM_MANAGE },
+    { href: '/admin/curriculum-ops', label: 'Curriculum Ops', icon: Workflow, permission: ADMIN_PERMISSIONS.CURRICULUM_MANAGE },
+    { href: '/admin/curriculum-blueprint', label: 'DCE1 Blueprint', icon: BookMarked, permission: ADMIN_PERMISSIONS.CURRICULUM_MANAGE },
+    { href: '/admin/policies', label: 'Policies', icon: SlidersHorizontal, permission: ADMIN_PERMISSIONS.QA_MANAGE },
+    { href: '/admin/management', label: 'Content Management', icon: Settings, permission: ADMIN_PERMISSIONS.CONTENT_REVIEW },
+    { href: '/admin/consultants', label: 'Consultants', icon: UserCheck, permission: ADMIN_PERMISSIONS.REGISTRAR_MANAGE },
+    { href: '/admin/reports', label: 'Reports & Analytics', icon: BookMarked, permission: ADMIN_PERMISSIONS.FINANCE_MANAGE },
+    { href: '/admin/audit', label: 'Audit Logs', icon: BadgeCheck, permission: ADMIN_PERMISSIONS.AUDIT_VIEW },
+    { href: '/admin/community', label: 'Manage Community', icon: Users, permission: ADMIN_PERMISSIONS.CONTENT_REVIEW },
+    { href: '/admin/jobs', label: 'Manage Jobs', icon: Briefcase, permission: ADMIN_PERMISSIONS.CONTENT_REVIEW },
+    { href: '/admin/system-health', label: 'System Health', icon: Shield, permission: ADMIN_PERMISSIONS.SYSTEM_MANAGE },
   ],
   lecturer: [
     { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -123,13 +126,27 @@ const allLinks: { [key: string]: NavLink[] } = {
 
 export function AppSidebar({ role }: { role?: string }) {
   const pathname = usePathname();
+  const { session } = useSession();
   const [links, setLinks] = useState<NavLink[]>([]);
 
   useEffect(() => {
     const resolvedRole = role || 'premium-student';
-    const normalizedRole = resolvedRole === 'enrolled' ? 'premium-student' : resolvedRole;
-    setLinks(allLinks[normalizedRole] || allLinks['premium-student']);
-  }, [pathname, role]);
+    const sessionRole = session?.user?.role;
+    const effectiveRole = isAdminRole(sessionRole) ? sessionRole : resolvedRole;
+    const normalizedRole = effectiveRole === 'enrolled' ? 'premium-student' : isAdminRole(effectiveRole) ? 'admin' : effectiveRole;
+    const nextLinks = allLinks[normalizedRole] || allLinks['premium-student'];
+
+    if (normalizedRole === 'admin') {
+      setLinks(
+        nextLinks.filter((link) =>
+          link.permission ? adminHasPermission(effectiveRole, link.permission, session?.user?.adminPermissions) : true
+        )
+      );
+      return;
+    }
+
+    setLinks(nextLinks);
+  }, [pathname, role, session]);
 
   return (
     <>

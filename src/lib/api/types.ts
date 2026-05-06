@@ -11,6 +11,8 @@ export type SessionUser = {
   email: string;
   role: string;
   avatar?: string | null;
+  adminPermissions?: string[];
+  suspendedAt?: string | null;
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
@@ -187,6 +189,8 @@ export type LecturerStudent = {
   programId?: string | null;
   intakeId?: string | null;
   avatar?: string | null;
+  adminPermissions?: string[];
+  suspendedAt?: string | null;
   progress?: number | null;
   gpa?: number | null;
   standing?: string | null;

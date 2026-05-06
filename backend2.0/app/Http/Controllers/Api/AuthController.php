@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AdminAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -23,6 +24,10 @@ class AuthController extends Controller
             $user = User::where('email', $email)->first();
 
             if ($user && Hash::check($password, $user->password)) {
+                if ($user->suspended_at !== null) {
+                    return response()->json(['message' => 'Account suspended'], 403);
+                }
+
                 $sessionUser = $this->mapUser($user);
             } elseif ($this->isDemoCredential($email, $password)) {
                 $sessionUser = $this->demoUser($this->demoRoleFromEmail($email));
@@ -115,6 +120,8 @@ class AuthController extends Controller
             'schoolId' => $user->school_id,
             'programId' => $user->program_id,
             'intakeId' => $user->intake_id,
+            'adminPermissions' => AdminAccess::permissionsForRole($user->role),
+            'suspendedAt' => optional($user->suspended_at)->toISOString(),
         ];
     }
 
@@ -136,6 +143,14 @@ class AuthController extends Controller
             'lecturer@univai.edu' => 'lecturer',
             'employer@univai.edu' => 'employer',
             'admin@univai.edu' => 'admin',
+            'academic.admin@univai.edu' => AdminAccess::ROLE_ACADEMIC,
+            'curriculum.admin@univai.edu' => AdminAccess::ROLE_CURRICULUM,
+            'exam.admin@univai.edu' => AdminAccess::ROLE_EXAM,
+            'qa.admin@univai.edu' => AdminAccess::ROLE_QA,
+            'content.admin@univai.edu' => AdminAccess::ROLE_CONTENT_REVIEW,
+            'centre.admin@univai.edu' => AdminAccess::ROLE_CENTRE,
+            'registrar.admin@univai.edu' => AdminAccess::ROLE_REGISTRAR,
+            'finance.admin@univai.edu' => AdminAccess::ROLE_FINANCE,
         ];
     }
 
@@ -167,6 +182,23 @@ class AuthController extends Controller
                 'name' => 'Admin',
                 'email' => 'admin@univai.edu',
                 'role' => 'admin',
+                'adminPermissions' => AdminAccess::permissionsForRole('admin'),
+                'suspendedAt' => null,
+            ],
+            AdminAccess::ROLE_ACADEMIC,
+            AdminAccess::ROLE_CURRICULUM,
+            AdminAccess::ROLE_EXAM,
+            AdminAccess::ROLE_QA,
+            AdminAccess::ROLE_CONTENT_REVIEW,
+            AdminAccess::ROLE_CENTRE,
+            AdminAccess::ROLE_REGISTRAR,
+            AdminAccess::ROLE_FINANCE => [
+                'id' => $role,
+                'name' => str($role)->replace('admin-', '')->replace('-', ' ')->title()->append(' Admin')->toString(),
+                'email' => str($role)->replace('admin-', '')->append('.admin@univai.edu')->toString(),
+                'role' => $role,
+                'adminPermissions' => AdminAccess::permissionsForRole($role),
+                'suspendedAt' => null,
             ],
             default => [
                 'id' => 'student-premium',

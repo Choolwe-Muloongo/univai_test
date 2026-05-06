@@ -32,6 +32,14 @@ type RoleGuardProps = {
 
 const rolePortalMap: Partial<Record<UserRole, GuardAction>> = {
   [ROLE.ADMIN]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_ACADEMIC]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_CURRICULUM]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_EXAM]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_QA]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_CONTENT_REVIEW]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_CENTRE]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_REGISTRAR]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
+  [ROLE.ADMIN_FINANCE]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
   [ROLE.LECTURER]: { label: 'Go to Lecturer Portal', href: '/lecturer/dashboard' },
   [ROLE.EMPLOYER]: { label: 'Go to Employer Portal', href: '/employer/dashboard' },
   [ROLE.STUDENT]: { label: 'Go to Student Portal', href: '/student/dashboard' },
@@ -87,6 +95,29 @@ export function RoleGuard({
           <CardFooter>
             <Button asChild>
               <Link href="/login">Go to Login</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </GuardFrame>
+    );
+  }
+
+  if (session.user.suspendedAt) {
+    return (
+      <GuardFrame>
+        <Card className="max-w-lg">
+          <CardHeader>
+            <CardTitle>Account suspended</CardTitle>
+            <CardDescription>
+              Your access has been revoked. Contact the system owner if you believe this is a mistake.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/login">Sign in with another account</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/">Return Home</Link>
             </Button>
           </CardFooter>
         </Card>

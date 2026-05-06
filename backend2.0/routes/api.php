@@ -168,54 +168,79 @@ Route::middleware('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'employer']);
     });
 
-    Route::prefix('admin')->middleware(['session.auth', 'role:admin'])->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'admin']);
-        Route::get('/intakes', [IntakesController::class, 'index']);
-        Route::post('/intakes', [IntakesController::class, 'store']);
-        Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
-        Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
-        Route::get('/audit-logs', [AdminAuditController::class, 'index']);
-        Route::get('/route-change-requests', [RouteChangeController::class, 'adminIndex']);
-        Route::patch('/route-change-requests/{routeChangeRequest}', [RouteChangeController::class, 'adminUpdate']);
-        Route::get('/curriculum/versions', [AdminCurriculumController::class, 'versions']);
-        Route::post('/curriculum/versions', [AdminCurriculumController::class, 'createVersion']);
-        Route::patch('/curriculum/versions/{version}', [AdminCurriculumController::class, 'updateVersion']);
-        Route::get('/curriculum/versions/{version}/modules', [AdminCurriculumController::class, 'modules']);
-        Route::post('/curriculum/versions/{version}/modules', [AdminCurriculumController::class, 'createModule']);
-        Route::delete('/modules/{module}', [AdminCurriculumController::class, 'deleteModule']);
-        Route::get('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'prerequisites']);
-        Route::post('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'addPrerequisite']);
-        Route::post('/schools', [AdminCatalogController::class, 'createSchool']);
-        Route::post('/courses', [AdminCatalogController::class, 'createCourse']);
-        Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool']);
-        Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse']);
+    Route::prefix('admin')->middleware(['session.auth', 'role:admin', 'admin.audit'])->group(function () {
+        Route::middleware('permission:admin.dashboard.view')->group(function () {
+            Route::get('/dashboard', [DashboardController::class, 'admin']);
+        });
 
-        Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);
-        Route::get('/admissions/{id}', [AdmissionsController::class, 'adminShow']);
-        Route::patch('/admissions/{id}', [AdmissionsController::class, 'adminUpdate']);
-        Route::get('/admissions/{id}/documents', [AdmissionsController::class, 'adminDocuments']);
-        Route::patch('/admissions/{id}/documents/{document}', [AdmissionsController::class, 'adminReviewDocument']);
-        Route::get('/admissions/{id}/documents/{document}/download', [AdmissionsController::class, 'adminDownloadDocument']);
-        Route::patch('/admissions/settings', [AdmissionsController::class, 'updateSettings']);
-        Route::get('/lecturer-applications', [LecturerApplicationsController::class, 'adminIndex']);
-        Route::get('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminShow']);
-        Route::patch('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminUpdate']);
+        Route::middleware('permission:admin.system.manage')->group(function () {
+            Route::get('/system-health', [SystemHealthController::class, 'status']);
+            Route::post('/system-health/diagnostics', [SystemHealthController::class, 'diagnostics']);
+        });
 
-        Route::get('/policies', [AcademicPoliciesController::class, 'index']);
-        Route::post('/policies', [AcademicPoliciesController::class, 'store']);
-        Route::patch('/policies/{policy}', [AcademicPoliciesController::class, 'update']);
-        Route::post('/policies/assign/program', [AcademicPoliciesController::class, 'assignProgram']);
-        Route::post('/policies/assign/curriculum', [AcademicPoliciesController::class, 'assignCurriculum']);
+        Route::middleware('permission:admin.centre.manage')->group(function () {
+            Route::get('/intakes', [IntakesController::class, 'index']);
+            Route::post('/intakes', [IntakesController::class, 'store']);
+        });
 
-        Route::get('/exam-questions', [AdminExamQuestionsController::class, 'index']);
-        Route::post('/exam-questions', [AdminExamQuestionsController::class, 'store']);
-        Route::patch('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'update']);
-        Route::delete('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'destroy']);
+        Route::middleware('permission:admin.academic.manage')->group(function () {
+            Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
+            Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
+            Route::get('/route-change-requests', [RouteChangeController::class, 'adminIndex']);
+            Route::patch('/route-change-requests/{routeChangeRequest}', [RouteChangeController::class, 'adminUpdate']);
+        });
 
-        Route::get('/consultants', [ConsultantsController::class, 'index']);
-        Route::get('/consultants/{id}', [ConsultantsController::class, 'show']);
-        Route::get('/reports/finance', [ReportsController::class, 'finance']);
-        Route::get('/system-health', [SystemHealthController::class, 'status']);
-        Route::post('/system-health/diagnostics', [SystemHealthController::class, 'diagnostics']);
+        Route::middleware('permission:admin.audit.view')->group(function () {
+            Route::get('/audit-logs', [AdminAuditController::class, 'index']);
+        });
+
+        Route::middleware('permission:admin.curriculum.manage')->group(function () {
+            Route::get('/curriculum/versions', [AdminCurriculumController::class, 'versions']);
+            Route::post('/curriculum/versions', [AdminCurriculumController::class, 'createVersion']);
+            Route::patch('/curriculum/versions/{version}', [AdminCurriculumController::class, 'updateVersion']);
+            Route::get('/curriculum/versions/{version}/modules', [AdminCurriculumController::class, 'modules']);
+            Route::post('/curriculum/versions/{version}/modules', [AdminCurriculumController::class, 'createModule']);
+            Route::delete('/modules/{module}', [AdminCurriculumController::class, 'deleteModule']);
+            Route::get('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'prerequisites']);
+            Route::post('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'addPrerequisite']);
+            Route::post('/schools', [AdminCatalogController::class, 'createSchool']);
+            Route::post('/courses', [AdminCatalogController::class, 'createCourse']);
+            Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool']);
+            Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse']);
+        });
+
+        Route::middleware('permission:admin.registrar.manage')->group(function () {
+            Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);
+            Route::get('/admissions/{id}', [AdmissionsController::class, 'adminShow']);
+            Route::patch('/admissions/{id}', [AdmissionsController::class, 'adminUpdate']);
+            Route::get('/admissions/{id}/documents', [AdmissionsController::class, 'adminDocuments']);
+            Route::patch('/admissions/{id}/documents/{document}', [AdmissionsController::class, 'adminReviewDocument']);
+            Route::get('/admissions/{id}/documents/{document}/download', [AdmissionsController::class, 'adminDownloadDocument']);
+            Route::patch('/admissions/settings', [AdmissionsController::class, 'updateSettings']);
+            Route::get('/lecturer-applications', [LecturerApplicationsController::class, 'adminIndex']);
+            Route::get('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminShow']);
+            Route::patch('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminUpdate']);
+            Route::get('/consultants', [ConsultantsController::class, 'index']);
+            Route::get('/consultants/{id}', [ConsultantsController::class, 'show']);
+        });
+
+        Route::middleware('permission:admin.qa.manage')->group(function () {
+            Route::get('/policies', [AcademicPoliciesController::class, 'index']);
+            Route::post('/policies', [AcademicPoliciesController::class, 'store']);
+            Route::patch('/policies/{policy}', [AcademicPoliciesController::class, 'update']);
+            Route::post('/policies/assign/program', [AcademicPoliciesController::class, 'assignProgram']);
+            Route::post('/policies/assign/curriculum', [AcademicPoliciesController::class, 'assignCurriculum']);
+        });
+
+        Route::middleware('permission:admin.exam.manage')->group(function () {
+            Route::get('/exam-questions', [AdminExamQuestionsController::class, 'index']);
+            Route::post('/exam-questions', [AdminExamQuestionsController::class, 'store']);
+            Route::patch('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'update']);
+            Route::delete('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'destroy']);
+        });
+
+        Route::middleware('permission:admin.finance.manage')->group(function () {
+            Route::get('/reports/finance', [ReportsController::class, 'finance']);
+        });
     });
 });

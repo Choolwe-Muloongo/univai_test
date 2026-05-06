@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'session.auth' => \App\Http\Middleware\EnsureSessionUser::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'permission' => \App\Http\Middleware\EnsurePermission::class,
+            'admin.audit' => \App\Http\Middleware\LogAdminApiActions::class,
         ]);
 
         $middleware->api(prepend: [

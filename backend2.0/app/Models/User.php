@@ -26,6 +26,7 @@ class User extends Authenticatable
         'program_id',
         'intake_id',
         'avatar',
+        'suspended_at',
     ];
 
     /**
@@ -48,6 +49,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'suspended_at' => 'datetime',
         ];
     }
 }

@@ -71,7 +71,33 @@ const starterUsers: ManagedUser[] = [
   },
 ];
 
-const roleSuggestions = ['student', 'lecturer', 'admin', 'employer', 'future-role'];
+const roleSuggestions = [
+  'student',
+  'lecturer',
+  'admin',
+  'admin-academic',
+  'admin-curriculum',
+  'admin-exam',
+  'admin-qa',
+  'admin-content-review',
+  'admin-centre',
+  'admin-registrar',
+  'admin-finance',
+  'employer',
+];
+
+
+const adminRoleResponsibilities: Record<string, string> = {
+  admin: 'Full platform administration, all permissions, and break-glass ownership.',
+  'admin-academic': 'Academic operations, assignments, route changes, curriculum oversight, exams, and QA handoffs.',
+  'admin-curriculum': 'Curriculum versions, modules, catalogue changes, content review, and QA controls.',
+  'admin-exam': 'Exam bank stewardship, exam QA checks, and assessment governance.',
+  'admin-qa': 'Quality assurance, policy governance, audit log review, and cross-functional compliance checks.',
+  'admin-content-review': 'Content moderation, AI console review, community/job content checks, and QA escalation.',
+  'admin-centre': 'Centre operations, intake setup, academic coordination, and registrar handoffs.',
+  'admin-registrar': 'Admissions, applicant documents, lecturer applications, consultants, intakes, and learner records.',
+  'admin-finance': 'Finance reports, payment governance, and finance-related audit review.',
+};
 
 const statusStyles: Record<UserStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   invited: 'outline',
@@ -350,6 +376,11 @@ export default function AdminUsersPage() {
               <div className="rounded-lg border p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned Role</p>
                 <p className="mt-2 text-base font-medium capitalize">{selectedUser.role}</p>
+                {adminRoleResponsibilities[selectedUser.role] && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {adminRoleResponsibilities[selectedUser.role]}
+                  </p>
+                )}
               </div>
               <div className="rounded-lg border p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Operational Unit</p>
@@ -414,6 +445,8 @@ export default function AdminUsersPage() {
               <p className="text-sm font-semibold">Post-creation operational next steps</p>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                 <li>Send onboarding email with institution policies and role-based access instructions.</li>
+                <li>Specialized admin roles are enforced by backend permissions and every admin API action is audit logged.</li>
+                <li>Suspending an admin revokes access on the next API request because the backend refreshes session status.</li>
                 <li>Assign the user to intake, program, and/or department owner queues.</li>
                 <li>Notify admissions, HR, or faculty operations to complete manual checks.</li>
               </ul>

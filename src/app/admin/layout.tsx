@@ -2,7 +2,7 @@
 
 import { RoleGuard } from '@/components/auth/role-guard';
 import { AppShell } from '@/components/layout/app-shell';
-import { ADMIN_ROLES, ROLE } from '@/lib/auth/roles';
+import { ADMIN_ROLES } from '@/lib/auth/roles';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,7 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         { label: 'Switch account', href: '/login', variant: 'outline' },
       ]}
     >
-      <AppShell role={ROLE.ADMIN}>{children}</AppShell>
+      <AppShell>{children}</AppShell>
     </RoleGuard>
   );
 }
