@@ -42,6 +42,7 @@ import type {
   SessionRosterStudent,
   Invoice,
   Payment,
+  CashbackLedger,
   EnrollmentData,
   ExamQuestion,
   ExamQuestionRecord,
@@ -462,6 +463,10 @@ export async function payInvoice(invoiceId: number, amount?: number): Promise<In
 
 export async function getPayments(): Promise<Payment[]> {
   return apiFetch('/students/me/payments');
+}
+
+export async function getCashbackLedger(): Promise<CashbackLedger> {
+  return apiFetch('/students/me/wallet/cashback');
 }
 
 export async function getSupportTickets(): Promise<SupportTicket[]> {

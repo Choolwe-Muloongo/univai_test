@@ -15,12 +15,17 @@ class Invoice extends Model
         'amount',
         'paid_amount',
         'status',
+        'cashback_source',
+        'cashback_finance_approved',
+        'cashback_rate',
         'due_date',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'cashback_finance_approved' => 'boolean',
+        'cashback_rate' => 'decimal:4',
         'due_date' => 'date',
     ];
 
@@ -37,5 +42,10 @@ class Invoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function cashbackLedgers(): HasMany
+    {
+        return $this->hasMany(CashbackLedger::class);
     }
 }

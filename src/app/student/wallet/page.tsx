@@ -1,20 +1,24 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Wallet, ArrowDownLeft, ArrowUpRight, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getPayments } from '@/lib/api';
+import { getCashbackLedger, getPayments } from '@/lib/api';
+
+const cashbackStatuses = ['locked', 'earned', 'approved', 'paid', 'cancelled', 'expired'] as const;
 
 export default async function WalletPage() {
-  const payments = await getPayments();
+  const [payments, cashbackLedger] = await Promise.all([getPayments(), getCashbackLedger()]);
+  const payableBalance = Number(cashbackLedger.summary.approved ?? 0) + Number(cashbackLedger.summary.earned ?? 0);
+  const lockedBalance = Number(cashbackLedger.summary.locked ?? 0);
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">My Wallet</h1>
         <p className="text-muted-foreground">
-          View your AFTACOIN balance and transaction history.
+          Track cashback earned from eligible premium activity while free student activity stays excluded.
         </p>
       </div>
 
@@ -28,7 +32,7 @@ export default async function WalletPage() {
             <Link href="/student/wallet/transactions">Transactions</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/student/wallet/rewards">Rewards</Link>
+            <Link href="/student/wallet/rewards">Cashback Ledger</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href="/student/wallet/payouts">Payouts</Link>
@@ -39,26 +43,30 @@ export default async function WalletPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardDescription>Total Balance</CardDescription>
-            <CardTitle className="text-4xl">Pending</CardTitle>
+            <CardDescription>Available Cashback</CardDescription>
+            <CardTitle className="text-4xl">{payableBalance.toFixed(2)} AFTA</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Rewards and payouts will appear once your program reaches graduation clearance.
+              {cashbackLedger.eligible
+                ? `${lockedBalance.toFixed(2)} AFTA remains locked until it is earned or finance-approved.`
+                : cashbackLedger.message ?? 'Free students are not eligible for cashback rewards.'}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/student/payments">Deposit</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/student/wallet/payouts">Withdraw</Link>
-            </Button>
-          </div>
+          <Wallet className="h-10 w-10 text-muted-foreground" />
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            {cashbackStatuses.map((status) => (
+              <div key={status} className="rounded-lg border p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{status}</p>
+                <p className="text-lg font-semibold">{cashbackLedger.summary[status] ?? '0.00'} AFTA</p>
+              </div>
+            ))}
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Recent Billing Activity</CardTitle>
-              <CardDescription>Latest invoices and payments.</CardDescription>
+              <CardDescription>Payments can create locked cashback only when the student and source are eligible.</CardDescription>
             </CardHeader>
             <CardContent>
               {payments.length === 0 ? (
@@ -70,7 +78,8 @@ export default async function WalletPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Description</TableHead>
-                      <TableHead>Type</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Cashback</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Date</TableHead>
                     </TableRow>
@@ -88,6 +97,16 @@ export default async function WalletPage() {
                             )}
                             {payment.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {payment.cashback ? (
+                            <Badge variant="outline" className="capitalize">
+                              <LockKeyhole className="mr-1 h-3 w-3" />
+                              {payment.cashback.amount} {payment.cashback.currency} {payment.cashback.status}
+                            </Badge>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Not eligible</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right font-semibold">${payment.amount}</TableCell>
                         <TableCell>{payment.paidAt ?? 'Pending'}</TableCell>

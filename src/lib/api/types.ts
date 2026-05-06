@@ -589,6 +589,41 @@ export type Payment = {
   method: string;
   status: string;
   paidAt?: string | null;
+  cashback?: {
+    id: number;
+    amount: string;
+    currency: string;
+    source: string;
+    status: string;
+  } | null;
+};
+
+export type CashbackStatus = 'locked' | 'earned' | 'approved' | 'paid' | 'cancelled' | 'expired';
+
+export type CashbackLedgerEntry = {
+  id: number;
+  invoiceId?: number | null;
+  paymentId?: number | null;
+  invoiceTitle?: string | null;
+  source: string;
+  status: CashbackStatus;
+  amount: string;
+  currency: string;
+  description?: string | null;
+  lockedAt?: string | null;
+  earnedAt?: string | null;
+  approvedAt?: string | null;
+  paidAt?: string | null;
+  cancelledAt?: string | null;
+  expiredAt?: string | null;
+  expiresAt?: string | null;
+};
+
+export type CashbackLedger = {
+  eligible: boolean;
+  message?: string;
+  summary: Record<CashbackStatus, string>;
+  entries: CashbackLedgerEntry[];
 };
 
 export type EnrollmentData = {

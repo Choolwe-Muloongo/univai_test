@@ -117,6 +117,7 @@ Route::middleware('api')->group(function () {
         Route::get('/students/me/support/tickets/{id}', [SupportController::class, 'show']);
         Route::post('/students/me/support/tickets/{id}/messages', [SupportController::class, 'storeMessage']);
         Route::get('/students/me/wallet/settings', [WalletController::class, 'show']);
+        Route::get('/students/me/wallet/cashback', [WalletController::class, 'cashback']);
         Route::post('/students/me/wallet/settings', [WalletController::class, 'update']);
         Route::get('/students/me/payment-methods', [PaymentMethodsController::class, 'index']);
         Route::post('/students/me/payment-methods', [PaymentMethodsController::class, 'store']);
