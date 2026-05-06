@@ -12,6 +12,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/googleai';
 import fetch from 'node-fetch';
+import { createDraftLearningObject } from '@/lib/ai-content-factory';
 
 const GenerateVideoLectureInputSchema = z.object({
   prompt: z.string().describe('The text prompt to generate the video from.'),
@@ -20,6 +21,7 @@ export type GenerateVideoLectureInput = z.infer<typeof GenerateVideoLectureInput
 
 const GenerateVideoLectureOutputSchema = z.object({
   videoUrl: z.string().describe('The data URI of the generated video.'),
+  learningObject: z.any().describe('Governed learning-object record with metadata and approval status.'),
 });
 export type GenerateVideoLectureOutput = z.infer<typeof GenerateVideoLectureOutputSchema>;
 
@@ -85,6 +87,15 @@ const generateVideoLectureFlow = ai.defineFlow(
     
     return {
       videoUrl: videoDataUri,
+      learningObject: createDraftLearningObject({
+        type: 'Video',
+        title: `Generated video lecture`,
+        content: videoDataUri,
+        prompt,
+        generatorFlow: 'generateVideoLectureFlow',
+        model: 'veo-2.0-generate-001',
+        programmeContent: true,
+      }),
     };
   }
 );

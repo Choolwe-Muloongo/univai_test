@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { type Course, type Lesson } from '@/lib/api/types';
+import type { LearningObject } from '@/lib/schemas';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Pencil, FileText, Wand2, Loader2, AlertCircle, FileQuestion, Code, PlayCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -42,11 +43,13 @@ interface BaseGeneratorState {
 // Specific state for the VideoGenerator
 interface LectureScriptState extends BaseGeneratorState {
   script: string | null;
+  learningObject?: LearningObject | null;
 }
 
 // Specific state for Quiz/Exercise Generators
 interface ContentState extends BaseGeneratorState {
   content: string | null;
+  learningObject?: LearningObject | null;
 }
 
 function AIGeneratorButton({ icon: Icon, text }: { icon: React.ElementType, text: string }) {
@@ -66,6 +69,26 @@ function AIGeneratorButton({ icon: Icon, text }: { icon: React.ElementType, text
       )}
     </Button>
   );
+}
+
+function approveForLesson(learningObject: LearningObject | null | undefined, reviewerIdentity = 'Lecturer') {
+  if (!learningObject) return null;
+  const reviewedAt = new Date().toISOString();
+  return {
+    ...learningObject,
+    reviewStatus: 'approved' as const,
+    reviewerIdentity,
+    approvalHistory: [
+      ...learningObject.approvalHistory,
+      {
+        status: 'approved' as const,
+        reviewerIdentity,
+        reviewedAt,
+        notes: 'Human approval captured before publishing to formal lesson content.',
+        version: learningObject.version,
+      },
+    ],
+  };
 }
 
 function LectureScriptGenerator({
@@ -103,8 +126,12 @@ function LectureScriptGenerator({
     setSavingDraft(true);
     setSaveMessage(null);
     try {
-      await updateLessonContent(courseId, lessonId, { content: scriptDraft.trim() });
-      setSaveMessage('Lecture script saved to lesson content.');
+      const approvedLearningObject = approveForLesson(state.learningObject);
+      await updateLessonContent(courseId, lessonId, {
+        content: scriptDraft.trim(),
+        aiLearningObjects: approvedLearningObject ? [approvedLearningObject] : undefined,
+      });
+      setSaveMessage('Lecture script approved by a human and saved to lesson content.');
     } catch (error) {
       setSaveMessage('Failed to save lecture script. Please try again.');
     } finally {
@@ -132,7 +159,7 @@ function LectureScriptGenerator({
         <Card>
           <CardHeader>
             <CardTitle>Lecture Script Draft</CardTitle>
-            <CardDescription>Edit the AI draft before saving to the lesson.</CardDescription>
+            <CardDescription>Edit and approve this AI draft before saving it to formal lesson content.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
@@ -142,7 +169,7 @@ function LectureScriptGenerator({
             />
             <div className="flex flex-wrap gap-2">
               <Button onClick={handleSaveDraft} disabled={savingDraft || !scriptDraft.trim()}>
-                {savingDraft ? 'Saving...' : 'Save to Lesson Content'}
+                {savingDraft ? 'Saving...' : 'Approve & Save to Lesson Content'}
               </Button>
             </div>
           </CardContent>
@@ -155,6 +182,13 @@ function LectureScriptGenerator({
             <p className='text-muted-foreground text-sm'>Create a structured script you can use to record or present this lesson.</p>
           </div>
         </div>
+      )}
+
+      {saveMessage && (
+        <Alert>
+          <AlertTitle>Approval captured</AlertTitle>
+          <AlertDescription>{saveMessage}</AlertDescription>
+        </Alert>
       )}
 
       <form action={dispatch} className='space-y-4'>
@@ -229,20 +263,27 @@ function QuizGenerator({
   const [state, dispatch] = useActionState<ContentState, FormData>(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
 
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const quiz = useMemo(() => {
     if (state.content) {
       try {
-        const parsedQuiz = JSON.parse(state.content);
-         if(parsedQuiz) {
-            updateLessonContent(courseId, lessonId, { quiz: parsedQuiz });
-        }
-        return parsedQuiz;
+        return JSON.parse(state.content);
       } catch (e) {
         return null;
       }
     }
     return null;
-  }, [state.content, courseId, lessonId]);
+  }, [state.content]);
+
+  const handleApproveAndSave = async () => {
+    if (!quiz) return;
+    const approvedLearningObject = approveForLesson(state.learningObject);
+    await updateLessonContent(courseId, lessonId, {
+      quiz,
+      quizAiLearningObject: approvedLearningObject,
+    });
+    setSaveMessage('Quiz approved by a human and saved to formal lesson content.');
+  };
 
   return (
     <div className='space-y-4'>
@@ -262,6 +303,7 @@ function QuizGenerator({
                         </ul>
                     </div>
                 ))}
+                <Button onClick={handleApproveAndSave}>Approve & Save Quiz</Button>
             </CardContent>
         </Card>
       ) : (
@@ -272,6 +314,13 @@ function QuizGenerator({
                 <p className='text-muted-foreground text-sm'>Create a multiple-choice quiz for this topic to test student understanding.</p>
             </div>
         </div>
+      )}
+
+      {saveMessage && (
+        <Alert>
+          <AlertTitle>Approval captured</AlertTitle>
+          <AlertDescription>{saveMessage}</AlertDescription>
+        </Alert>
       )}
 
       <form action={dispatch} className='space-y-4'>
@@ -321,12 +370,17 @@ function ExerciseGenerator({
   const [state, dispatch] = useActionState<ContentState, FormData>(generateContentAction, initialState);
   //const [state, dispatch] = useActionState(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (state.content) {
-      updateLessonContent(courseId, lessonId, { exercise: state.content });
-    }
-  }, [state.content, courseId, lessonId]);
+  const handleApproveAndSave = async () => {
+    if (!state.content) return;
+    const approvedLearningObject = approveForLesson(state.learningObject);
+    await updateLessonContent(courseId, lessonId, {
+      exercise: state.content,
+      exerciseAiLearningObject: approvedLearningObject,
+    });
+    setSaveMessage('Exercise approved by a human and saved to formal lesson content.');
+  };
 
   return (
     <div className='space-y-4'>
@@ -336,6 +390,7 @@ function ExerciseGenerator({
                  <div className='bg-black p-4 rounded-md text-green-400'>
                     <pre><code>{state.content}</code></pre>
                 </div>
+                <Button className="mt-4" onClick={handleApproveAndSave}>Approve & Save Exercise</Button>
             </CardContent>
         </Card>
       ) : (
@@ -346,6 +401,13 @@ function ExerciseGenerator({
                 <p className='text-muted-foreground text-sm'>Create a simple Python coding exercise for students to practice this topic.</p>
             </div>
         </div>
+      )}
+
+      {saveMessage && (
+        <Alert>
+          <AlertTitle>Approval captured</AlertTitle>
+          <AlertDescription>{saveMessage}</AlertDescription>
+        </Alert>
       )}
 
       <form action={dispatch} className='space-y-4'>
