@@ -18,12 +18,18 @@ class AdminCatalogController extends Controller
         $id = strtolower(preg_replace('/\s+/', '-', $payload['name']));
         $school = School::updateOrCreate(
             ['id' => $id],
-            ['name' => $payload['name']]
+            [
+                'code' => strtoupper(str_replace('-', '_', $id)),
+                'name' => $payload['name'],
+                'status' => 'active',
+            ]
         );
 
         return [
             'id' => $school->id,
+            'code' => $school->code,
             'name' => $school->name,
+            'status' => $school->status,
         ];
     }
 
@@ -34,6 +40,8 @@ class AdminCatalogController extends Controller
             'title' => ['required', 'string'],
             'description' => ['required', 'string'],
             'schoolId' => ['required', 'string'],
+            'programmeId' => ['nullable', 'string'],
+            'departmentId' => ['nullable', 'string'],
             'imageId' => ['nullable', 'string'],
         ]);
 
@@ -43,6 +51,8 @@ class AdminCatalogController extends Controller
                 'title' => $payload['title'],
                 'description' => $payload['description'],
                 'school_id' => $payload['schoolId'],
+                'programme_id' => $payload['programmeId'] ?? null,
+                'department_id' => $payload['departmentId'] ?? null,
                 'progress' => 0,
                 'image_id' => $payload['imageId'] ?? null,
             ]
@@ -53,6 +63,8 @@ class AdminCatalogController extends Controller
             'title' => $course->title,
             'description' => $course->description,
             'schoolId' => $course->school_id,
+            'programmeId' => $course->programme_id,
+            'departmentId' => $course->department_id,
             'progress' => $course->progress,
             'imageId' => $course->image_id,
         ];

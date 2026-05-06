@@ -74,6 +74,7 @@ class ProgramController extends Controller
             'title' => $program->title,
             'description' => $program->description,
             'schoolId' => $program->school_id,
+            'programmeId' => $program->programme_id,
             'schoolName' => $program->school?->name,
             'deliveryMode' => $intake?->delivery_mode ?? 'online',
             'campus' => $intake?->campus,
@@ -83,6 +84,7 @@ class ProgramController extends Controller
             'curriculumVersion' => $curriculumVersion ? [
                 'id' => $curriculumVersion->id,
                 'name' => $curriculumVersion->name,
+                'programmeId' => $curriculumVersion->programme_id,
                 'status' => $curriculumVersion->status,
             ] : null,
             'modules' => $mappedModules,
@@ -192,6 +194,7 @@ class ProgramController extends Controller
         return [
             'id' => $module->id,
             'code' => $module->code,
+            'academicModuleId' => $module->module_id,
             'title' => $module->title,
             'description' => $module->description,
             'credits' => $module->credits,

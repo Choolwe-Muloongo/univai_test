@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class School extends Model
+class QualificationLevel extends Model
 {
     public $incrementing = false;
     protected $keyType = 'string';
@@ -14,27 +14,18 @@ class School extends Model
         'id',
         'code',
         'name',
+        'framework_level',
+        'sort_order',
         'description',
-        'status',
     ];
 
-    public function departments(): HasMany
-    {
-        return $this->hasMany(Department::class);
-    }
+    protected $casts = [
+        'framework_level' => 'integer',
+        'sort_order' => 'integer',
+    ];
 
     public function programmes(): HasMany
     {
         return $this->hasMany(Programme::class);
-    }
-
-    public function legacyPrograms(): HasMany
-    {
-        return $this->hasMany(Program::class);
-    }
-
-    public function legacyCourses(): HasMany
-    {
-        return $this->hasMany(Course::class);
     }
 }

@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\AdminCurriculumController;
 use App\Http\Controllers\Api\CourseSessionsController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\RouteChangeController;
+use App\Http\Controllers\Api\AcademicCatalogController;
 use App\Http\Controllers\Api\AcademicPoliciesController;
 use App\Http\Controllers\Api\GradesController;
 use App\Http\Controllers\Api\AdminExamQuestionsController;
@@ -64,6 +65,16 @@ Route::middleware('api')->group(function () {
     Route::get('/lessons', [CatalogController::class, 'lessons']);
     Route::get('/lessons/{lessonId}', [CatalogController::class, 'lesson']);
     Route::patch('/lessons/{lessonId}', [CatalogController::class, 'updateLesson']);
+
+    Route::get('/academic/schools', [AcademicCatalogController::class, 'schools']);
+    Route::get('/academic/departments', [AcademicCatalogController::class, 'departments']);
+    Route::get('/academic/qualification-levels', [AcademicCatalogController::class, 'qualificationLevels']);
+    Route::get('/academic/programmes', [AcademicCatalogController::class, 'programmes']);
+    Route::get('/academic/programmes/{programmeId}', [AcademicCatalogController::class, 'programme']);
+    Route::get('/academic/modules', [AcademicCatalogController::class, 'modules']);
+    Route::get('/academic/delivery-modes', [AcademicCatalogController::class, 'deliveryModes']);
+    Route::get('/academic/exam-centres', [AcademicCatalogController::class, 'examCentres']);
+    Route::get('/academic/cohorts', [AcademicCatalogController::class, 'cohorts']);
 
     Route::get('/jobs', [JobsController::class, 'index']);
     Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'role:employer']);
@@ -186,6 +197,7 @@ Route::middleware('api')->group(function () {
         Route::get('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'prerequisites']);
         Route::post('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'addPrerequisite']);
         Route::post('/schools', [AdminCatalogController::class, 'createSchool']);
+        Route::post('/academic/programmes', [AcademicCatalogController::class, 'createProgramme']);
         Route::post('/courses', [AdminCatalogController::class, 'createCourse']);
         Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool']);
         Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse']);

@@ -6,48 +6,32 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Lesson extends Model
+class Unit extends Model
 {
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
         'id',
-        'course_id',
-        'unit_id',
         'module_id',
+        'code',
         'title',
+        'description',
         'sort_order',
-        'summary',
-        'content',
-        'video_url',
-        'quiz',
-        'exercise',
     ];
 
     protected $casts = [
-        'quiz' => 'array',
         'sort_order' => 'integer',
     ];
-
-    public function course(): BelongsTo
-    {
-        return $this->belongsTo(Course::class);
-    }
-
-    public function unit(): BelongsTo
-    {
-        return $this->belongsTo(Unit::class);
-    }
 
     public function module(): BelongsTo
     {
         return $this->belongsTo(AcademicModule::class, 'module_id');
     }
 
-    public function learningObjects(): HasMany
+    public function lessons(): HasMany
     {
-        return $this->hasMany(LearningObject::class);
+        return $this->hasMany(Lesson::class);
     }
 
     public function assessments(): HasMany

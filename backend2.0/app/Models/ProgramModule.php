@@ -14,6 +14,7 @@ class ProgramModule extends Model
         'id',
         'program_id',
         'curriculum_version_id',
+        'module_id',
         'code',
         'title',
         'description',
@@ -41,5 +42,10 @@ class ProgramModule extends Model
     public function curriculumVersion(): BelongsTo
     {
         return $this->belongsTo(CurriculumVersion::class, 'curriculum_version_id');
+    }
+
+    public function academicModule(): BelongsTo
+    {
+        return $this->belongsTo(AcademicModule::class, 'module_id');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicModule;
 use App\Models\CurriculumVersion;
 use App\Models\ModulePrerequisite;
 use App\Models\Program;
@@ -27,6 +28,7 @@ class AdminCurriculumController extends Controller
             'name' => $version->name,
             'status' => $version->status,
             'publishedAt' => optional($version->published_at)->toISOString(),
+            'programmeId' => $version->programme_id,
         ]);
     }
 
@@ -54,6 +56,7 @@ class AdminCurriculumController extends Controller
         $version = CurriculumVersion::create([
             'id' => $versionId,
             'program_id' => $payload['programId'],
+            'programme_id' => $program->programme_id,
             'name' => $payload['name'],
             'status' => $payload['status'] ?? 'draft',
             'published_at' => ($payload['status'] ?? 'draft') === 'published' ? now() : null,
@@ -61,6 +64,7 @@ class AdminCurriculumController extends Controller
 
         AuditLogger::log($request, 'curriculum.created', 'curriculum_version', $version->id, [
             'programId' => $version->program_id,
+            'programmeId' => $version->programme_id,
             'status' => $version->status,
         ]);
 
@@ -70,6 +74,7 @@ class AdminCurriculumController extends Controller
             'name' => $version->name,
             'status' => $version->status,
             'publishedAt' => optional($version->published_at)->toISOString(),
+            'programmeId' => $version->programme_id,
         ], 201);
     }
 
@@ -95,6 +100,7 @@ class AdminCurriculumController extends Controller
             'name' => $version->name,
             'status' => $version->status,
             'publishedAt' => optional($version->published_at)->toISOString(),
+            'programmeId' => $version->programme_id,
         ];
     }
 
@@ -124,15 +130,34 @@ class AdminCurriculumController extends Controller
         $baseId = Str::slug($version->program_id . '-sem' . $payload['semester'] . '-' . $payload['title']);
         $moduleId = $baseId;
         $counter = 1;
-        while (ProgramModule::where('id', $moduleId)->exists()) {
+        while (ProgramModule::where('id', $moduleId)->exists() || AcademicModule::where('id', $moduleId)->exists()) {
             $counter++;
             $moduleId = "{$baseId}-{$counter}";
+        }
+
+        $academicModule = null;
+        if ($version->programme_id) {
+            $academicModule = AcademicModule::create([
+                'id' => $moduleId,
+                'programme_id' => $version->programme_id,
+                'curriculum_version_id' => $version->id,
+                'department_id' => null,
+                'code' => $payload['code'] ?? strtoupper($moduleId),
+                'title' => $payload['title'],
+                'description' => $payload['description'],
+                'credits' => $payload['credits'] ?? 3,
+                'semester' => $payload['semester'],
+                'level' => null,
+                'is_core' => $payload['isCore'] ?? true,
+                'status' => 'active',
+            ]);
         }
 
         $module = ProgramModule::create([
             'id' => $moduleId,
             'program_id' => $version->program_id,
             'curriculum_version_id' => $version->id,
+            'module_id' => $academicModule?->id,
             'code' => $payload['code'] ?? null,
             'title' => $payload['title'],
             'description' => $payload['description'],
@@ -201,6 +226,7 @@ class AdminCurriculumController extends Controller
             'semester' => $module->semester,
             'isCore' => (bool) $module->is_core,
             'track' => $module->track,
+            'academicModuleId' => $module->module_id,
         ];
     }
 }

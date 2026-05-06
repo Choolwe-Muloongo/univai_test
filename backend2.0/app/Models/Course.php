@@ -14,6 +14,8 @@ class Course extends Model
     protected $fillable = [
         'id',
         'school_id',
+        'programme_id',
+        'department_id',
         'title',
         'description',
         'progress',
@@ -23,6 +25,16 @@ class Course extends Model
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function programme(): BelongsTo
+    {
+        return $this->belongsTo(Programme::class, 'programme_id');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'department_id');
     }
 
     public function lessons(): HasMany

@@ -17,6 +17,7 @@ class ProgramsController extends Controller
                 'title' => $program->title,
                 'description' => $program->description,
                 'schoolId' => $program->school_id,
+                'programmeId' => $program->programme_id,
                 'progress' => $program->progress,
                 'imageId' => $program->image_id,
             ]);

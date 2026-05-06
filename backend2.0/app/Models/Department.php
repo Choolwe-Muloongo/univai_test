@@ -3,24 +3,26 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class School extends Model
+class Department extends Model
 {
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
         'id',
+        'school_id',
         'code',
         'name',
         'description',
         'status',
     ];
 
-    public function departments(): HasMany
+    public function school(): BelongsTo
     {
-        return $this->hasMany(Department::class);
+        return $this->belongsTo(School::class);
     }
 
     public function programmes(): HasMany
@@ -28,13 +30,8 @@ class School extends Model
         return $this->hasMany(Programme::class);
     }
 
-    public function legacyPrograms(): HasMany
+    public function modules(): HasMany
     {
-        return $this->hasMany(Program::class);
-    }
-
-    public function legacyCourses(): HasMany
-    {
-        return $this->hasMany(Course::class);
+        return $this->hasMany(AcademicModule::class, 'department_id');
     }
 }
