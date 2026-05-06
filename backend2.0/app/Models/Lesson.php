@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Lesson extends Model
@@ -14,6 +15,9 @@ class Lesson extends Model
         'id',
         'title',
         'summary',
+        'display_order',
+        'publication_status',
+        'published_at',
         'content',
         'video_url',
         'quiz',
@@ -21,7 +25,8 @@ class Lesson extends Model
     ];
 
     protected $casts = [
-        'quiz' => 'array',
+        'display_order' => 'integer',
+        'published_at' => 'datetime',
     ];
 
     public function shortCourses(): BelongsToMany
@@ -44,5 +49,13 @@ class Lesson extends Model
             ->withPivot('sort_order')
             ->withTimestamps()
             ->orderBy('lesson_learning_object.sort_order');
+    }
+
+    public function learningObjects(): BelongsToMany
+    {
+        return $this->belongsToMany(LearningObject::class, 'lesson_learning_objects')
+            ->withPivot(['position', 'is_required', 'access_rules', 'publication_status', 'available_from', 'available_until'])
+            ->withTimestamps()
+            ->orderBy('lesson_learning_objects.position');
     }
 }

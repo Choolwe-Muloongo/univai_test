@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\ExamQuestion;
+use App\Models\LearningObject;
 use App\Models\Lesson;
 use App\Models\School;
 use Illuminate\Http\Request;
@@ -68,6 +69,12 @@ class CatalogController extends Controller
 
     public function lessonsByCourse(string $courseId)
     {
+        return Lesson::query()
+            ->with('learningObjects')
+            ->where('course_id', $courseId)
+            ->orderBy('display_order')
+            ->orderBy('title')
+            ->get()
         $course = Course::find($courseId);
         if (!$course) {
             return response()->json([], 404);
@@ -79,7 +86,7 @@ class CatalogController extends Controller
 
     public function lesson(string $lessonId)
     {
-        $lesson = Lesson::find($lessonId);
+        $lesson = Lesson::with('learningObjects')->find($lessonId);
         if (!$lesson) {
             return response()->json(null, 404);
         }
@@ -92,6 +99,9 @@ class CatalogController extends Controller
     public function lessons()
     {
         return Lesson::query()
+            ->with('learningObjects')
+            ->orderBy('course_id')
+            ->orderBy('display_order')
             ->orderBy('title')
             ->get()
             ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $lesson->shortCourses()->value('short_courses.id')));
@@ -99,7 +109,7 @@ class CatalogController extends Controller
 
     public function updateLesson(Request $request, string $lessonId)
     {
-        $lesson = Lesson::find($lessonId);
+        $lesson = Lesson::with('learningObjects')->find($lessonId);
         if (!$lesson) {
             return response()->json(null, 404);
         }
@@ -110,16 +120,31 @@ class CatalogController extends Controller
             'videoUrl' => ['nullable', 'string'],
             'quiz' => ['nullable', 'array'],
             'exercise' => ['nullable', 'string'],
+            'learningObjects' => ['nullable', 'array'],
         ]);
 
         $lesson->update([
             'title' => $payload['title'] ?? $lesson->title,
-            'content' => $payload['content'] ?? $lesson->content,
-            'video_url' => $payload['videoUrl'] ?? $lesson->video_url,
-            'quiz' => array_key_exists('quiz', $payload) ? $payload['quiz'] : $lesson->quiz,
-            'exercise' => $payload['exercise'] ?? $lesson->exercise,
+            'summary' => $payload['content'] ?? $lesson->summary,
         ]);
 
+        if (array_key_exists('content', $payload)) {
+            $this->upsertLearningObject($lesson, 'content', ['body' => $payload['content']]);
+        }
+
+        if (array_key_exists('videoUrl', $payload)) {
+            $this->upsertLearningObject($lesson, 'video', ['asset_url' => $payload['videoUrl']]);
+        }
+
+        if (array_key_exists('quiz', $payload)) {
+            $this->upsertLearningObject($lesson, 'quiz', ['payload' => $payload['quiz']]);
+        }
+
+        if (array_key_exists('exercise', $payload)) {
+            $this->upsertLearningObject($lesson, 'exercise', ['body' => $payload['exercise']]);
+        }
+
+        return $this->mapLesson($lesson->fresh('learningObjects'), $lesson->course_id);
         $courseId = $lesson->shortCourses()->value('short_courses.id');
 
         return $this->mapLesson($lesson, $courseId);
@@ -140,16 +165,92 @@ class CatalogController extends Controller
 
     private function mapLesson(Lesson $lesson, ?string $courseId): array
     {
+        $objects = $lesson->relationLoaded('learningObjects')
+            ? $lesson->learningObjects
+            : $lesson->learningObjects()->get();
+        $firstOfType = fn (string $type) => $objects->firstWhere('type', $type);
+        $content = $firstOfType('content');
+        $video = $firstOfType('video');
+        $exercise = $firstOfType('exercise');
+        $quiz = $firstOfType('quiz');
+
         return [
             'id' => $lesson->id,
             'title' => $lesson->title,
+            'content' => $content?->body ?? $lesson->summary ?? '',
             'summary' => $lesson->summary,
             'content' => $lesson->content,
             'courseId' => $courseId,
-            'videoUrl' => $lesson->video_url,
-            'exercise' => $lesson->exercise,
-            'quiz' => $lesson->quiz,
+            'videoUrl' => $video?->asset_url,
+            'exercise' => $exercise?->body,
+            'quiz' => $quiz?->payload,
+            'learningObjects' => $objects->map(fn (LearningObject $object) => $this->mapLearningObject($object))->values(),
         ];
+    }
+
+    private function mapLearningObject(LearningObject $object): array
+    {
+        return [
+            'id' => $object->id,
+            'type' => $object->type,
+            'title' => $object->title,
+            'description' => $object->description,
+            'body' => $object->body,
+            'assetUrl' => $object->asset_url,
+            'storagePath' => $object->storage_path,
+            'mimeType' => $object->mime_type,
+            'payload' => $object->payload,
+            'accessRules' => $object->pivot?->access_rules ?? $object->access_rules,
+            'version' => $object->version,
+            'versionLabel' => $object->version_label,
+            'isCurrent' => $object->is_current,
+            'isReusable' => $object->is_reusable,
+            'reviewStatus' => $object->review_status,
+            'publicationStatus' => $object->pivot?->publication_status ?? $object->publication_status,
+            'position' => $object->pivot?->position,
+            'isRequired' => $object->pivot?->is_required,
+            'availableFrom' => $object->pivot?->available_from,
+            'availableUntil' => $object->pivot?->available_until,
+            'publishedAt' => $object->published_at,
+        ];
+    }
+
+    private function upsertLearningObject(Lesson $lesson, string $type, array $attributes): LearningObject
+    {
+        $object = $lesson->learningObjects()->where('type', $type)->first();
+
+        if (!$object) {
+            $object = LearningObject::create([
+                'id' => "{$lesson->id}-{$type}-v1",
+                'type' => $type,
+                'title' => "{$lesson->title} ".ucfirst($type),
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'published_at' => now(),
+                ...$attributes,
+            ]);
+
+            $lesson->learningObjects()->attach($object->id, [
+                'position' => $this->nextLearningObjectPosition($lesson),
+                'publication_status' => 'published',
+            ]);
+
+            return $object;
+        }
+
+        $object->update([
+            ...$attributes,
+            'version' => $object->version + 1,
+            'review_status' => 'pending_review',
+            'publication_status' => 'draft',
+        ]);
+
+        return $object;
+    }
+
+    private function nextLearningObjectPosition(Lesson $lesson): int
+    {
+        return ((int) $lesson->learningObjects()->max('lesson_learning_objects.position')) + 1;
     }
 
     private function examQuestions(): array

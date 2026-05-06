@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('lesson_documents', function (Blueprint $table) {
             $table->id();
             $table->string('lesson_id');
+            $table->string('learning_object_id')->nullable();
             $table->string('intake_id')->nullable();
             $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('file_name');
@@ -20,6 +21,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
+            $table->foreign('learning_object_id')->references('id')->on('learning_objects')->nullOnDelete();
             $table->foreign('intake_id')->references('id')->on('intakes')->nullOnDelete();
         });
     }
