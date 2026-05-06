@@ -37,6 +37,9 @@ class LecturerExamQuestionsController extends Controller
         if ($request->filled('semester')) {
             $query->where('semester', (int) $request->query('semester'));
         }
+        if ($request->filled('questionBankId')) {
+            $query->where('question_bank_id', (int) $request->query('questionBankId'));
+        }
 
         return $query->orderBy('id')
             ->get()
@@ -53,10 +56,13 @@ class LecturerExamQuestionsController extends Controller
         $payload = $request->validate([
             'courseId' => ['required', 'string'],
             'semester' => ['nullable', 'integer', 'min:1'],
+            'questionBankId' => ['nullable', 'integer', 'exists:question_banks,id'],
             'question' => ['required', 'string'],
             'options' => ['required', 'array', 'min:2'],
             'options.*' => ['required', 'string'],
             'answer' => ['nullable', 'string'],
+            'difficulty' => ['nullable', 'string'],
+            'outcomes' => ['nullable', 'array'],
         ]);
 
         if (!$this->isCourseAssigned($lecturerId, $payload['courseId'])) {
@@ -66,9 +72,12 @@ class LecturerExamQuestionsController extends Controller
         $question = ExamQuestion::create([
             'course_id' => $payload['courseId'],
             'semester' => $payload['semester'] ?? null,
+            'question_bank_id' => $payload['questionBankId'] ?? null,
             'question' => $payload['question'],
             'options' => $payload['options'],
             'answer' => $payload['answer'] ?? null,
+            'difficulty' => $payload['difficulty'] ?? null,
+            'outcomes' => $payload['outcomes'] ?? [],
         ]);
 
         return response()->json($this->mapQuestion($question), 201);
@@ -84,10 +93,13 @@ class LecturerExamQuestionsController extends Controller
         $payload = $request->validate([
             'courseId' => ['required', 'string'],
             'semester' => ['nullable', 'integer', 'min:1'],
+            'questionBankId' => ['nullable', 'integer', 'exists:question_banks,id'],
             'question' => ['required', 'string'],
             'options' => ['required', 'array', 'min:2'],
             'options.*' => ['required', 'string'],
             'answer' => ['nullable', 'string'],
+            'difficulty' => ['nullable', 'string'],
+            'outcomes' => ['nullable', 'array'],
         ]);
 
         if (!$this->isCourseAssigned($lecturerId, $payload['courseId'])) {
@@ -97,9 +109,12 @@ class LecturerExamQuestionsController extends Controller
         $examQuestion->update([
             'course_id' => $payload['courseId'],
             'semester' => $payload['semester'] ?? null,
+            'question_bank_id' => $payload['questionBankId'] ?? null,
             'question' => $payload['question'],
             'options' => $payload['options'],
             'answer' => $payload['answer'] ?? null,
+            'difficulty' => $payload['difficulty'] ?? null,
+            'outcomes' => $payload['outcomes'] ?? [],
         ]);
 
         return response()->json($this->mapQuestion($examQuestion));
@@ -143,9 +158,12 @@ class LecturerExamQuestionsController extends Controller
             'id' => $question->id,
             'courseId' => $question->course_id,
             'semester' => $question->semester,
+            'questionBankId' => $question->question_bank_id,
             'question' => $question->question,
             'options' => $question->options ?? [],
             'answer' => $question->answer,
+            'difficulty' => $question->difficulty,
+            'outcomes' => $question->outcomes ?? [],
         ];
     }
 }

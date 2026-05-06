@@ -7,6 +7,7 @@ use App\Models\CourseAttempt;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
+use App\Services\AssessmentEngine;
 use Illuminate\Http\Request;
 
 class GradesController extends Controller
@@ -31,6 +32,7 @@ class GradesController extends Controller
             ->get();
 
         $engine = new AcademicPolicyEngine();
+        $assessmentEngine = new AssessmentEngine();
         $policy = $engine->resolvePolicyForStudent($student);
         $gpaSummary = $engine->calculateGpa($attempts->all(), $policy);
         $standing = $engine->updateStanding($student, $policy, $gpaSummary);
@@ -46,6 +48,12 @@ class GradesController extends Controller
                 'letterGrade' => $attempt->letter_grade,
                 'status' => $attempt->status,
                 'resultStatus' => $attempt->result_status,
+                'moderationStatus' => $attempt->moderation_status,
+                'releasedAt' => $attempt->released_at?->toISOString(),
+                'assessmentBreakdown' => $attempt->assessment_breakdown ?? [],
+                'certificateEligible' => (bool) $attempt->certificate_eligible,
+                'progressionEligible' => (bool) $attempt->progression_eligible,
+                'graduationEligible' => (bool) $attempt->graduation_eligible,
                 'attempt' => $attempt->attempt_no,
                 'recordedAt' => $attempt->created_at,
             ];
@@ -64,6 +72,7 @@ class GradesController extends Controller
             'standing' => $standing['standing'],
             'probationCount' => $standing['probation_count'],
             'grades' => $grades,
+            'graduationEligibility' => $assessmentEngine->graduationEligibility($student),
         ]);
     }
 
@@ -72,7 +81,7 @@ class GradesController extends Controller
         $payload = $request->validate([
             'student_id' => ['required', 'integer', 'exists:users,id'],
             'module_id' => ['required', 'string', 'exists:program_modules,id'],
-            'final_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'final_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'exam_score' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'result_status' => ['nullable', 'string'],
         ]);
@@ -85,6 +94,20 @@ class GradesController extends Controller
         }
 
         $engine = new AcademicPolicyEngine();
+        $assessmentEngine = new AssessmentEngine();
+        $assessmentSummary = $assessmentEngine->calculateModuleAssessment($student, $module);
+
+        if (!isset($payload['final_percentage']) && !$assessmentSummary) {
+            return response()->json(['message' => 'Final percentage is required when no assessment blueprint exists.'], 422);
+        }
+
+        $finalPercentage = isset($payload['final_percentage'])
+            ? (float) $payload['final_percentage']
+            : (float) $assessmentSummary['finalPercentage'];
+        if (($payload['result_status'] ?? null) === 'published' && $assessmentSummary && $assessmentSummary['resultStatus'] === 'held') {
+            return response()->json(['message' => 'Results cannot be published until required moderation and release rules are satisfied.'], 422);
+        }
+
         $policy = $engine->resolvePolicyForStudent($student);
 
         $existingDraftAttempt = CourseAttempt::query()
@@ -109,7 +132,7 @@ class GradesController extends Controller
 
         $credits = (int) ($module->credits ?? 3);
         $evaluation = $engine->evaluateAttempt(
-            (float) $payload['final_percentage'],
+            $finalPercentage,
             $credits,
             $policy,
             isset($payload['exam_score']) ? (float) $payload['exam_score'] : null
@@ -120,7 +143,7 @@ class GradesController extends Controller
             'module_id' => $module->id,
             'intake_id' => $student->intake_id,
             'attempt_no' => $attemptNo,
-            'final_percentage' => $payload['final_percentage'],
+            'final_percentage' => $finalPercentage,
             'exam_score' => $payload['exam_score'] ?? null,
             'letter_grade' => $evaluation['letter'],
             'grade_points' => $evaluation['points'],
@@ -128,6 +151,12 @@ class GradesController extends Controller
             'credits_earned' => $evaluation['credits_earned'],
             'status' => $evaluation['status'],
             'result_status' => $payload['result_status'] ?? 'draft',
+            'assessment_breakdown' => $assessmentSummary['components'] ?? [],
+            'moderation_status' => $assessmentSummary['moderationStatus'] ?? 'pending',
+            'released_at' => ($assessmentSummary && $assessmentSummary['resultStatus'] === 'publishable') ? now() : null,
+            'certificate_eligible' => $assessmentSummary['certificateEligible'] ?? false,
+            'progression_eligible' => $assessmentSummary['progressionEligible'] ?? false,
+            'graduation_eligible' => false,
             'recorded_by' => $request->session()->get('user')['id'] ?? null,
         ];
 

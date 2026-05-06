@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Http\Controllers\Api\AssessmentBlueprintsController;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -109,6 +110,7 @@ Route::middleware('api')->group(function () {
         Route::get('/students/me/payments', [BillingController::class, 'payments']);
         Route::get('/students/me/grades', [GradesController::class, 'studentGrades']);
         Route::get('/students/me/assignments', [StudentAssignmentsController::class, 'index']);
+        Route::post('/students/me/assessments/components/{component}/book', [AssessmentBlueprintsController::class, 'bookComponent']);
         Route::get('/students/me/assignments/submissions', [StudentAssignmentsController::class, 'submissions']);
         Route::get('/students/me/assignments/{assignment}', [StudentAssignmentsController::class, 'show']);
         Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
@@ -174,6 +176,12 @@ Route::middleware('api')->group(function () {
         Route::post('/intakes', [IntakesController::class, 'store']);
         Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
         Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
+        Route::get('/assessment-blueprints', [AssessmentBlueprintsController::class, 'index']);
+        Route::post('/assessment-blueprints', [AssessmentBlueprintsController::class, 'store']);
+        Route::get('/assessment-blueprints/{blueprint}', [AssessmentBlueprintsController::class, 'show']);
+        Route::patch('/assessment-blueprints/{blueprint}', [AssessmentBlueprintsController::class, 'update']);
+        Route::get('/question-banks', [AssessmentBlueprintsController::class, 'questionBanks']);
+        Route::post('/question-banks', [AssessmentBlueprintsController::class, 'storeQuestionBank']);
         Route::get('/audit-logs', [AdminAuditController::class, 'index']);
         Route::get('/route-change-requests', [RouteChangeController::class, 'adminIndex']);
         Route::patch('/route-change-requests/{routeChangeRequest}', [RouteChangeController::class, 'adminUpdate']);

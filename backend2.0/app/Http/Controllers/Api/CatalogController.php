@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssessmentComponent;
 use App\Models\Course;
 use App\Models\ExamQuestion;
 use App\Models\Lesson;
@@ -108,16 +109,28 @@ class CatalogController extends Controller
         return $this->mapLesson($lesson, $lesson->course_id);
     }
 
-    public function courseExam(string $courseId)
+    public function courseExam(string $courseId, Request $request)
     {
-        return ExamQuestion::query()
-            ->where('course_id', $courseId)
+        $componentId = $request->query('assessmentComponentId');
+        $query = ExamQuestion::query()->where('course_id', $courseId);
+
+        if ($componentId) {
+            $component = AssessmentComponent::find($componentId);
+            if ($component?->question_bank_id) {
+                $query->where('question_bank_id', $component->question_bank_id);
+            }
+        }
+
+        return $query
             ->orderBy('id')
             ->get()
             ->map(fn (ExamQuestion $question) => [
                 'question' => $question->question,
                 'options' => $question->options ?? [],
                 'answer' => $question->answer,
+                'questionBankId' => $question->question_bank_id,
+                'difficulty' => $question->difficulty,
+                'outcomes' => $question->outcomes ?? [],
             ]);
     }
 

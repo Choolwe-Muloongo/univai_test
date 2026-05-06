@@ -13,12 +13,18 @@ class CourseAttempt extends Model
         'attempt_no',
         'final_percentage',
         'exam_score',
+        'assessment_breakdown',
         'letter_grade',
         'grade_points',
         'credits_attempted',
         'credits_earned',
         'status',
         'result_status',
+        'moderation_status',
+        'released_at',
+        'certificate_eligible',
+        'progression_eligible',
+        'graduation_eligible',
         'recorded_by',
     ];
 
@@ -26,6 +32,11 @@ class CourseAttempt extends Model
         'final_percentage' => 'decimal:2',
         'exam_score' => 'decimal:2',
         'grade_points' => 'decimal:2',
+        'assessment_breakdown' => 'array',
+        'released_at' => 'datetime',
+        'certificate_eligible' => 'boolean',
+        'progression_eligible' => 'boolean',
+        'graduation_eligible' => 'boolean',
     ];
 
     public function module()
