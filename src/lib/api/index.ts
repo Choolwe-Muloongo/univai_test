@@ -56,6 +56,8 @@ import type {
   RouteChangeRequest,
   Program,
   ProgramModule,
+  ProgramPayload,
+  QualificationLevel,
   SupportTicket,
   SupportMessage,
   WalletSettings,
@@ -82,6 +84,10 @@ export async function getPrograms(): Promise<Program[]> {
   return apiFetch('/programs');
 }
 
+export async function getQualificationLevels(): Promise<QualificationLevel[]> {
+  return apiFetch('/admin/qualification-levels');
+}
+
 export async function getProgramModulesByProgram(programId: string): Promise<ProgramModule[]> {
   return apiFetch(`/programs/${programId}/modules`);
 }
@@ -100,12 +106,23 @@ export async function createCourse(course: Course): Promise<Course> {
   });
 }
 
+export async function createProgram(program: ProgramPayload): Promise<Program> {
+  return apiFetch('/admin/programs', {
+    method: 'POST',
+    body: JSON.stringify(program),
+  });
+}
+
 export async function deleteSchool(id: string): Promise<void> {
   await apiFetch(`/admin/schools/${id}`, { method: 'DELETE', parseJson: false });
 }
 
 export async function deleteCourse(id: string): Promise<void> {
   await apiFetch(`/admin/courses/${id}`, { method: 'DELETE', parseJson: false });
+}
+
+export async function deleteProgram(id: string): Promise<void> {
+  await apiFetch(`/admin/programs/${id}`, { method: 'DELETE', parseJson: false });
 }
 
 export async function getCourseById(id: string): Promise<Course | null> {

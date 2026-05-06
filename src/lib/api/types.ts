@@ -41,6 +41,40 @@ export type Course = {
   imageId: string;
 };
 
+export type QualificationLevel = {
+  id: string;
+  name: string;
+  category: string;
+  defaultCredits: number;
+  minimumCredits: number;
+  maximumCredits?: number | null;
+  durationMonths: number;
+  admissionRequirements?: string | null;
+  allowedDeliveryModes: string[];
+  requiresExamClinic: boolean;
+  requiresAccreditationApproval: boolean;
+  minimumSubjectCount: number;
+  minimumTotalPoints: number;
+  requiredPriorQualification?: string | null;
+};
+
+export type ProgramPayload = {
+  id: string;
+  title: string;
+  description: string;
+  schoolId: string;
+  qualificationLevelId: string;
+  credits?: number | null;
+  durationMonths?: number | null;
+  admissionRequirements?: string | null;
+  deliveryModes?: string[];
+  examClinicRequired?: boolean;
+  requiresAccreditationApproval?: boolean;
+  accreditationApproved?: boolean;
+  launchStatus?: string;
+  imageId?: string | null;
+};
+
 export type ProgramModule = {
   id: string;
   code?: string | null;
@@ -61,10 +95,20 @@ export type Program = {
   description: string;
   schoolId: string;
   schoolName?: string | null;
+  qualificationLevelId?: string | null;
+  qualificationLevel?: QualificationLevel | null;
+  credits?: number | null;
+  durationMonths?: number | null;
+  admissionRequirements?: string | null;
+  deliveryModes?: string[];
   deliveryMode?: string | null;
   campus?: string | null;
   intakeId?: string | null;
   curriculumVersion?: { id: string; name: string; status: string } | null;
+  examClinicRequired?: boolean;
+  requiresAccreditationApproval?: boolean;
+  accreditationApprovedAt?: string | null;
+  launchStatus?: string | null;
   progress: number;
   imageId: string;
   modules: ProgramModule[];

@@ -14,6 +14,7 @@ class Program extends Model
     protected $fillable = [
         'id',
         'school_id',
+        'qualification_level_id',
         'title',
         'description',
         'award_type',
@@ -43,5 +44,10 @@ class Program extends Model
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function qualificationLevel(): BelongsTo
+    {
+        return $this->belongsTo(QualificationLevel::class);
     }
 }
