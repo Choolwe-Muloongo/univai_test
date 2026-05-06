@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   getRoleLabel,
+  hasAccess,
   isKnownUserRole,
   PENDING_APPROVAL_ROLES,
   ROLE,
@@ -55,13 +56,14 @@ export function RoleGuard({
 }: RoleGuardProps) {
   const router = useRouter();
   const { session, loading } = useSession();
-  const role = session?.user?.role;
+  const user = session?.user;
+  const role = user?.role;
 
   useEffect(() => {
-    if (!loading && !session?.user) {
+    if (!loading && !user) {
       router.replace('/login');
     }
-  }, [loading, router, session]);
+  }, [loading, router, user]);
 
   if (loading) {
     return (
@@ -76,7 +78,7 @@ export function RoleGuard({
     );
   }
 
-  if (!session?.user) {
+  if (!user) {
     return (
       <GuardFrame>
         <Card className="max-w-lg">
@@ -115,7 +117,7 @@ export function RoleGuard({
     );
   }
 
-  if (allowedRoles.includes(role)) {
+  if (allowedRoles.some((allowedRole) => hasAccess(user, allowedRole))) {
     return <>{children}</>;
   }
 

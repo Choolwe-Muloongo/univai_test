@@ -6,16 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getIntakes, getPrograms, createIntake, getCurriculumVersions } from '@/lib/api';
+import { getIntakes, getPrograms, createIntake, getCurriculumVersions, updateProgramDeliveryModes } from '@/lib/api';
+import { deliveryModeLabel, deliveryModes } from '@/lib/delivery-modes';
 import type { Intake } from '@/lib/api/types';
 import type { Program } from '@/lib/api/types';
 import type { CurriculumVersion } from '@/lib/api/types';
-
-const deliveryModes = [
-  { value: 'online', label: 'Online' },
-  { value: 'campus', label: 'Campus' },
-  { value: 'hybrid', label: 'Hybrid' },
-];
 
 const statusOptions = [
   { value: 'open', label: 'Open' },
@@ -38,6 +33,7 @@ export default function AdminIntakesPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState('open');
+  const selectedProgram = programs.find((program) => program.id === programId);
 
   useEffect(() => {
     const load = async () => {
@@ -92,6 +88,19 @@ export default function AdminIntakesPage() {
     setStatus('open');
   };
 
+
+  const toggleProgramMode = async (mode: string) => {
+    if (!selectedProgram) return;
+    const currentModes = selectedProgram.supportedDeliveryModes?.length ? selectedProgram.supportedDeliveryModes : deliveryModes.map((item) => item.value);
+    const nextModes = currentModes.includes(mode) ? currentModes.filter((item) => item !== mode) : [...currentModes, mode];
+    if (nextModes.length === 0) return;
+    const updated = await updateProgramDeliveryModes(selectedProgram.id, nextModes);
+    setPrograms((prev) => prev.map((program) => (program.id === updated.id ? updated : program)));
+    if (!nextModes.includes(deliveryMode)) {
+      setDeliveryMode(nextModes[0] ?? 'hybrid');
+    }
+  };
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading intakes...</p>;
   }
@@ -100,8 +109,29 @@ export default function AdminIntakesPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Program Intakes</h1>
-        <p className="text-muted-foreground">Create and manage intakes for hybrid delivery.</p>
+        <p className="text-muted-foreground">Create and manage intakes for software-only, hybrid, and physical learning.</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Program Delivery Modes</CardTitle>
+          <CardDescription>Declare which modes the selected programme supports before opening intakes.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm font-medium">{selectedProgram?.title ?? 'Select a program'}</p>
+          <div className="flex flex-wrap gap-2">
+            {deliveryModes.map((mode) => {
+              const selected = selectedProgram?.supportedDeliveryModes?.includes(mode.value) ?? true;
+              return (
+                <Button key={mode.value} type="button" size="sm" variant={selected ? 'default' : 'outline'} onClick={() => toggleProgramMode(mode.value)} disabled={!selectedProgram}>
+                  {mode.label}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">Unsupported modes are hidden when creating intakes and blocked during enrollment.</p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -150,7 +180,10 @@ export default function AdminIntakesPage() {
                 <SelectValue placeholder="Select delivery mode" />
               </SelectTrigger>
               <SelectContent>
-                {deliveryModes.map((mode) => (
+                {deliveryModes.filter((mode) => {
+                  const program = programs.find((item) => item.id === programId);
+                  return !program?.supportedDeliveryModes?.length || program.supportedDeliveryModes.includes(mode.value);
+                }).map((mode) => (
                   <SelectItem key={mode.value} value={mode.value}>
                     {mode.label}
                   </SelectItem>
@@ -213,7 +246,7 @@ export default function AdminIntakesPage() {
                 <div>
                   <p className="font-semibold">{intake.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Program: {intake.programId} - {intake.deliveryMode}
+                    Program: {intake.programId} - {deliveryModeLabel(intake.deliveryMode)}
                     {intake.capacity ? ` - Capacity ${intake.capacity}` : ''}
                   </p>
                 </div>

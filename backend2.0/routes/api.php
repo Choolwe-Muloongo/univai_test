@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
 use App\Http\Controllers\Api\ExamClinicController;
+use App\Support\StudentAccess;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -57,9 +58,14 @@ Route::middleware('api')->group(function () {
 
     Route::get('/schools', [CatalogController::class, 'schools']);
     Route::get('/programs', [ProgramsController::class, 'index']);
+    Route::get('/programmes', [ProgramsController::class, 'index']);
     Route::get('/programs/{programId}/modules', [ProgramController::class, 'modulesByProgram']);
+    Route::get('/programmes/{programId}/modules', [ProgramController::class, 'modulesByProgram']);
+    Route::get('/short-courses', [CatalogController::class, 'courses']);
     Route::get('/courses', [CatalogController::class, 'courses']);
+    Route::get('/short-courses/{id}', [CatalogController::class, 'course']);
     Route::get('/courses/{id}', [CatalogController::class, 'course']);
+    Route::get('/short-courses/{courseId}/lessons', [CatalogController::class, 'lessonsByCourse']);
     Route::get('/courses/{courseId}/lessons', [CatalogController::class, 'lessonsByCourse']);
     Route::get('/courses/{courseId}/exam', [CatalogController::class, 'courseExam']);
     Route::get('/lessons', [CatalogController::class, 'lessons']);
@@ -67,44 +73,34 @@ Route::middleware('api')->group(function () {
     Route::patch('/lessons/{lessonId}', [CatalogController::class, 'updateLesson']);
 
     Route::get('/jobs', [JobsController::class, 'index']);
-    Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'access:employer.portal']);
     Route::get('/jobs/{id}', [JobsController::class, 'show']);
-    Route::post('/jobs/{id}/apply', [JobsController::class, 'apply'])->middleware(['session.auth', 'role:student']);
+    Route::post('/jobs/{id}/apply', [JobsController::class, 'apply'])->middleware(['session.auth', 'access:student.portal']);
 
     Route::get('/research', [ResearchController::class, 'index']);
-    Route::post('/research', [ResearchController::class, 'store'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/research', [ResearchController::class, 'store'])->middleware(['session.auth', 'access:employer.portal']);
     Route::get('/research/{id}', [ResearchController::class, 'show']);
-    Route::post('/research/{id}/apply', [ResearchController::class, 'apply'])->middleware(['session.auth', 'role:student']);
-    Route::get('/research/{id}/applications', [ResearchController::class, 'applications'])->middleware(['session.auth', 'role:employer']);
-    Route::patch('/research/{id}/applications/{application}', [ResearchController::class, 'updateApplication'])->middleware(['session.auth', 'role:employer']);
+    Route::post('/research/{id}/apply', [ResearchController::class, 'apply'])->middleware(['session.auth', 'access:student.portal']);
+    Route::get('/research/{id}/applications', [ResearchController::class, 'applications'])->middleware(['session.auth', 'access:employer.portal']);
+    Route::patch('/research/{id}/applications/{application}', [ResearchController::class, 'updateApplication'])->middleware(['session.auth', 'access:employer.portal']);
 
     Route::get('/community/discussions', [CommunityController::class, 'index']);
-    Route::post('/community/discussions', [CommunityController::class, 'store'])->middleware(['session.auth', 'role:student']);
+    Route::post('/community/discussions', [CommunityController::class, 'store'])->middleware(['session.auth', 'access:student.portal']);
     Route::get('/community/discussions/{id}', [CommunityController::class, 'show']);
-    Route::post('/community/discussions/{id}/comments', [CommunityController::class, 'storeComment'])->middleware(['session.auth', 'role:student']);
+    Route::post('/community/discussions/{id}/comments', [CommunityController::class, 'storeComment'])->middleware(['session.auth', 'access:student.portal']);
 
-    Route::get('/students/me/badges', [BadgesController::class, 'index'])->middleware(['session.auth', 'role:student']);
+    Route::get('/students/me/badges', [BadgesController::class, 'index'])->middleware(['session.auth', 'access:student.portal']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/admissions/settings', [AdmissionsController::class, 'settings']);
 
-    Route::middleware(['session.auth', 'role:student'])->group(function () {
+    Route::middleware(['session.auth', 'access:student.portal'])->group(function () {
         Route::get('/students/me/program', [ProgramController::class, 'program']);
         Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
         Route::get('/students/me/exams/semester-{semesterId}', [ProgramController::class, 'semesterExam']);
 
         Route::post('/students/checkout', [StudentsController::class, 'checkout']);
-        Route::get('/students/me/enrollment', [StudentsController::class, 'enrollment']);
-        Route::post('/students/me/enrollment/modules', [StudentsController::class, 'saveEnrollmentModules']);
-        Route::post('/students/me/enrollment/confirm', [StudentsController::class, 'confirmEnrollment']);
-        Route::post('/students/me/exams/results', [ExamController::class, 'saveResult']);
-        Route::get('/students/me/exams/results', [ExamController::class, 'results']);
-        Route::get('/students/me/exams/latest', [ExamController::class, 'latest']);
         Route::get('/students/me/dashboard', [DashboardController::class, 'student']);
-        Route::get('/students/me/courses/{courseId}/meeting', [StudentsController::class, 'courseMeeting']);
-        Route::get('/students/me/timetable', [CourseSessionsController::class, 'studentTimetable']);
         Route::get('/students/me/intakes', [IntakesController::class, 'availableForStudent']);
-        Route::get('/students/me/route-change-requests', [RouteChangeController::class, 'studentIndex']);
-        Route::post('/students/me/route-change-requests', [RouteChangeController::class, 'store']);
         Route::get('/students/me/invoices', [BillingController::class, 'invoices']);
         Route::post('/students/me/invoices/{invoice}/pay', [BillingController::class, 'pay']);
         Route::get('/students/me/payments', [BillingController::class, 'payments']);
@@ -117,6 +113,30 @@ Route::middleware('api')->group(function () {
         Route::post('/students/me/exam-clinic/bookings', [ExamClinicController::class, 'bookSession']);
         Route::delete('/students/me/exam-clinic/bookings/{booking}', [ExamClinicController::class, 'cancelBooking']);
         Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
+
+        Route::middleware('entitlement:' . StudentAccess::ENTITLEMENT_PROGRAMME)->group(function () {
+            Route::get('/students/me/program', [ProgramController::class, 'program']);
+            Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
+            Route::get('/students/me/exams/semester-{semesterId}', [ProgramController::class, 'semesterExam']);
+            Route::get('/students/me/enrollment', [StudentsController::class, 'enrollment']);
+            Route::post('/students/me/enrollment/modules', [StudentsController::class, 'saveEnrollmentModules']);
+            Route::post('/students/me/enrollment/confirm', [StudentsController::class, 'confirmEnrollment']);
+            Route::get('/students/me/courses/{courseId}/meeting', [StudentsController::class, 'courseMeeting']);
+            Route::get('/students/me/timetable', [CourseSessionsController::class, 'studentTimetable']);
+            Route::get('/students/me/route-change-requests', [RouteChangeController::class, 'studentIndex']);
+            Route::post('/students/me/route-change-requests', [RouteChangeController::class, 'store']);
+            Route::get('/students/me/grades', [GradesController::class, 'studentGrades']);
+            Route::get('/students/me/assignments', [StudentAssignmentsController::class, 'index']);
+            Route::get('/students/me/assignments/submissions', [StudentAssignmentsController::class, 'submissions']);
+            Route::get('/students/me/assignments/{assignment}', [StudentAssignmentsController::class, 'show']);
+            Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
+        });
+
+        Route::middleware('entitlement:' . StudentAccess::ENTITLEMENT_CERTIFICATE)->group(function () {
+            Route::post('/students/me/exams/results', [ExamController::class, 'saveResult']);
+            Route::get('/students/me/exams/results', [ExamController::class, 'results']);
+            Route::get('/students/me/exams/latest', [ExamController::class, 'latest']);
+        });
         Route::get('/students/me/support/tickets', [SupportController::class, 'index']);
         Route::post('/students/me/support/tickets', [SupportController::class, 'store']);
         Route::get('/students/me/support/tickets/{id}', [SupportController::class, 'show']);
@@ -136,21 +156,21 @@ Route::middleware('api')->group(function () {
     });
 
     Route::middleware('session.auth')->group(function () {
-    Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware('throttle:admissions');
-        Route::get('/admissions/me', [AdmissionsController::class, 'me']);
-        Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents']);
-        Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument']);
-        Route::get('/admissions/me/documents/{document}', [AdmissionsController::class, 'downloadDocument']);
-        Route::get('/admissions/status', [AdmissionsController::class, 'status']);
-        Route::post('/admissions/fee', [AdmissionsController::class, 'payFee'])->middleware('throttle:admissions');
-        Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware('throttle:admissions');
-        Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter']);
-        Route::post('/ai/generate', [AiController::class, 'generate'])->middleware('throttle:ai');
+        Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
+        Route::get('/admissions/me', [AdmissionsController::class, 'me'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents'])->middleware('access:admissions.applicant');
+        Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/me/documents/{document}', [AdmissionsController::class, 'downloadDocument'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/status', [AdmissionsController::class, 'status'])->middleware('access:admissions.applicant');
+        Route::post('/admissions/fee', [AdmissionsController::class, 'payFee'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
+        Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
+        Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter'])->middleware('access:admissions.applicant');
+        Route::post('/ai/generate', [AiController::class, 'generate'])->middleware(['access:ai.generate', 'throttle:ai']);
     });
 
     Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit']);
 
-    Route::prefix('lecturer')->middleware(['session.auth', 'role:lecturer'])->group(function () {
+    Route::prefix('lecturer')->middleware(['session.auth', 'access:lecturer.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'lecturer']);
         Route::post('/grades', [GradesController::class, 'recordGrade']);
         Route::get('/students', [StudentsController::class, 'lecturerStudents']);
@@ -169,7 +189,7 @@ Route::middleware('api')->group(function () {
         Route::patch('/lessons/{lessonId}/documents/{document}', [LessonDocumentsController::class, 'review']);
     });
 
-    Route::prefix('employer')->middleware(['session.auth', 'role:employer'])->group(function () {
+    Route::prefix('employer')->middleware(['session.auth', 'access:employer.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'employer']);
     });
 
@@ -187,9 +207,11 @@ Route::middleware('api')->group(function () {
     });
 
     Route::prefix('admin')->middleware(['session.auth', 'role:admin'])->group(function () {
+    Route::prefix('admin')->middleware(['session.auth', 'access:admin.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/intakes', [IntakesController::class, 'index']);
         Route::post('/intakes', [IntakesController::class, 'store']);
+        Route::patch('/programs/{program}/delivery-modes', [ProgramsController::class, 'updateDeliveryModes']);
         Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
         Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
         Route::get('/audit-logs', [AdminAuditController::class, 'index']);
@@ -203,9 +225,12 @@ Route::middleware('api')->group(function () {
         Route::delete('/modules/{module}', [AdminCurriculumController::class, 'deleteModule']);
         Route::get('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'prerequisites']);
         Route::post('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'addPrerequisite']);
+        Route::get('/qualification-levels', [AdminCatalogController::class, 'qualificationLevels']);
         Route::post('/schools', [AdminCatalogController::class, 'createSchool']);
+        Route::post('/programs', [AdminCatalogController::class, 'createProgram']);
         Route::post('/courses', [AdminCatalogController::class, 'createCourse']);
         Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool']);
+        Route::delete('/programs/{id}', [AdminCatalogController::class, 'deleteProgram']);
         Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse']);
 
         Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);

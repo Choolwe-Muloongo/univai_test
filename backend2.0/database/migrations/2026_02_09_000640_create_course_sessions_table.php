@@ -22,7 +22,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->foreign('course_id')->references('id')->on('courses')->cascadeOnDelete();
+            $table->foreign('course_id')->references('id')->on('short_courses')->cascadeOnDelete();
             $table->foreign('intake_id')->references('id')->on('intakes')->cascadeOnDelete();
         });
     }
