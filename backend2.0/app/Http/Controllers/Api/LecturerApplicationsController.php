@@ -79,7 +79,8 @@ class LecturerApplicationsController extends Controller
         ]);
 
         $temporaryPassword = null;
-        if ($payload['status'] === 'approved') {
+        $activeStatuses = ['approved', 'accepted', 'active'];
+        if (in_array(strtolower($payload['status']), $activeStatuses, true)) {
             $temporaryPassword = 'password123';
             $user = User::firstOrCreate(
                 ['email' => $lecturerApplication->email],

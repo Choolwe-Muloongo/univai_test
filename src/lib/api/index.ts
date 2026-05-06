@@ -365,6 +365,21 @@ export async function reviewLessonDocument(
   });
 }
 
+export async function saveAiLessonDraft(
+  lessonId: string,
+  payload: { intakeId?: string | null; text: string; title?: string }
+): Promise<LessonDocument> {
+  return apiFetch(`/lecturer/lessons/${lessonId}/documents`, {
+    method: 'POST',
+    body: JSON.stringify({
+      intakeId: payload.intakeId,
+      text: payload.text,
+      source: 'ai',
+      fileName: payload.title,
+    }),
+  });
+}
+
 export async function uploadLessonDocument(
   lessonId: string,
   formData: FormData

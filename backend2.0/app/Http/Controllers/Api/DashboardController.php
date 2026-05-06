@@ -76,7 +76,7 @@ class DashboardController extends Controller
 
         $assignments = collect();
         if ($lecturerId) {
-            $assignments = CourseLecturerAssignment::with(['course', 'intake'])
+            $assignments = CourseLecturerAssignment::with(['course', 'intake', 'module'])
                 ->where('lecturer_id', $lecturerId)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -132,8 +132,19 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('program_id');
 
+        $pendingReviewsByCourse = collect();
+        if ($courseIds->isNotEmpty()) {
+            $pendingReviewsByCourse = LessonDocument::query()
+                ->select('lessons.course_id', DB::raw('count(*) as total'))
+                ->join('lessons', 'lessons.id', '=', 'lesson_documents.lesson_id')
+                ->whereIn('lessons.course_id', $courseIds)
+                ->where('lesson_documents.status', 'pending')
+                ->groupBy('lessons.course_id')
+                ->pluck('total', 'course_id');
+        }
+
         $managedCourses = $assignments->isNotEmpty()
-            ? $assignments->map(function (CourseLecturerAssignment $assignment, $index) use ($courseAttemptStats) {
+            ? $assignments->map(function (CourseLecturerAssignment $assignment, $index) use ($courseAttemptStats, $pendingReviewsByCourse) {
                 $course = $assignment->course;
                 if (!$course) {
                     return null;
@@ -146,6 +157,10 @@ class DashboardController extends Controller
                     'avgProgress' => $metric?->avg_score ? round($metric->avg_score) : 0,
                     'intakeId' => $assignment->intake_id,
                     'intakeName' => $assignment->intake?->name,
+                    'moduleId' => $assignment->module_id,
+                    'moduleTitle' => $assignment->module?->title,
+                    'moduleSemester' => $assignment->module?->semester,
+                    'pendingDrafts' => (int) ($pendingReviewsByCourse[$course->id] ?? 0),
                 ];
             })->filter()->values()
             : $courses->map(function ($course, $index) use ($courseAttemptStats) {
@@ -157,6 +172,10 @@ class DashboardController extends Controller
                     'avgProgress' => $metric?->avg_score ? round($metric->avg_score) : 0,
                     'intakeId' => null,
                     'intakeName' => null,
+                    'moduleId' => null,
+                    'moduleTitle' => null,
+                    'moduleSemester' => null,
+                    'pendingDrafts' => 0,
                 ];
             });
 

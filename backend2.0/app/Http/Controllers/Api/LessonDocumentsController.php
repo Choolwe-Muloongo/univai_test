@@ -46,13 +46,14 @@ class LessonDocumentsController extends Controller
             'text' => ['nullable', 'string'],
             'file' => ['nullable', 'file', 'max:10240'],
             'source' => ['nullable', 'string'],
+            'fileName' => ['nullable', 'string'],
         ]);
 
         $file = $request->file('file');
         $extractedText = trim($payload['text'] ?? '');
         $mimeType = null;
         $storagePath = null;
-        $fileName = $file?->getClientOriginalName() ?? 'manual-notes.txt';
+        $fileName = $file?->getClientOriginalName() ?? ($payload['fileName'] ?? 'manual-notes.txt');
         $source = $payload['source'] ?? 'manual';
 
         if ($file) {

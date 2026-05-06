@@ -145,7 +145,7 @@ Route::middleware('api')->group(function () {
 
     Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit']);
 
-    Route::prefix('lecturer')->middleware(['session.auth', 'role:lecturer'])->group(function () {
+    Route::prefix('lecturer')->middleware(['session.auth', 'role:lecturer', 'active.lecturer'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'lecturer']);
         Route::post('/grades', [GradesController::class, 'recordGrade']);
         Route::get('/students', [StudentsController::class, 'lecturerStudents']);

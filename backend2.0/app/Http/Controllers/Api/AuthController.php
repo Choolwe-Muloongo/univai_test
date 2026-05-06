@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\LecturerApplication;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -107,7 +108,7 @@ class AuthController extends Controller
 
     private function mapUser(User $user): array
     {
-        return [
+        $mapped = [
             'id' => (string) $user->id,
             'name' => $user->name,
             'email' => $user->email,
@@ -116,6 +117,25 @@ class AuthController extends Controller
             'programId' => $user->program_id,
             'intakeId' => $user->intake_id,
         ];
+
+        if (($mapped['role'] ?? null) === 'lecturer') {
+            $mapped['lecturerStatus'] = $this->lecturerStatusForEmail($user->email) ?? 'active';
+        }
+
+        return $mapped;
+    }
+
+    private function lecturerStatusForEmail(string $email): ?string
+    {
+        $application = LecturerApplication::query()
+            ->where('email', strtolower(trim($email)))
+            ->orWhere('email', trim($email))
+            ->orderByDesc('reviewed_at')
+            ->orderByDesc('submitted_at')
+            ->orderByDesc('id')
+            ->first();
+
+        return $application?->status ? strtolower($application->status) : null;
     }
 
     private function isDemoCredential(string $email, string $password): bool
@@ -155,6 +175,7 @@ class AuthController extends Controller
                 'name' => 'Lecturer',
                 'email' => 'lecturer@univai.edu',
                 'role' => 'lecturer',
+                'lecturerStatus' => 'active',
             ],
             'employer' => [
                 'id' => 'employer-1',

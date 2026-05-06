@@ -21,7 +21,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Pencil, FileText, Wand2, Loader2, AlertCircle, FileQuestion, Code, PlayCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { generateLectureScriptAction, generateContentAction, updateLessonContent } from '@/app/actions';
-import { getCourseById, getLessonsByCourse, getLecturerAssignments, getLessonDocuments, uploadLessonDocument, updateAssignmentMeeting, reviewLessonDocument } from '@/lib/api';
+import { getCourseById, getLessonsByCourse, getLecturerAssignments, getLessonDocuments, uploadLessonDocument, updateAssignmentMeeting, reviewLessonDocument, saveAiLessonDraft } from '@/lib/api';
 import type { LecturerAssignment, LessonDocument } from '@/lib/api/types';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,6 +74,7 @@ function LectureScriptGenerator({
   lessonTitle,
   sourceMaterial,
   intakeName,
+  intakeId,
   existingVideoUrl,
 }: {
   courseId: string;
@@ -81,6 +82,7 @@ function LectureScriptGenerator({
   lessonTitle: string;
   sourceMaterial?: string;
   intakeName?: string | null;
+  intakeId?: string | null;
   existingVideoUrl?: string | null;
 }) {
   const initialState = { message: null, errors: null, script: null };
@@ -91,6 +93,7 @@ function LectureScriptGenerator({
   const [videoUrl, setVideoUrl] = useState(existingVideoUrl || '');
   const [savingVideo, setSavingVideo] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [savingReviewDraft, setSavingReviewDraft] = useState(false);
 
   useEffect(() => {
     if (state.script) {
@@ -109,6 +112,24 @@ function LectureScriptGenerator({
       setSaveMessage('Failed to save lecture script. Please try again.');
     } finally {
       setSavingDraft(false);
+    }
+  };
+
+  const handleSaveForReview = async () => {
+    if (!scriptDraft.trim()) return;
+    setSavingReviewDraft(true);
+    setSaveMessage(null);
+    try {
+      await saveAiLessonDraft(lessonId, {
+        intakeId,
+        title: `AI lecture script - ${lessonTitle}.md`,
+        text: scriptDraft.trim(),
+      });
+      setSaveMessage('AI lecture script draft sent to the review queue. Approve it in Lesson Documents before using it as source material.');
+    } catch (error) {
+      setSaveMessage('Failed to queue AI lecture script for review. Please try again.');
+    } finally {
+      setSavingReviewDraft(false);
     }
   };
 
@@ -142,7 +163,10 @@ function LectureScriptGenerator({
             />
             <div className="flex flex-wrap gap-2">
               <Button onClick={handleSaveDraft} disabled={savingDraft || !scriptDraft.trim()}>
-                {savingDraft ? 'Saving...' : 'Save to Lesson Content'}
+                {savingDraft ? 'Saving...' : 'Publish to Lesson'}
+              </Button>
+              <Button variant="outline" onClick={handleSaveForReview} disabled={savingReviewDraft || !scriptDraft.trim()}>
+                {savingReviewDraft ? 'Queueing...' : 'Send Draft for Review'}
               </Button>
             </div>
           </CardContent>
@@ -200,7 +224,6 @@ function LectureScriptGenerator({
           <AlertDescription>{saveMessage}</AlertDescription>
         </Alert>
       )}
-
       {state.message && state.message !== 'Success' && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -218,31 +241,60 @@ function QuizGenerator({
   lessonTitle,
   sourceMaterial,
   intakeName,
+  intakeId,
 }: {
   courseId: string;
   lessonId: string;
   lessonTitle: string;
   sourceMaterial?: string;
   intakeName?: string | null;
+  intakeId?: string | null;
 }) {
   const initialState = { message: null, errors: null, content: null };
   const [state, dispatch] = useActionState<ContentState, FormData>(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const quiz = useMemo(() => {
     if (state.content) {
       try {
         const parsedQuiz = JSON.parse(state.content);
-         if(parsedQuiz) {
-            updateLessonContent(courseId, lessonId, { quiz: parsedQuiz });
-        }
         return parsedQuiz;
       } catch (e) {
         return null;
       }
     }
     return null;
-  }, [state.content, courseId, lessonId]);
+  }, [state.content]);
+
+  const handlePublishQuiz = async () => {
+    if (!quiz) return;
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      await updateLessonContent(courseId, lessonId, { quiz });
+      setSaveMessage('Quiz published to the lesson assessment.');
+    } catch (error) {
+      setSaveMessage('Failed to publish quiz. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReviewQuiz = async () => {
+    if (!state.content) return;
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      await saveAiLessonDraft(lessonId, { intakeId, title: `AI quiz draft - ${lessonTitle}.json`, text: state.content });
+      setSaveMessage('Quiz draft sent to the review queue.');
+    } catch (error) {
+      setSaveMessage('Failed to queue quiz draft. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className='space-y-4'>
@@ -262,6 +314,10 @@ function QuizGenerator({
                         </ul>
                     </div>
                 ))}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button onClick={handlePublishQuiz} disabled={saving}>Publish Quiz</Button>
+                <Button variant="outline" onClick={handleReviewQuiz} disabled={saving}>Send Draft for Review</Button>
+              </div>
             </CardContent>
         </Card>
       ) : (
@@ -293,6 +349,12 @@ function QuizGenerator({
         </div>
         <AIGeneratorButton icon={Wand2} text="Generate Quiz" />
       </form>
+       {saveMessage && (
+         <Alert>
+            <AlertTitle>Update</AlertTitle>
+            <AlertDescription>{saveMessage}</AlertDescription>
+        </Alert>
+      )}
        {state.message && state.message !== 'Success' && (
          <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -310,23 +372,48 @@ function ExerciseGenerator({
   lessonTitle,
   sourceMaterial,
   intakeName,
+  intakeId,
 }: {
   courseId: string;
   lessonId: string;
   lessonTitle: string;
   sourceMaterial?: string;
   intakeName?: string | null;
+  intakeId?: string | null;
 }) {
   const initialState = { message: null, errors: null, content: null };
   const [state, dispatch] = useActionState<ContentState, FormData>(generateContentAction, initialState);
-  //const [state, dispatch] = useActionState(generateContentAction, initialState);
   const [topic, setTopic] = useState(lessonTitle);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (state.content) {
-      updateLessonContent(courseId, lessonId, { exercise: state.content });
+  const handlePublishExercise = async () => {
+    if (!state.content) return;
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      await updateLessonContent(courseId, lessonId, { exercise: state.content });
+      setSaveMessage('Exercise published to the lesson.');
+    } catch (error) {
+      setSaveMessage('Failed to publish exercise. Please try again.');
+    } finally {
+      setSaving(false);
     }
-  }, [state.content, courseId, lessonId]);
+  };
+
+  const handleReviewExercise = async () => {
+    if (!state.content) return;
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      await saveAiLessonDraft(lessonId, { intakeId, title: `AI exercise draft - ${lessonTitle}.md`, text: state.content });
+      setSaveMessage('Exercise draft sent to the review queue.');
+    } catch (error) {
+      setSaveMessage('Failed to queue exercise draft. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className='space-y-4'>
@@ -335,6 +422,10 @@ function ExerciseGenerator({
             <CardContent className='pt-6'>
                  <div className='bg-black p-4 rounded-md text-green-400'>
                     <pre><code>{state.content}</code></pre>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-3">
+                  <Button onClick={handlePublishExercise} disabled={saving}>Publish Exercise</Button>
+                  <Button variant="outline" onClick={handleReviewExercise} disabled={saving}>Send Draft for Review</Button>
                 </div>
             </CardContent>
         </Card>
@@ -549,11 +640,13 @@ function AIContentSuite({
   lesson,
   sourceMaterial,
   intakeName,
+  intakeId,
 }: {
   courseId: string;
   lesson: Lesson;
   sourceMaterial: string;
   intakeName?: string | null;
+  intakeId?: string | null;
 }) {
     return (
         <Card className='border-primary border-2 shadow-primary/10'>
@@ -575,14 +668,15 @@ function AIContentSuite({
                           lessonTitle={lesson.title}
                           sourceMaterial={sourceMaterial}
                           intakeName={intakeName}
+                          intakeId={intakeId}
                           existingVideoUrl={lesson.videoUrl}
                         />
                     </TabsContent>
                      <TabsContent value="quiz" className='pt-6'>
-                        <QuizGenerator courseId={courseId} lessonId={lesson.id} lessonTitle={lesson.title} sourceMaterial={sourceMaterial} intakeName={intakeName} />
+                        <QuizGenerator courseId={courseId} lessonId={lesson.id} lessonTitle={lesson.title} sourceMaterial={sourceMaterial} intakeName={intakeName} intakeId={intakeId} />
                     </TabsContent>
                      <TabsContent value="exercise" className='pt-6'>
-                        <ExerciseGenerator courseId={courseId} lessonId={lesson.id} lessonTitle={lesson.title} sourceMaterial={sourceMaterial} intakeName={intakeName} />
+                        <ExerciseGenerator courseId={courseId} lessonId={lesson.id} lessonTitle={lesson.title} sourceMaterial={sourceMaterial} intakeName={intakeName} intakeId={intakeId} />
                     </TabsContent>
                 </Tabs>
             </CardContent>
@@ -670,6 +764,24 @@ export default function LecturerCourseManagementPage() {
     notFound();
   }
   
+  if (courseAssignments.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Module not assigned</CardTitle>
+          <CardDescription>
+            You can only manage modules assigned to you by an administrator. Return to your assigned modules list to continue.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link href="/lecturer/courses">View Assigned Modules</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
 
   const handleSaveMeeting = async () => {
@@ -863,6 +975,7 @@ export default function LecturerCourseManagementPage() {
                   lesson={selectedLesson}
                   sourceMaterial={sourceMaterial}
                   intakeName={selectedIntake?.intakeName}
+                  intakeId={selectedIntake?.intakeId}
                 />
               </>
             )}

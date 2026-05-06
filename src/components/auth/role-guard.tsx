@@ -28,6 +28,7 @@ type RoleGuardProps = {
   pendingTitle: string;
   pendingDescription: string;
   pendingActions: readonly GuardAction[];
+  requireActiveLecturer?: boolean;
 };
 
 const rolePortalMap: Partial<Record<UserRole, GuardAction>> = {
@@ -52,10 +53,12 @@ export function RoleGuard({
   pendingTitle,
   pendingDescription,
   pendingActions,
+  requireActiveLecturer = false,
 }: RoleGuardProps) {
   const router = useRouter();
   const { session, loading } = useSession();
   const role = session?.user?.role;
+  const lecturerStatus = session?.user?.lecturerStatus?.toLowerCase();
 
   useEffect(() => {
     if (!loading && !session?.user) {
@@ -116,6 +119,29 @@ export function RoleGuard({
   }
 
   if (allowedRoles.includes(role)) {
+    if (requireActiveLecturer && role === ROLE.LECTURER && lecturerStatus && !['approved', 'accepted', 'active'].includes(lecturerStatus)) {
+      return (
+        <GuardFrame>
+          <Card className="max-w-lg">
+            <CardHeader>
+              <CardTitle>{pendingTitle}</CardTitle>
+              <CardDescription>{pendingDescription}</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Lecturer application status: <span className="font-medium capitalize text-foreground">{lecturerStatus}</span>
+            </CardContent>
+            <CardFooter className="flex flex-wrap gap-2">
+              {pendingActions.map((action, index) => (
+                <Button key={`${action.href}-${index}`} variant={action.variant ?? (index === 0 ? 'default' : 'outline')} asChild>
+                  <Link href={action.href}>{action.label}</Link>
+                </Button>
+              ))}
+            </CardFooter>
+          </Card>
+        </GuardFrame>
+      );
+    }
+
     return <>{children}</>;
   }
 

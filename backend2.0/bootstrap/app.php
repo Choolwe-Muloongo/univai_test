@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'session.auth' => \App\Http\Middleware\EnsureSessionUser::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'active.lecturer' => \App\Http\Middleware\EnsureActiveLecturer::class,
         ]);
 
         $middleware->api(prepend: [

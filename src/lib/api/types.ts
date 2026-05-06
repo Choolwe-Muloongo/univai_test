@@ -14,6 +14,7 @@ export type SessionUser = {
   schoolId?: string | null;
   programId?: string | null;
   intakeId?: string | null;
+  lecturerStatus?: string | null;
 };
 
 export type Session = {
@@ -413,6 +414,10 @@ export type LecturerDashboardCourse = {
   avgProgress: number;
   intakeId?: string | null;
   intakeName?: string | null;
+  moduleId?: string | null;
+  moduleTitle?: string | null;
+  moduleSemester?: number | null;
+  pendingDrafts?: number;
 };
 
 export type LecturerDashboardData = {
