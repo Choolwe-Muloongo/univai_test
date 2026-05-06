@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Support\StudentAccess;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -107,15 +108,15 @@ class AuthController extends Controller
 
     private function mapUser(User $user): array
     {
-        return [
+        return StudentAccess::sessionPayload([
             'id' => (string) $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'role' => $user->role ?? 'student',
+            'role' => $user->role ?? StudentAccess::ROLE_STUDENT,
             'schoolId' => $user->school_id,
             'programId' => $user->program_id,
             'intakeId' => $user->intake_id,
-        ];
+        ]);
     }
 
     private function isDemoCredential(string $email, string $password): bool
@@ -132,6 +133,7 @@ class AuthController extends Controller
     {
         return [
             'student.premium@univai.edu' => 'premium-student',
+            'student.free@univai.edu' => 'free-student',
             'student.freemium@univai.edu' => 'freemium-student',
             'lecturer@univai.edu' => 'lecturer',
             'employer@univai.edu' => 'employer',
@@ -142,14 +144,14 @@ class AuthController extends Controller
     private function demoUser(string $role): array
     {
         return match ($role) {
-            'freemium-student' => [
-                'id' => 'student-freemium',
-                'name' => 'Freemium Student',
-                'email' => 'student.freemium@univai.edu',
-                'role' => 'freemium-student',
+            'free-student', 'freemium-student' => StudentAccess::sessionPayload([
+                'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
+                'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
+                'email' => $role === 'free-student' ? 'student.free@univai.edu' : 'student.freemium@univai.edu',
+                'role' => $role === 'free-student' ? StudentAccess::ROLE_FREE : StudentAccess::ROLE_FREEMIUM,
                 'schoolId' => null,
                 'programId' => null,
-            ],
+            ]),
             'lecturer' => [
                 'id' => 'lecturer-1',
                 'name' => 'Lecturer',
@@ -168,15 +170,32 @@ class AuthController extends Controller
                 'email' => 'admin@univai.edu',
                 'role' => 'admin',
             ],
-            default => [
-                'id' => 'student-premium',
-                'name' => 'Premium Student',
-                'email' => 'student.premium@univai.edu',
-                'role' => 'premium-student',
+            'certificate-student' => StudentAccess::sessionPayload([
+                'id' => 'student-certificate',
+                'name' => 'Certificate Student',
+                'email' => 'student.certificate@univai.edu',
+                'role' => StudentAccess::ROLE_CERTIFICATE,
+                'schoolId' => null,
+                'programId' => null,
+            ]),
+            'programme-student', 'enrolled' => StudentAccess::sessionPayload([
+                'id' => 'student-programme',
+                'name' => 'Programme Student',
+                'email' => 'student.programme@univai.edu',
+                'role' => StudentAccess::ROLE_PROGRAMME,
                 'schoolId' => 'ict',
                 'programId' => 'cs101',
                 'intakeId' => 'cs101-2026-jan',
-            ],
+            ]),
+            default => StudentAccess::sessionPayload([
+                'id' => 'student-premium',
+                'name' => 'Premium Student',
+                'email' => 'student.premium@univai.edu',
+                'role' => StudentAccess::ROLE_PREMIUM,
+                'schoolId' => 'ict',
+                'programId' => 'cs101',
+                'intakeId' => 'cs101-2026-jan',
+            ]),
         };
     }
 }

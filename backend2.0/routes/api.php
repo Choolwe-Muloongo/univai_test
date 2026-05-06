@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Support\StudentAccess;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
@@ -87,31 +88,37 @@ Route::middleware('api')->group(function () {
     Route::get('/admissions/settings', [AdmissionsController::class, 'settings']);
 
     Route::middleware(['session.auth', 'role:student'])->group(function () {
-        Route::get('/students/me/program', [ProgramController::class, 'program']);
-        Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
-        Route::get('/students/me/exams/semester-{semesterId}', [ProgramController::class, 'semesterExam']);
-
+        Route::get('/students/me/entitlements', [StudentsController::class, 'entitlements']);
         Route::post('/students/checkout', [StudentsController::class, 'checkout']);
-        Route::get('/students/me/enrollment', [StudentsController::class, 'enrollment']);
-        Route::post('/students/me/enrollment/modules', [StudentsController::class, 'saveEnrollmentModules']);
-        Route::post('/students/me/enrollment/confirm', [StudentsController::class, 'confirmEnrollment']);
-        Route::post('/students/me/exams/results', [ExamController::class, 'saveResult']);
-        Route::get('/students/me/exams/results', [ExamController::class, 'results']);
-        Route::get('/students/me/exams/latest', [ExamController::class, 'latest']);
         Route::get('/students/me/dashboard', [DashboardController::class, 'student']);
-        Route::get('/students/me/courses/{courseId}/meeting', [StudentsController::class, 'courseMeeting']);
-        Route::get('/students/me/timetable', [CourseSessionsController::class, 'studentTimetable']);
         Route::get('/students/me/intakes', [IntakesController::class, 'availableForStudent']);
-        Route::get('/students/me/route-change-requests', [RouteChangeController::class, 'studentIndex']);
-        Route::post('/students/me/route-change-requests', [RouteChangeController::class, 'store']);
         Route::get('/students/me/invoices', [BillingController::class, 'invoices']);
         Route::post('/students/me/invoices/{invoice}/pay', [BillingController::class, 'pay']);
         Route::get('/students/me/payments', [BillingController::class, 'payments']);
-        Route::get('/students/me/grades', [GradesController::class, 'studentGrades']);
-        Route::get('/students/me/assignments', [StudentAssignmentsController::class, 'index']);
-        Route::get('/students/me/assignments/submissions', [StudentAssignmentsController::class, 'submissions']);
-        Route::get('/students/me/assignments/{assignment}', [StudentAssignmentsController::class, 'show']);
-        Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
+
+        Route::middleware('entitlement:' . StudentAccess::ENTITLEMENT_PROGRAMME)->group(function () {
+            Route::get('/students/me/program', [ProgramController::class, 'program']);
+            Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
+            Route::get('/students/me/exams/semester-{semesterId}', [ProgramController::class, 'semesterExam']);
+            Route::get('/students/me/enrollment', [StudentsController::class, 'enrollment']);
+            Route::post('/students/me/enrollment/modules', [StudentsController::class, 'saveEnrollmentModules']);
+            Route::post('/students/me/enrollment/confirm', [StudentsController::class, 'confirmEnrollment']);
+            Route::get('/students/me/courses/{courseId}/meeting', [StudentsController::class, 'courseMeeting']);
+            Route::get('/students/me/timetable', [CourseSessionsController::class, 'studentTimetable']);
+            Route::get('/students/me/route-change-requests', [RouteChangeController::class, 'studentIndex']);
+            Route::post('/students/me/route-change-requests', [RouteChangeController::class, 'store']);
+            Route::get('/students/me/grades', [GradesController::class, 'studentGrades']);
+            Route::get('/students/me/assignments', [StudentAssignmentsController::class, 'index']);
+            Route::get('/students/me/assignments/submissions', [StudentAssignmentsController::class, 'submissions']);
+            Route::get('/students/me/assignments/{assignment}', [StudentAssignmentsController::class, 'show']);
+            Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
+        });
+
+        Route::middleware('entitlement:' . StudentAccess::ENTITLEMENT_CERTIFICATE)->group(function () {
+            Route::post('/students/me/exams/results', [ExamController::class, 'saveResult']);
+            Route::get('/students/me/exams/results', [ExamController::class, 'results']);
+            Route::get('/students/me/exams/latest', [ExamController::class, 'latest']);
+        });
         Route::get('/students/me/support/tickets', [SupportController::class, 'index']);
         Route::post('/students/me/support/tickets', [SupportController::class, 'store']);
         Route::get('/students/me/support/tickets/{id}', [SupportController::class, 'show']);
@@ -131,7 +138,7 @@ Route::middleware('api')->group(function () {
     });
 
     Route::middleware('session.auth')->group(function () {
-    Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware('throttle:admissions');
+        Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware('throttle:admissions');
         Route::get('/admissions/me', [AdmissionsController::class, 'me']);
         Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents']);
         Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument']);
@@ -140,7 +147,7 @@ Route::middleware('api')->group(function () {
         Route::post('/admissions/fee', [AdmissionsController::class, 'payFee'])->middleware('throttle:admissions');
         Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware('throttle:admissions');
         Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter']);
-        Route::post('/ai/generate', [AiController::class, 'generate'])->middleware('throttle:ai');
+        Route::post('/ai/generate', [AiController::class, 'generate'])->middleware(['role:student', 'entitlement:' . StudentAccess::ENTITLEMENT_PREMIUM, 'throttle:ai']);
     });
 
     Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit']);
