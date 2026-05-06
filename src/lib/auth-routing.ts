@@ -1,6 +1,9 @@
 export type AuthRole =
   | 'student'
+  | 'free-student'
+  | 'paid-certificate-student'
   | 'premium-student'
+  | 'programme-student'
   | 'applicant'
   | 'lecturer'
   | 'admin'

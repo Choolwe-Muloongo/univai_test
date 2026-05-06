@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles } from 'lucide-react';
+import { useSession } from '@/components/providers/session-provider';
+import { getAiAccessPolicy } from '@/lib/ai-access';
 
 type ChatMessage = {
   role: 'user' | 'assistant';
@@ -24,7 +26,7 @@ const suggestions = [
   'Give me 3 practice questions for this topic.',
 ];
 
-async function requestAiResponse(prompt: string, context: string) {
+async function requestAiResponse(prompt: string, context: string, accessTier: string) {
   if (!API_BASE_URL) {
     return 'AI is not connected yet. Configure NEXT_PUBLIC_API_BASE_URL to enable live responses.';
   }
@@ -32,7 +34,8 @@ async function requestAiResponse(prompt: string, context: string) {
   const response = await fetch(`${API_BASE_URL}/ai/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, mode: 'tutor', context }),
+    credentials: 'include',
+    body: JSON.stringify({ prompt, mode: 'tutor', context, accessTier, feature: 'chat' }),
   });
 
   if (!response.ok) {
@@ -46,6 +49,8 @@ async function requestAiResponse(prompt: string, context: string) {
 
 export default function AiChatPage() {
   const context = useAiContext();
+  const { session } = useSession();
+  const policy = getAiAccessPolicy(session?.user?.role);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -76,10 +81,10 @@ export default function AiChatPage() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !policy.features.chat) return;
     const userMessage: ChatMessage = {
       role: 'user',
-      content: input.trim(),
+      content: input.trim().slice(0, policy.maxPromptCharacters),
       createdAt: Date.now(),
     };
     setMessages((prev) => [...prev, userMessage]);
@@ -88,7 +93,7 @@ export default function AiChatPage() {
 
     try {
       const prompt = `${historyPrompt}\nUser: ${userMessage.content}\nAssistant:`;
-      const reply = await requestAiResponse(prompt, context);
+      const reply = await requestAiResponse(prompt, context, policy.tier);
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: reply.trim() || 'No response returned.',
@@ -120,6 +125,7 @@ export default function AiChatPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">AI Chat</h1>
         <p className="text-muted-foreground">Ask questions, get explanations, and plan your next study steps.</p>
+        <Badge variant="secondary" className="mt-3">{policy.label}: {policy.dailyPromptLimit} prompts/day</Badge>
       </div>
 
       <Card>
@@ -130,7 +136,7 @@ export default function AiChatPage() {
                 <Sparkles className="h-5 w-5 text-primary" />
                 UnivAI Assistant
               </CardTitle>
-              <CardDescription>Responses are based on your prompts and recent context.</CardDescription>
+              <CardDescription>Responses follow your {policy.label.toLowerCase()} limits and guidance.</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={handleClear}>
               Clear chat
@@ -181,11 +187,11 @@ export default function AiChatPage() {
             <Textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Ask anything about your courses, assignments, or study plan..."
+              placeholder={`Ask about your courses, assignments, or study plan (${policy.maxPromptCharacters} characters max)...`}
               className="min-h-24"
             />
             <div className="flex items-center justify-end">
-              <Button onClick={handleSend} disabled={loading || !input.trim()}>
+              <Button onClick={handleSend} disabled={loading || !input.trim() || !policy.features.chat}>
                 Send
               </Button>
             </div>

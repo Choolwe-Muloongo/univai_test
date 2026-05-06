@@ -150,6 +150,9 @@ class AuthController extends Controller
             'student.premium@univai.edu' => 'premium-student',
             'student.free@univai.edu' => 'free-student',
             'student.freemium@univai.edu' => 'freemium-student',
+            'student.free@univai.edu' => 'free-student',
+            'student.certificate@univai.edu' => 'paid-certificate-student',
+            'student.programme@univai.edu' => 'programme-student',
             'lecturer@univai.edu' => 'lecturer',
             'employer@univai.edu' => 'employer',
             'admin@univai.edu' => 'admin',
@@ -159,6 +162,11 @@ class AuthController extends Controller
     private function demoUser(string $role): array
     {
         return match ($role) {
+            'free-student', 'freemium-student' => [
+                'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
+                'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
+                'email' => $role === 'free-student' ? 'student.free@univai.edu' : 'student.freemium@univai.edu',
+                'role' => $role,
             'free-student', 'freemium-student' => StudentAccess::sessionPayload([
                 'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
                 'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
@@ -172,6 +180,24 @@ class AuthController extends Controller
                 'subscriptionStatus' => 'free',
                 'subscriptionTier' => 'freemium',
                 'entitlements' => ['student_portal'],
+            ],
+            'paid-certificate-student' => [
+                'id' => 'student-certificate',
+                'name' => 'Paid Certificate Student',
+                'email' => 'student.certificate@univai.edu',
+                'role' => 'paid-certificate-student',
+                'schoolId' => 'ict',
+                'programId' => 'cs101',
+                'intakeId' => 'cs101-2026-jan',
+            ],
+            'programme-student' => [
+                'id' => 'student-programme',
+                'name' => 'Programme Student',
+                'email' => 'student.programme@univai.edu',
+                'role' => 'programme-student',
+                'schoolId' => 'ict',
+                'programId' => 'cs101',
+                'intakeId' => 'cs101-2026-jan',
             ],
             'lecturer' => [
                 'id' => 'lecturer-1',

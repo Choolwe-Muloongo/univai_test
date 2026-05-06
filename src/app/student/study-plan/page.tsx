@@ -18,6 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { generateStudyPlanAction } from '@/app/actions';
 import { Loader2 } from 'lucide-react';
 import { useAiContext } from '@/lib/ai-context';
+import { useSession } from '@/components/providers/session-provider';
+import { getAiAccessPolicy } from '@/lib/ai-access';
 
 interface BaseGeneratorState {
   // message can be a string (error/success) or null initially
@@ -31,10 +33,10 @@ interface StudyPlanState extends BaseGeneratorState {
   studyPlan: string | null;
 }
 
-function SubmitButton() {
+function SubmitButton({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} className="w-full">
+    <Button type="submit" disabled={pending || disabled} className="w-full">
       {pending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -51,6 +53,8 @@ export default function StudyPlanPage() {
   const initialState = { message: null, studyPlan: null, errors: null };
   const [state, dispatch] = useActionState<StudyPlanState, FormData>(generateStudyPlanAction, initialState);
   const context = useAiContext();
+  const { session } = useSession();
+  const policy = getAiAccessPolicy(session?.user?.role);
 
   return (
     <div className="space-y-6">
@@ -72,12 +76,13 @@ export default function StudyPlanPage() {
           <CardTitle>Generate Your Personalized Study Plan</CardTitle>
           <CardDescription>
             Provide your learning history, goals, and available time, and our AI
-            will create a tailored study plan for you.
+            will create a tailored study plan for you. {policy.features.studyPlan ? '' : 'Upgrade to access full AI study planning.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form action={dispatch} className="space-y-6">
             <input type="hidden" name="context" value={context} />
+            <input type="hidden" name="accessTier" value={policy.tier} />
             <div className="space-y-2">
               <Label htmlFor="learningHistory">Learning History</Label>
               <Textarea
@@ -116,7 +121,7 @@ export default function StudyPlanPage() {
                 <p className="text-sm text-destructive">{state.errors.availableTime}</p>
               )}
             </div>
-            <SubmitButton />
+            <SubmitButton disabled={!policy.features.studyPlan} />
           </form>
         </CardContent>
       </Card>

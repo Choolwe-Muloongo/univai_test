@@ -14,11 +14,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { BookOpenCheck, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api/client';
 import { useAiContext } from '@/lib/ai-context';
+import { useSession } from '@/components/providers/session-provider';
+import { getAiAccessPolicy } from '@/lib/ai-access';
 import { getProgram } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function AiNotesPage() {
   const context = useAiContext();
+  const { session } = useSession();
+  const policy = getAiAccessPolicy(session?.user?.role);
   const [topic, setTopic] = useState('');
   const [modules, setModules] = useState<{ id: string; title: string; semester?: number | null }[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
@@ -61,10 +65,13 @@ export default function AiNotesPage() {
       const response = await fetch(`${API_BASE_URL}/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           prompt: `Create concise study notes for: ${focus}. Include key terms, definitions, and 3 bullet takeaways.`,
           mode: 'summary',
           context,
+          accessTier: policy.tier,
+          feature: 'notes',
         }),
       });
       const data = await response.json();

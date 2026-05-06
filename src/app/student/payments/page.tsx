@@ -1,4 +1,31 @@
 // src/app/(app)/payments/page.tsx
+'use client';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Check, Star, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSession } from '@/components/providers/session-provider';
+import Link from 'next/link';
+import { getInvoices } from '@/lib/api';
+import type { Invoice } from '@/lib/api/types';
+
+const freemiumFeatures = [
+  { text: 'Access to introductory modules of all courses', included: true },
+  { text: 'Limited AI support for short study questions', included: true },
+  { text: 'No cashback or AFTACOIN rewards', included: false },
+  { text: 'Verified Certificate upon completion', included: false },
+  { text: 'Full access to Career & Job Hub', included: false },
+  { text: 'Ability to post in community and message peers', included: false },
+];
+
+const premiumFeatures = [
+  { text: 'Unlimited access to all course content', included: true },
+  { text: 'Advanced AI Tutor, Study Planner, Flashcards, Mock Exams, and Weak-Area Coach', included: true },
+  { text: 'Verified Certificate upon completion', included: true },
+  { text: 'Full community access (posting, messaging)', included: true },
+  { text: 'Full access to Career & Job Hub', included: true },
+  { text: 'Eligible for AFTACOIN rewards', included: true },
 "use client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -107,6 +134,7 @@ export default function PaymentsPage() {
     );
   };
 
+  const isFreemium = userRole === 'freemium-student' || userRole === 'free-student';
   const accessTier =
     session?.user?.accessTier ?? roleToStudentAccessTier(userRole);
   const isFreeLearning = accessTier === STUDENT_ACCESS_TIER.FREE_LEARNING;
@@ -183,6 +211,8 @@ export default function PaymentsPage() {
         {/* Free Learning Plan */}
         <Card className="border-2">
           <CardHeader>
+            <CardTitle className="text-2xl">Freemium</CardTitle>
+            <CardDescription>Get a taste of our platform with limited AI support and no cashback.</CardDescription>
             <CardTitle className="text-2xl">Free Learning</CardTitle>
             <CardDescription>
               Short-course previews without cashback or paid resources.

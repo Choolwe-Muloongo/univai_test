@@ -8,11 +8,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { API_BASE_URL } from '@/lib/api/client';
 import { Loader2 } from 'lucide-react';
 import { useAiContext } from '@/lib/ai-context';
+import { useSession } from '@/components/providers/session-provider';
+import { getAiAccessPolicy } from '@/lib/ai-access';
 import { getProgram } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function AiExamPrepPage() {
   const context = useAiContext();
+  const { session } = useSession();
+  const policy = getAiAccessPolicy(session?.user?.role);
   const [topic, setTopic] = useState('');
   const [modules, setModules] = useState<{ id: string; title: string; semester?: number | null }[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
@@ -40,7 +44,10 @@ export default function AiExamPrepPage() {
   }, []);
 
   const handleGenerate = async () => {
-    if (!topic.trim() && !selectedModule) return;
+    if ((!topic.trim() && !selectedModule) || !policy.features.mockExam) {
+      if (!policy.features.mockExam) setDrill(`${policy.label} does not include mock exam drills. Upgrade to Premium or use Programme AI.`);
+      return;
+    }
     setLoading(true);
     try {
       if (!API_BASE_URL) {
@@ -58,10 +65,13 @@ export default function AiExamPrepPage() {
       const response = await fetch(`${API_BASE_URL}/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          prompt: `Create a ${count}-question exam prep drill focused on ${focus}. Difficulty: ${difficulty}. Provide questions with answer keys.`,
-          mode: 'quiz',
+          prompt: `Create a ${count}-question mock exam drill focused on ${focus}. Difficulty: ${difficulty}. Include answer keys, flashcard prompts for key facts, and weak-area remediation steps.`,
+          mode: 'mock-exam',
           context,
+          accessTier: policy.tier,
+          feature: 'mockExam',
         }),
       });
       const data = await response.json();
@@ -78,7 +88,7 @@ export default function AiExamPrepPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">AI Exam Prep</h1>
-        <p className="text-muted-foreground">Practice with AI-generated drills and instant feedback.</p>
+        <p className="text-muted-foreground">Practice with AI-generated drills, flashcards, mock exams, and weak-area feedback according to your tier.</p>
       </div>
 
       <Card>
@@ -131,7 +141,7 @@ export default function AiExamPrepPage() {
             onChange={(event) => setQuestionCount(event.target.value)}
             placeholder="Number of questions"
           />
-          <Button onClick={handleGenerate} disabled={loading}>
+          <Button onClick={handleGenerate} disabled={loading || !policy.features.mockExam}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Generate Drill
           </Button>
