@@ -41,6 +41,7 @@ import type {
   StudentDashboardWallet,
 } from "@/lib/api/types";
 import { useSession } from "@/components/providers/session-provider";
+import { deliveryModeLabel } from "@/lib/delivery-modes";
 
 export default function DashboardPage() {
   const { session } = useSession();
