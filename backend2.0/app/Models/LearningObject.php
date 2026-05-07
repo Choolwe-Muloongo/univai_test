@@ -39,7 +39,6 @@ class LearningObject extends Model
     protected $casts = [
         'payload' => 'array',
         'access_rules' => 'array',
-        'metadata' => 'array',
         'version' => 'integer',
         'is_current' => 'boolean',
         'is_reusable' => 'boolean',

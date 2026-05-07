@@ -140,10 +140,9 @@ class CatalogController extends Controller
             $this->upsertLearningObject($lesson, 'exercise', ['body' => $payload['exercise']]);
         }
 
-        return $this->mapLesson($lesson->fresh('learningObjects'), $lesson->course_id);
         $courseId = $lesson->shortCourses()->value('short_courses.id');
 
-        return $this->mapLesson($lesson, $courseId);
+        return $this->mapLesson($lesson->fresh('learningObjects'), $courseId);
     }
 
     public function courseExam(string $courseId)
@@ -175,7 +174,6 @@ class CatalogController extends Controller
             'title' => $lesson->title,
             'content' => $content?->body ?? $lesson->summary ?? '',
             'summary' => $lesson->summary,
-            'content' => $lesson->content,
             'courseId' => $courseId,
             'videoUrl' => $video?->asset_url,
             'exercise' => $exercise?->body,
