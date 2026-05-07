@@ -2,14 +2,18 @@
 
 namespace Database\Seeders;
 
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class UnivAiSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->ensureSeedSchema();
+
         DB::table('users')->upsert([
             [
                 'name' => 'Admin',
@@ -480,13 +484,15 @@ class UnivAiSeeder extends Seeder
                 'id' => 'cs101',
                 'school_id' => 'ict',
                 'title' => 'AI Digital Skills Certificate',
-                'description' => 'A free certificate short course covering digital systems, cloud collaboration, and AI fundamentals.',
+                'description' => 'A paid certificate short course covering digital systems, cloud collaboration, and AI fundamentals.',
                 'progress' => 100,
                 'image_id' => '1',
                 'certificate_type' => 'certificate',
-                'pricing_type' => 'free',
-                'price' => 0,
-                'currency' => 'USD',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
                 'duration_hours' => 18,
                 'level' => 'beginner',
                 'created_at' => now(),
@@ -501,8 +507,10 @@ class UnivAiSeeder extends Seeder
                 'image_id' => '2',
                 'certificate_type' => 'certificate',
                 'pricing_type' => 'paid',
-                'price' => 49,
-                'currency' => 'USD',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
                 'duration_hours' => 24,
                 'level' => 'intermediate',
                 'created_at' => now(),
@@ -517,8 +525,10 @@ class UnivAiSeeder extends Seeder
                 'image_id' => '3',
                 'certificate_type' => 'certificate',
                 'pricing_type' => 'paid',
-                'price' => 79,
-                'currency' => 'USD',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
                 'duration_hours' => 30,
                 'level' => 'intermediate',
                 'created_at' => now(),
@@ -528,13 +538,15 @@ class UnivAiSeeder extends Seeder
                 'id' => 'eng401',
                 'school_id' => 'eng',
                 'title' => 'Engineering Design Certificate',
-                'description' => 'A free certificate short course introducing engineering design thinking and prototyping.',
+                'description' => 'A paid certificate short course introducing engineering design thinking and prototyping.',
                 'progress' => 20,
                 'image_id' => '4',
                 'certificate_type' => 'certificate',
-                'pricing_type' => 'free',
-                'price' => 0,
-                'currency' => 'USD',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
                 'duration_hours' => 16,
                 'level' => 'beginner',
                 'created_at' => now(),
@@ -544,19 +556,21 @@ class UnivAiSeeder extends Seeder
                 'id' => 'edu110',
                 'school_id' => 'edu',
                 'title' => 'Early Learning Certificate',
-                'description' => 'A free certificate short course for early childhood teaching foundations.',
+                'description' => 'A paid certificate short course for early childhood teaching foundations.',
                 'progress' => 60,
                 'image_id' => '5',
                 'certificate_type' => 'certificate',
-                'pricing_type' => 'free',
-                'price' => 0,
-                'currency' => 'USD',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
                 'duration_hours' => 20,
                 'level' => 'beginner',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'description', 'school_id', 'certificate_type', 'pricing_type', 'price', 'currency', 'duration_hours', 'level', 'progress', 'image_id', 'updated_at']);
+        ], ['id'], ['title', 'description', 'school_id', 'certificate_type', 'pricing_type', 'price', 'currency', 'certificate_fee', 'certificate_currency', 'duration_hours', 'level', 'progress', 'image_id', 'updated_at']);
 
         DB::table('programs')->upsert([
             [
@@ -569,6 +583,7 @@ class UnivAiSeeder extends Seeder
                 'duration_months' => 48,
                 'admission_requirements' => 'Five qualifying subjects including Mathematics or ICT.',
                 'delivery_modes' => json_encode(['online', 'hybrid']),
+                'supported_delivery_modes' => json_encode(['software_only', 'hybrid']),
                 'exam_clinic_required' => true,
                 'requires_accreditation_approval' => true,
                 'accreditation_approved_at' => now(),
@@ -580,6 +595,10 @@ class UnivAiSeeder extends Seeder
                 'duration_semesters' => 8,
                 'total_credits' => 480,
                 'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -593,6 +612,7 @@ class UnivAiSeeder extends Seeder
                 'duration_months' => 24,
                 'admission_requirements' => 'Recognised bachelor degree and leadership statement.',
                 'delivery_modes' => json_encode(['online', 'hybrid']),
+                'supported_delivery_modes' => json_encode(['software_only', 'hybrid']),
                 'exam_clinic_required' => true,
                 'requires_accreditation_approval' => true,
                 'accreditation_approved_at' => now(),
@@ -604,6 +624,10 @@ class UnivAiSeeder extends Seeder
                 'duration_semesters' => 4,
                 'total_credits' => 240,
                 'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -617,6 +641,7 @@ class UnivAiSeeder extends Seeder
                 'duration_months' => 36,
                 'admission_requirements' => 'Five qualifying subjects including Biology or Science.',
                 'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'supported_delivery_modes' => json_encode(['hybrid', 'physical']),
                 'exam_clinic_required' => true,
                 'requires_accreditation_approval' => true,
                 'accreditation_approved_at' => now(),
@@ -628,6 +653,10 @@ class UnivAiSeeder extends Seeder
                 'duration_semesters' => 6,
                 'total_credits' => 360,
                 'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -641,6 +670,7 @@ class UnivAiSeeder extends Seeder
                 'duration_months' => 48,
                 'admission_requirements' => 'Five qualifying subjects including Mathematics and Physics.',
                 'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'supported_delivery_modes' => json_encode(['hybrid', 'physical']),
                 'exam_clinic_required' => true,
                 'requires_accreditation_approval' => true,
                 'accreditation_approved_at' => now(),
@@ -652,6 +682,10 @@ class UnivAiSeeder extends Seeder
                 'duration_semesters' => 8,
                 'total_credits' => 480,
                 'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -665,6 +699,7 @@ class UnivAiSeeder extends Seeder
                 'duration_months' => 36,
                 'admission_requirements' => 'Five qualifying subjects and teaching placement readiness.',
                 'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical']),
                 'exam_clinic_required' => true,
                 'requires_accreditation_approval' => true,
                 'accreditation_approved_at' => now(),
@@ -676,10 +711,14 @@ class UnivAiSeeder extends Seeder
                 'duration_semesters' => 6,
                 'total_credits' => 360,
                 'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'description', 'school_id', 'award_type', 'qualification_level', 'duration_semesters', 'total_credits', 'delivery_mode', 'progress', 'image_id', 'updated_at']);
+        ], ['id'], ['title', 'description', 'school_id', 'qualification_level_id', 'credits', 'duration_months', 'admission_requirements', 'delivery_modes', 'supported_delivery_modes', 'exam_clinic_required', 'requires_accreditation_approval', 'accreditation_approved_at', 'launch_status', 'award_type', 'qualification_level', 'duration_semesters', 'total_credits', 'delivery_mode', 'application_fee', 'application_currency', 'tuition_fee', 'tuition_currency', 'progress', 'image_id', 'updated_at']);
 
         DB::table('programs')->where('id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
         DB::table('programs')->where('id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
@@ -1726,6 +1765,7 @@ class UnivAiSeeder extends Seeder
 
         DB::table('course_lecturer_assignments')->upsert([
             [
+                'course_id' => 'cs101',
                 'module_id' => 'cs101-sem1-1',
                 'lecturer_id' => $lecturerId,
                 'intake_id' => 'cs101-2026-jan',
@@ -1739,6 +1779,7 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
+                'course_id' => 'cs101',
                 'module_id' => 'cs101-sem1-2',
                 'lecturer_id' => $lecturerAId,
                 'intake_id' => 'cs101-2026-jan',
@@ -1752,6 +1793,7 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
+                'course_id' => 'cs101',
                 'module_id' => 'cs101-sem1-3',
                 'lecturer_id' => $lecturerBId,
                 'intake_id' => 'cs101-2026-jan',
@@ -1765,6 +1807,7 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
+                'course_id' => 'bus301',
                 'module_id' => 'bus301-sem1-1',
                 'lecturer_id' => $lecturerAId,
                 'intake_id' => 'bus301-2026-jan',
@@ -1777,11 +1820,12 @@ class UnivAiSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['course_id', 'lecturer_id', 'intake_id'], ['role', 'assigned_by', 'meeting_provider', 'meeting_url', 'meeting_schedule', 'meeting_notes', 'updated_at']);
+        ], ['course_id', 'lecturer_id', 'intake_id'], ['module_id', 'role', 'assigned_by', 'meeting_provider', 'meeting_url', 'meeting_schedule', 'meeting_notes', 'updated_at']);
 
         DB::table('course_sessions')->upsert([
             [
                 'id' => 1,
+                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'Intro Lecture - Digital Systems',
                 'session_type' => 'lecture',
@@ -1796,6 +1840,7 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 2,
+                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'Programming Fundamentals Lab',
                 'session_type' => 'lab',
@@ -1810,6 +1855,7 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 3,
+                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'AI Ethics Workshop',
                 'session_type' => 'workshop',
@@ -1824,6 +1870,7 @@ class UnivAiSeeder extends Seeder
             ],
             [
                 'id' => 4,
+                'course_id' => 'cs101',
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'Project Clinic',
                 'session_type' => 'tutorial',
@@ -1836,7 +1883,7 @@ class UnivAiSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'session_type', 'day_of_week', 'start_time', 'end_time', 'location', 'meeting_url', 'updated_at']);
+        ], ['id'], ['course_id', 'title', 'session_type', 'day_of_week', 'start_time', 'end_time', 'location', 'meeting_url', 'updated_at']);
 
         if ($studentId) {
             DB::table('course_attempts')->upsert([
@@ -2020,5 +2067,175 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => now()->subDays(2),
             ],
         ], ['id'], ['status', 'updated_at']);
+    }
+
+    private function ensureSeedSchema(): void
+    {
+        if (Schema::hasTable('users')) {
+            Schema::table('users', function (Blueprint $table) {
+                if (!Schema::hasColumn('users', 'role')) {
+                    $table->string('role')->default('student');
+                }
+                if (!Schema::hasColumn('users', 'school_id')) {
+                    $table->string('school_id')->nullable();
+                }
+                if (!Schema::hasColumn('users', 'program_id')) {
+                    $table->string('program_id')->nullable();
+                }
+                if (!Schema::hasColumn('users', 'intake_id')) {
+                    $table->string('intake_id')->nullable();
+                }
+                if (!Schema::hasColumn('users', 'account_state')) {
+                    $table->string('account_state')->default('pending');
+                }
+                if (!Schema::hasColumn('users', 'verification_status')) {
+                    $table->string('verification_status')->default('none');
+                }
+                if (!Schema::hasColumn('users', 'profile_completed_at')) {
+                    $table->timestamp('profile_completed_at')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('short_courses')) {
+            Schema::table('short_courses', function (Blueprint $table) {
+                if (!Schema::hasColumn('short_courses', 'certificate_fee')) {
+                    $table->decimal('certificate_fee', 10, 2)->default(15);
+                }
+                if (!Schema::hasColumn('short_courses', 'certificate_currency')) {
+                    $table->string('certificate_currency', 3)->default('USD');
+                }
+            });
+        }
+
+        if (Schema::hasTable('programs')) {
+            Schema::table('programs', function (Blueprint $table) {
+                if (!Schema::hasColumn('programs', 'qualification_level_id')) {
+                    $table->string('qualification_level_id')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'credits')) {
+                    $table->unsignedInteger('credits')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'duration_months')) {
+                    $table->unsignedInteger('duration_months')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'admission_requirements')) {
+                    $table->text('admission_requirements')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'delivery_modes')) {
+                    $table->json('delivery_modes')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'supported_delivery_modes')) {
+                    $table->json('supported_delivery_modes')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'exam_clinic_required')) {
+                    $table->boolean('exam_clinic_required')->default(false);
+                }
+                if (!Schema::hasColumn('programs', 'requires_accreditation_approval')) {
+                    $table->boolean('requires_accreditation_approval')->default(false);
+                }
+                if (!Schema::hasColumn('programs', 'accreditation_approved_at')) {
+                    $table->timestamp('accreditation_approved_at')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'launch_status')) {
+                    $table->string('launch_status')->default('draft');
+                }
+                if (!Schema::hasColumn('programs', 'award_type')) {
+                    $table->string('award_type')->default('degree');
+                }
+                if (!Schema::hasColumn('programs', 'qualification_level')) {
+                    $table->string('qualification_level')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'duration_semesters')) {
+                    $table->unsignedInteger('duration_semesters')->default(1);
+                }
+                if (!Schema::hasColumn('programs', 'total_credits')) {
+                    $table->unsignedInteger('total_credits')->default(0);
+                }
+                if (!Schema::hasColumn('programs', 'delivery_mode')) {
+                    $table->string('delivery_mode')->default('online');
+                }
+                if (!Schema::hasColumn('programs', 'application_fee')) {
+                    $table->decimal('application_fee', 10, 2)->default(100);
+                }
+                if (!Schema::hasColumn('programs', 'application_currency')) {
+                    $table->string('application_currency', 3)->default('ZMW');
+                }
+                if (!Schema::hasColumn('programs', 'tuition_fee')) {
+                    $table->decimal('tuition_fee', 10, 2)->default(650);
+                }
+                if (!Schema::hasColumn('programs', 'tuition_currency')) {
+                    $table->string('tuition_currency', 3)->default('ZMW');
+                }
+                if (!Schema::hasColumn('programs', 'progress')) {
+                    $table->integer('progress')->default(0);
+                }
+                if (!Schema::hasColumn('programs', 'image_id')) {
+                    $table->string('image_id')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('intakes')) {
+            Schema::table('intakes', function (Blueprint $table) {
+                if (!Schema::hasColumn('intakes', 'curriculum_version_id')) {
+                    $table->string('curriculum_version_id')->nullable();
+                }
+                if (!Schema::hasColumn('intakes', 'capacity')) {
+                    $table->unsignedInteger('capacity')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('program_modules')) {
+            Schema::table('program_modules', function (Blueprint $table) {
+                if (!Schema::hasColumn('program_modules', 'curriculum_version_id')) {
+                    $table->string('curriculum_version_id')->nullable();
+                }
+                if (!Schema::hasColumn('program_modules', 'credits')) {
+                    $table->unsignedInteger('credits')->default(3);
+                }
+                if (!Schema::hasColumn('program_modules', 'is_core')) {
+                    $table->boolean('is_core')->default(true);
+                }
+                if (!Schema::hasColumn('program_modules', 'supported_delivery_modes')) {
+                    $table->json('supported_delivery_modes')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('course_lecturer_assignments')) {
+            Schema::table('course_lecturer_assignments', function (Blueprint $table) {
+                if (!Schema::hasColumn('course_lecturer_assignments', 'course_id')) {
+                    $table->string('course_id')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'module_id')) {
+                    $table->string('module_id')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_provider')) {
+                    $table->string('meeting_provider')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_url')) {
+                    $table->text('meeting_url')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_schedule')) {
+                    $table->json('meeting_schedule')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_notes')) {
+                    $table->text('meeting_notes')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('course_sessions')) {
+            Schema::table('course_sessions', function (Blueprint $table) {
+                if (!Schema::hasColumn('course_sessions', 'course_id')) {
+                    $table->string('course_id')->nullable();
+                }
+                if (!Schema::hasColumn('course_sessions', 'delivery_mode')) {
+                    $table->string('delivery_mode')->default('hybrid');
+                }
+            });
+        }
     }
 }

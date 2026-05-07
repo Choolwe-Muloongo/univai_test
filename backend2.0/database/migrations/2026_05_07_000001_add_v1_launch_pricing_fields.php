@@ -23,6 +23,33 @@ return new class extends Migration
 
         if (Schema::hasTable('programs')) {
             Schema::table('programs', function (Blueprint $table) {
+                if (!Schema::hasColumn('programs', 'qualification_level_id')) {
+                    $table->string('qualification_level_id')->nullable()->after('school_id');
+                }
+                if (!Schema::hasColumn('programs', 'credits')) {
+                    $table->unsignedInteger('credits')->nullable()->after('description');
+                }
+                if (!Schema::hasColumn('programs', 'duration_months')) {
+                    $table->unsignedInteger('duration_months')->nullable()->after('credits');
+                }
+                if (!Schema::hasColumn('programs', 'admission_requirements')) {
+                    $table->text('admission_requirements')->nullable()->after('duration_months');
+                }
+                if (!Schema::hasColumn('programs', 'delivery_modes')) {
+                    $table->json('delivery_modes')->nullable()->after('admission_requirements');
+                }
+                if (!Schema::hasColumn('programs', 'exam_clinic_required')) {
+                    $table->boolean('exam_clinic_required')->default(false)->after('delivery_modes');
+                }
+                if (!Schema::hasColumn('programs', 'requires_accreditation_approval')) {
+                    $table->boolean('requires_accreditation_approval')->default(false)->after('exam_clinic_required');
+                }
+                if (!Schema::hasColumn('programs', 'accreditation_approved_at')) {
+                    $table->timestamp('accreditation_approved_at')->nullable()->after('requires_accreditation_approval');
+                }
+                if (!Schema::hasColumn('programs', 'launch_status')) {
+                    $table->string('launch_status')->default('draft')->after('accreditation_approved_at');
+                }
                 if (!Schema::hasColumn('programs', 'application_fee')) {
                     $table->decimal('application_fee', 10, 2)->default(0)->after('launch_status');
                 }
@@ -96,8 +123,17 @@ return new class extends Migration
             Schema::create('programs', function (Blueprint $table) {
                 $table->string('id')->primary();
                 $table->string('school_id');
+                $table->string('qualification_level_id')->nullable();
                 $table->string('title');
                 $table->text('description');
+                $table->unsignedInteger('credits')->nullable();
+                $table->unsignedInteger('duration_months')->nullable();
+                $table->text('admission_requirements')->nullable();
+                $table->json('delivery_modes')->nullable();
+                $table->boolean('exam_clinic_required')->default(false);
+                $table->boolean('requires_accreditation_approval')->default(false);
+                $table->timestamp('accreditation_approved_at')->nullable();
+                $table->string('launch_status')->default('draft');
                 $table->string('award_type')->default('degree');
                 $table->string('qualification_level')->nullable();
                 $table->unsignedInteger('duration_semesters')->default(1);
