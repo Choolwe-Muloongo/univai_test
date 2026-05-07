@@ -25,6 +25,10 @@ class Program extends Model
         'requires_accreditation_approval',
         'accreditation_approved_at',
         'launch_status',
+        'application_fee',
+        'application_currency',
+        'tuition_fee',
+        'tuition_currency',
         'award_type',
         'qualification_level',
         'duration_semesters',
@@ -45,6 +49,8 @@ class Program extends Model
         'credits' => 'integer',
         'duration_semesters' => 'integer',
         'total_credits' => 'integer',
+        'application_fee' => 'decimal:2',
+        'tuition_fee' => 'decimal:2',
     ];
 
     public function modules(): HasMany
