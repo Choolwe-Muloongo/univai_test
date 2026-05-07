@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\DeliveryModes;
 use App\Support\Branding\UnivAiBranding;
+use App\Support\Pricing\LaunchFeeSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -109,6 +110,23 @@ class AdmissionsController extends Controller
         ]);
 
         $request->session()->put('admission_reference', $application->reference);
+
+        if ($userId) {
+            $fee = LaunchFeeSchedule::programApplicationFee($program);
+            Invoice::firstOrCreate(
+                ['student_id' => $userId, 'type' => 'application_fee', 'title' => 'Application fee: ' . $program->title],
+                [
+                    'uuid' => (string) Str::uuid(),
+                    'description' => 'Programme application fee for ' . $program->title,
+                    'amount' => $fee['amount'],
+                    'currency' => $fee['currency'],
+                    'paid_amount' => 0,
+                    'status' => 'pending',
+                    'metadata' => ['application_reference' => $application->reference, 'program_id' => $program->id],
+                    'due_date' => now()->addDays(7)->toDateString(),
+                ]
+            );
+        }
 
         return response()->json(['status' => $application->status]);
     }
@@ -720,14 +738,20 @@ class AdmissionsController extends Controller
         }
 
         $mode = DeliveryModes::normalize($application->delivery_mode);
-        $amount = round(((float) env('DEFAULT_TUITION_FEE', 650)) * DeliveryModes::feeMultiplier($mode), 2);
+        $program = Program::find($application->program_id);
+        $fee = LaunchFeeSchedule::programTuitionFee($program, $application);
         Invoice::create([
+            'uuid' => (string) Str::uuid(),
             'student_id' => $user->id,
             'intake_id' => $application->intake_id,
             'title' => 'Semester 1 Tuition (' . str_replace('_', '-', $mode) . ')',
-            'amount' => $amount,
+            'description' => 'Tuition fee unlocked after offer acceptance.',
+            'amount' => $fee['amount'],
+            'currency' => $fee['currency'],
             'paid_amount' => 0,
-            'status' => 'unpaid',
+            'status' => 'pending',
+            'type' => 'tuition_fee',
+            'metadata' => ['application_reference' => $application->reference, 'delivery_mode' => $mode],
             'due_date' => now()->addDays(14)->toDateString(),
         ]);
     }

@@ -114,6 +114,50 @@ export async function transitionManagedUser(id: string, toState: string, reason?
   });
 }
 
+
+export type ShortCourseProgress = {
+  status: string;
+  entryFeePaid: boolean;
+  certificateFeePaid: boolean;
+  completedLessons: string[];
+  progress: number;
+  examScore?: string | number | null;
+  completedAt?: string | null;
+  certificateIssuedAt?: string | null;
+};
+
+export type PaymentInitiation = {
+  invoiceId?: number;
+  checkout_url?: string | null;
+  checkoutUrl?: string | null;
+  reference?: string;
+  status?: string;
+};
+
+export async function enrollShortCourse(courseId: string): Promise<PaymentInitiation> {
+  return apiFetch(`/students/me/short-courses/${courseId}/enroll`, { method: 'POST' });
+}
+
+export async function getShortCourseProgress(courseId: string): Promise<ShortCourseProgress> {
+  return apiFetch(`/students/me/short-courses/${courseId}/progress`);
+}
+
+export async function completeShortCourseLesson(courseId: string, lessonId: string): Promise<{ progress: number; completedLessons: number }> {
+  return apiFetch(`/students/me/short-courses/${courseId}/lessons/${lessonId}/complete`, { method: 'POST' });
+}
+
+export async function submitShortCourseExam(courseId: string, answers: string[]): Promise<{ score: number; passed: boolean }> {
+  return apiFetch(`/students/me/short-courses/${courseId}/exam`, {
+    method: 'POST',
+    body: JSON.stringify({ answers }),
+  });
+}
+
+export async function payShortCourseCertificate(courseId: string): Promise<PaymentInitiation> {
+  return apiFetch(`/students/me/short-courses/${courseId}/certificate/pay`, { method: 'POST' });
+}
+
+
 export async function getSchools(): Promise<School[]> {
   return apiFetch('/schools');
 }
@@ -521,10 +565,10 @@ export async function getInvoices(): Promise<Invoice[]> {
   return apiFetch('/students/me/invoices');
 }
 
-export async function payInvoice(invoiceId: number, amount?: number): Promise<Invoice> {
+export async function payInvoice(invoiceId: number, amount?: number): Promise<PaymentInitiation> {
   return apiFetch(`/students/me/invoices/${invoiceId}/pay`, {
     method: 'POST',
-    body: JSON.stringify({ amount }),
+    body: amount ? JSON.stringify({ amount }) : undefined,
   });
 }
 
