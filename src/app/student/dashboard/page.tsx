@@ -28,7 +28,11 @@ import { PageHeader } from "@/components/student/page-header";
 import { StatCard } from "@/components/student/stat-card";
 import { EmptyState } from "@/components/student/empty-state";
 import { type Program } from "@/lib/api/types";
-import { getProgram, getStudentDashboard } from "@/lib/api";
+import {
+  getProgram,
+  getStudentDashboard,
+  getStudentEntitlements,
+} from "@/lib/api";
 import {
   STUDENT_ACCESS_TIER_LABELS,
   STUDENT_ENTITLEMENT,
@@ -53,19 +57,34 @@ export default function DashboardPage() {
     StudentDashboardDeadline[]
   >([]);
   const [wallet, setWallet] = useState<StudentDashboardWallet | null>(null);
+  const [entitlements, setEntitlements] = useState<string[] | null>(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true);
       const resolvedRole = session?.user?.role ?? null;
       setUserRole(resolvedRole);
-      const accessTier = roleToStudentAccessTier(resolvedRole);
+      if (!session?.user) {
+        setLoading(false);
+        return;
+      }
+
+      let activeEntitlements: string[] = [];
+      try {
+        const entitlementData = await getStudentEntitlements();
+        activeEntitlements = entitlementData.entitlements;
+        setEntitlements(activeEntitlements);
+      } catch (error) {
+        console.error("Failed to load student entitlements", error);
+        setEntitlements(activeEntitlements);
+      }
+
       const hasProgrammeAccess = hasStudentEntitlement(
         STUDENT_ENTITLEMENT.PROGRAMME,
-        session?.user?.entitlements,
-        accessTier,
+        activeEntitlements,
+        null,
       );
-      if (!session?.user || !hasProgrammeAccess) {
+      if (!hasProgrammeAccess) {
         setLoading(false);
         return;
       }
@@ -103,8 +122,8 @@ export default function DashboardPage() {
   const accessTier = roleToStudentAccessTier(userRole);
   const hasProgrammeAccess = hasStudentEntitlement(
     STUDENT_ENTITLEMENT.PROGRAMME,
-    session?.user?.entitlements,
-    accessTier,
+    entitlements ?? session?.user?.entitlements,
+    null,
   );
   const tierLabel = STUDENT_ACCESS_TIER_LABELS[accessTier];
 

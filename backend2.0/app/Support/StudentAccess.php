@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\StudentEntitlement;
+use App\Models\AcademicEntitlement;
 use App\Models\User;
 use Illuminate\Support\Arr;
 
@@ -17,6 +17,15 @@ class StudentAccess
     public const ENTITLEMENT_CERTIFICATE = 'certificate-access';
     public const ENTITLEMENT_PREMIUM = 'premium-access';
     public const ENTITLEMENT_PROGRAMME = 'programme-access';
+    public const ENTITLEMENT_COHORT = 'cohort-access';
+    public const ENTITLEMENT_EXAM_CLINIC = 'exam-clinic-access';
+
+    public const SCOPE_SHORT_COURSE = 'short_course';
+    public const SCOPE_CERTIFICATE = 'certificate';
+    public const SCOPE_PREMIUM = 'premium';
+    public const SCOPE_PROGRAMME = 'programme';
+    public const SCOPE_COHORT = 'cohort';
+    public const SCOPE_EXAM_CLINIC = 'exam_clinic';
 
     public const ROLE_FREE = 'free-student';
     public const ROLE_CERTIFICATE = 'certificate-student';
@@ -56,6 +65,18 @@ class StudentAccess
         };
     }
 
+    public static function supportedScopes(): array
+    {
+        return [
+            self::SCOPE_SHORT_COURSE,
+            self::SCOPE_CERTIFICATE,
+            self::SCOPE_PREMIUM,
+            self::SCOPE_PROGRAMME,
+            self::SCOPE_COHORT,
+            self::SCOPE_EXAM_CLINIC,
+        ];
+    }
+
     public static function cashbackEligible(?string $tier): bool
     {
         return in_array($tier, [self::TIER_PREMIUM, self::TIER_PROGRAMME], true);
@@ -78,46 +99,68 @@ class StudentAccess
     {
         $entitlements = self::entitlementsForTier($tier);
 
-        foreach ($entitlements as $type) {
-            StudentEntitlement::query()->updateOrCreate(
+        foreach ($entitlements as $code) {
+            AcademicEntitlement::query()->updateOrCreate(
                 [
                     'user_id' => $user->id,
-                    'type' => $type,
+                    'code' => $code,
+                    'scope_type' => null,
+                    'scope_id' => null,
                 ],
                 [
                     'status' => 'active',
-                    'source' => $source,
                     'starts_at' => now(),
-                    'expires_at' => null,
+                    'ends_at' => null,
+                    'metadata' => ['source' => $source],
                 ]
             );
         }
 
-        StudentEntitlement::query()
+        AcademicEntitlement::query()
             ->where('user_id', $user->id)
-            ->whereNotIn('type', $entitlements)
+            ->whereNull('scope_type')
+            ->whereNull('scope_id')
+            ->whereNotIn('code', $entitlements)
             ->update(['status' => 'revoked']);
 
         return $entitlements;
     }
 
-    public static function userHasEntitlement(?User $user, string $type, ?array $sessionUser = null): bool
+    public static function activeEntitlementsForUser(User $user): array
     {
-        if ($sessionUser && in_array($type, $sessionUser['entitlements'] ?? [], true)) {
-            return true;
-        }
-
-        if (!$user) {
-            $tier = $sessionUser ? ($sessionUser['accessTier'] ?? self::tierFromRole($sessionUser['role'] ?? null)) : null;
-            return in_array($type, self::entitlementsForTier($tier), true);
-        }
-
-        return StudentEntitlement::query()
+        return AcademicEntitlement::query()
             ->where('user_id', $user->id)
-            ->where('type', $type)
             ->where('status', 'active')
             ->where(function ($query) {
-                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                $query->whereNull('starts_at')->orWhere('starts_at', '<=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->pluck('code')
+            ->all();
+    }
+
+    public static function userHasEntitlement(?User $user, string $code, ?array $sessionUser = null): bool
+    {
+        if (!$user) {
+            if ($sessionUser && in_array($code, $sessionUser['entitlements'] ?? [], true)) {
+                return true;
+            }
+
+            $tier = $sessionUser ? ($sessionUser['accessTier'] ?? self::tierFromRole($sessionUser['role'] ?? null)) : null;
+            return in_array($code, self::entitlementsForTier($tier), true);
+        }
+
+        return AcademicEntitlement::query()
+            ->where('user_id', $user->id)
+            ->where('code', $code)
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('starts_at')->orWhere('starts_at', '<=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
             })
             ->exists();
     }

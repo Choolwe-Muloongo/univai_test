@@ -223,9 +223,7 @@ class AccessControl
 
     private function entitlementCodes(User $user): array
     {
-        $codes = $user->activeEntitlements->pluck('code')->all();
-
-        return array_values(array_unique(array_merge($codes, $this->fallbackEntitlements($user->role))));
+        return array_values(array_unique($user->activeEntitlements->pluck('code')->all()));
     }
 
     private function verificationSatisfies(?string $actual, string $required): bool

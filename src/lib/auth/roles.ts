@@ -199,6 +199,8 @@ export const STUDENT_ENTITLEMENT = {
   CERTIFICATE: "certificate-access",
   PREMIUM: "premium-access",
   PROGRAMME: "programme-access",
+  COHORT: "cohort-access",
+  EXAM_CLINIC: "exam-clinic-access",
 } as const;
 
 export type StudentEntitlement =

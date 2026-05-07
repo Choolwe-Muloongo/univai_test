@@ -14,12 +14,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getExamResults } from "@/lib/api";
+import { getExamResults, getStudentEntitlements } from "@/lib/api";
 import { useSession } from "@/components/providers/session-provider";
 import {
   STUDENT_ENTITLEMENT,
   hasStudentEntitlement,
-  roleToStudentAccessTier,
 } from "@/lib/auth/roles";
 
 type ExamResult = {
@@ -36,22 +35,29 @@ export default function CertificatesPage() {
   const [certificates, setCertificates] = useState<CertificateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [entitlements, setEntitlements] = useState<string[] | null>(null);
 
-  const accessTier = roleToStudentAccessTier(session?.user?.role);
   const hasCertificateAccess = hasStudentEntitlement(
     STUDENT_ENTITLEMENT.CERTIFICATE,
-    session?.user?.entitlements,
-    accessTier,
+    entitlements ?? session?.user?.entitlements,
+    null,
   );
 
   useEffect(() => {
-    if (!hasCertificateAccess) {
-      setLoading(false);
-      return;
-    }
-
     const loadCertificates = async () => {
       try {
+        const entitlementData = await getStudentEntitlements();
+        setEntitlements(entitlementData.entitlements);
+
+        if (!hasStudentEntitlement(
+          STUDENT_ENTITLEMENT.CERTIFICATE,
+          entitlementData.entitlements,
+          null,
+        )) {
+          setLoading(false);
+          return;
+        }
+
         const results = (await getExamResults()) as Record<string, ExamResult>;
         const rows = Object.entries(results || {}).map(([id, result]) => ({
           id,
@@ -71,7 +77,7 @@ export default function CertificatesPage() {
       }
     };
     loadCertificates();
-  }, [hasCertificateAccess]);
+  }, [session]);
 
   if (loading) {
     return (

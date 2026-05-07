@@ -75,19 +75,14 @@ class StudentsController extends Controller
         if (isset($sessionUser['id']) && is_numeric($sessionUser['id'])) {
             $dbUser = User::find((int) $sessionUser['id']);
             if ($dbUser) {
-                $active = $dbUser->studentEntitlements()
-                    ->where('status', 'active')
-                    ->where(function ($query) {
-                        $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
-                    })
-                    ->pluck('type')
-                    ->all();
+                $active = StudentAccess::activeEntitlementsForUser($dbUser);
 
-                if (!empty($active)) {
-                    $sessionUser['entitlements'] = $active;
-                } else {
-                    StudentAccess::syncUserEntitlements($dbUser, $sessionUser['accessTier'], 'session-bootstrap');
+                if (empty($active)) {
+                    $active = StudentAccess::syncUserEntitlements($dbUser, $sessionUser['accessTier'], 'session-bootstrap');
                 }
+
+                $sessionUser['entitlements'] = $active;
+                $request->session()->put('user', $sessionUser);
             }
         }
 
