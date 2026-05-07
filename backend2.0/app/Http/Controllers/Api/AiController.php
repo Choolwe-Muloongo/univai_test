@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Support\Branding\UnivAiBranding;
 use Illuminate\Support\Facades\Http;
 
 class AiController extends Controller
@@ -18,6 +19,8 @@ class AiController extends Controller
             'approvedMaterials' => 'nullable|string',
             'accessTier' => 'nullable|string',
             'feature' => 'nullable|string',
+            'audience' => 'nullable|string',
+            'brandContext' => 'nullable|string',
         ]);
 
         $mode = $data['mode'] ?? 'general';
@@ -27,7 +30,7 @@ class AiController extends Controller
             'weak-areas' => 'tutor',
             default => $mode,
         };
-        $allowedModes = ['general', 'lesson', 'quiz', 'summary', 'tutor'];
+        $allowedModes = ['general', 'lesson', 'quiz', 'summary', 'tutor', 'document', 'video', 'email', 'public-notice', 'admissions-letter'];
         if (!in_array($mode, $allowedModes, true)) {
             return response()->json(['error' => 'Unsupported AI mode.'], 422);
         }
@@ -60,9 +63,13 @@ class AiController extends Controller
 
         $context = trim($data['context'] ?? '');
         $approvedMaterials = trim($data['approvedMaterials'] ?? '');
+        $brandContext = trim($data['brandContext'] ?? '');
         $maxContext = (int) env('AI_MAX_CONTEXT', 8000);
         if ($context !== '' && mb_strlen($context) > $maxContext) {
             return response()->json(['error' => "Context exceeds {$maxContext} characters."], 422);
+        }
+        if ($brandContext !== '' && mb_strlen($brandContext) > 3000) {
+            return response()->json(['error' => 'Brand context exceeds 3000 characters.'], 422);
         }
 
         logger()->info('ai_request', [
@@ -73,6 +80,8 @@ class AiController extends Controller
             'prompt_length' => mb_strlen($prompt),
             'context_length' => mb_strlen($context),
             'approved_materials_length' => mb_strlen($approvedMaterials),
+            'brand_context_length' => mb_strlen($brandContext),
+            'audience' => $data['audience'] ?? null,
             'user_id' => is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null,
         ]);
 
@@ -82,6 +91,12 @@ class AiController extends Controller
         }
         if ($context !== '') {
             $systemInstruction .= "\n\nStudent context:\n{$context}";
+        }
+        if ($brandContext !== '') {
+            $systemInstruction .= "\n\nAdditional UnivAI brand/context requirements:\n{$brandContext}";
+        }
+        if (!empty($data['audience'])) {
+            $systemInstruction .= "\n\nAudience: {$data['audience']}";
         }
 
         $provider = env('AI_PROVIDER', 'gemini');
@@ -98,7 +113,7 @@ class AiController extends Controller
             $baseUrl = rtrim(env('AI_BASE_URL', 'https://api.apifree.ai'), '/');
 
             $payload = [
-                'max_tokens' => 1024,
+                'max_tokens' => (int) env('AI_MAX_TOKENS', 1024),
                 'messages' => [
                     ['role' => 'system', 'content' => $systemInstruction],
                     ['role' => 'user', 'content' => $prompt],
@@ -176,13 +191,20 @@ class AiController extends Controller
 
     private function systemInstructionFor(string $mode, string $tier, array $policy): string
     {
-        $base = "You are UnivAI's academic assistant for a hybrid university. UnivAI is a real university with programs, modules, assessments, and human academic governance. Use the provided student context to personalize responses and reference their program, progress, GPA, standing, and upcoming tasks. If the student asks about progress or performance, summarize using the provided context and suggest next actions. If context is missing, ask a clarifying question instead of guessing. Be concise, structured, and accurate. Apply this AI access tier: {$policy['label']}. {$policy['guidance']}";
+        $brand = UnivAiBranding::brand();
+        $guardrails = implode(' ', config('univai.ai.brand_guardrails', []));
+        $base = "You are " . UnivAiBranding::name() . "'s academic assistant for an online-first and hybrid university platform. Brand name: " . UnivAiBranding::name() . ". Legal name: " . ($brand['legal_name'] ?? UnivAiBranding::name()) . ". Tagline: " . ($brand['tagline'] ?? '') . ". Public URL: " . UnivAiBranding::publicUrl() . ". Support email: " . UnivAiBranding::supportEmail() . ". Use UnivAI branding on every public-facing output. Never invent accreditation, tuition, dates, policies, or guarantees not supplied in context. Formal programme content, admissions letters, certificates, policy documents, and public notices must be marked as human-review-required drafts. Use the provided student context to personalize responses and reference their program, progress, GPA, standing, and upcoming tasks. If context is missing, ask a clarifying question instead of guessing. Be concise, structured, accessible, and accurate. Apply this AI access tier: {$policy['label']}. {$policy['guidance']} Brand guardrails: {$guardrails}";
         $modeInstruction = match ($mode) {
-            'lesson' => 'Produce concise, structured lesson content with objectives, key concepts, and a short check-for-understanding question.',
-            'quiz' => 'Create short, clear assessment questions with answer keys. Return 3-5 questions.',
-            'summary' => 'Summarize the provided material into a clear, student-friendly explanation.',
-            'tutor' => 'Act as a supportive tutor. Ask clarifying questions when needed and give step-by-step guidance.',
-            default => 'Answer as a helpful university assistant.',
+            'lesson' => 'Produce structured UnivAI lesson content with outcomes, key concepts, examples, activities, accessibility notes, and a check-for-understanding question.',
+            'quiz' => 'Create clear UnivAI assessment questions with answer keys and rationale. Return 3-5 questions unless asked otherwise.',
+            'summary' => 'Summarize the provided material into a clear, student-friendly UnivAI explanation.',
+            'tutor' => 'Act as a supportive UnivAI tutor. Ask clarifying questions when needed and give step-by-step guidance.',
+            'document' => 'Create a branded UnivAI document draft with title, purpose, audience, body, next steps, review status, and support contact.',
+            'video' => 'Create a branded UnivAI video package: learning objectives, narration script, scene-by-scene storyboard, on-screen text, accessibility captions, thumbnail prompt, and production notes.',
+            'email' => 'Create a branded UnivAI email with subject, preview text, greeting, concise body, call to action, support contact, and compliant footer.',
+            'public-notice' => 'Create a branded UnivAI public notice with headline, plain-language summary, details, dates if provided, next steps, support contact, and review-required note.',
+            'admissions-letter' => 'Create a formal UnivAI admissions letter draft with reference placeholders, programme details from context only, conditions, next steps, admissions contact, and review-required note.',
+            default => 'Answer as a helpful UnivAI university assistant.',
         };
 
         $grounding = $tier === 'programme'
@@ -216,22 +238,22 @@ class AiController extends Controller
             'paid-certificate' => [
                 'label' => 'Paid Certificate AI',
                 'maxPrompt' => 2500,
-                'modes' => ['general', 'summary', 'tutor', 'lesson'],
+                'modes' => ['general', 'summary', 'tutor', 'lesson', 'document', 'email'],
                 'features' => ['chat', 'tutor', 'lessonCompanion', 'notes', 'studyPlan'],
                 'guidance' => 'Support certificate completion with course explanations, summaries, and focused revision. Do not provide premium-only flashcards, mock exams, or weak-area diagnostics.',
             ],
             'programme' => [
                 'label' => 'Programme AI',
                 'maxPrompt' => 6000,
-                'modes' => ['general', 'summary', 'tutor', 'lesson', 'quiz'],
-                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'groundedAnswers'],
+                'modes' => ['general', 'summary', 'tutor', 'lesson', 'quiz', 'document', 'video', 'email', 'public-notice', 'admissions-letter'],
+                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'groundedAnswers', 'docs', 'video', 'email', 'publicComms'],
                 'guidance' => 'Programme students receive answers grounded in approved module materials.',
             ],
             default => [
                 'label' => 'Premium AI',
                 'maxPrompt' => 6000,
-                'modes' => ['general', 'summary', 'tutor', 'lesson', 'quiz'],
-                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'cashback'],
+                'modes' => ['general', 'summary', 'tutor', 'lesson', 'quiz', 'document', 'video', 'email', 'public-notice', 'admissions-letter'],
+                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'cashback', 'docs', 'video', 'email', 'publicComms'],
                 'guidance' => 'Premium students receive advanced tutor, adaptive study plan, flashcards, mock exam, and weak-area support.',
             ],
         };

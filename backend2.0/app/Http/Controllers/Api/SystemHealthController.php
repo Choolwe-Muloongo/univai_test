@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\Launch\V1LaunchReadiness;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -123,7 +124,12 @@ class SystemHealthController extends Controller
             ],
         ];
 
+        if (!config('univai.ops.demo_incidents', false)) {
+            $incidentRecords = [];
+        }
+
         $incidentQueueDirectory = $this->buildIncidentQueueDirectory($incidentRecords);
+        $launchReadiness = app(V1LaunchReadiness::class)->report();
 
         return response()->json([
             'uptime' => '99.9%',
@@ -150,6 +156,7 @@ class SystemHealthController extends Controller
             ],
             'incidentQueueDirectory' => $incidentQueueDirectory,
             'incidentRecords' => $incidentRecords,
+            'launchReadiness' => $launchReadiness,
         ]);
     }
 

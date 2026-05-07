@@ -6,7 +6,7 @@ import { createDraftLearningObject } from '@/lib/ai-content-factory';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
-async function callAi(prompt: string, mode: string, context?: string | null, approvedMaterials?: string | null, accessTier?: string | null, feature?: string | null) {
+async function callAi(prompt: string, mode: string, context?: string | null, approvedMaterials?: string | null, accessTier?: string | null, feature?: string | null, brandContext?: string | null, audience?: string | null) {
   const response = await fetch(`${API_BASE_URL}/ai/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -17,6 +17,8 @@ async function callAi(prompt: string, mode: string, context?: string | null, app
       approvedMaterials: approvedMaterials || undefined,
       accessTier: accessTier || undefined,
       feature: feature || undefined,
+      brandContext: brandContext || undefined,
+      audience: audience || undefined,
     }),
     cache: 'no-store',
   });
@@ -262,36 +264,53 @@ export async function generateContentAction(prevState: any, formData: FormData) 
         const intakeName = (formData.get('intakeName') as string) || '';
         const intakeBlock = intakeName ? `Intake context: ${intakeName}\n` : '';
         const sourceBlock = sourceMaterial ? `Use the following source material:\n${sourceMaterial}\n` : '';
-        if (contentType === 'Quiz') {
-          const prompt = `${intakeBlock}${sourceBlock}Create a 5-question multiple-choice quiz about "${topic}".
-Return strict JSON only in this schema:
-{"title":"string","questions":[{"question":"string","options":["A","B","C","D"],"answer":"string"}]}`;
-          const quiz = await callAi(prompt, 'quiz', context);
-          const learningObject = createDraftLearningObject({
-            type: 'Quiz',
-            title: `Quiz: ${topic}`,
-            content: quiz,
-            prompt,
-            generatorFlow: 'generateContentAction',
-            generatedBy: 'lecturer-ai-console',
-            sourceMaterial,
-            programmeContent: true,
-          });
-          return { message: 'Success', errors: null, content: quiz, learningObject };
-        }
-        const prompt = `${intakeBlock}${sourceBlock}Create a practical exercise for the topic "${topic}". Provide instructions and expected outcome.`;
-        const exercise = await callAi(prompt, 'lesson', context);
+        const brandContext = 'Apply UnivAI branding. For any material that goes to students or the public, include review-required status, support contact, accessible language, and do not invent policy/accreditation claims.';
+        const modeByType: Record<string, string> = {
+          Quiz: 'quiz',
+          VideoScript: 'video',
+          Video: 'video',
+          PublicNotice: 'public-notice',
+          AdmissionsLetter: 'admissions-letter',
+          Email: 'email',
+          Document: 'document',
+          Notes: 'document',
+          Slides: 'document',
+          Assignment: 'lesson',
+          Rubric: 'document',
+          StudyGuide: 'document',
+          Flashcards: 'quiz',
+          Exercise: 'lesson',
+        };
+        const promptByType: Record<string, string> = {
+          Quiz: `${intakeBlock}${sourceBlock}Create a 5-question multiple-choice UnivAI quiz about "${topic}". Return strict JSON only in this schema: {"title":"string","questions":[{"question":"string","options":["A","B","C","D"],"answer":"string","rationale":"string"}]}`,
+          VideoScript: `${intakeBlock}${sourceBlock}Create a UnivAI-branded video package for "${topic}" with objectives, narration script, storyboard, on-screen text, captions, thumbnail prompt, and production notes.`,
+          Video: `${intakeBlock}${sourceBlock}Create a UnivAI-branded video package for "${topic}" with objectives, narration script, storyboard, on-screen text, captions, thumbnail prompt, and production notes.`,
+          PublicNotice: `${intakeBlock}${sourceBlock}Create a UnivAI public notice about "${topic}" with headline, plain-language summary, details, next steps, support contact, and review-required note.`,
+          AdmissionsLetter: `${intakeBlock}${sourceBlock}Create a UnivAI admissions letter draft about "${topic}" using only provided facts. Include placeholders for missing reference/program/intake data and mark as review-required.`,
+          Email: `${intakeBlock}${sourceBlock}Create a UnivAI-branded email about "${topic}" with subject, preview text, greeting, body, CTA, support contact, and footer.`,
+          Document: `${intakeBlock}${sourceBlock}Create a UnivAI-branded document about "${topic}" with purpose, audience, body, next steps, review status, and support contact.`,
+          Notes: `${intakeBlock}${sourceBlock}Create UnivAI study notes about "${topic}" with outcomes, explanation, examples, key terms, and review questions.`,
+          Slides: `${intakeBlock}${sourceBlock}Create a UnivAI slide outline about "${topic}" with slide titles, bullets, speaker notes, accessibility notes, and activity prompts.`,
+          Assignment: `${intakeBlock}${sourceBlock}Create a UnivAI assignment brief for "${topic}" with instructions, deliverables, rubric summary, due-date placeholder, and academic integrity note.`,
+          Rubric: `${intakeBlock}${sourceBlock}Create a UnivAI assessment rubric for "${topic}" with criteria, levels, points, feedback guidance, and moderation note.`,
+          StudyGuide: `${intakeBlock}${sourceBlock}Create a UnivAI study guide for "${topic}" with weekly plan, resources, practice tasks, and self-check questions.`,
+          Flashcards: `${intakeBlock}${sourceBlock}Create UnivAI flashcards for "${topic}" as strict JSON: {"title":"string","cards":[{"front":"string","back":"string"}]}`,
+          Exercise: `${intakeBlock}${sourceBlock}Create a practical UnivAI exercise for "${topic}". Provide instructions, expected outcome, support notes, and marking guidance.`,
+        };
+        const prompt = promptByType[contentType] ?? promptByType.Document;
+        const mode = modeByType[contentType] ?? 'document';
+        const content = await callAi(prompt, mode, context, sourceMaterial, 'programme', 'publicComms', brandContext, 'students and public stakeholders');
         const learningObject = createDraftLearningObject({
-          type: 'Exercise',
-          title: `Exercise: ${topic}`,
-          content: exercise,
+          type: contentType,
+          title: `${contentType}: ${topic}`,
+          content,
           prompt,
           generatorFlow: 'generateContentAction',
           generatedBy: 'lecturer-ai-console',
           sourceMaterial,
           programmeContent: true,
         });
-        return { message: 'Success', errors: null, content: exercise, learningObject };
+        return { message: 'Success', errors: null, content, learningObject };
       } catch (error) {
         console.error('Content generation error:', error);
         return { 

@@ -40,21 +40,78 @@ use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
 use App\Http\Controllers\Api\ExamClinicController;
+use App\Http\Controllers\Api\AdminUsersController;
+use App\Support\Access\AccessControl;
+use App\Support\Launch\V1LaunchReadiness;
 use App\Support\StudentAccess;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 Route::middleware('api')->group(function () {
     Route::get('/health', function () {
         return response()->json([
             'status' => 'ok',
+            'brand' => config('univai.brand.name'),
+            'targetRegisteredUsers' => config('univai.capacity.target_registered_users'),
+            'roles' => array_keys(AccessControl::roleCapabilities()),
             'time' => now()->toISOString(),
         ]);
     });
+
+    Route::get('/launch-readiness', function (V1LaunchReadiness $readiness) {
+        $report = $readiness->report();
+
+        return response()->json($report, $report['readyForV1Launch'] ? 200 : 503);
+    })->middleware('throttle:general');
+
+    Route::get('/readiness', function () {
+        $checks = [
+            'database' => false,
+            'cache' => false,
+            'storage' => false,
+        ];
+
+        try {
+            DB::connection()->select('select 1');
+            $checks['database'] = true;
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        try {
+            $key = 'univai_readiness_' . app()->environment();
+            Cache::put($key, now()->toISOString(), 30);
+            $checks['cache'] = Cache::has($key);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        try {
+            $path = 'readiness/.probe';
+            Storage::disk('local')->put($path, now()->toISOString());
+            $checks['storage'] = Storage::disk('local')->exists($path);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $ready = !in_array(false, $checks, true);
+
+        return response()->json([
+            'status' => $ready ? 'ready' : 'degraded',
+            'checks' => $checks,
+            'time' => now()->toISOString(),
+        ], $ready ? 200 : 503);
+    })->middleware('throttle:general');
 
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:login');
     Route::post('/auth/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:login');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('session.auth');
     Route::get('/auth/me', [AuthController::class, 'me'])->middleware('session.auth');
+    Route::get('/auth/capabilities', function (AccessControl $accessControl) {
+        return response()->json($accessControl->capabilitiesFor(session('user')));
+    })->middleware('session.auth');
 
     Route::get('/schools', [CatalogController::class, 'schools']);
     Route::get('/programs', [ProgramsController::class, 'index']);
@@ -70,7 +127,7 @@ Route::middleware('api')->group(function () {
     Route::get('/courses/{courseId}/exam', [CatalogController::class, 'courseExam']);
     Route::get('/lessons', [CatalogController::class, 'lessons']);
     Route::get('/lessons/{lessonId}', [CatalogController::class, 'lesson']);
-    Route::patch('/lessons/{lessonId}', [CatalogController::class, 'updateLesson']);
+    Route::patch('/lessons/{lessonId}', [CatalogController::class, 'updateLesson'])->middleware(['session.auth', 'access:lecturer.portal,admin.academic']);
 
     Route::get('/jobs', [JobsController::class, 'index']);
     Route::post('/jobs', [JobsController::class, 'store'])->middleware(['session.auth', 'access:employer.portal']);
@@ -193,7 +250,7 @@ Route::middleware('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'employer']);
     });
 
-    Route::prefix('admin')->middleware(['session.auth', 'role:admin,exam-officer'])->group(function () {
+    Route::prefix('admin')->middleware(['session.auth', 'access:admin.exam'])->group(function () {
         Route::get('/exam-clinic', [ExamClinicController::class, 'adminOverview']);
         Route::post('/exam-clinic/centres', [ExamClinicController::class, 'storeCentre']);
         Route::patch('/exam-clinic/centres/{centre}/approval', [ExamClinicController::class, 'updateCentreApproval']);
@@ -225,12 +282,24 @@ Route::middleware('api')->group(function () {
         Route::get('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'prerequisites']);
         Route::post('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'addPrerequisite']);
         Route::get('/qualification-levels', [AdminCatalogController::class, 'qualificationLevels']);
-        Route::post('/schools', [AdminCatalogController::class, 'createSchool']);
-        Route::post('/programs', [AdminCatalogController::class, 'createProgram']);
-        Route::post('/courses', [AdminCatalogController::class, 'createCourse']);
-        Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool']);
-        Route::delete('/programs/{id}', [AdminCatalogController::class, 'deleteProgram']);
-        Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse']);
+        Route::get('/access-matrix', fn () => [
+            'permissions' => AccessControl::permissionMatrix(),
+            'roleCapabilities' => AccessControl::roleCapabilities(),
+        ]);
+        Route::get('/users', [AdminUsersController::class, 'index'])->middleware('access:admin.users.manage');
+        Route::post('/users', [AdminUsersController::class, 'store'])->middleware('access:admin.users.manage');
+        Route::patch('/users/{user}', [AdminUsersController::class, 'update'])->middleware('access:admin.users.manage');
+        Route::post('/users/{user}/transition', [AdminUsersController::class, 'transition'])->middleware('access:admin.users.manage');
+
+        Route::post('/schools', [AdminCatalogController::class, 'createSchool'])->middleware('access:admin.academic');
+        Route::patch('/schools/{id}', [AdminCatalogController::class, 'updateSchool'])->middleware('access:admin.academic');
+        Route::post('/programs', [AdminCatalogController::class, 'createProgram'])->middleware('access:admin.academic');
+        Route::patch('/programs/{id}', [AdminCatalogController::class, 'updateProgram'])->middleware('access:admin.academic');
+        Route::post('/courses', [AdminCatalogController::class, 'createCourse'])->middleware('access:admin.academic');
+        Route::patch('/courses/{id}', [AdminCatalogController::class, 'updateCourse'])->middleware('access:admin.academic');
+        Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool'])->middleware('access:admin.academic');
+        Route::delete('/programs/{id}', [AdminCatalogController::class, 'deleteProgram'])->middleware('access:admin.academic');
+        Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse'])->middleware('access:admin.academic');
 
         Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);
         Route::get('/admissions/{id}', [AdmissionsController::class, 'adminShow']);

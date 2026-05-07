@@ -25,7 +25,17 @@ export function buildApiUrl(path: string) {
 
   const cleanBase = API_BASE_URL.replace(/\/$/, '');
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  const apiPath = cleanPath === '/api' || cleanPath.startsWith('/api/') ? cleanPath : `/api${cleanPath}`;
+  const baseIncludesApi = cleanBase === '/api' || cleanBase.endsWith('/api');
+  const pathIncludesApi = cleanPath === '/api' || cleanPath.startsWith('/api/');
+  const apiPath = pathIncludesApi ? cleanPath : `/api${cleanPath}`;
+
+  if (baseIncludesApi && pathIncludesApi) {
+    return `${cleanBase}${cleanPath.replace(/^\/api/, '') || ''}`;
+  }
+
+  if (baseIncludesApi) {
+    return `${cleanBase}${cleanPath}`;
+  }
 
   return `${cleanBase}${apiPath}`;
 }
@@ -35,24 +45,10 @@ export async function apiFetch<T>(
   { parseJson = true, headers, ...options }: FetchOptions = {}
 ): Promise<T> {
   const url = buildApiUrl(path);
-  let cookieHeader: string | undefined;
-
-  if (typeof window === 'undefined') {
-    try {
-      const { cookies } = await import('next/headers');
-      const cookieStore = await cookies();
-      cookieHeader = cookieStore.toString();
-    } catch (error) {
-      cookieHeader = undefined;
-      void error;
-    }
-  }
-
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       ...(headers || {}),
     },
     credentials: 'include',

@@ -19,18 +19,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { createManagedUser, getAdminUsers, transitionManagedUser, updateManagedUser } from '@/lib/api';
+import type { ManagedUser, RoleCapabilities } from '@/lib/api/types';
 
-type UserStatus = 'invited' | 'pending' | 'active' | 'suspended';
-
-type ManagedUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: UserStatus;
-  unit: string;
-  notes?: string;
-};
+type UserStatus = 'invited' | 'pending' | 'active' | 'suspended' | 'applicant' | 'needs_information' | 'enrolled' | 'probation';
 
 const starterUsers: ManagedUser[] = [
   {
@@ -71,25 +63,51 @@ const starterUsers: ManagedUser[] = [
   },
 ];
 
-const roleSuggestions = ['student', 'lecturer', 'admin', 'employer', 'future-role'];
+const roleSuggestions = [
+  'super-admin',
+  'admin',
+  'normal-admin',
+  'admissions-admin',
+  'lecturer-admin',
+  'employer-verification-admin',
+  'finance-admin',
+  'read-only-admin',
+  'exam-officer',
+  'student',
+  'free-student',
+  'certificate-student',
+  'premium-student',
+  'programme-student',
+  'lecturer',
+  'employer',
+  'applicant',
+  'lecturer-applicant',
+  'employer-applicant',
+];
 
-const statusStyles: Record<UserStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+const statusStyles: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   invited: 'outline',
   pending: 'secondary',
+  applicant: 'secondary',
+  needs_information: 'secondary',
+  enrolled: 'default',
+  probation: 'outline',
   active: 'default',
   suspended: 'destructive',
 };
 
-function nextStatus(currentStatus: UserStatus): UserStatus {
+function nextStatus(currentStatus: string): UserStatus {
   if (currentStatus === 'invited') return 'pending';
-  if (currentStatus === 'pending') return 'active';
-  if (currentStatus === 'active') return 'suspended';
+  if (currentStatus === 'pending' || currentStatus === 'applicant' || currentStatus === 'needs_information') return 'active';
+  if (currentStatus === 'active' || currentStatus === 'enrolled') return 'suspended';
   return 'active';
 }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<ManagedUser[]>(starterUsers);
+  const [roleCapabilities, setRoleCapabilities] = useState<Record<string, RoleCapabilities>>({});
   const [selectedUserId, setSelectedUserId] = useState(starterUsers[0].id);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -118,6 +136,24 @@ export default function AdminUsersPage() {
 
 
   useEffect(() => {
+    const loadUsers = async () => {
+      setIsLoading(true);
+      try {
+        const response = await getAdminUsers();
+        if (response.data.length > 0) {
+          setUsers(response.data);
+          setSelectedUserId(response.data[0].id);
+        }
+        setRoleCapabilities(response.roleCapabilities);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
+
+  useEffect(() => {
     if (filteredUsers.length === 0) {
       return;
     }
@@ -142,35 +178,34 @@ export default function AdminUsersPage() {
     );
   };
 
-  const handleLifecycleAction = (id: string, status: UserStatus) => {
-    updateUser(id, { status: nextStatus(status) });
+  const handleLifecycleAction = async (id: string, status: string) => {
+    const updated = await transitionManagedUser(id, nextStatus(status), `Admin moved user from ${status} to ${nextStatus(status)}.`);
+    updateUser(id, updated);
   };
 
-  const handleSuspend = (id: string) => {
-    updateUser(id, { status: 'suspended' });
+  const handleSuspend = async (id: string) => {
+    const updated = await transitionManagedUser(id, 'suspended', 'Admin suspended platform access.');
+    updateUser(id, updated);
   };
 
-  const handleReInvite = (id: string) => {
-    updateUser(id, {
-      status: 'invited',
-      notes: 'Invitation refreshed and queued for onboarding delivery.',
-    });
+  const handleReInvite = async (id: string) => {
+    const updated = await transitionManagedUser(id, 'invited', 'Invitation refreshed and queued for onboarding delivery.');
+    updateUser(id, { ...updated, notes: 'Invitation refreshed and queued for onboarding delivery.' });
   };
 
-  const handleCreateInvite = () => {
+  const handleCreateInvite = async () => {
     if (!inviteName.trim() || !inviteEmail.trim() || !inviteRole.trim()) {
       return;
     }
 
-    const newUser: ManagedUser = {
-      id: `usr-${Math.floor(2000 + Math.random() * 8000)}`,
+    const newUser = await createManagedUser({
       name: inviteName.trim(),
       email: inviteEmail.trim(),
       role: inviteRole.trim().toLowerCase(),
-      status: 'invited',
+      state: 'invited',
       unit: inviteUnit.trim() || 'Unassigned',
       notes: inviteNote.trim() || 'Ready for onboarding email and operational assignment.',
-    };
+    });
 
     setUsers((currentUsers) => [newUser, ...currentUsers]);
     setSelectedUserId(newUser.id);
@@ -195,8 +230,7 @@ export default function AdminUsersPage() {
           <CardHeader>
             <CardTitle>Directory</CardTitle>
             <CardDescription>
-              List view for active and pending university platform users. Select a row to inspect details and take
-              actions.
+              {isLoading ? 'Loading the live backend user directory...' : 'Live backend directory for active, pending, invited, and suspended platform users. Select a row to inspect details and take actions.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -256,7 +290,7 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell className="capitalize">{user.role}</TableCell>
                     <TableCell>
-                      <Badge variant={statusStyles[user.status]} className="capitalize">
+                      <Badge variant={statusStyles[user.status] ?? 'outline'} className="capitalize">
                         {user.status}
                       </Badge>
                     </TableCell>
@@ -337,7 +371,7 @@ export default function AdminUsersPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
               <span>User Detail</span>
-              <Badge variant={statusStyles[selectedUser.status]} className="capitalize">
+              <Badge variant={statusStyles[selectedUser.status] ?? 'outline'} className="capitalize">
                 {selectedUser.status}
               </Badge>
             </CardTitle>
@@ -391,7 +425,7 @@ export default function AdminUsersPage() {
                     <Button variant="outline" onClick={() => handleSuspend(selectedUser.id)}>
                       <PauseCircle className="mr-2 h-4 w-4" /> Suspend User
                     </Button>
-                    <Button onClick={() => updateUser(selectedUser.id, { notes: 'Security review requested by admin.' })}>
+                    <Button onClick={async () => updateUser(selectedUser.id, await updateManagedUser(selectedUser.id, { notes: 'Security review requested by admin.' }))}>
                       <ShieldPlus className="mr-2 h-4 w-4" /> Trigger Review
                     </Button>
                   </>
@@ -399,7 +433,7 @@ export default function AdminUsersPage() {
 
                 {selectedUser.status === 'suspended' && (
                   <>
-                    <Button onClick={() => updateUser(selectedUser.id, { status: 'active' })}>
+                    <Button onClick={async () => updateUser(selectedUser.id, await transitionManagedUser(selectedUser.id, 'active', 'Admin reactivated platform access.'))}>
                       <PlayCircle className="mr-2 h-4 w-4" /> Reactivate User
                     </Button>
                     <Button variant="outline" onClick={() => handleReInvite(selectedUser.id)}>
@@ -410,6 +444,19 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
+            {selectedUser.capabilities && (
+              <div className="rounded-lg border bg-blue-50 p-4 text-sm">
+                <p className="font-semibold">Role capability source of truth</p>
+                <p className="mt-1 text-muted-foreground">{selectedUser.capabilities.dashboard}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {Object.entries(selectedUser.capabilities)
+                    .filter(([key, value]) => key.startsWith('can') && value === true)
+                    .map(([key]) => <Badge key={key} variant="secondary">{key.replace(/([A-Z])/g, ' $1')}</Badge>)}
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">Reports: {selectedUser.capabilities.reports.join(', ')}</p>
+              </div>
+            )}
+
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="text-sm font-semibold">Post-creation operational next steps</p>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -418,7 +465,7 @@ export default function AdminUsersPage() {
                 <li>Notify admissions, HR, or faculty operations to complete manual checks.</li>
               </ul>
               <p className="mt-3 text-xs text-muted-foreground">
-                Current note: {selectedUser.notes ?? 'No operational note set.'}
+                Current note: {selectedUser.notes ?? 'No operational note set.'} {roleCapabilities[selectedUser.role] ? `Backend policy: ${roleCapabilities[selectedUser.role].dashboard}` : ''}
               </p>
             </div>
           </CardContent>

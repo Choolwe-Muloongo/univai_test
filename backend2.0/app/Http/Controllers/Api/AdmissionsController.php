@@ -12,6 +12,7 @@ use App\Models\Program;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\DeliveryModes;
+use App\Support\Branding\UnivAiBranding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -522,7 +523,7 @@ class AdmissionsController extends Controller
             return response()->json(['message' => 'Offer letter file missing'], 404);
         }
 
-        return Storage::disk('local')->download($application->offer_letter_url, 'UnivAI-Offer-Letter.pdf');
+        return Storage::disk('local')->download($application->offer_letter_url, UnivAiBranding::name() . '-Offer-Letter.pdf');
     }
 
     private function resolveApplicationForSession(Request $request): ?Application
@@ -613,31 +614,13 @@ class AdmissionsController extends Controller
 
     private function generateOfferLetterPdf(Application $application): ?string
     {
-        $body = $application->offer_letter_message
-            ?? "Congratulations! We are pleased to offer you admission into {$application->program_id}.";
-
-        $text = implode("\n", [
-            'UnivAI Offer Letter',
-            '',
-            "Dear {$application->full_name},",
-            '',
-            $body,
-            '',
-            "Program: {$application->program_id}",
-            "Delivery mode: {$application->delivery_mode}",
-            "Intake: {$application->intake_id}",
-            '',
-            'Please log in to your admissions portal to accept this offer and continue enrollment.',
-            '',
-            'Sincerely,',
-            'UnivAI Admissions',
-        ]);
+        $text = UnivAiBranding::offerLetterText($application);
 
         if (class_exists(\FPDF::class)) {
             $pdf = new \FPDF();
             $pdf->AddPage();
             $pdf->SetFont('Arial', 'B', 16);
-            $pdf->Cell(0, 10, 'UnivAI Offer Letter', 0, 1);
+            $pdf->Cell(0, 10, UnivAiBranding::name() . ' Offer Letter', 0, 1);
             $pdf->SetFont('Arial', '', 12);
             $pdf->Ln(4);
             $pdf->MultiCell(0, 6, $text);
@@ -706,9 +689,11 @@ class AdmissionsController extends Controller
     private function notifyApplicant(Application $application, string $subject, string $message): void
     {
         try {
-            Mail::raw($message, function ($mail) use ($application, $subject) {
+            $brandedMessage = $message . "\n\n" . UnivAiBranding::publicFooter();
+            Mail::raw($brandedMessage, function ($mail) use ($application, $subject) {
                 $mail->to($application->email)
-                    ->subject($subject);
+                    ->replyTo(UnivAiBranding::admissionsEmail(), UnivAiBranding::name() . ' Admissions')
+                    ->subject(UnivAiBranding::emailSubject($subject));
             });
         } catch (\Throwable $exception) {
             logger()->warning('Failed to send applicant email', [

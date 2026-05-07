@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE_URL } from '@/lib/api/client';
+import { apiFetch, buildApiUrl } from '@/lib/api/client';
 import type {
   AdmissionStatus,
   AdmissionsSettings,
@@ -69,6 +69,7 @@ import type {
   LecturerApplication,
   AiResponse,
   SystemHealthData,
+  LaunchReadinessReport,
   ExamCentre,
   ExamRoom,
   ExamInvigilator,
@@ -78,7 +79,40 @@ import type {
   ExamResultsSyncLog,
   ExamClinicOverview,
   StudentEntitlementsResponse,
+  AdminUsersResponse,
+  CreateManagedUserPayload,
+  ManagedUser,
 } from '@/lib/api/types';
+
+
+export async function getAdminUsers(params: { role?: string; state?: string; search?: string } = {}): Promise<AdminUsersResponse> {
+  const query = new URLSearchParams();
+  if (params.role) query.set('role', params.role);
+  if (params.state) query.set('state', params.state);
+  if (params.search) query.set('search', params.search);
+  return apiFetch(`/admin/users${query.toString() ? `?${query.toString()}` : ''}`);
+}
+
+export async function createManagedUser(payload: CreateManagedUserPayload): Promise<ManagedUser> {
+  return apiFetch('/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateManagedUser(id: string, payload: Partial<CreateManagedUserPayload & { profileCompleted: boolean }>): Promise<ManagedUser> {
+  return apiFetch(`/admin/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function transitionManagedUser(id: string, toState: string, reason?: string): Promise<ManagedUser> {
+  return apiFetch(`/admin/users/${id}/transition`, {
+    method: 'POST',
+    body: JSON.stringify({ toState, reason }),
+  });
+}
 
 export async function getSchools(): Promise<School[]> {
   return apiFetch('/schools');
@@ -403,7 +437,7 @@ export async function uploadLessonDocument(
   lessonId: string,
   formData: FormData
 ): Promise<LessonDocument> {
-  const response = await fetch(`${API_BASE_URL}/lecturer/lessons/${lessonId}/documents`, {
+  const response = await fetch(buildApiUrl(`/lecturer/lessons/${lessonId}/documents`), {
     method: 'POST',
     body: formData,
     credentials: 'include',
@@ -794,7 +828,7 @@ export async function uploadAdmissionDocument(documentType: string, file: File):
   const formData = new FormData();
   formData.append('documentType', documentType);
   formData.append('file', file);
-  const response = await fetch(`${API_BASE_URL}/admissions/me/documents`, {
+  const response = await fetch(buildApiUrl('/admissions/me/documents'), {
     method: 'POST',
     body: formData,
     credentials: 'include',
@@ -859,6 +893,11 @@ export async function generateAi(payload: {
   mode?: string;
   model?: string;
   context?: string;
+  approvedMaterials?: string;
+  accessTier?: string;
+  feature?: string;
+  audience?: string;
+  brandContext?: string;
 }): Promise<AiResponse> {
   return apiFetch('/ai/generate', {
     method: 'POST',
@@ -1010,6 +1049,10 @@ export async function getAdminDashboard(): Promise<AdminDashboardData> {
 
 export async function getFinanceReport(): Promise<FinanceReportRow[]> {
   return apiFetch('/admin/reports/finance');
+}
+
+export async function getLaunchReadiness(): Promise<LaunchReadinessReport> {
+  return apiFetch('/launch-readiness');
 }
 
 export async function getSystemHealth(): Promise<SystemHealthData> {
