@@ -1,3 +1,60 @@
+
+export type RoleCapabilities = {
+  dashboard: string;
+  canManageStudents: boolean;
+  canManageAdmissions: boolean;
+  canOpenCloseLecturerApplications: boolean;
+  canApproveLecturers: boolean;
+  canApproveEmployers: boolean;
+  canManageSubscriptions: boolean;
+  canSuspendUsers: boolean;
+  canCreateAdmins: boolean;
+  reports: string[];
+};
+
+export type ManagedUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  accountState?: string | null;
+  verificationStatus?: string | null;
+  profileCompleted?: boolean | null;
+  subscriptionStatus?: string | null;
+  subscriptionTier?: string | null;
+  entitlements?: string[] | null;
+  schoolId?: string | null;
+  programId?: string | null;
+  intakeId?: string | null;
+  unit: string;
+  notes?: string | null;
+  capabilities?: RoleCapabilities | null;
+};
+
+export type AdminUsersResponse = {
+  data: ManagedUser[];
+  roleCapabilities: Record<string, RoleCapabilities>;
+  permissions: Record<string, unknown>;
+};
+
+export type CreateManagedUserPayload = {
+  name: string;
+  email: string;
+  role: string;
+  state?: string;
+  accountState?: string;
+  verificationStatus?: string;
+  schoolId?: string | null;
+  programId?: string | null;
+  intakeId?: string | null;
+  unit?: string;
+  notes?: string;
+  subscriptionTier?: string;
+  subscriptionStatus?: string;
+  entitlements?: string[];
+};
+
 export type AdmissionStatus = {
   status: string;
   admissionFeePaid: boolean;
@@ -847,6 +904,27 @@ export type SystemHealthIncident = {
   timelineUpdates: IncidentTimelineUpdate[];
 };
 
+
+export type LaunchCapabilityStatus = {
+  label: string;
+  ready: boolean;
+  routes: Record<string, boolean>;
+  permissions: Record<string, boolean>;
+};
+
+export type LaunchReadinessReport = {
+  version: string;
+  launchProfile: string;
+  releaseState: string;
+  readyForV1Launch: boolean;
+  targetRegisteredUsers: number;
+  targetConcurrentUsers: number;
+  capabilities: Record<string, LaunchCapabilityStatus>;
+  missingRoutes: string[];
+  missingPermissions: string[];
+  publicContentRule: string;
+};
+
 export type SystemHealthData = {
   uptime: string;
   incidents: number;
@@ -861,6 +939,7 @@ export type SystemHealthData = {
   incidentLifecycleGuide: IncidentLifecycleStep[];
   incidentQueueDirectory: QueueImpact[];
   incidentRecords: SystemHealthIncident[];
+  launchReadiness?: LaunchReadinessReport;
 };
 
 export type ResearchApplication = {

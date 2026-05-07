@@ -13,6 +13,10 @@ export const LearningObjectTypeSchema = z.enum([
   'Exercise',
   'StudyPlan',
   'TutorResponse',
+  'PublicNotice',
+  'AdmissionsLetter',
+  'Email',
+  'Document',
 ]);
 export type LearningObjectType = z.infer<typeof LearningObjectTypeSchema>;
 
@@ -67,12 +71,17 @@ export const GenerateContentInputSchema = z.object({
     'Notes',
     'Slides',
     'VideoScript',
+    'Video',
     'Flashcards',
     'Quiz',
     'Assignment',
     'Rubric',
     'StudyGuide',
     'Exercise',
+    'PublicNotice',
+    'AdmissionsLetter',
+    'Email',
+    'Document',
   ]),
   sourceMaterial: z.string().optional(),
   generatedBy: z.string().default('ai-content-factory'),

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { getSystemHealth, runSystemDiagnostics } from '@/lib/api';
+import type { LaunchReadinessReport } from '@/lib/api/types';
 
 type ServiceStatus = {
   name: string;
@@ -37,6 +38,7 @@ type HealthData = {
     queueLatency?: number;
   };
   incidentRecords?: IncidentRecord[];
+  launchReadiness?: LaunchReadinessReport;
 };
 
 const fallbackHealth: HealthData = {
@@ -175,6 +177,48 @@ export default function SystemHealthPage() {
           </CardContent>
         </Card>
       </div>
+
+
+      <Card>
+        <CardHeader>
+          <CardTitle>V1 Launch Readiness</CardTitle>
+          <CardDescription>University platform + Coursera-style short-course scope.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {data.launchReadiness ? (
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant={data.launchReadiness.readyForV1Launch ? 'default' : 'destructive'}>
+                  {data.launchReadiness.releaseState}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {data.launchReadiness.version} · {data.launchReadiness.launchProfile} · target {data.launchReadiness.targetRegisteredUsers.toLocaleString()} registered users
+                </span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {Object.entries(data.launchReadiness.capabilities).map(([key, capability]) => (
+                  <div key={key} className="rounded-lg border p-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium">{capability.label}</p>
+                      <Badge variant={capability.ready ? 'default' : 'destructive'}>{capability.ready ? 'Ready' : 'Blocked'}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                {data.launchReadiness.publicContentRule}
+              </p>
+              {(data.launchReadiness.missingRoutes.length > 0 || data.launchReadiness.missingPermissions.length > 0) && (
+                <div className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
+                  Missing routes: {data.launchReadiness.missingRoutes.join(', ') || 'none'} · Missing permissions: {data.launchReadiness.missingPermissions.join(', ') || 'none'}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Launch readiness report has not loaded yet.</div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

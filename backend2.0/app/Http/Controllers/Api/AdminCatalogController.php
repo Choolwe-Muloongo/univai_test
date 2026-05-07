@@ -7,7 +7,9 @@ use App\Models\Course;
 use App\Models\Program;
 use App\Models\QualificationLevel;
 use App\Models\School;
+use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AdminCatalogController extends Controller
 {
@@ -22,19 +24,31 @@ class AdminCatalogController extends Controller
     public function createSchool(Request $request)
     {
         $payload = $request->validate([
+            'id' => ['nullable', 'string'],
             'name' => ['required', 'string', 'min:2'],
         ]);
 
-        $id = strtolower(preg_replace('/\s+/', '-', $payload['name']));
         $school = School::updateOrCreate(
-            ['id' => $id],
+            ['id' => $payload['id'] ?? $this->slug($payload['name'])],
             ['name' => $payload['name']]
         );
 
-        return [
-            'id' => $school->id,
-            'name' => $school->name,
-        ];
+        Cache::forget('catalog:schools');
+
+        return $this->mapSchool($school);
+    }
+
+    public function updateSchool(Request $request, string $id)
+    {
+        $payload = $request->validate([
+            'name' => ['required', 'string', 'min:2'],
+        ]);
+
+        $school = School::findOrFail($id);
+        $school->update(['name' => $payload['name']]);
+        Cache::forget('catalog:schools');
+
+        return $this->mapSchool($school);
     }
 
     public function createProgram(Request $request)
@@ -43,7 +57,7 @@ class AdminCatalogController extends Controller
             'id' => ['required', 'string'],
             'title' => ['required', 'string'],
             'description' => ['required', 'string'],
-            'schoolId' => ['required', 'string'],
+            'schoolId' => ['required', 'string', 'exists:schools,id'],
             'qualificationLevelId' => ['required', 'string', 'exists:qualification_levels,id'],
             'credits' => ['nullable', 'integer', 'min:0'],
             'durationMonths' => ['nullable', 'integer', 'min:1'],
@@ -55,12 +69,6 @@ class AdminCatalogController extends Controller
             'accreditationApproved' => ['nullable', 'boolean'],
             'launchStatus' => ['nullable', 'string'],
             'imageId' => ['nullable', 'string'],
-            'certificateType' => ['nullable', 'string'],
-            'pricingType' => ['nullable', 'in:free,paid'],
-            'price' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', 'string', 'size:3'],
-            'durationHours' => ['nullable', 'integer', 'min:0'],
-            'level' => ['nullable', 'string'],
         ]);
 
         $level = QualificationLevel::findOrFail($payload['qualificationLevelId']);
@@ -86,21 +94,142 @@ class AdminCatalogController extends Controller
                 'duration_months' => $payload['durationMonths'] ?? $level->duration_months,
                 'admission_requirements' => $payload['admissionRequirements'] ?? $level->admission_requirements,
                 'delivery_modes' => array_values($deliveryModes),
+                'supported_delivery_modes' => DeliveryModes::normalizeMany($deliveryModes),
                 'exam_clinic_required' => $payload['examClinicRequired'] ?? $level->requires_exam_clinic,
                 'requires_accreditation_approval' => $requiresAccreditation,
                 'accreditation_approved_at' => $accreditationApproved ? now() : null,
                 'launch_status' => $launchStatus,
                 'progress' => 0,
                 'image_id' => $payload['imageId'] ?? null,
-                'certificate_type' => $payload['certificateType'] ?? 'certificate',
-                'pricing_type' => $payload['pricingType'] ?? 'free',
-                'price' => $payload['price'] ?? 0,
-                'currency' => $payload['currency'] ?? 'USD',
-                'duration_hours' => $payload['durationHours'] ?? 0,
-                'level' => $payload['level'] ?? 'beginner',
             ]
         );
 
+        Cache::forget('catalog:programs');
+
+        return $this->mapProgram($program->fresh('qualificationLevel'));
+    }
+
+    public function updateProgram(Request $request, string $id)
+    {
+        $request->merge(['id' => $id] + $request->all());
+        return $this->createProgram($request);
+    }
+
+    public function createCourse(Request $request)
+    {
+        $payload = $request->validate([
+            'id' => ['nullable', 'string'],
+            'title' => ['required', 'string'],
+            'description' => ['required', 'string'],
+            'schoolId' => ['required', 'string', 'exists:schools,id'],
+            'certificateType' => ['nullable', 'string'],
+            'pricingType' => ['nullable', 'in:free,paid'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', 'size:3'],
+            'durationHours' => ['nullable', 'integer', 'min:0'],
+            'level' => ['nullable', 'string'],
+            'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'imageId' => ['nullable', 'string'],
+        ]);
+
+        $course = Course::updateOrCreate(
+            ['id' => $payload['id'] ?? $this->slug($payload['title'])],
+            [
+                'title' => $payload['title'],
+                'description' => $payload['description'],
+                'school_id' => $payload['schoolId'],
+                'certificate_type' => $payload['certificateType'] ?? 'certificate',
+                'pricing_type' => $payload['pricingType'] ?? 'free',
+                'price' => $payload['price'] ?? 0,
+                'currency' => strtoupper($payload['currency'] ?? 'USD'),
+                'duration_hours' => $payload['durationHours'] ?? 0,
+                'level' => $payload['level'] ?? 'beginner',
+                'progress' => $payload['progress'] ?? 0,
+                'image_id' => $payload['imageId'] ?? null,
+            ]
+        );
+
+        $this->forgetCourseCaches($course->id);
+
+        return $this->mapCourse($course);
+    }
+
+    public function updateCourse(Request $request, string $id)
+    {
+        $request->merge(['id' => $id] + $request->all());
+        return $this->createCourse($request);
+    }
+
+    public function deleteSchool(string $id)
+    {
+        $courseIds = Course::where('school_id', $id)->pluck('id');
+        School::where('id', $id)->delete();
+        Course::where('school_id', $id)->delete();
+        Program::where('school_id', $id)->delete();
+
+        Cache::forget('catalog:schools');
+        Cache::forget('catalog:courses');
+        foreach ($courseIds as $courseId) {
+            $this->forgetCourseCaches($courseId);
+        }
+
+        return response()->noContent();
+    }
+
+    public function deleteProgram(string $id)
+    {
+        Program::where('id', $id)->delete();
+        Cache::forget('catalog:programs');
+        return response()->noContent();
+    }
+
+    public function deleteCourse(string $id)
+    {
+        Course::where('id', $id)->delete();
+        $this->forgetCourseCaches($id);
+
+        return response()->noContent();
+    }
+
+    private function mapProgram(Program $program): array
+    {
+        return [
+            'id' => $program->id,
+            'title' => $program->title,
+            'description' => $program->description,
+            'schoolId' => $program->school_id,
+            'qualificationLevelId' => $program->qualification_level_id,
+            'qualificationLevel' => $program->qualificationLevel ? $this->mapQualificationLevel($program->qualificationLevel) : null,
+            'credits' => $program->credits,
+            'durationMonths' => $program->duration_months,
+            'admissionRequirements' => $program->admission_requirements,
+            'deliveryModes' => DeliveryModes::normalizeMany($program->delivery_modes),
+            'examClinicRequired' => (bool) $program->exam_clinic_required,
+            'requiresAccreditationApproval' => (bool) $program->requires_accreditation_approval,
+            'accreditationApprovedAt' => optional($program->accreditation_approved_at)->toISOString(),
+            'launchStatus' => $program->launch_status,
+            'progress' => $program->progress,
+            'imageId' => $program->image_id,
+            'awardType' => $program->award_type,
+            'qualificationLevelName' => $program->qualification_level,
+            'durationSemesters' => $program->duration_semesters,
+            'totalCredits' => $program->total_credits,
+            'deliveryMode' => $program->delivery_mode,
+            'supportedDeliveryModes' => DeliveryModes::normalizeMany($program->supported_delivery_modes),
+            'modules' => [],
+        ];
+    }
+
+    private function mapSchool(School $school): array
+    {
+        return [
+            'id' => $school->id,
+            'name' => $school->name,
+        ];
+    }
+
+    private function mapCourse(Course $course): array
+    {
         return [
             'id' => $course->id,
             'title' => $course->title,
@@ -117,47 +246,17 @@ class AdminCatalogController extends Controller
         ];
     }
 
-    public function deleteSchool(string $id)
+    private function slug(string $value): string
     {
-        School::where('id', $id)->delete();
-        Course::where('school_id', $id)->delete();
-        Program::where('school_id', $id)->delete();
-
-        return response()->noContent();
+        return trim(strtolower(preg_replace('/[^a-z0-9]+/i', '-', $value)), '-');
     }
 
-    public function deleteProgram(string $id)
+    private function forgetCourseCaches(string $courseId): void
     {
-        Program::where('id', $id)->delete();
-        return response()->noContent();
-    }
-
-    public function deleteCourse(string $id)
-    {
-        return $this->deleteProgram($id);
-    }
-
-    private function mapProgram(Program $program): array
-    {
-        return [
-            'id' => $program->id,
-            'title' => $program->title,
-            'description' => $program->description,
-            'schoolId' => $program->school_id,
-            'qualificationLevelId' => $program->qualification_level_id,
-            'qualificationLevel' => $program->qualificationLevel ? $this->mapQualificationLevel($program->qualificationLevel) : null,
-            'credits' => $program->credits,
-            'durationMonths' => $program->duration_months,
-            'admissionRequirements' => $program->admission_requirements,
-            'deliveryModes' => $program->delivery_modes ?? [],
-            'examClinicRequired' => (bool) $program->exam_clinic_required,
-            'requiresAccreditationApproval' => (bool) $program->requires_accreditation_approval,
-            'accreditationApprovedAt' => optional($program->accreditation_approved_at)->toISOString(),
-            'launchStatus' => $program->launch_status,
-            'progress' => $program->progress,
-            'imageId' => $program->image_id,
-            'modules' => [],
-        ];
+        Cache::forget('catalog:courses');
+        Cache::forget("catalog:course:{$courseId}");
+        Cache::forget("catalog:course:{$courseId}:lessons");
+        Cache::forget("catalog:course:{$courseId}:exam");
     }
 
     private function mapQualificationLevel(QualificationLevel $level): array
