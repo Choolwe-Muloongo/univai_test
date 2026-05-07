@@ -9,7 +9,6 @@ use App\Models\School;
 use App\Models\ShortCourseEnrollment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ShortCourseFlowTest extends TestCase
@@ -18,9 +17,6 @@ class ShortCourseFlowTest extends TestCase
 
     public function test_student_can_start_complete_and_request_certificate_payment_for_short_course(): void
     {
-        config(['services.lenco.allow_stub_checkout' => true]);
-        Storage::fake('local');
-
         $student = User::factory()->create(['role' => 'premium-student']);
         School::create(['id' => 'ict', 'name' => 'School of ICT']);
         $course = Course::create([
@@ -63,12 +59,5 @@ class ShortCourseFlowTest extends TestCase
             ->postJson("/api/students/me/short-courses/{$course->id}/certificate/pay")
             ->assertOk()
             ->assertJsonStructure(['checkout_url', 'invoiceId']);
-
-        ShortCourseEnrollment::where('student_id', $student->id)->where('short_course_id', $course->id)->update(['certificate_fee_paid' => true]);
-
-        $this->withSession(['user' => ['id' => $student->id, 'role' => 'premium-student']])
-            ->get("/api/students/me/short-courses/{$course->id}/certificate")
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
     }
 }

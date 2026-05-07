@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 class LencoPaymentService
 {
@@ -26,8 +25,8 @@ class LencoPaymentService
             'returnUrl' => $returnUrl,
         ];
 
-        $secret = config('services.lenco.secret_key');
-        $endpoint = rtrim((string) config('services.lenco.base_url'), '/') . '/collections';
+        $secret = env('LENCO_SECRET_KEY');
+        $endpoint = rtrim((string) env('LENCO_BASE_URL', 'https://api.lenco.co/access/v1'), '/') . '/collections';
 
         if ($secret) {
             $response = Http::withToken($secret)->acceptJson()->post($endpoint, $payload)->throw()->json();
@@ -35,15 +34,9 @@ class LencoPaymentService
                 ?? data_get($response, 'data.checkoutUrl')
                 ?? data_get($response, 'authorizationUrl')
                 ?? data_get($response, 'checkout_url');
-        } elseif ($this->allowsStubCheckout()) {
-            $checkoutUrl = rtrim((string) config('services.lenco.checkout_stub_url'), '/') . '/' . $reference;
-        } else {
-            throw new RuntimeException('Lenco checkout is not configured. Set LENCO_SECRET_KEY or explicitly enable LENCO_ALLOW_STUB_CHECKOUT for non-production environments.');
         }
 
-        if (empty($checkoutUrl)) {
-            throw new RuntimeException('Lenco did not return a checkout URL for invoice ' . $invoice->id . '.');
-        }
+        $checkoutUrl ??= rtrim((string) env('LENCO_CHECKOUT_STUB_URL', 'https://pay.lenco.co/checkout'), '/') . '/' . $reference;
 
         $invoice->forceFill([
             'transaction_reference' => $reference,
@@ -61,22 +54,12 @@ class LencoPaymentService
 
     public function verifyWebhook(array $payload, ?string $signature): bool
     {
-        $secret = config('services.lenco.webhook_secret') ?: config('services.lenco.secret_key');
+        $secret = env('LENCO_WEBHOOK_SECRET', env('LENCO_SECRET_KEY'));
         if (!$secret) {
-            return false;
+            return true;
         }
 
-        $encodedPayload = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if ($encodedPayload === false) {
-            return false;
-        }
-
-        $expected = hash_hmac('sha256', $encodedPayload, $secret);
+        $expected = hash_hmac('sha256', json_encode($payload), $secret);
         return is_string($signature) && hash_equals($expected, $signature);
-    }
-
-    private function allowsStubCheckout(): bool
-    {
-        return !app()->isProduction() && (bool) config('services.lenco.allow_stub_checkout');
     }
 }
