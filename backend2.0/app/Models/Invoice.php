@@ -9,19 +9,29 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Invoice extends Model
 {
     protected $fillable = [
+        'uuid',
         'student_id',
         'intake_id',
         'title',
+        'description',
         'amount',
+        'currency',
         'paid_amount',
         'status',
+        'type',
+        'transaction_reference',
+        'checkout_url',
+        'metadata',
         'due_date',
+        'paid_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'due_date' => 'date',
+        'paid_at' => 'datetime',
+        'metadata' => 'array',
     ];
 
     public function student(): BelongsTo
