@@ -13,19 +13,7 @@ export const ROLE = {
   LECTURER_APPLICANT: 'lecturer-applicant',
   EMPLOYER_APPLICANT: 'employer-applicant',
   EXAM_OFFICER: 'exam-officer',
-  ADMIN: "admin",
-  LECTURER: "lecturer",
-  EMPLOYER: "employer",
-  STUDENT: "student",
-  FREE_STUDENT: "free-student",
-  CERTIFICATE_STUDENT: "certificate-student",
-  PREMIUM_STUDENT: "premium-student",
-  FREEMIUM_STUDENT: "freemium-student",
-  ENROLLED: "enrolled",
-  PROGRAMME_STUDENT: "programme-student",
-  APPLICANT: "applicant",
-  LECTURER_APPLICANT: "lecturer-applicant",
-  EMPLOYER_APPLICANT: "employer-applicant",
+  CERTIFICATE_STUDENT: 'certificate-student',
 } as const;
 
 export type UserRole = (typeof ROLE)[keyof typeof ROLE];
@@ -76,7 +64,6 @@ export const STUDENT_ROLES: readonly UserRole[] = [
   ROLE.PROGRAMME_STUDENT,
   ROLE.FREEMIUM_STUDENT,
   ROLE.ENROLLED,
-  ROLE.PROGRAMME_STUDENT,
 ];
 
 export const ADMIN_ROLES: readonly UserRole[] = [ROLE.ADMIN, ROLE.EXAM_OFFICER];
@@ -96,6 +83,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [ROLE.STUDENT]: 'Student',
   [ROLE.FREE_STUDENT]: 'Free Student',
   [ROLE.PAID_CERTIFICATE_STUDENT]: 'Paid Certificate Student',
+  [ROLE.CERTIFICATE_STUDENT]: 'Certificate Student',
   [ROLE.PREMIUM_STUDENT]: 'Premium Student',
   [ROLE.PROGRAMME_STUDENT]: 'Programme Student',
   [ROLE.FREEMIUM_STUDENT]: 'Freemium Student',
@@ -104,19 +92,6 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [ROLE.LECTURER_APPLICANT]: 'Lecturer Applicant',
   [ROLE.EMPLOYER_APPLICANT]: 'Employer Applicant',
   [ROLE.EXAM_OFFICER]: 'Exam Officer',
-  [ROLE.ADMIN]: "Admin",
-  [ROLE.LECTURER]: "Lecturer",
-  [ROLE.EMPLOYER]: "Employer",
-  [ROLE.STUDENT]: "Student",
-  [ROLE.FREE_STUDENT]: "Free Student",
-  [ROLE.CERTIFICATE_STUDENT]: "Certificate Student",
-  [ROLE.PREMIUM_STUDENT]: "Premium Student",
-  [ROLE.FREEMIUM_STUDENT]: "Freemium Student",
-  [ROLE.ENROLLED]: "Enrolled Student",
-  [ROLE.PROGRAMME_STUDENT]: "Programme Student",
-  [ROLE.APPLICANT]: "Applicant",
-  [ROLE.LECTURER_APPLICANT]: "Lecturer Applicant",
-  [ROLE.EMPLOYER_APPLICANT]: "Employer Applicant",
 };
 
 export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = {
@@ -289,6 +264,8 @@ export function hasStudentEntitlement(
   }
 
   return tier ? studentEntitlementsForTier(tier).includes(entitlement) : false;
+}
+
 export function hasAccess(context: AccessContext, permissionOrRole: AccessPermission | UserRole): boolean {
   const permission = toAccessPermission(permissionOrRole);
   const requirement = permission ? ACCESS_REQUIREMENTS[permission] : undefined;

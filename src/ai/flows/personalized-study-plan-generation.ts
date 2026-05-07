@@ -43,12 +43,10 @@ export async function generatePersonalizedStudyPlan(input: PersonalizedStudyPlan
 const prompt = ai.definePrompt({
   name: 'personalizedStudyPlanPrompt',
   input: {schema: PersonalizedStudyPlanInputSchema},
-  output: {schema: PersonalizedStudyPlanOutputSchema},
+  output: {schema: PersonalizedStudyPlanPromptOutputSchema},
   prompt: `You are an AI-powered study plan generator. You will take a student's learning history, goals, available time, and AI access tier to generate an appropriate study plan.
 
 Free students should receive only brief next-step guidance and no cashback. Paid-certificate students should receive certificate-focused plans. Premium students should receive advanced tutor, study plan, flashcard, mock exam, and weak-area support. Programme students should receive plans grounded in approved module materials.
-  output: {schema: PersonalizedStudyPlanPromptOutputSchema},
-  prompt: `You are an AI-powered study plan generator. You will take a student's learning history, goals, and available time, and generate a personalized study plan for them.
 
 Learning History: {{{learningHistory}}}
 Goals: {{{goals}}}
