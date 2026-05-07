@@ -26,8 +26,14 @@ export default function StudentInvoicesPage() {
 
   const handlePay = async (invoiceId: number) => {
     setPayingId(invoiceId);
-    const updated = await payInvoice(invoiceId);
-    setInvoices((prev) => prev.map((invoice) => (invoice.id === updated.id ? updated : invoice)));
+    const payment = await payInvoice(invoiceId);
+    const url = payment.checkout_url ?? payment.checkoutUrl;
+    if (url) {
+      window.location.href = url;
+      return;
+    }
+    const data = await getInvoices();
+    setInvoices(data);
     setPayingId(null);
   };
 
@@ -69,7 +75,7 @@ export default function StudentInvoicesPage() {
                 <TableRow key={invoice.id}>
                   <TableCell className="font-medium">INV-{invoice.id}</TableCell>
                   <TableCell>{invoice.title}</TableCell>
-                  <TableCell>${invoice.amount}</TableCell>
+                  <TableCell>{invoice.currency ?? 'ZMW'} {invoice.amount}</TableCell>
                   <TableCell>{invoice.dueDate ?? '---'}</TableCell>
                   <TableCell>
                     <Badge variant={invoice.status === 'paid' ? 'secondary' : 'default'}>

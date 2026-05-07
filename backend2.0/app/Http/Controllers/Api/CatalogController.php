@@ -40,6 +40,8 @@ class CatalogController extends Controller
                 'pricingType' => $course->pricing_type,
                 'price' => $course->price,
                 'currency' => $course->currency,
+                'certificateFee' => $course->certificate_fee,
+                'certificateCurrency' => $course->certificate_currency,
                 'durationHours' => $course->duration_hours,
                 'level' => $course->level,
             ]));
@@ -64,6 +66,8 @@ class CatalogController extends Controller
                 'pricingType' => $course->pricing_type,
                 'price' => $course->price,
                 'currency' => $course->currency,
+                'certificateFee' => $course->certificate_fee,
+                'certificateCurrency' => $course->certificate_currency,
                 'durationHours' => $course->duration_hours,
                 'level' => $course->level,
             ];
