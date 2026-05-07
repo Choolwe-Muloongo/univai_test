@@ -2108,6 +2108,23 @@ class UnivAiSeeder extends Seeder
             });
         }
 
+        if (Schema::hasTable('lessons')) {
+            Schema::table('lessons', function (Blueprint $table) {
+                if (!Schema::hasColumn('lessons', 'summary')) {
+                    $table->text('summary')->nullable();
+                }
+                if (!Schema::hasColumn('lessons', 'display_order')) {
+                    $table->unsignedInteger('display_order')->default(0);
+                }
+                if (!Schema::hasColumn('lessons', 'publication_status')) {
+                    $table->string('publication_status')->default('draft');
+                }
+                if (!Schema::hasColumn('lessons', 'published_at')) {
+                    $table->timestamp('published_at')->nullable();
+                }
+            });
+        }
+
         if (Schema::hasTable('programs')) {
             Schema::table('programs', function (Blueprint $table) {
                 if (!Schema::hasColumn('programs', 'qualification_level_id')) {
