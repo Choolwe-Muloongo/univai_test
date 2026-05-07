@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'session.auth' => \App\Http\Middleware\EnsureSessionUser::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
             'access' => \App\Http\Middleware\EnsureRole::class,
+            'entitlement' => \App\Http\Middleware\EnsureStudentEntitlement::class,
         ]);
 
         $middleware->api(prepend: [

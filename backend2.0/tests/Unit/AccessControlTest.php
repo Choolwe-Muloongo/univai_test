@@ -36,6 +36,25 @@ class AccessControlTest extends TestCase
         $this->assertSame('Forbidden: profile is incomplete.', $missingProfile->reason);
     }
 
+    public function test_student_tier_roles_resolve_through_central_access_formula(): void
+    {
+        $access = new AccessControl();
+
+        foreach (['free-student', 'certificate-student', 'premium-student', 'programme-student', 'freemium-student', 'enrolled'] as $role) {
+            $decision = $access->authorize([
+                'id' => $role,
+                'role' => $role,
+                'accountState' => in_array($role, ['programme-student', 'enrolled'], true) ? 'enrolled' : 'active',
+                'verificationStatus' => 'email',
+                'profileCompleted' => true,
+                'subscriptionStatus' => in_array($role, ['premium-student', 'programme-student', 'enrolled'], true) ? 'active' : 'free',
+                'entitlements' => ['student_portal'],
+            ], ['student.portal']);
+
+            $this->assertTrue($decision->allowed, "Expected {$role} to access the student portal.");
+        }
+    }
+
     public function test_admin_access_requires_identity_verification(): void
     {
         $access = new AccessControl();

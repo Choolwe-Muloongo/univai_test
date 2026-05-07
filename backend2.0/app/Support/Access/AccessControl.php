@@ -11,8 +11,11 @@ class AccessControl
     public const ROLE_LECTURER = 'lecturer';
     public const ROLE_EMPLOYER = 'employer';
     public const ROLE_STUDENT = 'student';
+    public const ROLE_FREE_STUDENT = 'free-student';
+    public const ROLE_CERTIFICATE_STUDENT = 'certificate-student';
     public const ROLE_PREMIUM_STUDENT = 'premium-student';
     public const ROLE_FREEMIUM_STUDENT = 'freemium-student';
+    public const ROLE_PROGRAMME_STUDENT = 'programme-student';
     public const ROLE_ENROLLED = 'enrolled';
     public const ROLE_APPLICANT = 'applicant';
     public const ROLE_LECTURER_APPLICANT = 'lecturer-applicant';
@@ -31,7 +34,7 @@ class AccessControl
      */
     public const PERMISSIONS = [
         'student.portal' => [
-            'roles' => [self::ROLE_STUDENT, self::ROLE_PREMIUM_STUDENT, self::ROLE_FREEMIUM_STUDENT, self::ROLE_ENROLLED],
+            'roles' => [self::ROLE_STUDENT, self::ROLE_FREE_STUDENT, self::ROLE_CERTIFICATE_STUDENT, self::ROLE_PREMIUM_STUDENT, self::ROLE_FREEMIUM_STUDENT, self::ROLE_PROGRAMME_STUDENT, self::ROLE_ENROLLED],
             'states' => ['active', 'enrolled', 'probation'],
             'verification' => 'email',
             'profile' => 'complete',
@@ -39,7 +42,7 @@ class AccessControl
             'entitlements' => ['student_portal'],
         ],
         'student.premium' => [
-            'roles' => [self::ROLE_PREMIUM_STUDENT, self::ROLE_ENROLLED],
+            'roles' => [self::ROLE_PREMIUM_STUDENT, self::ROLE_PROGRAMME_STUDENT, self::ROLE_ENROLLED],
             'states' => ['active', 'enrolled', 'probation'],
             'verification' => 'email',
             'profile' => 'complete',
@@ -47,7 +50,7 @@ class AccessControl
             'entitlements' => ['student_portal', 'course_access'],
         ],
         'admissions.applicant' => [
-            'roles' => [self::ROLE_APPLICANT, self::ROLE_STUDENT, self::ROLE_PREMIUM_STUDENT, self::ROLE_FREEMIUM_STUDENT, self::ROLE_ENROLLED],
+            'roles' => [self::ROLE_APPLICANT, self::ROLE_STUDENT, self::ROLE_FREE_STUDENT, self::ROLE_CERTIFICATE_STUDENT, self::ROLE_PREMIUM_STUDENT, self::ROLE_FREEMIUM_STUDENT, self::ROLE_PROGRAMME_STUDENT, self::ROLE_ENROLLED],
             'states' => ['applicant', 'active', 'enrolled', 'needs_information'],
             'verification' => 'email',
             'profile' => 'started',
@@ -55,7 +58,7 @@ class AccessControl
             'entitlements' => [],
         ],
         'ai.generate' => [
-            'roles' => [self::ROLE_PREMIUM_STUDENT, self::ROLE_ENROLLED, self::ROLE_LECTURER, self::ROLE_ADMIN],
+            'roles' => [self::ROLE_PREMIUM_STUDENT, self::ROLE_PROGRAMME_STUDENT, self::ROLE_ENROLLED, self::ROLE_LECTURER, self::ROLE_ADMIN],
             'states' => ['active', 'enrolled', 'probation'],
             'verification' => 'email',
             'profile' => 'complete',
@@ -256,8 +259,8 @@ class AccessControl
     private function fallbackSubscription(?string $role): string
     {
         return match ($role) {
-            self::ROLE_PREMIUM_STUDENT, self::ROLE_ENROLLED => 'active',
-            self::ROLE_FREEMIUM_STUDENT, self::ROLE_STUDENT => 'free',
+            self::ROLE_PREMIUM_STUDENT, self::ROLE_PROGRAMME_STUDENT, self::ROLE_ENROLLED => 'active',
+            self::ROLE_FREE_STUDENT, self::ROLE_CERTIFICATE_STUDENT, self::ROLE_FREEMIUM_STUDENT, self::ROLE_STUDENT => 'free',
             default => 'none',
         };
     }
@@ -265,8 +268,10 @@ class AccessControl
     private function fallbackSubscriptionTier(?string $role): string
     {
         return match ($role) {
-            self::ROLE_PREMIUM_STUDENT, self::ROLE_ENROLLED => 'premium',
-            self::ROLE_FREEMIUM_STUDENT, self::ROLE_STUDENT => 'freemium',
+            self::ROLE_PREMIUM_STUDENT => 'premium',
+            self::ROLE_PROGRAMME_STUDENT, self::ROLE_ENROLLED => 'programme',
+            self::ROLE_CERTIFICATE_STUDENT => 'certificate',
+            self::ROLE_FREE_STUDENT, self::ROLE_FREEMIUM_STUDENT, self::ROLE_STUDENT => 'freemium',
             default => 'none',
         };
     }
@@ -277,8 +282,9 @@ class AccessControl
             self::ROLE_ADMIN => ['admin_portal'],
             self::ROLE_LECTURER => ['teaching'],
             self::ROLE_EMPLOYER => ['employer_portal'],
-            self::ROLE_PREMIUM_STUDENT, self::ROLE_ENROLLED => ['student_portal', 'course_access', 'ai_tutor'],
-            self::ROLE_STUDENT, self::ROLE_FREEMIUM_STUDENT => ['student_portal'],
+            self::ROLE_PREMIUM_STUDENT, self::ROLE_PROGRAMME_STUDENT, self::ROLE_ENROLLED => ['student_portal', 'course_access', 'ai_tutor'],
+            self::ROLE_CERTIFICATE_STUDENT => ['student_portal', 'course_access'],
+            self::ROLE_STUDENT, self::ROLE_FREE_STUDENT, self::ROLE_FREEMIUM_STUDENT => ['student_portal'],
             default => [],
         };
     }
