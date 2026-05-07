@@ -29,9 +29,6 @@ class Program extends Model
 
     protected $casts = [
         'supported_delivery_modes' => 'array',
-    ];
-
-    protected $casts = [
         'duration_semesters' => 'integer',
         'total_credits' => 'integer',
     ];

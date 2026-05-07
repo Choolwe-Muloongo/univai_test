@@ -45,14 +45,6 @@ class Lesson extends Model
 
     public function learningObjects(): BelongsToMany
     {
-        return $this->belongsToMany(LearningObject::class, 'lesson_learning_object')
-            ->withPivot('sort_order')
-            ->withTimestamps()
-            ->orderBy('lesson_learning_object.sort_order');
-    }
-
-    public function learningObjects(): BelongsToMany
-    {
         return $this->belongsToMany(LearningObject::class, 'lesson_learning_objects')
             ->withPivot(['position', 'is_required', 'access_rules', 'publication_status', 'available_from', 'available_until'])
             ->withTimestamps()

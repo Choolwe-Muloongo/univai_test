@@ -69,18 +69,14 @@ class CatalogController extends Controller
 
     public function lessonsByCourse(string $courseId)
     {
-        return Lesson::query()
-            ->with('learningObjects')
-            ->where('course_id', $courseId)
-            ->orderBy('display_order')
-            ->orderBy('title')
-            ->get()
         $course = Course::find($courseId);
         if (!$course) {
             return response()->json([], 404);
         }
 
-        return $course->lessons
+        return $course->lessons()
+            ->with('learningObjects')
+            ->get()
             ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $courseId));
     }
 

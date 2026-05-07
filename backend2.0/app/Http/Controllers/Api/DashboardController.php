@@ -42,10 +42,6 @@ class DashboardController extends Controller
         $studentId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
         $isCashbackEligible = StudentAccess::cashbackEligible($sessionUser['accessTier'] ?? null);
         $walletValue = '0 AFTA';
-        $walletNote = in_array($role, ['free-student', 'freemium-student'], true)
-            ? 'Cashback is not available on the free tier'
-            : 'AFTACOIN Balance';
-        if ($studentId && is_numeric($studentId) && !in_array($role, ['free-student', 'freemium-student'], true)) {
         $walletNote = 'AFTACOIN Balance';
         if ($studentId && is_numeric($studentId) && $isCashbackEligible) {
             $totalPaid = Payment::query()
