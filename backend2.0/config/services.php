@@ -28,6 +28,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'lenco' => [
+        'secret_key' => env('LENCO_SECRET_KEY'),
+        'webhook_secret' => env('LENCO_WEBHOOK_SECRET'),
+        'base_url' => env('LENCO_BASE_URL', 'https://api.lenco.co/access/v1'),
+        'checkout_stub_url' => env('LENCO_CHECKOUT_STUB_URL', 'https://pay.lenco.co/checkout'),
+        'allow_stub_checkout' => env('LENCO_ALLOW_STUB_CHECKOUT', false),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

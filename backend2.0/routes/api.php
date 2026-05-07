@@ -39,6 +39,8 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
+use App\Http\Controllers\Api\ShortCourseController;
+use App\Http\Controllers\Api\LencoWebhookController;
 use App\Http\Controllers\Api\ExamClinicController;
 use App\Http\Controllers\Api\AdminUsersController;
 use App\Support\Access\AccessControl;
@@ -149,6 +151,7 @@ Route::middleware('api')->group(function () {
     Route::get('/students/me/badges', [BadgesController::class, 'index'])->middleware(['session.auth', 'access:student.portal']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/admissions/settings', [AdmissionsController::class, 'settings']);
+    Route::post('/payments/lenco/webhook', LencoWebhookController::class);
 
     Route::middleware(['session.auth', 'access:student.portal'])->group(function () {
         Route::get('/students/me/program', [ProgramController::class, 'program']);
@@ -170,6 +173,12 @@ Route::middleware('api')->group(function () {
         Route::post('/students/me/exam-clinic/bookings', [ExamClinicController::class, 'bookSession']);
         Route::delete('/students/me/exam-clinic/bookings/{booking}', [ExamClinicController::class, 'cancelBooking']);
         Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
+        Route::post('/students/me/short-courses/{courseId}/enroll', [ShortCourseController::class, 'enroll']);
+        Route::get('/students/me/short-courses/{courseId}/progress', [ShortCourseController::class, 'progress']);
+        Route::post('/students/me/short-courses/{courseId}/lessons/{lessonId}/complete', [ShortCourseController::class, 'completeLesson']);
+        Route::post('/students/me/short-courses/{courseId}/exam', [ShortCourseController::class, 'submitExam']);
+        Route::post('/students/me/short-courses/{courseId}/certificate/pay', [ShortCourseController::class, 'payCertificate']);
+        Route::get('/students/me/short-courses/{courseId}/certificate', [ShortCourseController::class, 'certificate']);
 
         Route::middleware('entitlement:' . StudentAccess::ENTITLEMENT_PROGRAMME)->group(function () {
             Route::get('/students/me/program', [ProgramController::class, 'program']);

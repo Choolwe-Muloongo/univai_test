@@ -96,6 +96,14 @@ export type Course = {
   schoolId: string;
   progress?: number | null;
   imageId: string;
+  certificateType?: string;
+  pricingType?: string;
+  price?: string | number | null;
+  currency?: string | null;
+  certificateFee?: string | number | null;
+  certificateCurrency?: string | null;
+  durationHours?: number | null;
+  level?: string | null;
   supportedDeliveryModes?: string[];
 };
 
@@ -721,7 +729,9 @@ export type Invoice = {
   title: string;
   amount: string;
   paidAmount: string;
+  currency?: string;
   status: string;
+  type?: string;
   dueDate?: string | null;
   deliveryMode?: string | null;
   feePolicy?: string | null;
