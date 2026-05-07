@@ -22,6 +22,8 @@ class Course extends Model
         'pricing_type',
         'price',
         'currency',
+        'certificate_fee',
+        'certificate_currency',
         'duration_hours',
         'level',
         'progress',
@@ -30,6 +32,7 @@ class Course extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'certificate_fee' => 'decimal:2',
         'duration_hours' => 'integer',
     ];
 
