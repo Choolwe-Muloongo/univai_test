@@ -8,6 +8,8 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\AuditLogger;
 use App\Support\DeliveryModes;
+use App\Services\LencoPaymentService;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
 class BillingController extends Controller
@@ -35,8 +37,10 @@ class BillingController extends Controller
                 'id' => $invoice->id,
                 'title' => $invoice->title,
                 'amount' => (string) $invoice->amount,
+                'currency' => $invoice->currency ?? 'ZMW',
                 'paidAmount' => (string) $invoice->paid_amount,
                 'status' => $invoice->status,
+                'type' => $invoice->type ?? 'tuition_fee',
                 'dueDate' => optional($invoice->due_date)->toDateString(),
                 'deliveryMode' => $mode,
                 'feePolicy' => $mode === DeliveryModes::SOFTWARE_ONLY ? 'Software-only rate applied' : ($mode === DeliveryModes::PHYSICAL ? 'Physical learning facilities rate applied' : 'Hybrid learning rate applied'),
@@ -44,7 +48,7 @@ class BillingController extends Controller
             });
     }
 
-    public function pay(Request $request, Invoice $invoice)
+    public function pay(Request $request, Invoice $invoice, LencoPaymentService $lenco)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
@@ -53,36 +57,35 @@ class BillingController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $payload = $request->validate([
-            'amount' => ['nullable', 'numeric', 'min:0'],
-            'method' => ['nullable', 'string'],
+        if (!$invoice->uuid) {
+            $invoice->forceFill(['uuid' => (string) Str::uuid()])->save();
+        }
+
+        if ($invoice->status === 'paid') {
+            return response()->json([
+                'id' => $invoice->id,
+                'status' => $invoice->status,
+                'checkout_url' => null,
+                'message' => 'Invoice is already paid.',
+            ]);
+        }
+
+        $checkout = $lenco->initiatePayment($invoice);
+
+        AuditLogger::log($request, 'invoice.payment_initiated', 'invoice', (string) $invoice->id, [
+            'provider' => 'lenco',
+            'reference' => $checkout['reference'],
         ]);
 
-        $amount = $payload['amount'] ?? $invoice->amount;
-        $invoice->paid_amount = min($invoice->amount, $invoice->paid_amount + $amount);
-        $invoice->status = $invoice->paid_amount >= $invoice->amount ? 'paid' : 'partial';
-        $invoice->save();
-
-        Payment::create([
-            'invoice_id' => $invoice->id,
-            'amount' => $amount,
-            'method' => $payload['method'] ?? 'card',
-            'status' => 'completed',
-            'paid_at' => now(),
-        ]);
-
-        AuditLogger::log($request, 'invoice.paid', 'invoice', (string) $invoice->id, [
-            'amount' => $amount,
-        ]);
-
-        return [
+        return response()->json([
             'id' => $invoice->id,
             'title' => $invoice->title,
             'amount' => (string) $invoice->amount,
-            'paidAmount' => (string) $invoice->paid_amount,
+            'currency' => $invoice->currency ?? 'ZMW',
             'status' => $invoice->status,
-            'dueDate' => optional($invoice->due_date)->toDateString(),
-        ];
+            'checkout_url' => $checkout['checkout_url'],
+            'reference' => $checkout['reference'],
+        ]);
     }
 
     public function payments(Request $request)
@@ -102,7 +105,9 @@ class BillingController extends Controller
                 'id' => $payment->id,
                 'invoiceId' => $payment->invoice_id,
                 'amount' => (string) $payment->amount,
+                'currency' => $payment->currency ?? 'ZMW',
                 'method' => $payment->method,
+                'provider' => $payment->provider ?? 'manual',
                 'status' => $payment->status,
                 'paidAt' => optional($payment->paid_at)->toISOString(),
             ]);

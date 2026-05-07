@@ -10,14 +10,19 @@ class Payment extends Model
     protected $fillable = [
         'invoice_id',
         'amount',
+        'currency',
         'method',
+        'provider',
+        'transaction_reference',
         'status',
+        'payload',
         'paid_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'paid_at' => 'datetime',
+        'payload' => 'array',
     ];
 
     public function invoice(): BelongsTo
