@@ -150,7 +150,6 @@ class AuthController extends Controller
             'student.premium@univai.edu' => 'premium-student',
             'student.free@univai.edu' => 'free-student',
             'student.freemium@univai.edu' => 'freemium-student',
-            'student.free@univai.edu' => 'free-student',
             'student.certificate@univai.edu' => 'paid-certificate-student',
             'student.programme@univai.edu' => 'programme-student',
             'lecturer@univai.edu' => 'lecturer',
@@ -162,11 +161,6 @@ class AuthController extends Controller
     private function demoUser(string $role): array
     {
         return match ($role) {
-            'free-student', 'freemium-student' => [
-                'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
-                'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
-                'email' => $role === 'free-student' ? 'student.free@univai.edu' : 'student.freemium@univai.edu',
-                'role' => $role,
             'free-student', 'freemium-student' => StudentAccess::sessionPayload([
                 'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
                 'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
@@ -180,25 +174,24 @@ class AuthController extends Controller
                 'subscriptionStatus' => 'free',
                 'subscriptionTier' => 'freemium',
                 'entitlements' => ['student_portal'],
-            ],
-            'paid-certificate-student' => [
+            ]),
+            'paid-certificate-student', 'certificate-student' => StudentAccess::sessionPayload([
                 'id' => 'student-certificate',
-                'name' => 'Paid Certificate Student',
+                'name' => 'Certificate Student',
                 'email' => 'student.certificate@univai.edu',
-                'role' => 'paid-certificate-student',
-                'schoolId' => 'ict',
-                'programId' => 'cs101',
-                'intakeId' => 'cs101-2026-jan',
-            ],
-            'programme-student' => [
+                'role' => StudentAccess::ROLE_CERTIFICATE,
+                'schoolId' => null,
+                'programId' => null,
+            ]),
+            'programme-student', 'enrolled' => StudentAccess::sessionPayload([
                 'id' => 'student-programme',
                 'name' => 'Programme Student',
                 'email' => 'student.programme@univai.edu',
-                'role' => 'programme-student',
+                'role' => StudentAccess::ROLE_PROGRAMME,
                 'schoolId' => 'ict',
                 'programId' => 'cs101',
                 'intakeId' => 'cs101-2026-jan',
-            ],
+            ]),
             'lecturer' => [
                 'id' => 'lecturer-1',
                 'name' => 'Lecturer',
@@ -235,23 +228,6 @@ class AuthController extends Controller
                 'subscriptionTier' => 'none',
                 'entitlements' => ['admin_portal'],
             ],
-            'certificate-student' => StudentAccess::sessionPayload([
-                'id' => 'student-certificate',
-                'name' => 'Certificate Student',
-                'email' => 'student.certificate@univai.edu',
-                'role' => StudentAccess::ROLE_CERTIFICATE,
-                'schoolId' => null,
-                'programId' => null,
-            ]),
-            'programme-student', 'enrolled' => StudentAccess::sessionPayload([
-                'id' => 'student-programme',
-                'name' => 'Programme Student',
-                'email' => 'student.programme@univai.edu',
-                'role' => StudentAccess::ROLE_PROGRAMME,
-                'schoolId' => 'ict',
-                'programId' => 'cs101',
-                'intakeId' => 'cs101-2026-jan',
-            ]),
             default => StudentAccess::sessionPayload([
                 'id' => 'student-premium',
                 'name' => 'Premium Student',
@@ -266,7 +242,7 @@ class AuthController extends Controller
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'premium',
                 'entitlements' => ['student_portal', 'course_access', 'ai_tutor'],
-            ],
+            ]),
         };
     }
 }

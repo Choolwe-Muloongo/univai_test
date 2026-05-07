@@ -206,7 +206,6 @@ Route::middleware('api')->group(function () {
         Route::post('/exam-clinic/results-sync', [ExamClinicController::class, 'syncResults']);
     });
 
-    Route::prefix('admin')->middleware(['session.auth', 'role:admin'])->group(function () {
     Route::prefix('admin')->middleware(['session.auth', 'access:admin.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/intakes', [IntakesController::class, 'index']);

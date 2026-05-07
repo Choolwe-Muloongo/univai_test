@@ -39,19 +39,13 @@ class LearningObject extends Model
     protected $casts = [
         'payload' => 'array',
         'access_rules' => 'array',
+        'metadata' => 'array',
         'version' => 'integer',
         'is_current' => 'boolean',
         'is_reusable' => 'boolean',
         'reviewed_at' => 'datetime',
         'published_at' => 'datetime',
         'retracted_at' => 'datetime',
-        'body',
-        'url',
-        'metadata',
-    ];
-
-    protected $casts = [
-        'metadata' => 'array',
     ];
 
     public function lessons(): BelongsToMany
@@ -69,9 +63,5 @@ class LearningObject extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
-    }
-        return $this->belongsToMany(Lesson::class, 'lesson_learning_object')
-            ->withPivot('sort_order')
-            ->withTimestamps();
     }
 }
