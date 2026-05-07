@@ -9,6 +9,8 @@ use App\Models\Payment;
 use App\Support\AuditLogger;
 use App\Services\LencoPaymentService;
 use App\Support\DeliveryModes;
+use App\Services\LencoPaymentService;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -71,12 +73,7 @@ class BillingController extends Controller
             ]);
         }
 
-        try {
-            $checkout = $lenco->initiatePayment($invoice);
-        } catch (RuntimeException $exception) {
-            report($exception);
-            return response()->json(['message' => 'Payment checkout is not available. Please contact support.'], 503);
-        }
+        $checkout = $lenco->initiatePayment($invoice);
 
         AuditLogger::log($request, 'invoice.payment_initiated', 'invoice', (string) $invoice->id, [
             'provider' => 'lenco',

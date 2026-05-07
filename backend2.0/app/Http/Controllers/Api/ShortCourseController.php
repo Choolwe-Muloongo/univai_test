@@ -8,13 +8,11 @@ use App\Models\ExamQuestion;
 use App\Models\Invoice;
 use App\Models\ShortCourseEnrollment;
 use App\Models\ShortCourseLessonProgress;
-use App\Services\CertificatePdfService;
 use App\Services\LencoPaymentService;
 use App\Support\Pricing\LaunchFeeSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 class ShortCourseController extends Controller
 {
@@ -35,13 +33,7 @@ class ShortCourseController extends Controller
         }
 
         $invoice = $this->invoiceFor($studentId, $course, 'short_course_entry', 'Entry fee: ' . $course->title, $fee);
-
-        try {
-            return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id]);
-        } catch (RuntimeException $exception) {
-            report($exception);
-            return response()->json(['message' => 'Payment checkout is not available. Please contact support.'], 503);
-        }
+        return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id]);
     }
 
     public function progress(Request $request, string $courseId)
@@ -115,16 +107,10 @@ class ShortCourseController extends Controller
 
         $fee = LaunchFeeSchedule::shortCourseCertificateFee($course);
         $invoice = $this->invoiceFor($studentId, $course, 'certificate_fee', 'Certificate fee: ' . $course->title, $fee);
-
-        try {
-            return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id]);
-        } catch (RuntimeException $exception) {
-            report($exception);
-            return response()->json(['message' => 'Payment checkout is not available. Please contact support.'], 503);
-        }
+        return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id]);
     }
 
-    public function certificate(Request $request, string $courseId, CertificatePdfService $certificates)
+    public function certificate(Request $request, string $courseId)
     {
         $studentId = $this->studentId($request);
         $enrollment = ShortCourseEnrollment::with(['student', 'course'])->where('student_id', $studentId)->where('short_course_id', $courseId)->firstOrFail();
@@ -133,14 +119,12 @@ class ShortCourseController extends Controller
         }
 
         if (!$enrollment->certificate_path) {
-            $path = 'certificates/short-course-' . $enrollment->id . '.pdf';
-            Storage::disk('local')->put($path, $certificates->shortCourseCertificate($enrollment));
+            $path = 'certificates/short-course-' . $enrollment->id . '.html';
+            Storage::disk('local')->put($path, view('certificates.short-course', ['enrollment' => $enrollment])->render());
             $enrollment->update(['certificate_path' => $path, 'certificate_issued_at' => now()]);
         }
 
-        return Storage::disk('local')->download($enrollment->certificate_path, 'univai-certificate-' . $courseId . '.pdf', [
-            'Content-Type' => 'application/pdf',
-        ]);
+        return Storage::disk('local')->download($enrollment->certificate_path, 'univai-certificate-' . $courseId . '.html');
     }
 
     private function studentId(Request $request): int
