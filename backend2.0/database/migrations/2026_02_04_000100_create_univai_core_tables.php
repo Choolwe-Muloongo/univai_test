@@ -118,28 +118,6 @@ return new class extends Migration
             $table->index(['publication_status', 'available_from', 'available_until']);
         });
 
-        Schema::create('learning_objects', function (Blueprint $table) {
-            $table->string('id')->primary();
-            $table->string('type');
-            $table->string('title');
-            $table->longText('body')->nullable();
-            $table->string('url')->nullable();
-            $table->json('metadata')->nullable();
-            $table->timestamps();
-        });
-
-        Schema::create('lesson_learning_object', function (Blueprint $table) {
-            $table->id();
-            $table->string('lesson_id');
-            $table->string('learning_object_id');
-            $table->unsignedInteger('sort_order')->default(0);
-            $table->timestamps();
-
-            $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
-            $table->foreign('learning_object_id')->references('id')->on('learning_objects')->cascadeOnDelete();
-            $table->unique(['lesson_id', 'learning_object_id']);
-        });
-
         Schema::create('short_course_lessons', function (Blueprint $table) {
             $table->id();
             $table->string('short_course_id');
@@ -274,7 +252,6 @@ return new class extends Migration
         Schema::dropIfExists('lesson_learning_objects');
         Schema::dropIfExists('program_module_lessons');
         Schema::dropIfExists('short_course_lessons');
-        Schema::dropIfExists('lesson_learning_object');
         Schema::dropIfExists('learning_objects');
         Schema::dropIfExists('lessons');
         Schema::dropIfExists('program_modules');

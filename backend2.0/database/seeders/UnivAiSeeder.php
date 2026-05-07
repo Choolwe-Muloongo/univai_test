@@ -475,7 +475,6 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['id'], ['name', 'category', 'default_credits', 'minimum_credits', 'maximum_credits', 'duration_months', 'admission_requirements', 'allowed_delivery_modes', 'requires_exam_clinic', 'requires_accreditation_approval', 'minimum_subject_count', 'minimum_total_points', 'required_prior_qualification', 'sort_order', 'updated_at']);
 
-        DB::table('courses')->upsert([
         DB::table('short_courses')->upsert([
             [
                 'id' => 'cs101',
@@ -680,7 +679,6 @@ class UnivAiSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['title', 'description', 'qualification_level_id', 'credits', 'duration_months', 'admission_requirements', 'delivery_modes', 'exam_clinic_required', 'requires_accreditation_approval', 'accreditation_approved_at', 'launch_status', 'progress', 'image_id', 'updated_at']);
         ], ['id'], ['title', 'description', 'school_id', 'award_type', 'qualification_level', 'duration_semesters', 'total_credits', 'delivery_mode', 'progress', 'image_id', 'updated_at']);
 
         DB::table('programs')->where('id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
@@ -949,14 +947,13 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['id'], ['title', 'description', 'progress', 'semester', 'is_exam_available', 'is_core', 'curriculum_version_id', 'updated_at']);
 
-        $lessonRows = [
         DB::table('program_modules')->where('program_id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
         DB::table('program_modules')->where('program_id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
         DB::table('program_modules')->where('program_id', 'nur201')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
         DB::table('program_modules')->where('program_id', 'eng401')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
         DB::table('program_modules')->where('program_id', 'edu110')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical'])]);
 
-        DB::table('lessons')->upsert([
+        $lessonRows = [
             [
                 'id' => 'l1-cs101',
                 'title' => 'Digital Systems Overview',
@@ -1057,7 +1054,6 @@ class UnivAiSeeder extends Seeder
         DB::table('lessons')->upsert(
             collect($lessonRows)->map(fn (array $lesson) => [
                 'id' => $lesson['id'],
-                'course_id' => $lesson['course_id'],
                 'title' => $lesson['title'],
                 'summary' => $lesson['content'] ?? null,
                 'publication_status' => 'published',
@@ -1066,7 +1062,7 @@ class UnivAiSeeder extends Seeder
                 'updated_at' => $lesson['updated_at'],
             ])->all(),
             ['id'],
-            ['title', 'summary', 'course_id', 'publication_status', 'published_at', 'updated_at']
+            ['title', 'summary', 'publication_status', 'published_at', 'updated_at']
         );
 
         $learningObjectRows = [];
@@ -1165,16 +1161,33 @@ class UnivAiSeeder extends Seeder
                 'publication_status' => 'published',
                 'reviewed_at' => now()->subDays(4),
                 'published_at' => now()->subDays(3),
-        ], ['id'], ['title', 'content', 'video_url', 'quiz', 'exercise', 'updated_at']);
-
-        DB::table('learning_objects')->upsert([
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
             [
                 'id' => 'lo-python-video',
                 'type' => 'video',
                 'title' => 'Python Basics Demonstration',
-                'body' => null,
-                'url' => 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-                'metadata' => null,
+                'asset_url' => 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'published_at' => now()->subDays(3),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'lo-python-quiz',
+                'type' => 'quiz',
+                'title' => 'Python Basics Check',
+                'payload' => json_encode([
+                    'questions' => [
+                        ['question' => 'Which keyword creates a conditional block in Python?', 'options' => ['if', 'loop', 'define', 'switch'], 'answer' => 'if'],
+                        ['question' => 'What data type is "42" in Python?', 'options' => ['int', 'string', 'float', 'bool'], 'answer' => 'string'],
+                    ],
+                ]),
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'published_at' => now()->subDays(3),
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -1222,6 +1235,8 @@ class UnivAiSeeder extends Seeder
         $lessonLearningObjectRows = array_merge($lessonLearningObjectRows, [
             ['lesson_id' => 'l1-cs101', 'learning_object_id' => 'l1-cs101-slides-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
             ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'l3-cs101-flashcards-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-video', 'position' => 6, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-quiz', 'position' => 7, 'is_required' => true, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
             ['lesson_id' => 'l8-cs101', 'learning_object_id' => 'l8-cs101-rubric-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['lecturer'], 'requiresEnrollment' => false]), 'publication_status' => 'draft', 'created_at' => now(), 'updated_at' => now()],
             ['lesson_id' => 'l1-bus301', 'learning_object_id' => 'l1-bus301-document-v1', 'position' => 5, 'is_required' => true, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
         ]);
@@ -1263,27 +1278,6 @@ class UnivAiSeeder extends Seeder
             ['lesson_id', 'learning_object_id'],
             ['position', 'is_required', 'access_rules', 'publication_status', 'updated_at']
         );
-                'id' => 'lo-python-quiz',
-                'type' => 'quiz',
-                'title' => 'Python Basics Check',
-                'body' => null,
-                'url' => null,
-                'metadata' => json_encode([
-                    'questions' => [
-                        ['question' => 'Which keyword creates a conditional block in Python?', 'options' => ['if', 'loop', 'define', 'switch'], 'answer' => 'if'],
-                        ['question' => 'What data type is "42" in Python?', 'options' => ['int', 'string', 'float', 'bool'], 'answer' => 'string'],
-                    ],
-                ]),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ], ['id'], ['type', 'title', 'body', 'url', 'metadata', 'updated_at']);
-
-        DB::table('lesson_learning_object')->upsert([
-            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-video', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
-            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-quiz', 'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()],
-        ], ['lesson_id', 'learning_object_id'], ['sort_order', 'updated_at']);
-
         DB::table('short_course_lessons')->upsert([
             ['short_course_id' => 'cs101', 'lesson_id' => 'l1-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
             ['short_course_id' => 'cs101', 'lesson_id' => 'l2-cs101', 'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()],
