@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-navy: 234 88% 16%;
+    --brand-blue: 206 100% 53%;
+    --brand-cyan: 176 100% 48%;
+    --brand-violet: 266 92% 58%;
+
+    --background: 190 52% 98%;
+    --foreground: 230 54% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 230 54% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 54% 14%;
+    --primary: 187 100% 37%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 206 100% 95%;
+    --secondary-foreground: 230 52% 22%;
+    --muted: 191 42% 95%;
+    --muted-foreground: 222 19% 42%;
+    --accent: 176 100% 92%;
+    --accent-foreground: 211 75% 23%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 196 38% 86%;
+    --input: 196 38% 86%;
+    --ring: 176 100% 40%;
+    --chart-1: 187 100% 37%;
+    --chart-2: 206 100% 53%;
+    --chart-3: 266 92% 58%;
+    --chart-4: 176 100% 48%;
+    --chart-5: 234 88% 36%;
+
+    --sidebar-background: 190 64% 97%;
+    --sidebar-foreground: 229 48% 20%;
+    --sidebar-primary: 187 100% 37%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-border: 196 40% 85%;
+    --sidebar-accent: 178 92% 92%;
+    --sidebar-accent-foreground: 225 60% 24%;
+    --sidebar-ring: 176 100% 40%;
+
+    --glass-bg: 0 0% 100%;
+    --glass-bg-strong: 190 100% 99%;
+    --glass-border: 191 48% 80%;
+    --glass-shadow: 0 18px 42px -26px hsl(206 100% 30% / 0.35);
+    --glass-blur: 14px;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222 52% 7%;
+    --foreground: 188 72% 96%;
+    --card: 225 48% 10%;
+    --card-foreground: 188 72% 96%;
+    --popover: 225 50% 9%;
+    --popover-foreground: 188 72% 96%;
+    --primary: 176 100% 48%;
+    --primary-foreground: 225 60% 10%;
+    --secondary: 220 38% 16%;
+    --secondary-foreground: 188 72% 96%;
+    --muted: 222 32% 15%;
+    --muted-foreground: 193 20% 72%;
+    --accent: 206 100% 23%;
+    --accent-foreground: 184 100% 94%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 205 26% 24%;
+    --input: 205 26% 24%;
+    --ring: 176 100% 48%;
+    --chart-1: 176 100% 48%;
+    --chart-2: 206 100% 62%;
+    --chart-3: 266 92% 70%;
+    --chart-4: 190 90% 58%;
+    --chart-5: 228 92% 72%;
+
+    --sidebar-background: 224 54% 8%;
+    --sidebar-foreground: 188 70% 92%;
+    --sidebar-primary: 176 100% 48%;
+    --sidebar-primary-foreground: 225 60% 10%;
+    --sidebar-border: 205 26% 23%;
+    --sidebar-accent: 218 42% 15%;
+    --sidebar-accent-foreground: 181 100% 86%;
+    --sidebar-ring: 176 100% 48%;
+
+    --glass-bg: 224 46% 10%;
+    --glass-bg-strong: 224 48% 12%;
+    --glass-border: 196 36% 30%;
+    --glass-shadow: 0 24px 54px -28px hsl(183 100% 40% / 0.45);
+    --glass-blur: 16px;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    background-image:
+      linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--secondary) / 0.55) 42%, hsl(var(--background)) 100%),
+      radial-gradient(circle at 12% 0%, hsl(var(--brand-blue) / 0.18) 0, transparent 36%),
+      radial-gradient(circle at 90% 8%, hsl(var(--brand-cyan) / 0.2) 0, transparent 34%),
+      radial-gradient(circle at 46% 100%, hsl(var(--brand-violet) / 0.12) 0, transparent 42%);
+    background-attachment: fixed;
+  }
+
+  .tracking-tight,
+  .tracking-tighter,
+  .tracking-wide,
+  .tracking-wider,
+  .tracking-widest {
+    letter-spacing: 0 !important;
+  }
+}
+
+@layer components {
+  .glass-surface {
+    background-color: hsl(var(--glass-bg) / 0.7);
+    border-color: hsl(var(--glass-border) / 0.62);
+    backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--glass-shadow);
+    @apply border;
+  }
+
+  .glass-card {
+    background-color: hsl(var(--glass-bg-strong) / 0.86);
+    border-color: hsl(var(--glass-border) / 0.76);
+    backdrop-filter: blur(calc(var(--glass-blur) * 1.05));
+    box-shadow: var(--glass-shadow);
+    @apply glass-surface rounded-2xl;
+  }
+
+  .glass-nav {
+    background-color: hsl(var(--glass-bg) / 0.82);
+    border-color: hsl(var(--glass-border) / 0.58);
+    backdrop-filter: blur(calc(var(--glass-blur) * 1.2));
+    @apply glass-surface;
+  }
+
+  .glass-modal {
+    background-color: hsl(var(--glass-bg-strong) / 0.94);
+    border-color: hsl(var(--glass-border) / 0.78);
+    backdrop-filter: blur(calc(var(--glass-blur) * 1.25));
+    box-shadow: 0 30px 70px -35px hsl(var(--foreground) / 0.55);
+    @apply glass-surface rounded-2xl;
+  }
+
+  .page-shell {
+    @apply relative mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-shell {
+    @apply glass-card p-4 sm:p-6 lg:p-8;
+  }
+
+  .brand-gradient-text {
+    background: linear-gradient(100deg, hsl(var(--brand-blue)), hsl(var(--brand-cyan)) 54%, hsl(var(--brand-violet)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .brand-panel {
+    background:
+      linear-gradient(135deg, hsl(var(--glass-bg-strong) / 0.92), hsl(var(--glass-bg) / 0.72)),
+      linear-gradient(120deg, hsl(var(--brand-blue) / 0.14), hsl(var(--brand-cyan) / 0.16), hsl(var(--brand-violet) / 0.12));
+    border-color: hsl(var(--glass-border) / 0.78);
+    box-shadow: var(--glass-shadow);
+    @apply border;
+  }
+
+  .brand-hero {
+    background:
+      linear-gradient(120deg, hsl(var(--brand-navy) / 0.96), hsl(216 70% 14% / 0.94) 42%, hsl(180 86% 18% / 0.88)),
+      linear-gradient(90deg, hsl(var(--brand-violet) / 0.32), hsl(var(--brand-blue) / 0.26), hsl(var(--brand-cyan) / 0.3));
+  }
+
+  .brand-logo-glow {
+    filter: drop-shadow(0 0 14px hsl(var(--brand-cyan) / 0.38)) drop-shadow(0 0 22px hsl(var(--brand-blue) / 0.22));
+  }
+
+  .elevate-3d {
+    transform: translateZ(0);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .elevate-3d:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .elevate-3d,
+  .elevate-3d:hover {
+    transform: none;
+    transition: none;
+  }
+}

@@ -1,0 +1,2535 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+
+class UnivAiSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this->ensureSeedSchema();
+
+        DB::table('users')->upsert([
+            [
+                'name' => 'Admin',
+                'email' => 'admin@univai.edu',
+                'password' => Hash::make('password123'),
+                'role' => 'admin',
+                'school_id' => null,
+                'program_id' => null,
+                'intake_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'name' => 'Lecturer',
+                'email' => 'lecturer@univai.edu',
+                'password' => Hash::make('password123'),
+                'role' => 'lecturer',
+                'school_id' => null,
+                'program_id' => null,
+                'intake_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'name' => 'Lecturer A',
+                'email' => 'lecturer.a@univai.edu',
+                'password' => Hash::make('password123'),
+                'role' => 'lecturer',
+                'school_id' => null,
+                'program_id' => null,
+                'intake_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'name' => 'Lecturer B',
+                'email' => 'lecturer.b@univai.edu',
+                'password' => Hash::make('password123'),
+                'role' => 'lecturer',
+                'school_id' => null,
+                'program_id' => null,
+                'intake_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'name' => 'Employer',
+                'email' => 'employer@univai.edu',
+                'password' => Hash::make('password123'),
+                'role' => 'employer',
+                'school_id' => null,
+                'program_id' => null,
+                'intake_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'name' => 'Premium Student',
+                'email' => 'student.premium@univai.edu',
+                'password' => Hash::make('password123'),
+                'role' => 'premium-student',
+                'school_id' => 'ict',
+                'program_id' => 'cs101',
+                'intake_id' => 'cs101-2026-jan',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'name' => 'Freemium Student',
+                'email' => 'student.freemium@univai.edu',
+                'password' => Hash::make('password123'),
+                'role' => 'freemium-student',
+                'school_id' => null,
+                'program_id' => null,
+                'intake_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['email'], ['name', 'password', 'role', 'school_id', 'program_id', 'updated_at']);
+
+        DB::table('users')
+            ->whereIn('role', ['admin', 'lecturer'])
+            ->update([
+                'account_state' => 'active',
+                'verification_status' => 'identity',
+                'profile_completed_at' => now(),
+            ]);
+
+        DB::table('users')
+            ->whereIn('role', ['employer', 'student', 'premium-student', 'freemium-student', 'enrolled'])
+            ->update([
+                'account_state' => 'active',
+                'verification_status' => 'email',
+                'profile_completed_at' => now(),
+            ]);
+
+        $accessUsers = DB::table('users')
+            ->whereIn('email', [
+                'admin@univai.edu',
+                'lecturer@univai.edu',
+                'lecturer.a@univai.edu',
+                'lecturer.b@univai.edu',
+                'employer@univai.edu',
+                'student.premium@univai.edu',
+                'student.freemium@univai.edu',
+            ])
+            ->get()
+            ->keyBy('email');
+
+        foreach ($accessUsers as $seedUser) {
+            DB::table('user_profiles')->updateOrInsert(
+                ['user_id' => $seedUser->id],
+                [
+                    'display_name' => $seedUser->name,
+                    'completion_percent' => in_array($seedUser->role, ['applicant', 'lecturer-applicant', 'employer-applicant'], true) ? 25 : 100,
+                    'completed_at' => in_array($seedUser->role, ['applicant', 'lecturer-applicant', 'employer-applicant'], true) ? null : now(),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        foreach ([
+            'student.premium@univai.edu' => ['tier' => 'premium', 'status' => 'active'],
+            'student.freemium@univai.edu' => ['tier' => 'freemium', 'status' => 'free'],
+        ] as $email => $subscription) {
+            $seedUser = $accessUsers->get($email);
+            if (!$seedUser) {
+                continue;
+            }
+
+            DB::table('user_subscriptions')->updateOrInsert(
+                ['user_id' => $seedUser->id, 'tier' => $subscription['tier']],
+                [
+                    'status' => $subscription['status'],
+                    'starts_at' => now(),
+                    'ends_at' => null,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        foreach ([
+            'admin@univai.edu' => ['admin_portal'],
+            'lecturer@univai.edu' => ['teaching'],
+            'lecturer.a@univai.edu' => ['teaching'],
+            'lecturer.b@univai.edu' => ['teaching'],
+            'employer@univai.edu' => ['employer_portal'],
+            'student.premium@univai.edu' => ['student_portal', 'course_access', 'ai_tutor'],
+            'student.freemium@univai.edu' => ['student_portal'],
+        ] as $email => $entitlements) {
+            $seedUser = $accessUsers->get($email);
+            if (!$seedUser) {
+                continue;
+            }
+
+            foreach ($entitlements as $entitlement) {
+                DB::table('academic_entitlements')->updateOrInsert(
+                    ['user_id' => $seedUser->id, 'code' => $entitlement, 'scope_type' => null, 'scope_id' => null],
+                    [
+                        'status' => 'active',
+                        'starts_at' => now(),
+                        'ends_at' => null,
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
+        }
+
+        DB::table('schools')->upsert([
+            ['id' => 'edu', 'name' => 'School of Education', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'ict', 'name' => 'School of ICT', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'nursing', 'name' => 'School of Nursing', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'business', 'name' => 'School of Business', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'eng', 'name' => 'School of Engineering', 'created_at' => now(), 'updated_at' => now()],
+        ], ['id'], ['name', 'updated_at']);
+
+        DB::table('admissions_settings')->updateOrInsert(
+            ['id' => 1],
+            [
+                'is_open' => true,
+                'message' => null,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        DB::table('academic_policies')->upsert([
+            [
+                'id' => 1,
+                'name' => 'Standard ZM (Pass 50 / Best Attempt)',
+                'pass_mark' => 50,
+                'exam_minimum' => null,
+                'gpa_scale_type' => '4.0',
+                'grade_bands' => json_encode([
+                    ['min' => 70, 'max' => 100, 'letter' => 'A', 'points' => 4.0],
+                    ['min' => 60, 'max' => 69, 'letter' => 'B', 'points' => 3.0],
+                    ['min' => 50, 'max' => 59, 'letter' => 'C', 'points' => 2.0],
+                    ['min' => 40, 'max' => 49, 'letter' => 'D', 'points' => 1.0],
+                    ['min' => 0, 'max' => 39, 'letter' => 'F', 'points' => 0.0],
+                ]),
+                'repeat_rule' => 'best',
+                'max_attempts' => 3,
+                'include_failed_in_gpa' => true,
+                'include_withdrawn_in_gpa' => false,
+                'credit_award_policy' => 'pass_only',
+                'condoned_mark' => null,
+                'progression_policy' => json_encode([
+                    'min_pass_percent' => 0.6,
+                    'probation_limit' => 2,
+                    'carry_limit' => 2,
+                ]),
+                'holds_policy' => json_encode([
+                    'registration' => true,
+                    'course_access' => true,
+                    'exam_entry' => true,
+                    'results_release' => true,
+                ]),
+                'rounding_decimals' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 2,
+                'name' => 'Strict (Pass 60 / Latest Attempt)',
+                'pass_mark' => 60,
+                'exam_minimum' => null,
+                'gpa_scale_type' => '4.0',
+                'grade_bands' => json_encode([
+                    ['min' => 80, 'max' => 100, 'letter' => 'A', 'points' => 4.0],
+                    ['min' => 70, 'max' => 79, 'letter' => 'B', 'points' => 3.0],
+                    ['min' => 60, 'max' => 69, 'letter' => 'C', 'points' => 2.0],
+                    ['min' => 50, 'max' => 59, 'letter' => 'D', 'points' => 1.0],
+                    ['min' => 0, 'max' => 49, 'letter' => 'F', 'points' => 0.0],
+                ]),
+                'repeat_rule' => 'latest',
+                'max_attempts' => 2,
+                'include_failed_in_gpa' => true,
+                'include_withdrawn_in_gpa' => false,
+                'credit_award_policy' => 'pass_only',
+                'condoned_mark' => null,
+                'progression_policy' => json_encode([
+                    'min_pass_percent' => 0.7,
+                    'probation_limit' => 1,
+                    'carry_limit' => 1,
+                ]),
+                'holds_policy' => json_encode([
+                    'registration' => true,
+                    'course_access' => true,
+                    'exam_entry' => true,
+                    'results_release' => true,
+                ]),
+                'rounding_decimals' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 3,
+                'name' => 'Average Attempts (Pass 50 / Average)',
+                'pass_mark' => 50,
+                'exam_minimum' => null,
+                'gpa_scale_type' => '4.0',
+                'grade_bands' => json_encode([
+                    ['min' => 70, 'max' => 100, 'letter' => 'A', 'points' => 4.0],
+                    ['min' => 60, 'max' => 69, 'letter' => 'B', 'points' => 3.0],
+                    ['min' => 50, 'max' => 59, 'letter' => 'C', 'points' => 2.0],
+                    ['min' => 40, 'max' => 49, 'letter' => 'D', 'points' => 1.0],
+                    ['min' => 0, 'max' => 39, 'letter' => 'F', 'points' => 0.0],
+                ]),
+                'repeat_rule' => 'average',
+                'max_attempts' => 3,
+                'include_failed_in_gpa' => true,
+                'include_withdrawn_in_gpa' => false,
+                'credit_award_policy' => 'pass_only',
+                'condoned_mark' => null,
+                'progression_policy' => json_encode([
+                    'min_pass_percent' => 0.6,
+                    'probation_limit' => 2,
+                    'carry_limit' => 2,
+                ]),
+                'holds_policy' => json_encode([
+                    'registration' => true,
+                    'course_access' => true,
+                    'exam_entry' => true,
+                    'results_release' => true,
+                ]),
+                'rounding_decimals' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 4,
+                'name' => 'All Attempts Count (Pass 50 / All)',
+                'pass_mark' => 50,
+                'exam_minimum' => null,
+                'gpa_scale_type' => '4.0',
+                'grade_bands' => json_encode([
+                    ['min' => 70, 'max' => 100, 'letter' => 'A', 'points' => 4.0],
+                    ['min' => 60, 'max' => 69, 'letter' => 'B', 'points' => 3.0],
+                    ['min' => 50, 'max' => 59, 'letter' => 'C', 'points' => 2.0],
+                    ['min' => 40, 'max' => 49, 'letter' => 'D', 'points' => 1.0],
+                    ['min' => 0, 'max' => 39, 'letter' => 'F', 'points' => 0.0],
+                ]),
+                'repeat_rule' => 'all',
+                'max_attempts' => 3,
+                'include_failed_in_gpa' => true,
+                'include_withdrawn_in_gpa' => false,
+                'credit_award_policy' => 'pass_only',
+                'condoned_mark' => null,
+                'progression_policy' => json_encode([
+                    'min_pass_percent' => 0.6,
+                    'probation_limit' => 2,
+                    'carry_limit' => 2,
+                ]),
+                'holds_policy' => json_encode([
+                    'registration' => true,
+                    'course_access' => true,
+                    'exam_entry' => true,
+                    'results_release' => true,
+                ]),
+                'rounding_decimals' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['name', 'pass_mark', 'gpa_scale_type', 'grade_bands', 'repeat_rule', 'max_attempts', 'include_failed_in_gpa', 'include_withdrawn_in_gpa', 'credit_award_policy', 'condoned_mark', 'progression_policy', 'holds_policy', 'rounding_decimals', 'updated_at']);
+
+
+        DB::table('qualification_levels')->upsert([
+            [
+                'id' => 'short-course',
+                'name' => 'Short Course',
+                'category' => 'short_course',
+                'default_credits' => 5,
+                'minimum_credits' => 1,
+                'maximum_credits' => 15,
+                'duration_months' => 2,
+                'admission_requirements' => 'Open entry; applicant interest statement recommended.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid']),
+                'requires_exam_clinic' => false,
+                'requires_accreditation_approval' => false,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => null,
+                'sort_order' => 10,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'certificate',
+                'name' => 'Certificate',
+                'category' => 'certificate',
+                'default_credits' => 30,
+                'minimum_credits' => 20,
+                'maximum_credits' => 60,
+                'duration_months' => 6,
+                'admission_requirements' => 'Secondary school completion or equivalent experience.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid', 'physical']),
+                'requires_exam_clinic' => false,
+                'requires_accreditation_approval' => false,
+                'minimum_subject_count' => 3,
+                'minimum_total_points' => 12,
+                'required_prior_qualification' => 'Secondary school certificate or equivalent',
+                'sort_order' => 20,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'diploma',
+                'name' => 'Diploma',
+                'category' => 'diploma',
+                'default_credits' => 120,
+                'minimum_credits' => 90,
+                'maximum_credits' => 180,
+                'duration_months' => 24,
+                'admission_requirements' => 'Five qualifying subjects including English and programme-specific prerequisites.',
+                'allowed_delivery_modes' => json_encode(['hybrid', 'physical']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 5,
+                'minimum_total_points' => 24,
+                'required_prior_qualification' => 'Secondary school certificate',
+                'sort_order' => 30,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'degree',
+                'name' => 'Degree',
+                'category' => 'degree',
+                'default_credits' => 480,
+                'minimum_credits' => 360,
+                'maximum_credits' => 600,
+                'duration_months' => 48,
+                'admission_requirements' => 'Five qualifying subjects plus programme prerequisites; mature entry may require registrar review.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid', 'physical']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 5,
+                'minimum_total_points' => 30,
+                'required_prior_qualification' => 'Secondary school certificate',
+                'sort_order' => 40,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'masters',
+                'name' => 'Masters',
+                'category' => 'masters',
+                'default_credits' => 180,
+                'minimum_credits' => 120,
+                'maximum_credits' => 240,
+                'duration_months' => 24,
+                'admission_requirements' => 'Recognised bachelor degree, transcript, CV, and professional or research statement.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => 'Bachelor degree or equivalent',
+                'sort_order' => 50,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'phd',
+                'name' => 'PhD',
+                'category' => 'phd',
+                'default_credits' => 360,
+                'minimum_credits' => 240,
+                'maximum_credits' => 540,
+                'duration_months' => 36,
+                'admission_requirements' => 'Relevant masters degree, research proposal, supervisor match, and research ethics screening.',
+                'allowed_delivery_modes' => json_encode(['hybrid']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => 'Masters degree or equivalent',
+                'sort_order' => 60,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'professional-programme',
+                'name' => 'Professional Programme',
+                'category' => 'professional_programme',
+                'default_credits' => 60,
+                'minimum_credits' => 30,
+                'maximum_credits' => 120,
+                'duration_months' => 12,
+                'admission_requirements' => 'Relevant workplace experience and any regulator-mandated prerequisites.',
+                'allowed_delivery_modes' => json_encode(['online', 'hybrid', 'physical']),
+                'requires_exam_clinic' => true,
+                'requires_accreditation_approval' => true,
+                'minimum_subject_count' => 0,
+                'minimum_total_points' => 0,
+                'required_prior_qualification' => 'Professional experience or recognised prior learning',
+                'sort_order' => 70,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['name', 'category', 'default_credits', 'minimum_credits', 'maximum_credits', 'duration_months', 'admission_requirements', 'allowed_delivery_modes', 'requires_exam_clinic', 'requires_accreditation_approval', 'minimum_subject_count', 'minimum_total_points', 'required_prior_qualification', 'sort_order', 'updated_at']);
+
+        DB::table('short_courses')->upsert([
+            [
+                'id' => 'cs101',
+                'school_id' => 'ict',
+                'title' => 'AI Digital Skills Certificate',
+                'description' => 'A paid certificate short course covering digital systems, cloud collaboration, and AI fundamentals.',
+                'progress' => 100,
+                'image_id' => '1',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
+                'duration_hours' => 18,
+                'level' => 'beginner',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'nur201',
+                'school_id' => 'nursing',
+                'title' => 'Community Health Certificate',
+                'description' => 'A paid certificate short course introducing community health, patient safety, and care ethics.',
+                'progress' => 45,
+                'image_id' => '2',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
+                'duration_hours' => 24,
+                'level' => 'intermediate',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'bus301',
+                'school_id' => 'business',
+                'title' => 'Business Analytics Certificate',
+                'description' => 'A paid certificate short course for practical dashboards, KPIs, and decision support.',
+                'progress' => 90,
+                'image_id' => '3',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
+                'duration_hours' => 30,
+                'level' => 'intermediate',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'eng401',
+                'school_id' => 'eng',
+                'title' => 'Engineering Design Certificate',
+                'description' => 'A paid certificate short course introducing engineering design thinking and prototyping.',
+                'progress' => 20,
+                'image_id' => '4',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
+                'duration_hours' => 16,
+                'level' => 'beginner',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'edu110',
+                'school_id' => 'edu',
+                'title' => 'Early Learning Certificate',
+                'description' => 'A paid certificate short course for early childhood teaching foundations.',
+                'progress' => 60,
+                'image_id' => '5',
+                'certificate_type' => 'certificate',
+                'pricing_type' => 'paid',
+                'price' => 50,
+                'currency' => 'ZMW',
+                'certificate_fee' => 15,
+                'certificate_currency' => 'USD',
+                'duration_hours' => 20,
+                'level' => 'beginner',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['title', 'description', 'school_id', 'certificate_type', 'pricing_type', 'price', 'currency', 'certificate_fee', 'certificate_currency', 'duration_hours', 'level', 'progress', 'image_id', 'updated_at']);
+
+        DB::table('programs')->upsert([
+            [
+                'id' => 'cs101',
+                'school_id' => 'ict',
+                'title' => 'Bachelor of Science in Software Development and Emerging Technologies',
+                'description' => 'Duration: 4 years (8 semesters). Delivery: 100% online with AI tutors and virtual labs.',
+                'qualification_level_id' => 'degree',
+                'credits' => 480,
+                'duration_months' => 48,
+                'admission_requirements' => 'Five qualifying subjects including Mathematics or ICT.',
+                'delivery_modes' => json_encode(['online', 'hybrid']),
+                'supported_delivery_modes' => json_encode(['software_only', 'hybrid']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
+                'progress' => 100,
+                'image_id' => '1',
+                'award_type' => 'degree',
+                'qualification_level' => 'bachelors',
+                'duration_semesters' => 8,
+                'total_credits' => 480,
+                'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'bus301',
+                'school_id' => 'business',
+                'title' => 'MBA',
+                'description' => 'Duration: 2 years (4 semesters). Delivery: hybrid with weekend intensives and online classes.',
+                'qualification_level_id' => 'masters',
+                'credits' => 180,
+                'duration_months' => 24,
+                'admission_requirements' => 'Recognised bachelor degree and leadership statement.',
+                'delivery_modes' => json_encode(['online', 'hybrid']),
+                'supported_delivery_modes' => json_encode(['software_only', 'hybrid']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
+                'progress' => 0,
+                'image_id' => '3',
+                'award_type' => 'masters',
+                'qualification_level' => 'masters',
+                'duration_semesters' => 4,
+                'total_credits' => 240,
+                'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'nur201',
+                'school_id' => 'nursing',
+                'title' => 'Diploma in Nursing',
+                'description' => 'Duration: 3 years (6 semesters). Delivery: physical labs with online theory.',
+                'qualification_level_id' => 'diploma',
+                'credits' => 180,
+                'duration_months' => 36,
+                'admission_requirements' => 'Five qualifying subjects including Biology or Science.',
+                'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'supported_delivery_modes' => json_encode(['hybrid', 'physical']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
+                'progress' => 0,
+                'image_id' => '2',
+                'award_type' => 'diploma',
+                'qualification_level' => 'diploma',
+                'duration_semesters' => 6,
+                'total_credits' => 360,
+                'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'eng401',
+                'school_id' => 'eng',
+                'title' => 'Mechanical Engineering',
+                'description' => 'Duration: 4 years (8 semesters). Delivery: physical labs and hybrid lectures.',
+                'qualification_level_id' => 'degree',
+                'credits' => 480,
+                'duration_months' => 48,
+                'admission_requirements' => 'Five qualifying subjects including Mathematics and Physics.',
+                'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'supported_delivery_modes' => json_encode(['hybrid', 'physical']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
+                'progress' => 0,
+                'image_id' => '4',
+                'award_type' => 'degree',
+                'qualification_level' => 'bachelors',
+                'duration_semesters' => 8,
+                'total_credits' => 480,
+                'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'edu110',
+                'school_id' => 'edu',
+                'title' => 'Early Childhood Education',
+                'description' => 'Duration: 3 years (6 semesters). Delivery: blended learning with school placements.',
+                'qualification_level_id' => 'diploma',
+                'credits' => 180,
+                'duration_months' => 36,
+                'admission_requirements' => 'Five qualifying subjects and teaching placement readiness.',
+                'delivery_modes' => json_encode(['hybrid', 'physical']),
+                'supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical']),
+                'exam_clinic_required' => true,
+                'requires_accreditation_approval' => true,
+                'accreditation_approved_at' => now(),
+                'launch_status' => 'published',
+                'progress' => 0,
+                'image_id' => '5',
+                'award_type' => 'diploma',
+                'qualification_level' => 'diploma',
+                'duration_semesters' => 6,
+                'total_credits' => 360,
+                'delivery_mode' => 'online',
+                'application_fee' => 100,
+                'application_currency' => 'ZMW',
+                'tuition_fee' => 650,
+                'tuition_currency' => 'ZMW',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['title', 'description', 'school_id', 'qualification_level_id', 'credits', 'duration_months', 'admission_requirements', 'delivery_modes', 'supported_delivery_modes', 'exam_clinic_required', 'requires_accreditation_approval', 'accreditation_approved_at', 'launch_status', 'award_type', 'qualification_level', 'duration_semesters', 'total_credits', 'delivery_mode', 'application_fee', 'application_currency', 'tuition_fee', 'tuition_currency', 'progress', 'image_id', 'updated_at']);
+
+        DB::table('programs')->where('id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('programs')->where('id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('programs')->where('id', 'nur201')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('programs')->where('id', 'eng401')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('programs')->where('id', 'edu110')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical'])]);
+
+        DB::table('curriculum_versions')->upsert([
+            [
+                'id' => 'cs101-v2026',
+                'program_id' => 'cs101',
+                'name' => 'Curriculum 2026',
+                'status' => 'published',
+                'published_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'bus301-v2026',
+                'program_id' => 'bus301',
+                'name' => 'Curriculum 2026',
+                'status' => 'published',
+                'published_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'nur201-v2026',
+                'program_id' => 'nur201',
+                'name' => 'Curriculum 2026',
+                'status' => 'published',
+                'published_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'eng401-v2026',
+                'program_id' => 'eng401',
+                'name' => 'Curriculum 2026',
+                'status' => 'published',
+                'published_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'edu110-v2026',
+                'program_id' => 'edu110',
+                'name' => 'Curriculum 2026',
+                'status' => 'published',
+                'published_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['name', 'status', 'published_at', 'updated_at']);
+
+        DB::table('program_policies')->updateOrInsert(
+            ['program_id' => 'cs101'],
+            ['policy_id' => 1, 'created_at' => now(), 'updated_at' => now()]
+        );
+
+        DB::table('curriculum_version_policies')->updateOrInsert(
+            ['curriculum_version_id' => 'cs101-v2026'],
+            ['policy_id' => 1, 'created_at' => now(), 'updated_at' => now()]
+        );
+
+        DB::table('intakes')->upsert([
+            [
+                'id' => 'cs101-2026-jan',
+                'program_id' => 'cs101',
+                'curriculum_version_id' => 'cs101-v2026',
+                'name' => 'Jan 2026 Intake',
+                'delivery_mode' => 'hybrid',
+                'campus' => 'Lusaka Campus',
+                'capacity' => 200,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addMonths(4)->toDateString(),
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'cs101-2026-jun',
+                'program_id' => 'cs101',
+                'curriculum_version_id' => 'cs101-v2026',
+                'name' => 'Jun 2026 Intake',
+                'delivery_mode' => 'software_only',
+                'campus' => null,
+                'capacity' => 300,
+                'start_date' => now()->addMonths(4)->toDateString(),
+                'end_date' => now()->addMonths(8)->toDateString(),
+                'status' => 'open',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'bus301-2026-jan',
+                'program_id' => 'bus301',
+                'curriculum_version_id' => 'bus301-v2026',
+                'name' => 'Jan 2026 Intake',
+                'delivery_mode' => 'hybrid',
+                'campus' => 'Lusaka Campus',
+                'capacity' => 120,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addMonths(6)->toDateString(),
+                'status' => 'open',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'bus301-2026-jun',
+                'program_id' => 'bus301',
+                'curriculum_version_id' => 'bus301-v2026',
+                'name' => 'Jun 2026 Intake',
+                'delivery_mode' => 'software_only',
+                'campus' => null,
+                'capacity' => 150,
+                'start_date' => now()->addMonths(5)->toDateString(),
+                'end_date' => now()->addMonths(10)->toDateString(),
+                'status' => 'open',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'nur201-2026-jan',
+                'program_id' => 'nur201',
+                'curriculum_version_id' => 'nur201-v2026',
+                'name' => 'Jan 2026 Intake',
+                'delivery_mode' => 'physical',
+                'campus' => 'Lusaka Campus',
+                'capacity' => 80,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addMonths(6)->toDateString(),
+                'status' => 'open',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'eng401-2026-jan',
+                'program_id' => 'eng401',
+                'curriculum_version_id' => 'eng401-v2026',
+                'name' => 'Jan 2026 Intake',
+                'delivery_mode' => 'hybrid',
+                'campus' => 'Copperbelt Campus',
+                'capacity' => 100,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addMonths(6)->toDateString(),
+                'status' => 'open',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'edu110-2026-jan',
+                'program_id' => 'edu110',
+                'curriculum_version_id' => 'edu110-v2026',
+                'name' => 'Jan 2026 Intake',
+                'delivery_mode' => 'hybrid',
+                'campus' => 'Lusaka Campus',
+                'capacity' => 140,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addMonths(6)->toDateString(),
+                'status' => 'open',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['name', 'delivery_mode', 'campus', 'capacity', 'start_date', 'end_date', 'status', 'curriculum_version_id', 'updated_at']);
+
+        DB::table('program_modules')->upsert([
+            [
+                'id' => 'cs101-sem1-1',
+                'program_id' => 'cs101',
+                'curriculum_version_id' => 'cs101-v2026',
+                'title' => 'Introduction to ICT and Digital Literacy',
+                'description' => 'Overview of computers, networks, and digital systems.',
+                'credits' => 6,
+                'progress' => 100,
+                'semester' => 1,
+                'is_exam_available' => true,
+                'is_core' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'cs101-sem1-2',
+                'program_id' => 'cs101',
+                'curriculum_version_id' => 'cs101-v2026',
+                'title' => 'Fundamentals of Programming',
+                'description' => 'Introduction to programming using Python.',
+                'credits' => 6,
+                'progress' => 100,
+                'semester' => 1,
+                'is_exam_available' => false,
+                'is_core' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'cs101-sem1-3',
+                'program_id' => 'cs101',
+                'curriculum_version_id' => 'cs101-v2026',
+                'title' => 'Mathematics for Computer Science I',
+                'description' => 'Logic, sets, functions, and basic discrete math.',
+                'credits' => 6,
+                'progress' => 100,
+                'semester' => 1,
+                'is_exam_available' => false,
+                'is_core' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'cs101-sem1-4',
+                'program_id' => 'cs101',
+                'curriculum_version_id' => 'cs101-v2026',
+                'title' => 'Introduction to Artificial Intelligence',
+                'description' => 'History and applications of AI.',
+                'credits' => 6,
+                'progress' => 100,
+                'semester' => 1,
+                'is_exam_available' => false,
+                'is_core' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'cs101-sem1-5',
+                'program_id' => 'cs101',
+                'curriculum_version_id' => 'cs101-v2026',
+                'title' => 'Professional Development & Ethics',
+                'description' => 'Digital ethics, professionalism, and communication skills.',
+                'credits' => 3,
+                'progress' => 100,
+                'semester' => 1,
+                'is_exam_available' => false,
+                'is_core' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'bus301-sem1-1',
+                'program_id' => 'bus301',
+                'curriculum_version_id' => 'bus301-v2026',
+                'title' => 'Strategic Management Fundamentals',
+                'description' => 'Foundations of competitive strategy and corporate positioning.',
+                'credits' => 6,
+                'progress' => 0,
+                'semester' => 1,
+                'is_exam_available' => true,
+                'is_core' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'bus301-sem1-2',
+                'program_id' => 'bus301',
+                'curriculum_version_id' => 'bus301-v2026',
+                'title' => 'Financial Decision-Making',
+                'description' => 'Budgeting, forecasting, and investment analysis for managers.',
+                'credits' => 6,
+                'progress' => 0,
+                'semester' => 1,
+                'is_exam_available' => false,
+                'is_core' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['title', 'description', 'progress', 'semester', 'is_exam_available', 'is_core', 'curriculum_version_id', 'updated_at']);
+
+        DB::table('program_modules')->where('program_id', 'cs101')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('program_modules')->where('program_id', 'bus301')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid'])]);
+        DB::table('program_modules')->where('program_id', 'nur201')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('program_modules')->where('program_id', 'eng401')->update(['supported_delivery_modes' => json_encode(['hybrid', 'physical'])]);
+        DB::table('program_modules')->where('program_id', 'edu110')->update(['supported_delivery_modes' => json_encode(['software_only', 'hybrid', 'physical'])]);
+
+        $lessonRows = [
+            [
+                'id' => 'l1-cs101',
+                'title' => 'Digital Systems Overview',
+                'content' => 'An overview of modern computer hardware, software, and networking components.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l2-cs101',
+                'title' => 'Cloud Collaboration',
+                'content' => 'Hands-on skills using cloud storage and collaborative tools like Google Workspace.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l3-cs101',
+                'title' => 'Intro to Python',
+                'content' => 'Learn the fundamentals of the Python programming language, including variables and control flow.',
+                'video_url' => 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                'quiz' => json_encode([
+                    'title' => 'Python Basics Check',
+                    'questions' => [
+                        [
+                            'question' => 'Which keyword creates a conditional block in Python?',
+                            'options' => ['if', 'loop', 'define', 'switch'],
+                            'answer' => 'if',
+                        ],
+                        [
+                            'question' => 'What data type is "42" in Python?',
+                            'options' => ['int', 'string', 'float', 'bool'],
+                            'answer' => 'string',
+                        ],
+                    ],
+                ]),
+                'exercise' => 'Write a short program that asks for a name and prints a personalized greeting.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l4-cs101',
+                'title' => 'Data Representation',
+                'content' => 'How data is represented in binary, hexadecimal, and structured formats.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l5-cs101',
+                'title' => 'Algorithms in Everyday Systems',
+                'content' => 'Understanding how algorithms power search, recommendations, and automation.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l6-cs101',
+                'title' => 'Ethics in Emerging Tech',
+                'content' => 'Ethical considerations for AI, privacy, and responsible innovation.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l7-cs101',
+                'title' => 'Collaboration & Version Control',
+                'content' => 'Working with teams, version control basics, and academic integrity in group projects.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l8-cs101',
+                'title' => 'Programming Fundamentals Lab',
+                'content' => 'Hands-on lab to practice input/output, conditions, and loops.',
+                'exercise' => 'Create a simple calculator that adds and subtracts two numbers.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l9-cs101',
+                'title' => 'AI in Society',
+                'content' => 'Case studies on how AI impacts education, health, and business.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l1-bus301',
+                'title' => 'Strategic Leadership Foundations',
+                'content' => 'Leadership models, decision-making frameworks, and strategy alignment.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l2-bus301',
+                'title' => 'Business Analytics Overview',
+                'content' => 'Core KPIs, dashboards, and data-driven decision support.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ];
+
+        DB::table('lessons')->upsert(
+            collect($lessonRows)->map(fn (array $lesson) => [
+                'id' => $lesson['id'],
+                'title' => $lesson['title'],
+                'summary' => $lesson['content'] ?? null,
+                'publication_status' => 'published',
+                'published_at' => now()->subDays(7),
+                'created_at' => $lesson['created_at'],
+                'updated_at' => $lesson['updated_at'],
+            ])->all(),
+            ['id'],
+            ['title', 'summary', 'publication_status', 'published_at', 'updated_at']
+        );
+
+        $learningObjectRows = [];
+        $lessonLearningObjectRows = [];
+        $learningObjectTypes = [
+            'content' => ['position' => 1, 'title' => 'Lesson Notes'],
+            'video' => ['position' => 2, 'title' => 'Lesson Video'],
+            'quiz' => ['position' => 3, 'title' => 'Knowledge Check'],
+            'exercise' => ['position' => 4, 'title' => 'Practice Exercise'],
+        ];
+
+        foreach ($lessonRows as $lesson) {
+            foreach ($learningObjectTypes as $type => $meta) {
+                $hasObject = $type === 'content'
+                    ? !empty($lesson['content'])
+                    : ($type === 'video'
+                        ? !empty($lesson['video_url'])
+                        : ($type === 'quiz'
+                            ? !empty($lesson['quiz'])
+                            : !empty($lesson['exercise'])));
+
+                if (!$hasObject) {
+                    continue;
+                }
+
+                $learningObjectId = "{$lesson['id']}-{$type}-v1";
+                $learningObjectRows[] = [
+                    'id' => $learningObjectId,
+                    'type' => $type,
+                    'title' => "{$lesson['title']} {$meta['title']}",
+                    'description' => $type === 'content' ? $lesson['content'] : null,
+                    'body' => in_array($type, ['content', 'exercise'], true) ? ($type === 'content' ? $lesson['content'] : $lesson['exercise']) : null,
+                    'asset_url' => $type === 'video' ? $lesson['video_url'] : null,
+                    'payload' => $type === 'quiz' ? $lesson['quiz'] : null,
+                    'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                    'version' => 1,
+                    'version_label' => '2026.1',
+                    'is_current' => true,
+                    'is_reusable' => true,
+                    'review_status' => 'approved',
+                    'publication_status' => 'published',
+                    'reviewed_at' => now()->subDays(8),
+                    'published_at' => now()->subDays(7),
+                    'created_at' => $lesson['created_at'],
+                    'updated_at' => $lesson['updated_at'],
+                ];
+                $lessonLearningObjectRows[] = [
+                    'lesson_id' => $lesson['id'],
+                    'learning_object_id' => $learningObjectId,
+                    'position' => $meta['position'],
+                    'is_required' => true,
+                    'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]),
+                    'publication_status' => 'published',
+                    'created_at' => $lesson['created_at'],
+                    'updated_at' => $lesson['updated_at'],
+                ];
+            }
+        }
+
+        $learningObjectRows = array_merge($learningObjectRows, [
+            [
+                'id' => 'l1-cs101-slides-v1',
+                'type' => 'slides',
+                'title' => 'Digital Systems Overview Slides',
+                'description' => 'Reusable lecture deck covering hardware, software, and network components.',
+                'asset_url' => 'https://example.edu/learning-objects/digital-systems-slides.pdf',
+                'mime_type' => 'application/pdf',
+                'payload' => json_encode(['slideCount' => 18]),
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDays(8),
+                'published_at' => now()->subDays(7),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l3-cs101-flashcards-v1',
+                'type' => 'flashcards',
+                'title' => 'Python Basics Flashcards',
+                'description' => 'Reusable terminology flashcards for beginner Python concepts.',
+                'payload' => json_encode(['cards' => [
+                    ['front' => 'Variable', 'back' => 'A named reference to a value.'],
+                    ['front' => 'Conditional', 'back' => 'Logic that runs only when a condition is true.'],
+                ]]),
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDays(4),
+                'published_at' => now()->subDays(3),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'lo-python-video',
+                'type' => 'video',
+                'title' => 'Python Basics Demonstration',
+                'asset_url' => 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'published_at' => now()->subDays(3),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'lo-python-quiz',
+                'type' => 'quiz',
+                'title' => 'Python Basics Check',
+                'payload' => json_encode([
+                    'questions' => [
+                        ['question' => 'Which keyword creates a conditional block in Python?', 'options' => ['if', 'loop', 'define', 'switch'], 'answer' => 'if'],
+                        ['question' => 'What data type is "42" in Python?', 'options' => ['int', 'string', 'float', 'bool'], 'answer' => 'string'],
+                    ],
+                ]),
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'published_at' => now()->subDays(3),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l8-cs101-rubric-v1',
+                'type' => 'rubric',
+                'title' => 'Programming Lab Rubric',
+                'description' => 'Assessment rubric for introductory programming labs.',
+                'payload' => json_encode(['criteria' => [
+                    ['name' => 'Correctness', 'points' => 10],
+                    ['name' => 'Code clarity', 'points' => 5],
+                    ['name' => 'Reflection', 'points' => 5],
+                ]]),
+                'access_rules' => json_encode(['roles' => ['lecturer'], 'requiresEnrollment' => false]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'pending_review',
+                'publication_status' => 'draft',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'l1-bus301-document-v1',
+                'type' => 'document',
+                'title' => 'Strategic Leadership Brief',
+                'description' => 'Downloadable briefing document for leadership frameworks.',
+                'storage_path' => 'seeded/strategic-leadership-brief.md',
+                'mime_type' => 'text/markdown',
+                'access_rules' => json_encode(['roles' => ['student', 'lecturer'], 'requiresEnrollment' => true]),
+                'version' => 1,
+                'version_label' => '2026.1',
+                'is_current' => true,
+                'is_reusable' => true,
+                'review_status' => 'approved',
+                'publication_status' => 'published',
+                'reviewed_at' => now()->subDay(),
+                'published_at' => now()->subDay(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $lessonLearningObjectRows = array_merge($lessonLearningObjectRows, [
+            ['lesson_id' => 'l1-cs101', 'learning_object_id' => 'l1-cs101-slides-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'l3-cs101-flashcards-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-video', 'position' => 6, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l3-cs101', 'learning_object_id' => 'lo-python-quiz', 'position' => 7, 'is_required' => true, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l8-cs101', 'learning_object_id' => 'l8-cs101-rubric-v1', 'position' => 5, 'is_required' => false, 'access_rules' => json_encode(['roles' => ['lecturer'], 'requiresEnrollment' => false]), 'publication_status' => 'draft', 'created_at' => now(), 'updated_at' => now()],
+            ['lesson_id' => 'l1-bus301', 'learning_object_id' => 'l1-bus301-document-v1', 'position' => 5, 'is_required' => true, 'access_rules' => json_encode(['roles' => ['student'], 'requiresEnrollment' => true]), 'publication_status' => 'published', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $learningObjectDefaults = [
+            'description' => null,
+            'body' => null,
+            'asset_url' => null,
+            'storage_path' => null,
+            'mime_type' => null,
+            'payload' => null,
+            'access_rules' => null,
+            'version' => 1,
+            'version_label' => null,
+            'is_current' => true,
+            'is_reusable' => true,
+            'review_status' => 'draft',
+            'publication_status' => 'draft',
+            'created_by' => null,
+            'updated_by' => null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'published_at' => null,
+            'retracted_at' => null,
+        ];
+        $learningObjectRows = array_map(
+            fn (array $row) => array_merge($learningObjectDefaults, $row),
+            $learningObjectRows
+        );
+
+        DB::table('learning_objects')->upsert(
+            $learningObjectRows,
+            ['id'],
+            ['type', 'title', 'description', 'body', 'asset_url', 'storage_path', 'mime_type', 'payload', 'access_rules', 'version', 'version_label', 'is_current', 'is_reusable', 'review_status', 'publication_status', 'reviewed_at', 'published_at', 'updated_at']
+        );
+
+        DB::table('lesson_learning_objects')->upsert(
+            $lessonLearningObjectRows,
+            ['lesson_id', 'learning_object_id'],
+            ['position', 'is_required', 'access_rules', 'publication_status', 'updated_at']
+        );
+        DB::table('short_course_lessons')->upsert([
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l1-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l2-cs101', 'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l3-cs101', 'sort_order' => 3, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l4-cs101', 'sort_order' => 4, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l5-cs101', 'sort_order' => 5, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l6-cs101', 'sort_order' => 6, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l7-cs101', 'sort_order' => 7, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l8-cs101', 'sort_order' => 8, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'cs101', 'lesson_id' => 'l9-cs101', 'sort_order' => 9, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'bus301', 'lesson_id' => 'l1-bus301', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['short_course_id' => 'bus301', 'lesson_id' => 'l2-bus301', 'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()],
+        ], ['short_course_id', 'lesson_id'], ['sort_order', 'updated_at']);
+
+        DB::table('program_module_lessons')->upsert([
+            ['program_module_id' => 'cs101-sem1-1', 'lesson_id' => 'l1-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['program_module_id' => 'cs101-sem1-2', 'lesson_id' => 'l3-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['program_module_id' => 'cs101-sem1-4', 'lesson_id' => 'l9-cs101', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['program_module_id' => 'bus301-sem1-1', 'lesson_id' => 'l1-bus301', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()],
+        ], ['program_module_id', 'lesson_id'], ['sort_order', 'updated_at']);
+
+        DB::table('assignments')->upsert([
+            [
+                'id' => 1,
+                'module_id' => 'cs101-sem1-1',
+                'title' => 'Digital Literacy Reflection',
+                'description' => 'Reflect on how digital systems shape your daily workflow.',
+                'instructions' => 'Write 500-700 words. Include two real-world examples and one improvement idea.',
+                'assignment_type' => 'reflection',
+                'max_points' => 20,
+                'due_date' => now()->addDays(7),
+                'status' => 'published',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 2,
+                'module_id' => 'cs101-sem1-2',
+                'title' => 'Python Basics Lab',
+                'description' => 'Complete the lab tasks on variables, input/output, and conditionals.',
+                'instructions' => 'Submit a short write-up plus a link to your code repository.',
+                'assignment_type' => 'lab',
+                'max_points' => 30,
+                'due_date' => now()->addDays(10),
+                'status' => 'published',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 3,
+                'module_id' => 'cs101-sem1-3',
+                'title' => 'Discrete Math Problem Set',
+                'description' => 'Solve the first 10 problems in the provided worksheet.',
+                'instructions' => 'Upload a PDF or share a drive link with your solutions.',
+                'assignment_type' => 'problem-set',
+                'max_points' => 25,
+                'due_date' => now()->addDays(14),
+                'status' => 'published',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 4,
+                'module_id' => 'cs101-sem1-4',
+                'title' => 'AI Ethics Essay',
+                'description' => 'Analyze an AI ethics case study and propose safeguards.',
+                'instructions' => '800-1000 words. Cite at least 2 sources.',
+                'assignment_type' => 'essay',
+                'max_points' => 40,
+                'due_date' => now()->addDays(18),
+                'status' => 'published',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 5,
+                'module_id' => 'cs101-sem1-5',
+                'title' => 'Professional Portfolio Draft',
+                'description' => 'Create a draft student portfolio with your goals, skills, and project outline.',
+                'instructions' => 'Submit a PDF or live link to your portfolio page.',
+                'assignment_type' => 'portfolio',
+                'max_points' => 15,
+                'due_date' => now()->addDays(20),
+                'status' => 'published',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['title', 'description', 'instructions', 'assignment_type', 'max_points', 'due_date', 'status', 'module_id', 'course_id', 'updated_at']);
+
+        DB::table('exam_questions')->upsert([
+            [
+                'id' => 1,
+                'semester' => 1,
+                'question' => 'Which of these is NOT a core component of a computer system?',
+                'options' => json_encode(['CPU', 'RAM', 'Mouse', 'Hard Drive']),
+                'answer' => 'Mouse',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 2,
+                'semester' => 1,
+                'question' => 'What does the if statement do in Python?',
+                'options' => json_encode([
+                    'Loops over a sequence',
+                    'Defines a function',
+                    'Makes a decision based on a condition',
+                    'Prints output to the console',
+                ]),
+                'answer' => 'Makes a decision based on a condition',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 3,
+                'semester' => 1,
+                'question' => 'Which of the following is a key application of AI?',
+                'options' => json_encode([
+                    'Creating spreadsheets',
+                    'Natural Language Processing',
+                    'Sending emails',
+                    'Basic arithmetic',
+                ]),
+                'answer' => 'Natural Language Processing',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['question', 'options', 'answer', 'course_id', 'semester', 'updated_at']);
+
+        DB::table('job_postings')->upsert([
+            ['id' => 'j1', 'title' => 'Software Engineer Intern', 'company' => 'TechCorp', 'location' => 'Remote', 'type' => 'Internship', 'description' => 'Join the engineering team to build student-facing products.', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'j2', 'title' => 'Registered Nurse', 'company' => 'HealthFirst Hospital', 'location' => 'New York, NY', 'type' => 'Full-time', 'description' => 'Support patient care in a clinical environment.', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'j3', 'title' => 'Business Analyst', 'company' => 'FinancePro', 'location' => 'London, UK', 'type' => 'Full-time', 'description' => 'Analyze KPIs and business performance.', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'j4', 'title' => 'Frontend Developer', 'company' => 'Innovate Solutions', 'location' => 'Remote', 'type' => 'Full-time', 'description' => 'Build UI components and improve accessibility.', 'created_at' => now(), 'updated_at' => now()],
+        ], ['id'], ['title', 'company', 'location', 'type', 'description', 'updated_at']);
+
+        DB::table('research_opportunities')->upsert([
+            ['id' => 'r1', 'title' => 'AI in Medical Diagnosis', 'company' => 'HealthFirst Hospital', 'description' => 'Investigating ML models to improve diagnostic accuracy.', 'field' => 'Healthcare AI', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r2', 'title' => 'Next-Gen UI/UX with AI', 'company' => 'Innovate Solutions', 'description' => 'Researching adaptive and personalized user interfaces.', 'field' => 'Human-Computer Interaction', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r3', 'title' => 'Financial Infrastructure Protocols', 'company' => 'AftaCoin', 'description' => 'Analyzing security and scalability of financial infrastructure.', 'field' => 'FinTech', 'created_at' => now(), 'updated_at' => now()],
+        ], ['id'], ['title', 'company', 'description', 'field', 'updated_at']);
+
+        DB::table('discussions')->upsert([
+            [
+                'id' => 'd1',
+                'title' => 'Best resources for learning React?',
+                'author' => 'Jane Doe',
+                'avatar' => 'https://i.pravatar.cc/40?u=a042581f4e29026704d',
+                'snippet' => 'I am new to frontend development and trying to pick up React. What are the best tutorials?',
+                'created_at' => now()->subHours(2),
+                'updated_at' => now()->subHours(2),
+            ],
+            [
+                'id' => 'd2',
+                'title' => 'Tips for clinical rotations in nursing school',
+                'author' => 'John Smith',
+                'avatar' => 'https://i.pravatar.cc/40?u=a042581f4e29026705d',
+                'snippet' => 'My first clinical rotation is coming up and I am feeling nervous. Any advice?',
+                'created_at' => now()->subDay(),
+                'updated_at' => now()->subDay(),
+            ],
+        ], ['id'], ['title', 'author', 'avatar', 'snippet', 'updated_at']);
+
+        DB::table('discussion_comments')->upsert([
+            [
+                'id' => 1,
+                'discussion_id' => 'd1',
+                'author' => 'John Smith',
+                'avatar' => 'https://i.pravatar.cc/40?u=a042581f4e29026705d',
+                'content' => 'Scrimba and the official docs are a good pairing.',
+                'upvotes' => 12,
+                'created_at' => now()->subHour(),
+                'updated_at' => now()->subHour(),
+            ],
+            [
+                'id' => 2,
+                'discussion_id' => 'd1',
+                'author' => 'Emily White',
+                'avatar' => 'https://i.pravatar.cc/40?u=a042581f4e29026706d',
+                'content' => 'Egghead has short, focused lessons.',
+                'upvotes' => 5,
+                'created_at' => now()->subMinutes(45),
+                'updated_at' => now()->subMinutes(45),
+            ],
+        ], ['id'], ['content', 'upvotes', 'updated_at']);
+
+        DB::table('consultant_applications')->upsert([
+            [
+                'id' => 'app1',
+                'name' => 'Dr. Evelyn Reed',
+                'department' => 'School of ICT',
+                'status' => 'Pending',
+                'avatar' => 'https://i.pravatar.cc/80?u=lecturer',
+                'documents' => json_encode(['cv' => '#', 'id' => '#']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 'app2',
+                'name' => 'Prof. Alan Turing',
+                'department' => 'School of Engineering',
+                'status' => 'Pending',
+                'avatar' => 'https://i.pravatar.cc/80?u=prof-turing',
+                'documents' => json_encode(['cv' => '#', 'id' => '#']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['status', 'department', 'avatar', 'documents', 'updated_at']);
+
+        DB::table('lecturer_applications')->upsert([
+            [
+                'id' => 1,
+                'full_name' => 'Dr. Kelvin M.',
+                'email' => 'kelvin.mwamba@email.com',
+                'phone' => '+260 977 123456',
+                'department' => 'School of ICT',
+                'specialization' => 'Software Engineering',
+                'highest_qualification' => 'PhD Computer Science',
+                'years_experience' => 6,
+                'program_interest' => 'cs101',
+                'documents' => json_encode(['cv' => '#', 'certificates' => '#']),
+                'status' => 'submitted',
+                'submitted_at' => now()->subDay(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['status', 'updated_at']);
+
+        DB::table('badges')->upsert([
+            ['id' => 'b1', 'title' => 'Module Master', 'description' => 'Complete your first module.', 'icon' => 'award', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'b2', 'title' => 'Top Performer', 'description' => 'Achieve over 90% in an exam.', 'icon' => 'star', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'b3', 'title' => 'Course Completer', 'description' => 'Finish an entire course program.', 'icon' => 'book', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'b4', 'title' => 'Community Helper', 'description' => 'Receive 10 upvotes on a comment.', 'icon' => 'users', 'created_at' => now(), 'updated_at' => now()],
+        ], ['id'], ['title', 'description', 'icon', 'updated_at']);
+
+        DB::table('leaderboard_entries')->upsert([
+            ['id' => 1, 'rank' => 1, 'name' => 'Premium Student', 'avatar' => 'https://i.pravatar.cc/80?u=student-premium', 'school' => 'School of ICT', 'points' => 1250, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'rank' => 2, 'name' => 'Alice Johnson', 'avatar' => 'https://i.pravatar.cc/80?u=alice', 'school' => 'School of Business', 'points' => 1180, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'rank' => 3, 'name' => 'Bob Williams', 'avatar' => 'https://i.pravatar.cc/80?u=bob', 'school' => 'School of Engineering', 'points' => 1120, 'created_at' => now(), 'updated_at' => now()],
+        ], ['id'], ['rank', 'name', 'avatar', 'school', 'points', 'updated_at']);
+
+        DB::table('applications')->upsert([
+            [
+                'id' => 1,
+                'reference' => 'app-1001',
+                'full_name' => 'Noria Banda',
+                'email' => 'noria.banda@email.com',
+                'program_id' => 'cs101',
+                'intake_id' => 'cs101-2026-jan',
+                'school_id' => 'ict',
+                'status' => 'offer_sent',
+                'submitted_at' => now()->subDay(),
+                'subject_points' => json_encode([
+                    'english-language' => '6',
+                    'mathematics' => '5',
+                    'biology' => '5',
+                    'chemistry' => '5',
+                    'physics' => '6',
+                    'computer-studies' => '5',
+                    'civic-education' => '4',
+                ]),
+                'subject_count' => 7,
+                'total_points' => 42,
+                'delivery_mode' => 'hybrid',
+                'learning_style' => 'traditional',
+                'study_pace' => 'standard',
+                'country' => 'Zambia',
+                'notes' => 'Strong STEM profile. Recommend admission.',
+                'offer_letter_message' => 'Congratulations! Your offer is ready. Please accept to continue enrollment.',
+                'offer_issued_at' => now()->subHours(6),
+                'admission_fee_paid' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 2,
+                'reference' => 'app-1002',
+                'full_name' => 'Isaac Mwila',
+                'email' => 'isaac.mwila@email.com',
+                'program_id' => 'bus301',
+                'intake_id' => null,
+                'school_id' => 'business',
+                'status' => 'submitted',
+                'submitted_at' => now()->subDays(2),
+                'subject_points' => json_encode([
+                    'english-language' => '5',
+                    'mathematics' => '4',
+                    'commerce' => '5',
+                    'geography' => '5',
+                    'history' => '5',
+                    'principles-of-accounts' => '5',
+                ]),
+                'subject_count' => 6,
+                'total_points' => 34,
+                'delivery_mode' => 'software_only',
+                'learning_style' => 'personalized',
+                'study_pace' => 'flex',
+                'country' => 'Zambia',
+                'notes' => 'Meets minimum criteria. Awaiting fee payment.',
+                'offer_letter_message' => null,
+                'offer_issued_at' => null,
+                'admission_fee_paid' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['status', 'notes', 'updated_at']);
+
+        $sampleApplicationId = DB::table('applications')->where('reference', 'app-1001')->value('id');
+        if ($sampleApplicationId) {
+            DB::table('application_documents')->upsert([
+                [
+                    'id' => 1,
+                    'application_id' => $sampleApplicationId,
+                    'document_type' => 'national_id',
+                    'file_name' => 'national-id.pdf',
+                    'file_path' => 'admissions/app-1001/national-id.pdf',
+                    'mime_type' => 'application/pdf',
+                    'file_size' => 102400,
+                    'status' => 'verified',
+                    'review_notes' => 'Verified NRC copy.',
+                    'created_at' => now()->subDay(),
+                    'updated_at' => now()->subDay(),
+                ],
+                [
+                    'id' => 2,
+                    'application_id' => $sampleApplicationId,
+                    'document_type' => 'certified_results',
+                    'file_name' => 'results.pdf',
+                    'file_path' => 'admissions/app-1001/results.pdf',
+                    'mime_type' => 'application/pdf',
+                    'file_size' => 204800,
+                    'status' => 'uploaded',
+                    'review_notes' => null,
+                    'created_at' => now()->subDay(),
+                    'updated_at' => now()->subDay(),
+                ],
+            ], ['id'], ['status', 'review_notes', 'updated_at']);
+        }
+
+        $adminId = DB::table('users')->where('email', 'admin@univai.edu')->value('id');
+        $lecturerId = DB::table('users')->where('email', 'lecturer@univai.edu')->value('id');
+        $lecturerAId = DB::table('users')->where('email', 'lecturer.a@univai.edu')->value('id');
+        $lecturerBId = DB::table('users')->where('email', 'lecturer.b@univai.edu')->value('id');
+        $studentId = DB::table('users')->where('email', 'student.premium@univai.edu')->value('id');
+
+        if ($studentId) {
+            DB::table('assignment_submissions')->upsert([
+                [
+                    'id' => 1,
+                    'assignment_id' => 1,
+                    'student_id' => $studentId,
+                    'submitted_at' => now()->subDays(1),
+                    'content' => 'Reflection draft on digital systems and productivity tools.',
+                    'attachment_url' => 'https://drive.google.com/example/reflection',
+                    'status' => 'graded',
+                    'grade' => 18.5,
+                    'feedback' => 'Strong reflection and examples. Add one more source for a higher score.',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'id' => 2,
+                    'assignment_id' => 2,
+                    'student_id' => $studentId,
+                    'submitted_at' => now()->subHours(6),
+                    'content' => 'Python lab solutions with short explanation.',
+                    'attachment_url' => 'https://github.com/univai-demo/python-basics-lab',
+                    'status' => 'submitted',
+                    'grade' => null,
+                    'feedback' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ], ['id'], ['submitted_at', 'content', 'attachment_url', 'status', 'grade', 'feedback', 'updated_at']);
+        }
+
+        if ($lecturerId) {
+            DB::table('lesson_documents')->upsert([
+                [
+                    'id' => 1,
+                    'lesson_id' => 'l1-cs101',
+                    'learning_object_id' => 'l1-cs101-slides-v1',
+                    'intake_id' => 'cs101-2026-jan',
+                    'source' => 'manual',
+                    'status' => 'approved',
+                    'uploaded_by' => $lecturerId,
+                    'approved_by' => $lecturerId,
+                    'approved_at' => now()->subDays(2),
+                    'file_name' => 'Digital Systems Notes.pdf',
+                    'mime_type' => 'application/pdf',
+                    'storage_path' => 'seeded/digital-systems-notes.pdf',
+                    'extracted_text' => 'Summary of hardware, software, and network components. Includes diagrams and key definitions.',
+                    'review_notes' => 'Approved for intake distribution.',
+                    'created_at' => now()->subDays(3),
+                    'updated_at' => now()->subDays(2),
+                ],
+                [
+                    'id' => 2,
+                    'lesson_id' => 'l3-cs101',
+                    'learning_object_id' => 'l3-cs101-exercise-v1',
+                    'intake_id' => 'cs101-2026-jan',
+                    'source' => 'manual',
+                    'status' => 'pending',
+                    'uploaded_by' => $lecturerAId ?? $lecturerId,
+                    'approved_by' => null,
+                    'approved_at' => null,
+                    'file_name' => 'Python Lab Outline.txt',
+                    'mime_type' => 'text/plain',
+                    'storage_path' => null,
+                    'extracted_text' => 'Lab checklist: input/output, conditions, loops, and debugging steps.',
+                    'review_notes' => null,
+                    'created_at' => now()->subDay(),
+                    'updated_at' => now()->subDay(),
+                ],
+                [
+                    'id' => 3,
+                    'lesson_id' => 'l1-bus301',
+                    'learning_object_id' => 'l1-bus301-document-v1',
+                    'intake_id' => 'bus301-2026-jan',
+                    'source' => 'manual',
+                    'status' => 'approved',
+                    'uploaded_by' => $lecturerAId ?? $lecturerId,
+                    'approved_by' => $lecturerAId ?? $lecturerId,
+                    'approved_at' => now()->subHours(12),
+                    'file_name' => 'Strategic Leadership Brief.md',
+                    'mime_type' => 'text/markdown',
+                    'storage_path' => 'seeded/strategic-leadership-brief.md',
+                    'extracted_text' => 'Leadership models, decision frameworks, and stakeholder alignment notes.',
+                    'review_notes' => 'Approved with minor edits.',
+                    'created_at' => now()->subDay(),
+                    'updated_at' => now()->subHours(12),
+                ],
+            ], ['id'], ['lesson_id', 'learning_object_id', 'intake_id', 'status', 'approved_by', 'approved_at', 'file_name', 'mime_type', 'storage_path', 'extracted_text', 'review_notes', 'updated_at']);
+        }
+
+        DB::table('enrollments')->upsert([
+            [
+                'user_id' => $studentId,
+                'intake_id' => 'cs101-2026-jan',
+                'status' => 'active',
+                'enrolled_at' => now()->subDays(5),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['user_id', 'intake_id'], ['status', 'enrolled_at', 'updated_at']);
+
+        DB::table('course_lecturer_assignments')->upsert([
+            [
+                'course_id' => 'cs101',
+                'module_id' => 'cs101-sem1-1',
+                'lecturer_id' => $lecturerId,
+                'intake_id' => 'cs101-2026-jan',
+                'role' => 'lead',
+                'assigned_by' => $adminId,
+                'meeting_provider' => 'google-meet',
+                'meeting_url' => 'https://meet.google.com/xyz-demo',
+                'meeting_schedule' => json_encode(['day' => 'Wednesday', 'time' => '10:00 AM']),
+                'meeting_notes' => 'Weekly live session. Join 5 minutes early.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'course_id' => 'cs101',
+                'module_id' => 'cs101-sem1-2',
+                'lecturer_id' => $lecturerAId,
+                'intake_id' => 'cs101-2026-jan',
+                'role' => 'assistant',
+                'assigned_by' => $adminId,
+                'meeting_provider' => 'zoom',
+                'meeting_url' => 'https://zoom.us/j/123456789',
+                'meeting_schedule' => json_encode(['day' => 'Tuesday', 'time' => '14:00 PM']),
+                'meeting_notes' => 'Lab focus sessions for Python fundamentals.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'course_id' => 'cs101',
+                'module_id' => 'cs101-sem1-3',
+                'lecturer_id' => $lecturerBId,
+                'intake_id' => 'cs101-2026-jan',
+                'role' => 'lead',
+                'assigned_by' => $adminId,
+                'meeting_provider' => 'google-meet',
+                'meeting_url' => 'https://meet.google.com/abc-math',
+                'meeting_schedule' => json_encode(['day' => 'Thursday', 'time' => '11:00 AM']),
+                'meeting_notes' => 'Problem-solving workshops every Thursday.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'course_id' => 'bus301',
+                'module_id' => 'bus301-sem1-1',
+                'lecturer_id' => $lecturerAId,
+                'intake_id' => 'bus301-2026-jan',
+                'role' => 'lead',
+                'assigned_by' => $adminId,
+                'meeting_provider' => 'microsoft-teams',
+                'meeting_url' => 'https://teams.microsoft.com/l/meetup-join/demo',
+                'meeting_schedule' => json_encode(['day' => 'Saturday', 'time' => '09:00 AM']),
+                'meeting_notes' => 'Weekend intensive session for MBA cohort.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['course_id', 'lecturer_id', 'intake_id'], ['module_id', 'role', 'assigned_by', 'meeting_provider', 'meeting_url', 'meeting_schedule', 'meeting_notes', 'updated_at']);
+
+        DB::table('course_sessions')->upsert([
+            [
+                'id' => 1,
+                'course_id' => 'cs101',
+                'intake_id' => 'cs101-2026-jan',
+                'title' => 'Intro Lecture - Digital Systems',
+                'session_type' => 'lecture',
+                'day_of_week' => 'Wednesday',
+                'start_time' => '10:00:00',
+                'end_time' => '11:30:00',
+                'location' => 'Room A1',
+                'meeting_url' => 'https://meet.google.com/xyz-demo',
+                'created_by' => $lecturerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 2,
+                'course_id' => 'cs101',
+                'intake_id' => 'cs101-2026-jan',
+                'title' => 'Programming Fundamentals Lab',
+                'session_type' => 'lab',
+                'day_of_week' => 'Friday',
+                'start_time' => '14:00:00',
+                'end_time' => '16:00:00',
+                'location' => 'Lab 2',
+                'meeting_url' => 'https://meet.google.com/xyz-demo',
+                'created_by' => $lecturerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 3,
+                'course_id' => 'cs101',
+                'intake_id' => 'cs101-2026-jan',
+                'title' => 'AI Ethics Workshop',
+                'session_type' => 'workshop',
+                'day_of_week' => 'Monday',
+                'start_time' => '09:00:00',
+                'end_time' => '10:30:00',
+                'location' => 'Room B3',
+                'meeting_url' => 'https://meet.google.com/xyz-demo',
+                'created_by' => $lecturerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 4,
+                'course_id' => 'cs101',
+                'intake_id' => 'cs101-2026-jan',
+                'title' => 'Project Clinic',
+                'session_type' => 'tutorial',
+                'day_of_week' => 'Thursday',
+                'start_time' => '15:00:00',
+                'end_time' => '16:00:00',
+                'location' => 'Room A2',
+                'meeting_url' => 'https://meet.google.com/xyz-demo',
+                'created_by' => $lecturerId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['course_id', 'title', 'session_type', 'day_of_week', 'start_time', 'end_time', 'location', 'meeting_url', 'updated_at']);
+
+        if ($studentId) {
+            DB::table('course_attempts')->upsert([
+                [
+                    'id' => 1,
+                    'student_id' => $studentId,
+                    'module_id' => 'cs101-sem1-1',
+                    'intake_id' => 'cs101-2026-jan',
+                    'attempt_no' => 1,
+                    'final_percentage' => 78,
+                    'exam_score' => 72,
+                    'letter_grade' => 'B',
+                    'grade_points' => 3.0,
+                    'credits_attempted' => 6,
+                    'credits_earned' => 6,
+                    'status' => 'pass',
+                    'result_status' => 'published',
+                    'recorded_by' => $lecturerId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ], ['id'], ['final_percentage', 'exam_score', 'letter_grade', 'grade_points', 'credits_attempted', 'credits_earned', 'status', 'result_status', 'updated_at']);
+        }
+
+        DB::table('route_change_requests')->upsert([
+            [
+                'id' => 1,
+                'student_id' => $studentId,
+                'current_intake_id' => 'cs101-2026-jan',
+                'requested_intake_id' => 'cs101-2026-jun',
+                'reason' => 'Need a more flexible online schedule.',
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['status', 'updated_at']);
+
+        DB::table('invoices')->upsert([
+            [
+                'id' => 1,
+                'student_id' => $studentId,
+                'intake_id' => 'cs101-2026-jan',
+                'title' => 'Semester 1 Tuition',
+                'amount' => 650,
+                'paid_amount' => 0,
+                'status' => 'unpaid',
+                'due_date' => now()->addDays(20)->toDateString(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['id'], ['status', 'paid_amount', 'updated_at']);
+
+        DB::table('dashboard_metrics')->upsert([
+            ['role' => 'admin', 'key' => 'revenue', 'label' => 'Total Revenue', 'value' => '$45,231.89', 'note' => '+20.1% from last month', 'created_at' => now(), 'updated_at' => now()],
+            ['role' => 'admin', 'key' => 'students', 'label' => 'Total Students', 'value' => '1,254', 'note' => '+180.1% from last month', 'created_at' => now(), 'updated_at' => now()],
+            ['role' => 'admin', 'key' => 'courses', 'label' => 'Total Courses', 'value' => '150', 'note' => '+10 new courses this week', 'created_at' => now(), 'updated_at' => now()],
+            ['role' => 'admin', 'key' => 'activity', 'label' => 'Platform Activity', 'value' => '+573', 'note' => 'New engagements today', 'created_at' => now(), 'updated_at' => now()],
+            ['role' => 'lecturer', 'key' => 'courses', 'label' => 'Courses Taught', 'value' => '2', 'note' => 'Active this semester', 'created_at' => now(), 'updated_at' => now()],
+            ['role' => 'lecturer', 'key' => 'students', 'label' => 'Total Students', 'value' => '77', 'note' => 'Across all courses', 'created_at' => now(), 'updated_at' => now()],
+            ['role' => 'lecturer', 'key' => 'messages', 'label' => 'Unread Messages', 'value' => '12', 'note' => 'From students', 'created_at' => now(), 'updated_at' => now()],
+            ['role' => 'student', 'key' => 'wallet', 'label' => 'AFTA Balance', 'value' => '925 AFTA', 'note' => 'AFTACOIN Balance', 'created_at' => now(), 'updated_at' => now()],
+        ], ['role', 'key'], ['label', 'value', 'note', 'updated_at']);
+
+        DB::table('course_metrics')->upsert([
+            ['course_id' => 'cs101', 'student_count' => 48, 'avg_progress' => 62, 'created_at' => now(), 'updated_at' => now()],
+            ['course_id' => 'nur201', 'student_count' => 36, 'avg_progress' => 51, 'created_at' => now(), 'updated_at' => now()],
+            ['course_id' => 'bus301', 'student_count' => 28, 'avg_progress' => 43, 'created_at' => now(), 'updated_at' => now()],
+        ], ['course_id'], ['student_count', 'avg_progress', 'updated_at']);
+
+        DB::table('student_actions')->upsert([
+            ['id' => 1, 'title' => 'Resume last lesson', 'description' => 'Continue where you left off.', 'href' => '/student/lessons/l1-cs101', 'priority' => 1, 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'title' => 'Submit assignment', 'description' => '2 items due this week.', 'href' => '/student/assignments', 'priority' => 2, 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'title' => 'Book upcoming exam', 'description' => 'Reserve your seat early.', 'href' => '/student/exams/bookings', 'priority' => 3, 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 4, 'title' => 'Review study plan', 'description' => 'Personalized weekly schedule.', 'href' => '/student/study-plan', 'priority' => 4, 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+        ], ['id'], ['title', 'description', 'href', 'priority', 'role', 'updated_at']);
+
+        DB::table('student_deadlines')->upsert([
+            ['id' => 1, 'title' => 'Digital Literacy Reflection', 'type' => 'Assignment', 'due_date' => now()->addDays(7)->toDateString(), 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'title' => 'Python Basics Lab', 'type' => 'Assignment', 'due_date' => now()->addDays(10)->toDateString(), 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'title' => 'Discrete Math Problem Set', 'type' => 'Assignment', 'due_date' => now()->addDays(14)->toDateString(), 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 4, 'title' => 'Semester 1 Exam', 'type' => 'Exam', 'due_date' => now()->addDays(9)->toDateString(), 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 5, 'title' => 'Lab Session Check-in', 'type' => 'Virtual Lab', 'due_date' => now()->addDays(4)->toDateString(), 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 6, 'title' => 'AI Ethics Essay', 'type' => 'Assignment', 'due_date' => now()->addDays(18)->toDateString(), 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 7, 'title' => 'Portfolio Draft', 'type' => 'Assignment', 'due_date' => now()->addDays(20)->toDateString(), 'role' => 'premium-student', 'created_at' => now(), 'updated_at' => now()],
+        ], ['id'], ['title', 'type', 'due_date', 'role', 'updated_at']);
+
+        if ($studentId) {
+            DB::table('wallet_settings')->updateOrInsert(
+                ['user_id' => $studentId],
+                [
+                    'wallet_address' => '0xAFTA1234DEMO',
+                    'payout_currency' => 'AFTA',
+                    'status' => 'pending',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+
+            DB::table('payment_methods')->upsert([
+                [
+                    'id' => 1,
+                    'user_id' => $studentId,
+                    'type' => 'card',
+                    'provider' => 'Visa',
+                    'last4' => '4242',
+                    'expiry_month' => 12,
+                    'expiry_year' => 2027,
+                    'is_default' => true,
+                    'status' => 'active',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ], ['id'], ['provider', 'last4', 'expiry_month', 'expiry_year', 'is_default', 'status', 'updated_at']);
+
+            DB::table('scholarship_applications')->upsert([
+                [
+                    'id' => 1,
+                    'user_id' => $studentId,
+                    'program_id' => 'cs101',
+                    'statement' => 'Requesting aid due to family financial constraints while maintaining a 3.4 GPA.',
+                    'status' => 'submitted',
+                    'submitted_at' => now()->subDay(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ], ['id'], ['status', 'statement', 'submitted_at', 'updated_at']);
+
+            DB::table('portfolio_items')->upsert([
+                [
+                    'id' => 1,
+                    'user_id' => $studentId,
+                    'title' => 'Smart Attendance Tracker',
+                    'description' => 'Built a QR-based attendance app with analytics dashboards.',
+                    'link' => 'https://github.com/univai-demo/attendance-tracker',
+                    'item_type' => 'project',
+                    'status' => 'draft',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ], ['id'], ['title', 'description', 'link', 'status', 'updated_at']);
+
+            DB::table('support_tickets')->upsert([
+                [
+                    'id' => 'ticket-001',
+                    'user_id' => $studentId,
+                    'email' => 'student.premium@univai.edu',
+                    'subject' => 'Module unlock request',
+                    'description' => 'Requesting access to the next module after completing prerequisites.',
+                    'category' => 'Academic Guidance',
+                    'priority' => 'normal',
+                    'status' => 'open',
+                    'created_at' => now()->subHours(6),
+                    'updated_at' => now()->subHours(6),
+                ],
+            ], ['id'], ['status', 'updated_at']);
+
+            DB::table('support_messages')->upsert([
+                [
+                    'id' => 1,
+                    'ticket_id' => 'ticket-001',
+                    'user_id' => $studentId,
+                    'author' => 'Premium Student',
+                    'role' => 'student',
+                    'message' => 'Completed CS101 assessments. Please unlock the next module.',
+                    'created_at' => now()->subHours(6),
+                    'updated_at' => now()->subHours(6),
+                ],
+            ], ['id'], ['message', 'updated_at']);
+        }
+
+        DB::table('research_applications')->upsert([
+            [
+                'id' => 1,
+                'research_id' => 'r1',
+                'full_name' => 'Premium Student',
+                'email' => 'student.premium@univai.edu',
+                'experience' => 'Completed AI foundations and built a diagnosis prototype.',
+                'availability' => '8 hours/week',
+                'status' => 'submitted',
+                'created_at' => now()->subDays(2),
+                'updated_at' => now()->subDays(2),
+            ],
+        ], ['id'], ['status', 'updated_at']);
+    }
+
+    private function ensureSeedSchema(): void
+    {
+        $this->repairSeedSchemaTables();
+
+        if (Schema::hasTable('users')) {
+            Schema::table('users', function (Blueprint $table) {
+                if (!Schema::hasColumn('users', 'role')) {
+                    $table->string('role')->default('student');
+                }
+                if (!Schema::hasColumn('users', 'school_id')) {
+                    $table->string('school_id')->nullable();
+                }
+                if (!Schema::hasColumn('users', 'program_id')) {
+                    $table->string('program_id')->nullable();
+                }
+                if (!Schema::hasColumn('users', 'intake_id')) {
+                    $table->string('intake_id')->nullable();
+                }
+                if (!Schema::hasColumn('users', 'account_state')) {
+                    $table->string('account_state')->default('pending');
+                }
+                if (!Schema::hasColumn('users', 'verification_status')) {
+                    $table->string('verification_status')->default('none');
+                }
+                if (!Schema::hasColumn('users', 'profile_completed_at')) {
+                    $table->timestamp('profile_completed_at')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('short_courses')) {
+            Schema::table('short_courses', function (Blueprint $table) {
+                if (!Schema::hasColumn('short_courses', 'certificate_fee')) {
+                    $table->decimal('certificate_fee', 10, 2)->default(15);
+                }
+                if (!Schema::hasColumn('short_courses', 'certificate_currency')) {
+                    $table->string('certificate_currency', 3)->default('USD');
+                }
+            });
+        }
+
+        if (Schema::hasTable('lessons')) {
+            Schema::table('lessons', function (Blueprint $table) {
+                if (!Schema::hasColumn('lessons', 'summary')) {
+                    $table->text('summary')->nullable();
+                }
+                if (!Schema::hasColumn('lessons', 'display_order')) {
+                    $table->unsignedInteger('display_order')->default(0);
+                }
+                if (!Schema::hasColumn('lessons', 'publication_status')) {
+                    $table->string('publication_status')->default('draft');
+                }
+                if (!Schema::hasColumn('lessons', 'published_at')) {
+                    $table->timestamp('published_at')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('programs')) {
+            Schema::table('programs', function (Blueprint $table) {
+                if (!Schema::hasColumn('programs', 'qualification_level_id')) {
+                    $table->string('qualification_level_id')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'credits')) {
+                    $table->unsignedInteger('credits')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'duration_months')) {
+                    $table->unsignedInteger('duration_months')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'admission_requirements')) {
+                    $table->text('admission_requirements')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'delivery_modes')) {
+                    $table->json('delivery_modes')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'supported_delivery_modes')) {
+                    $table->json('supported_delivery_modes')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'exam_clinic_required')) {
+                    $table->boolean('exam_clinic_required')->default(false);
+                }
+                if (!Schema::hasColumn('programs', 'requires_accreditation_approval')) {
+                    $table->boolean('requires_accreditation_approval')->default(false);
+                }
+                if (!Schema::hasColumn('programs', 'accreditation_approved_at')) {
+                    $table->timestamp('accreditation_approved_at')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'launch_status')) {
+                    $table->string('launch_status')->default('draft');
+                }
+                if (!Schema::hasColumn('programs', 'award_type')) {
+                    $table->string('award_type')->default('degree');
+                }
+                if (!Schema::hasColumn('programs', 'qualification_level')) {
+                    $table->string('qualification_level')->nullable();
+                }
+                if (!Schema::hasColumn('programs', 'duration_semesters')) {
+                    $table->unsignedInteger('duration_semesters')->default(1);
+                }
+                if (!Schema::hasColumn('programs', 'total_credits')) {
+                    $table->unsignedInteger('total_credits')->default(0);
+                }
+                if (!Schema::hasColumn('programs', 'delivery_mode')) {
+                    $table->string('delivery_mode')->default('online');
+                }
+                if (!Schema::hasColumn('programs', 'application_fee')) {
+                    $table->decimal('application_fee', 10, 2)->default(100);
+                }
+                if (!Schema::hasColumn('programs', 'application_currency')) {
+                    $table->string('application_currency', 3)->default('ZMW');
+                }
+                if (!Schema::hasColumn('programs', 'tuition_fee')) {
+                    $table->decimal('tuition_fee', 10, 2)->default(650);
+                }
+                if (!Schema::hasColumn('programs', 'tuition_currency')) {
+                    $table->string('tuition_currency', 3)->default('ZMW');
+                }
+                if (!Schema::hasColumn('programs', 'progress')) {
+                    $table->integer('progress')->default(0);
+                }
+                if (!Schema::hasColumn('programs', 'image_id')) {
+                    $table->string('image_id')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('intakes')) {
+            Schema::table('intakes', function (Blueprint $table) {
+                if (!Schema::hasColumn('intakes', 'curriculum_version_id')) {
+                    $table->string('curriculum_version_id')->nullable();
+                }
+                if (!Schema::hasColumn('intakes', 'capacity')) {
+                    $table->unsignedInteger('capacity')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('program_modules')) {
+            Schema::table('program_modules', function (Blueprint $table) {
+                if (!Schema::hasColumn('program_modules', 'curriculum_version_id')) {
+                    $table->string('curriculum_version_id')->nullable();
+                }
+                if (!Schema::hasColumn('program_modules', 'credits')) {
+                    $table->unsignedInteger('credits')->default(3);
+                }
+                if (!Schema::hasColumn('program_modules', 'is_core')) {
+                    $table->boolean('is_core')->default(true);
+                }
+                if (!Schema::hasColumn('program_modules', 'supported_delivery_modes')) {
+                    $table->json('supported_delivery_modes')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('course_lecturer_assignments')) {
+            Schema::table('course_lecturer_assignments', function (Blueprint $table) {
+                if (!Schema::hasColumn('course_lecturer_assignments', 'course_id')) {
+                    $table->string('course_id')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'module_id')) {
+                    $table->string('module_id')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_provider')) {
+                    $table->string('meeting_provider')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_url')) {
+                    $table->text('meeting_url')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_schedule')) {
+                    $table->json('meeting_schedule')->nullable();
+                }
+                if (!Schema::hasColumn('course_lecturer_assignments', 'meeting_notes')) {
+                    $table->text('meeting_notes')->nullable();
+                }
+            });
+        }
+
+        if (Schema::hasTable('course_sessions')) {
+            Schema::table('course_sessions', function (Blueprint $table) {
+                if (!Schema::hasColumn('course_sessions', 'course_id')) {
+                    $table->string('course_id')->nullable();
+                }
+                if (!Schema::hasColumn('course_sessions', 'delivery_mode')) {
+                    $table->string('delivery_mode')->default('hybrid');
+                }
+            });
+        }
+    }
+
+    private function repairSeedSchemaTables(): void
+    {
+        $this->repairLessonsTable();
+        $this->repairProgramsTable();
+        $this->repairShortCoursesTable();
+        $this->repairProgramModulesTable();
+        $this->repairIntakesTable();
+        $this->repairCourseLecturerAssignmentsTable();
+        $this->repairCourseSessionsTable();
+    }
+
+    private function repairLessonsTable(): void
+    {
+        if (!Schema::hasTable('lessons')) {
+            Schema::create('lessons', function (Blueprint $table) {
+                $table->string('id')->primary();
+                $table->string('title')->nullable();
+                $table->text('summary')->nullable();
+                $table->unsignedInteger('display_order')->default(0);
+                $table->string('publication_status')->default('draft');
+                $table->timestamp('published_at')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        $this->addColumnIfMissing('lessons', 'summary', fn (Blueprint $table) => $table->text('summary')->nullable());
+        $this->addColumnIfMissing('lessons', 'display_order', fn (Blueprint $table) => $table->unsignedInteger('display_order')->default(0));
+        $this->addColumnIfMissing('lessons', 'publication_status', fn (Blueprint $table) => $table->string('publication_status')->default('draft'));
+        $this->addColumnIfMissing('lessons', 'published_at', fn (Blueprint $table) => $table->timestamp('published_at')->nullable());
+        $this->addTimestampsIfMissing('lessons');
+    }
+
+    private function repairProgramsTable(): void
+    {
+        if (!Schema::hasTable('programs')) {
+            Schema::create('programs', function (Blueprint $table) {
+                $table->string('id')->primary();
+                $table->string('school_id')->nullable();
+                $table->string('qualification_level_id')->nullable();
+                $table->string('title')->nullable();
+                $table->text('description')->nullable();
+                $table->unsignedInteger('credits')->nullable();
+                $table->unsignedInteger('duration_months')->nullable();
+                $table->text('admission_requirements')->nullable();
+                $table->json('delivery_modes')->nullable();
+                $table->json('supported_delivery_modes')->nullable();
+                $table->boolean('exam_clinic_required')->default(false);
+                $table->boolean('requires_accreditation_approval')->default(false);
+                $table->timestamp('accreditation_approved_at')->nullable();
+                $table->string('launch_status')->default('draft');
+                $table->integer('progress')->default(0);
+                $table->string('image_id')->nullable();
+                $table->string('award_type')->default('degree');
+                $table->string('qualification_level')->nullable();
+                $table->unsignedInteger('duration_semesters')->default(1);
+                $table->unsignedInteger('total_credits')->default(0);
+                $table->string('delivery_mode')->default('online');
+                $table->decimal('application_fee', 10, 2)->default(0);
+                $table->string('application_currency', 3)->default('ZMW');
+                $table->decimal('tuition_fee', 10, 2)->default(0);
+                $table->string('tuition_currency', 3)->default('ZMW');
+                $table->timestamps();
+            });
+        }
+
+        $this->addColumnIfMissing('programs', 'school_id', fn (Blueprint $table) => $table->string('school_id')->nullable());
+        $this->addColumnIfMissing('programs', 'qualification_level_id', fn (Blueprint $table) => $table->string('qualification_level_id')->nullable());
+        $this->addColumnIfMissing('programs', 'title', fn (Blueprint $table) => $table->string('title')->nullable());
+        $this->addColumnIfMissing('programs', 'description', fn (Blueprint $table) => $table->text('description')->nullable());
+        $this->addColumnIfMissing('programs', 'credits', fn (Blueprint $table) => $table->unsignedInteger('credits')->nullable());
+        $this->addColumnIfMissing('programs', 'duration_months', fn (Blueprint $table) => $table->unsignedInteger('duration_months')->nullable());
+        $this->addColumnIfMissing('programs', 'admission_requirements', fn (Blueprint $table) => $table->text('admission_requirements')->nullable());
+        $this->addColumnIfMissing('programs', 'delivery_modes', fn (Blueprint $table) => $table->json('delivery_modes')->nullable());
+        $this->addColumnIfMissing('programs', 'supported_delivery_modes', fn (Blueprint $table) => $table->json('supported_delivery_modes')->nullable());
+        $this->addColumnIfMissing('programs', 'exam_clinic_required', fn (Blueprint $table) => $table->boolean('exam_clinic_required')->default(false));
+        $this->addColumnIfMissing('programs', 'requires_accreditation_approval', fn (Blueprint $table) => $table->boolean('requires_accreditation_approval')->default(false));
+        $this->addColumnIfMissing('programs', 'accreditation_approved_at', fn (Blueprint $table) => $table->timestamp('accreditation_approved_at')->nullable());
+        $this->addColumnIfMissing('programs', 'launch_status', fn (Blueprint $table) => $table->string('launch_status')->default('draft'));
+        $this->addColumnIfMissing('programs', 'progress', fn (Blueprint $table) => $table->integer('progress')->default(0));
+        $this->addColumnIfMissing('programs', 'image_id', fn (Blueprint $table) => $table->string('image_id')->nullable());
+        $this->addColumnIfMissing('programs', 'award_type', fn (Blueprint $table) => $table->string('award_type')->default('degree'));
+        $this->addColumnIfMissing('programs', 'qualification_level', fn (Blueprint $table) => $table->string('qualification_level')->nullable());
+        $this->addColumnIfMissing('programs', 'duration_semesters', fn (Blueprint $table) => $table->unsignedInteger('duration_semesters')->default(1));
+        $this->addColumnIfMissing('programs', 'total_credits', fn (Blueprint $table) => $table->unsignedInteger('total_credits')->default(0));
+        $this->addColumnIfMissing('programs', 'delivery_mode', fn (Blueprint $table) => $table->string('delivery_mode')->default('online'));
+        $this->addColumnIfMissing('programs', 'application_fee', fn (Blueprint $table) => $table->decimal('application_fee', 10, 2)->default(0));
+        $this->addColumnIfMissing('programs', 'application_currency', fn (Blueprint $table) => $table->string('application_currency', 3)->default('ZMW'));
+        $this->addColumnIfMissing('programs', 'tuition_fee', fn (Blueprint $table) => $table->decimal('tuition_fee', 10, 2)->default(0));
+        $this->addColumnIfMissing('programs', 'tuition_currency', fn (Blueprint $table) => $table->string('tuition_currency', 3)->default('ZMW'));
+        $this->addTimestampsIfMissing('programs');
+    }
+
+    private function repairShortCoursesTable(): void
+    {
+        if (!Schema::hasTable('short_courses')) {
+            Schema::create('short_courses', function (Blueprint $table) {
+                $table->string('id')->primary();
+                $table->string('school_id')->nullable();
+                $table->string('title')->nullable();
+                $table->text('description')->nullable();
+                $table->string('certificate_type')->default('certificate');
+                $table->string('pricing_type')->default('paid');
+                $table->decimal('price', 10, 2)->default(0);
+                $table->string('currency', 3)->default('ZMW');
+                $table->decimal('certificate_fee', 10, 2)->default(15);
+                $table->string('certificate_currency', 3)->default('USD');
+                $table->unsignedInteger('duration_hours')->default(0);
+                $table->string('level')->default('beginner');
+                $table->integer('progress')->default(0);
+                $table->string('image_id')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        $this->addColumnIfMissing('short_courses', 'school_id', fn (Blueprint $table) => $table->string('school_id')->nullable());
+        $this->addColumnIfMissing('short_courses', 'title', fn (Blueprint $table) => $table->string('title')->nullable());
+        $this->addColumnIfMissing('short_courses', 'description', fn (Blueprint $table) => $table->text('description')->nullable());
+        $this->addColumnIfMissing('short_courses', 'certificate_type', fn (Blueprint $table) => $table->string('certificate_type')->default('certificate'));
+        $this->addColumnIfMissing('short_courses', 'pricing_type', fn (Blueprint $table) => $table->string('pricing_type')->default('paid'));
+        $this->addColumnIfMissing('short_courses', 'price', fn (Blueprint $table) => $table->decimal('price', 10, 2)->default(0));
+        $this->addColumnIfMissing('short_courses', 'currency', fn (Blueprint $table) => $table->string('currency', 3)->default('ZMW'));
+        $this->addColumnIfMissing('short_courses', 'certificate_fee', fn (Blueprint $table) => $table->decimal('certificate_fee', 10, 2)->default(15));
+        $this->addColumnIfMissing('short_courses', 'certificate_currency', fn (Blueprint $table) => $table->string('certificate_currency', 3)->default('USD'));
+        $this->addColumnIfMissing('short_courses', 'duration_hours', fn (Blueprint $table) => $table->unsignedInteger('duration_hours')->default(0));
+        $this->addColumnIfMissing('short_courses', 'level', fn (Blueprint $table) => $table->string('level')->default('beginner'));
+        $this->addColumnIfMissing('short_courses', 'progress', fn (Blueprint $table) => $table->integer('progress')->default(0));
+        $this->addColumnIfMissing('short_courses', 'image_id', fn (Blueprint $table) => $table->string('image_id')->nullable());
+        $this->addTimestampsIfMissing('short_courses');
+    }
+
+    private function repairProgramModulesTable(): void
+    {
+        if (!Schema::hasTable('program_modules')) {
+            Schema::create('program_modules', function (Blueprint $table) {
+                $table->string('id')->primary();
+                $table->string('program_id')->nullable();
+                $table->string('curriculum_version_id')->nullable();
+                $table->string('title')->nullable();
+                $table->text('description')->nullable();
+                $table->unsignedInteger('credits')->default(3);
+                $table->integer('progress')->default(0);
+                $table->unsignedInteger('semester')->default(1);
+                $table->boolean('is_exam_available')->default(false);
+                $table->boolean('is_core')->default(true);
+                $table->json('supported_delivery_modes')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        $this->addColumnIfMissing('program_modules', 'program_id', fn (Blueprint $table) => $table->string('program_id')->nullable());
+        $this->addColumnIfMissing('program_modules', 'curriculum_version_id', fn (Blueprint $table) => $table->string('curriculum_version_id')->nullable());
+        $this->addColumnIfMissing('program_modules', 'title', fn (Blueprint $table) => $table->string('title')->nullable());
+        $this->addColumnIfMissing('program_modules', 'description', fn (Blueprint $table) => $table->text('description')->nullable());
+        $this->addColumnIfMissing('program_modules', 'credits', fn (Blueprint $table) => $table->unsignedInteger('credits')->default(3));
+        $this->addColumnIfMissing('program_modules', 'progress', fn (Blueprint $table) => $table->integer('progress')->default(0));
+        $this->addColumnIfMissing('program_modules', 'semester', fn (Blueprint $table) => $table->unsignedInteger('semester')->default(1));
+        $this->addColumnIfMissing('program_modules', 'is_exam_available', fn (Blueprint $table) => $table->boolean('is_exam_available')->default(false));
+        $this->addColumnIfMissing('program_modules', 'is_core', fn (Blueprint $table) => $table->boolean('is_core')->default(true));
+        $this->addColumnIfMissing('program_modules', 'supported_delivery_modes', fn (Blueprint $table) => $table->json('supported_delivery_modes')->nullable());
+        $this->addTimestampsIfMissing('program_modules');
+    }
+
+    private function repairIntakesTable(): void
+    {
+        if (!Schema::hasTable('intakes')) {
+            Schema::create('intakes', function (Blueprint $table) {
+                $table->string('id')->primary();
+                $table->string('program_id')->nullable();
+                $table->string('curriculum_version_id')->nullable();
+                $table->string('name')->nullable();
+                $table->string('delivery_mode')->default('hybrid');
+                $table->string('campus')->nullable();
+                $table->unsignedInteger('capacity')->nullable();
+                $table->date('start_date')->nullable();
+                $table->date('end_date')->nullable();
+                $table->string('status')->default('open');
+                $table->timestamps();
+            });
+        }
+
+        $this->addColumnIfMissing('intakes', 'program_id', fn (Blueprint $table) => $table->string('program_id')->nullable());
+        $this->addColumnIfMissing('intakes', 'curriculum_version_id', fn (Blueprint $table) => $table->string('curriculum_version_id')->nullable());
+        $this->addColumnIfMissing('intakes', 'name', fn (Blueprint $table) => $table->string('name')->nullable());
+        $this->addColumnIfMissing('intakes', 'delivery_mode', fn (Blueprint $table) => $table->string('delivery_mode')->default('hybrid'));
+        $this->addColumnIfMissing('intakes', 'campus', fn (Blueprint $table) => $table->string('campus')->nullable());
+        $this->addColumnIfMissing('intakes', 'capacity', fn (Blueprint $table) => $table->unsignedInteger('capacity')->nullable());
+        $this->addColumnIfMissing('intakes', 'start_date', fn (Blueprint $table) => $table->date('start_date')->nullable());
+        $this->addColumnIfMissing('intakes', 'end_date', fn (Blueprint $table) => $table->date('end_date')->nullable());
+        $this->addColumnIfMissing('intakes', 'status', fn (Blueprint $table) => $table->string('status')->default('open'));
+        $this->addTimestampsIfMissing('intakes');
+    }
+
+    private function repairCourseLecturerAssignmentsTable(): void
+    {
+        if (!Schema::hasTable('course_lecturer_assignments')) {
+            Schema::create('course_lecturer_assignments', function (Blueprint $table) {
+                $table->id();
+                $table->string('course_id')->nullable();
+                $table->string('module_id')->nullable();
+                $table->unsignedBigInteger('lecturer_id')->nullable();
+                $table->string('intake_id')->nullable();
+                $table->string('role')->default('lead');
+                $table->unsignedBigInteger('assigned_by')->nullable();
+                $table->string('meeting_provider')->nullable();
+                $table->text('meeting_url')->nullable();
+                $table->json('meeting_schedule')->nullable();
+                $table->text('meeting_notes')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        $this->addColumnIfMissing('course_lecturer_assignments', 'course_id', fn (Blueprint $table) => $table->string('course_id')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'module_id', fn (Blueprint $table) => $table->string('module_id')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'lecturer_id', fn (Blueprint $table) => $table->unsignedBigInteger('lecturer_id')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'intake_id', fn (Blueprint $table) => $table->string('intake_id')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'role', fn (Blueprint $table) => $table->string('role')->default('lead'));
+        $this->addColumnIfMissing('course_lecturer_assignments', 'assigned_by', fn (Blueprint $table) => $table->unsignedBigInteger('assigned_by')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'meeting_provider', fn (Blueprint $table) => $table->string('meeting_provider')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'meeting_url', fn (Blueprint $table) => $table->text('meeting_url')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'meeting_schedule', fn (Blueprint $table) => $table->json('meeting_schedule')->nullable());
+        $this->addColumnIfMissing('course_lecturer_assignments', 'meeting_notes', fn (Blueprint $table) => $table->text('meeting_notes')->nullable());
+        $this->addTimestampsIfMissing('course_lecturer_assignments');
+    }
+
+    private function repairCourseSessionsTable(): void
+    {
+        if (!Schema::hasTable('course_sessions')) {
+            Schema::create('course_sessions', function (Blueprint $table) {
+                $table->id();
+                $table->string('course_id')->nullable();
+                $table->string('intake_id')->nullable();
+                $table->string('title')->nullable();
+                $table->string('session_type')->default('lecture');
+                $table->string('day_of_week')->nullable();
+                $table->time('start_time')->nullable();
+                $table->time('end_time')->nullable();
+                $table->string('location')->nullable();
+                $table->text('meeting_url')->nullable();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->string('delivery_mode')->default('hybrid');
+                $table->timestamps();
+            });
+        }
+
+        $this->addColumnIfMissing('course_sessions', 'course_id', fn (Blueprint $table) => $table->string('course_id')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'intake_id', fn (Blueprint $table) => $table->string('intake_id')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'title', fn (Blueprint $table) => $table->string('title')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'session_type', fn (Blueprint $table) => $table->string('session_type')->default('lecture'));
+        $this->addColumnIfMissing('course_sessions', 'day_of_week', fn (Blueprint $table) => $table->string('day_of_week')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'start_time', fn (Blueprint $table) => $table->time('start_time')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'end_time', fn (Blueprint $table) => $table->time('end_time')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'location', fn (Blueprint $table) => $table->string('location')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'meeting_url', fn (Blueprint $table) => $table->text('meeting_url')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'created_by', fn (Blueprint $table) => $table->unsignedBigInteger('created_by')->nullable());
+        $this->addColumnIfMissing('course_sessions', 'delivery_mode', fn (Blueprint $table) => $table->string('delivery_mode')->default('hybrid'));
+        $this->addTimestampsIfMissing('course_sessions');
+    }
+
+    private function addColumnIfMissing(string $tableName, string $columnName, callable $definition): void
+    {
+        if (!Schema::hasTable($tableName) || Schema::hasColumn($tableName, $columnName)) {
+            return;
+        }
+
+        Schema::table($tableName, function (Blueprint $table) use ($definition) {
+            $definition($table);
+        });
+    }
+
+    private function addTimestampsIfMissing(string $tableName): void
+    {
+        $this->addColumnIfMissing($tableName, 'created_at', fn (Blueprint $table) => $table->timestamp('created_at')->nullable());
+        $this->addColumnIfMissing($tableName, 'updated_at', fn (Blueprint $table) => $table->timestamp('updated_at')->nullable());
+    }
+}

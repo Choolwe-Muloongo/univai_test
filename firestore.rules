@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if a user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to get user data from the 'users' collection
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    // Helper function to check if a user has a specific role
+    function hasRole(role) {
+      return isSignedIn() && getUserData(request.auth.uid).role == role;
+    }
+
+    // Users can read their own profile, admins can read any profile
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || hasRole('admin'));
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow create: if !isSignedIn(); // Allow user creation during sign-up
+    }
+
+    // Schools can be read by anyone, but only managed by admins
+    match /schools/{schoolId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin');
+    }
+
+    // Courses can be read by anyone, but only managed by admins or assigned lecturers
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole('admin') || hasRole('lecturer');
+
+      // Lessons can be read by enrolled students, admins, and lecturers
+      match /lessons/{lessonId} {
+        allow read: if isSignedIn(); // In a real app, you'd check for enrollment
+        allow write: if hasRole('admin') || hasRole('lecturer');
+      }
+    }
+    
+    // Exam results can be created by students and read by the student who owns it or an admin/lecturer.
+    match /examResults/{resultId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.userId || hasRole('admin') || hasRole('lecturer'));
+    }
+
+    // Community discussions can be read by anyone, created/updated by students/lecturers
+    match /discussions/{discussionId} {
+       allow read: if isSignedIn();
+       allow create, update: if hasRole('premium-student') || hasRole('lecturer');
+
+      // Comments can be read by anyone, created/updated by students/lecturers
+       match /comments/{commentId} {
+         allow read: if isSignedIn();
+         allow create, update: if hasRole('premium-student') || hasRole('lecturer');
+       }
+    }
+  }
+}
