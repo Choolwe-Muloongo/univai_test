@@ -25,6 +25,7 @@ import { Progress } from '@/components/ui/progress';
 import { AlertCircle, BookOpen, GraduationCap, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { subjectCatalogByCountry } from '@/lib/subject-catalog';
 import { getAdmissionsSettings, getPrograms, getSchools, registerAccount, submitApplication, uploadAdmissionDocument } from '@/lib/api';
+import { ApiError } from '@/lib/api/client';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -40,7 +41,11 @@ export default function RegisterPage() {
   const [allPrograms, setAllPrograms] = useState<Program[]>([]);
   const [programsForSchool, setProgramsForSchool] = useState<Program[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState('Registration Failed');
   const [loading, setLoading] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [applicationNeedsRetry, setApplicationNeedsRetry] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [admissionsOpen, setAdmissionsOpen] = useState(true);
   const [admissionsMessage, setAdmissionsMessage] = useState('');
 
@@ -100,6 +105,8 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorTitle('Registration Failed');
+    setFieldErrors({});
 
     const formData = new FormData(e.currentTarget);
     const fullName = formData.get('fullName') as string;
@@ -109,6 +116,7 @@ export default function RegisterPage() {
     const learningStyle = (formData.get('learningStyle') as string) || 'traditional';
     const studyPace = (formData.get('studyPace') as string) || 'standard';
     
+    let didCreateAccount = accountCreated;
     try {
       if (!admissionsOpen) {
         setError(admissionsMessage || 'Admissions are currently closed. Please check back later.');
@@ -119,11 +127,16 @@ export default function RegisterPage() {
         return;
       }
 
-      await registerAccount({
-        name: fullName,
-        email,
-        password,
-      });
+      if (!accountCreated) {
+        const accountResult = await registerAccount({
+          name: fullName,
+          email,
+          password,
+        });
+        void accountResult;
+        didCreateAccount = true;
+        setAccountCreated(true);
+      }
 
       await submitApplication({
         fullName,
@@ -156,10 +169,33 @@ export default function RegisterPage() {
         await Promise.all(uploads);
       }
 
+      setApplicationNeedsRetry(false);
       router.push('/admissions/status');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
-      setError(error?.message || 'An unexpected error occurred during registration. Please try again.');
+      const typedError = error instanceof ApiError ? error : null;
+      const hasAccount = didCreateAccount;
+      if (typedError?.status === 422) {
+        setFieldErrors(typedError.fieldErrors ?? {});
+        setApplicationNeedsRetry(true);
+        setErrorTitle('Application Requires Review');
+        setError(
+          hasAccount
+            ? 'Your account was created, but some admissions fields need correction. Fix the highlighted fields and retry application submission.'
+            : 'Some admissions details need correction. Fix the highlighted fields and submit again.'
+        );
+      } else if (hasAccount) {
+        setApplicationNeedsRetry(true);
+        setErrorTitle('Application Submission Incomplete');
+        setError(
+          'Your account was created successfully, but we could not complete your admissions application. Please retry submission.'
+        );
+      } else {
+        setErrorTitle('Registration Failed');
+        setError(
+          typedError?.message || 'Unable to create your account due to a network or server error. Please try again.'
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -284,8 +320,13 @@ export default function RegisterPage() {
                 {error && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Registration Failed</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertTitle>{errorTitle}</AlertTitle>
+                    <AlertDescription className="space-y-2">
+                      <p>{error}</p>
+                      {applicationNeedsRetry ? (
+                        <p className="text-xs">Use the button below to resume and retry your admissions application.</p>
+                      ) : null}
+                    </AlertDescription>
                   </Alert>
                 )}
                 {!admissionsOpen && !error && (
@@ -478,6 +519,9 @@ export default function RegisterPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldErrors.schoolId?.length ? (
+                      <p className="text-xs text-destructive">{fieldErrors.schoolId[0]}</p>
+                    ) : null}
                   </div>
                   <div className="space-y-2">
                     <Label>Program of Choice</Label>
@@ -491,6 +535,9 @@ export default function RegisterPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldErrors.programId?.length ? (
+                      <p className="text-xs text-destructive">{fieldErrors.programId[0]}</p>
+                    ) : null}
                     <p className="text-xs text-muted-foreground">
                       Looking for short courses? <Link href="/courses" className="text-primary hover:underline">Browse short courses</Link> and enrol directly from the course page.
                     </p>
@@ -515,6 +562,9 @@ export default function RegisterPage() {
                         <span>Hybrid (Mix of both)</span>
                       </label>
                     </RadioGroup>
+                    {fieldErrors.deliveryMode?.length ? (
+                      <p className="text-xs text-destructive">{fieldErrors.deliveryMode[0]}</p>
+                    ) : null}
                   </div>
 
                   <div className="space-y-3">
@@ -529,6 +579,9 @@ export default function RegisterPage() {
                         <span>Personalized (AI-guided pacing)</span>
                       </label>
                     </RadioGroup>
+                    {fieldErrors.learningStyle?.length ? (
+                      <p className="text-xs text-destructive">{fieldErrors.learningStyle[0]}</p>
+                    ) : null}
                   </div>
 
                   <div className="space-y-2">
@@ -543,6 +596,9 @@ export default function RegisterPage() {
                         <SelectItem value="flex">Flexible (Advisor Approval)</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fieldErrors.studyPace?.length ? (
+                      <p className="text-xs text-destructive">{fieldErrors.studyPace[0]}</p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -576,7 +632,7 @@ export default function RegisterPage() {
               </CardContent>
               <CardFooter className="flex-col gap-4">
                 <Button className="w-full" type="submit" disabled={loading || !admissionsOpen}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Create Account'}
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : applicationNeedsRetry ? 'Retry Application Submission' : accountCreated ? 'Submit Application' : 'Create Account'}
                 </Button>
                 <p className="text-sm text-muted-foreground">
                   Already have an account? <Link href="/login" className="text-primary hover:underline">Log in</Link>
