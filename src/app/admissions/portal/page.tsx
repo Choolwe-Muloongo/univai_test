@@ -18,6 +18,7 @@ import {
   payAdmissionFee,
   uploadAdmissionDocument,
 } from '@/lib/api';
+import { buildApiUrl } from '@/lib/api/client';
 import { useSession } from '@/components/providers/session-provider';
 import type { ApplicationDetail, ApplicationDocument } from '@/lib/api/types';
 import { AlertCircle, CheckCircle2, FileText, GraduationCap, ShieldCheck, Wallet } from 'lucide-react';
@@ -141,7 +142,7 @@ export default function AdmissionsPortalPage() {
   const admitted = application.status === 'admitted';
   const needsInfo = application.status === 'needs_info';
   const reviewInProgress = ['under_review', 'needs_info', 'offer_sent', 'approved', 'admitted'].includes(application.status);
-  const admissionLetterUrl = (application as ApplicationDetail & { admissionLetterUrl?: string | null }).admissionLetterUrl;
+  const admissionLetterUrl = admitted ? buildApiUrl('/admissions/admission-letter') : null;
 
   const steps = [
     {
@@ -363,15 +364,13 @@ export default function AdmissionsPortalPage() {
             </div>
             <p className="mb-4 text-sm text-muted-foreground">
               {admitted
-                ? 'Your admission confirmation belongs here after the backend generates the final admission letter.'
-                : 'Your admission letter will appear here after you accept your offer and admissions confirms enrollment.'}
+                ? 'Your official admission letter is ready. Complete enrollment next to activate your full student dashboard.'
+                : 'Your admission letter will appear here after you accept your offer.'}
             </p>
             {admissionLetterUrl ? (
               <Button variant="outline" asChild>
                 <Link href={admissionLetterUrl}>View Admission Letter</Link>
               </Button>
-            ) : admitted ? (
-              <Badge variant="outline">Admission letter generation pending</Badge>
             ) : (
               <Badge variant="outline">Locked until admitted</Badge>
             )}
@@ -386,9 +385,6 @@ export default function AdmissionsPortalPage() {
               }}
             >
               Accept Offer
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/student/enroll">Go to Enrollment</Link>
             </Button>
           </CardFooter>
         )}
