@@ -13,6 +13,14 @@ export type AuthRole =
 
 export type RoleKey = 'student' | 'lecturer' | 'instructor' | 'admin' | 'employer';
 
+export type AuthRouteUser = {
+  role?: AuthRole | null;
+  accountState?: string | null;
+  profileCompleted?: boolean | null;
+  programId?: string | null;
+  intakeId?: string | null;
+};
+
 export type RoleIntentOption = {
   key: RoleKey;
   label: string;
@@ -93,28 +101,36 @@ const onboardingByRole: Record<RoleKey, OnboardingChecklist> = {
   },
 };
 
-const postAuthRules: Array<{ matches: (role: AuthRole) => boolean; destination: string }> = [
-  { matches: (role) => role === 'applicant', destination: '/admissions/status' },
+const admissionsStates = ['applicant', 'needs_information', 'needs_info', 'submitted', 'under_review', 'accepted', 'offer_sent'];
+const enrolledStates = ['active', 'enrolled', 'probation'];
+const studentRoles = ['student', 'free-student', 'freemium-student', 'paid-certificate-student', 'certificate-student', 'premium-student', 'programme-student', 'program-student', 'enrolled'];
+
+const postAuthRules: Array<{ matches: (user: AuthRouteUser) => boolean; destination: string }> = [
   {
-    matches: (role) => ['student', 'free-student', 'freemium-student', 'paid-certificate-student', 'certificate-student', 'premium-student', 'programme-student', 'enrolled'].includes(role),
+    matches: (user) => user.role === 'applicant' || admissionsStates.includes(user.accountState ?? ''),
+    destination: '/admissions/status',
+  },
+  {
+    matches: (user) => Boolean(user.role && studentRoles.includes(user.role)) && enrolledStates.includes(user.accountState ?? 'active'),
     destination: '/student/dashboard',
   },
-  { matches: (role) => role === 'lecturer', destination: '/lecturer/dashboard' },
-  { matches: (role) => role === 'instructor', destination: '/instructor/dashboard' },
-  { matches: (role) => role === 'admin', destination: '/admin/dashboard' },
-  { matches: (role) => role === 'employer', destination: '/employer/dashboard' },
+  { matches: (user) => user.role === 'lecturer', destination: '/lecturer/dashboard' },
+  { matches: (user) => user.role === 'instructor', destination: '/instructor/dashboard' },
+  { matches: (user) => user.role === 'admin', destination: '/admin/dashboard' },
+  { matches: (user) => user.role === 'employer', destination: '/employer/dashboard' },
 ];
 
 export function getRoleIntentOptions() {
   return roleIntentOptions;
 }
 
-export function getPostAuthDestination(role: AuthRole | null | undefined) {
-  if (!role) {
+export function getPostAuthDestination(userOrRole: AuthRole | AuthRouteUser | null | undefined) {
+  if (!userOrRole) {
     return '/start';
   }
 
-  const matchedRule = postAuthRules.find((rule) => rule.matches(role));
+  const user: AuthRouteUser = typeof userOrRole === 'string' ? { role: userOrRole } : userOrRole;
+  const matchedRule = postAuthRules.find((rule) => rule.matches(user));
   return matchedRule?.destination ?? '/start';
 }
 
