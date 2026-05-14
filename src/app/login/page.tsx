@@ -40,7 +40,7 @@ export default function LoginPage() {
       const message =
         err instanceof ApiError
           ? (err.details as { message?: string } | null)?.message || err.message
-          : 'Login failed. Please check your credentials and try again.';
+          : 'Sign in failed. Check your details and try again.';
       setError(message);
     }
   };
@@ -59,7 +59,7 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Student Login</CardTitle>
             <CardDescription>
-              Welcome back! Please log in to your account.
+              Sign in to continue to your learning dashboard.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleStudentLogin}>
@@ -90,13 +90,13 @@ export default function LoginPage() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button className="w-full" type="submit">
-                Login as Student
+                Continue as Student
               </Button>
-              <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+              {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>
                 <p>student.premium@univai.edu / password123</p>
                 <p>applicant@univai.edu / password123 (admissions portal)</p>
-              </div>
+              </div> : null}
               <RoleIntentSwitcher currentRole="student" compact />
               <p className="text-sm text-muted-foreground">
                 New student?{' '}

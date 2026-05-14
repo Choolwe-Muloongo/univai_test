@@ -16,8 +16,8 @@ import { RoleIntentSwitcher } from '@/components/auth/role-intent-switcher';
 export default function EmployerLoginPage() {
   const router = useRouter();
   const { refresh } = useSession();
-  const [email, setEmail] = useState('employer@univai.edu');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -29,7 +29,7 @@ export default function EmployerLoginPage() {
       router.push(getPostAuthDestination('employer'));
     } catch (err) {
       console.error(err);
-      setError('Login failed. Please check your credentials and try again.');
+      setError('Sign in failed. Check your details and try again.');
     }
   };
 
@@ -47,7 +47,7 @@ export default function EmployerLoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Employer Login</CardTitle>
             <CardDescription>
-              Access your employer dashboard.
+              Sign in to manage opportunities and partnerships.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
@@ -81,13 +81,13 @@ export default function EmployerLoginPage() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button className="w-full" type="submit">
-                Login as Employer
+                Continue as Employer
               </Button>
-              <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+              {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>
                 <p>employer@univai.edu / password123</p>
-              </div>
-               <RoleIntentSwitcher currentRole="employer" compact />
+              </div> : null}
+              <RoleIntentSwitcher currentRole="employer" compact />
             </CardFooter>
           </form>
         </Card>
