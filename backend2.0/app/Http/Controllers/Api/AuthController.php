@@ -176,6 +176,7 @@ class AuthController extends Controller
     private function demoEmailRoleMap(): array
     {
         return [
+            'applicant@univai.edu' => 'applicant',
             'student.premium@univai.edu' => 'premium-student',
             'student.free@univai.edu' => 'free-student',
             'student.freemium@univai.edu' => 'freemium-student',
@@ -191,6 +192,22 @@ class AuthController extends Controller
     private function demoUser(string $role): array
     {
         return match ($role) {
+            'applicant' => [
+                'id' => 'applicant-1',
+                'name' => 'Applicant',
+                'email' => 'applicant@univai.edu',
+                'role' => 'applicant',
+                'schoolId' => null,
+                'programId' => null,
+                'intakeId' => null,
+                'accountState' => 'applicant',
+                'verificationStatus' => 'email',
+                'profileCompleted' => false,
+                'profileStarted' => false,
+                'subscriptionStatus' => 'none',
+                'subscriptionTier' => 'none',
+                'entitlements' => [],
+            ],
             'free-student', 'freemium-student' => StudentAccess::sessionPayload([
                 'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
                 'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
