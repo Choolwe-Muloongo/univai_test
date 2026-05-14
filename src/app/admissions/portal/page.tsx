@@ -43,6 +43,7 @@ export default function AdmissionsPortalPage() {
   const [documents, setDocuments] = useState<ApplicationDocument[]>([]);
   const [docType, setDocType] = useState('national_id');
   const [uploading, setUploading] = useState(false);
+  const [acceptingOffer, setAcceptingOffer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -87,6 +88,26 @@ export default function AdmissionsPortalPage() {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleAcceptOffer = async () => {
+    setAcceptingOffer(true);
+    try {
+      await acceptAdmissionOffer();
+      await loadData();
+      toast({
+        title: 'Offer accepted',
+        description: 'Your admission letter is now available. Complete enrollment next.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Could not accept offer',
+        description: error?.details?.message || error?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAcceptingOffer(false);
     }
   };
 
@@ -341,21 +362,28 @@ export default function AdmissionsPortalPage() {
           <CardDescription>View your official letters from the admissions process.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border p-4">
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
             <div className="mb-3 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <h3 className="font-semibold">Offer Letter</h3>
             </div>
             <p className="mb-4 text-sm text-muted-foreground">
-              {offerReady ? application.offerLetterMessage ?? 'Your offer letter is ready.' : 'Your offer letter will appear here after admissions approval.'}
+              {offerReady ? application.offerLetterMessage ?? 'Your offer letter is ready. Review it, then accept the offer to generate your admission letter.' : 'Your offer letter will appear here after admissions approval.'}
             </p>
-            {offerLetterUrl ? (
-              <Button variant="outline" asChild>
-                <Link href={offerLetterUrl}>View Offer Letter</Link>
-              </Button>
-            ) : (
-              <Badge variant="outline">Not available yet</Badge>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {offerLetterUrl ? (
+                <Button variant="outline" asChild>
+                  <Link href={offerLetterUrl}>View Offer Letter</Link>
+                </Button>
+              ) : (
+                <Badge variant="outline">Not available yet</Badge>
+              )}
+              {offerReady && !admitted && (
+                <Button onClick={handleAcceptOffer} disabled={acceptingOffer}>
+                  {acceptingOffer ? 'Accepting...' : 'Accept Offer'}
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="rounded-lg border p-4">
@@ -377,18 +405,6 @@ export default function AdmissionsPortalPage() {
             )}
           </div>
         </CardContent>
-        {offerReady && !admitted && (
-          <CardFooter className="flex flex-wrap gap-2">
-            <Button
-              onClick={async () => {
-                await acceptAdmissionOffer();
-                await loadData();
-              }}
-            >
-              Accept Offer
-            </Button>
-          </CardFooter>
-        )}
       </Card>
 
       {admitted && (
