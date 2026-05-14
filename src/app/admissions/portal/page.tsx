@@ -20,7 +20,7 @@ import {
 } from '@/lib/api';
 import { useSession } from '@/components/providers/session-provider';
 import type { ApplicationDetail, ApplicationDocument } from '@/lib/api/types';
-import { AlertCircle, CheckCircle2, FileText, ShieldCheck, Wallet } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileText, GraduationCap, ShieldCheck, Wallet } from 'lucide-react';
 
 const statusLabels: Record<string, string> = {
   draft: 'Draft',
@@ -137,9 +137,11 @@ export default function AdmissionsPortalPage() {
 
   const statusLabel = statusLabels[application.status] ?? application.status;
   const feePaid = Boolean(application.admissionFeePaid);
-  const offerReady = ['offer_sent', 'approved'].includes(application.status);
+  const offerReady = ['offer_sent', 'approved', 'admitted'].includes(application.status);
+  const admitted = application.status === 'admitted';
   const needsInfo = application.status === 'needs_info';
   const reviewInProgress = ['under_review', 'needs_info', 'offer_sent', 'approved', 'admitted'].includes(application.status);
+  const admissionLetterUrl = (application as ApplicationDetail & { admissionLetterUrl?: string | null }).admissionLetterUrl;
 
   const steps = [
     {
@@ -163,9 +165,9 @@ export default function AdmissionsPortalPage() {
       status: reviewInProgress ? 'current' : 'pending',
     },
     {
-      id: 'offer',
-      label: 'Offer',
-      status: offerReady || application.status === 'admitted' ? 'complete' : 'pending',
+      id: 'letters',
+      label: 'Letters',
+      status: offerReady || admitted ? 'complete' : 'pending',
     },
   ];
 
@@ -175,7 +177,7 @@ export default function AdmissionsPortalPage() {
         <div>
           <p className="text-sm font-semibold text-muted-foreground">UnivAI Admissions</p>
           <h1 className="text-3xl font-bold tracking-tight">Applicant Portal</h1>
-          <p className="text-muted-foreground">Track your application, pay the admission fee, submit documents, and accept your offer.</p>
+          <p className="text-muted-foreground">Track your application, pay the admission fee, submit documents, accept your offer, and view your admission letters.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{statusLabel}</Badge>
@@ -328,23 +330,54 @@ export default function AdmissionsPortalPage() {
         </CardContent>
       </Card>
 
-      {offerReady && (
-        <Card id="offer">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              Offer Letter
-            </CardTitle>
-            <CardDescription>Your offer is ready for acceptance.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>{application.offerLetterMessage ?? 'Your offer is ready. Please confirm to continue to enrollment.'}</p>
-            {application.offerLetterUrl && (
-              <Link href={application.offerLetterUrl} className="text-primary underline">
-                View Offer Letter
-              </Link>
+      <Card id="letters">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            Admissions Letters
+          </CardTitle>
+          <CardDescription>View your official letters from the admissions process.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-lg border p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <h3 className="font-semibold">Offer Letter</h3>
+            </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              {offerReady ? application.offerLetterMessage ?? 'Your offer letter is ready.' : 'Your offer letter will appear here after admissions approval.'}
+            </p>
+            {application.offerLetterUrl ? (
+              <Button variant="outline" asChild>
+                <Link href={application.offerLetterUrl}>View Offer Letter</Link>
+              </Button>
+            ) : (
+              <Badge variant="outline">Not available yet</Badge>
             )}
-          </CardContent>
+          </div>
+
+          <div className="rounded-lg border p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-primary" />
+              <h3 className="font-semibold">Admission Letter</h3>
+            </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              {admitted
+                ? 'Your admission confirmation belongs here after the backend generates the final admission letter.'
+                : 'Your admission letter will appear here after you accept your offer and admissions confirms enrollment.'}
+            </p>
+            {admissionLetterUrl ? (
+              <Button variant="outline" asChild>
+                <Link href={admissionLetterUrl}>View Admission Letter</Link>
+              </Button>
+            ) : admitted ? (
+              <Badge variant="outline">Admission letter generation pending</Badge>
+            ) : (
+              <Badge variant="outline">Locked until admitted</Badge>
+            )}
+          </div>
+        </CardContent>
+        {offerReady && !admitted && (
           <CardFooter className="flex flex-wrap gap-2">
             <Button
               onClick={async () => {
@@ -358,10 +391,10 @@ export default function AdmissionsPortalPage() {
               <Link href="/student/enroll">Go to Enrollment</Link>
             </Button>
           </CardFooter>
-        </Card>
-      )}
+        )}
+      </Card>
 
-      {application.status === 'admitted' && (
+      {admitted && (
         <Card className="border-primary/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
