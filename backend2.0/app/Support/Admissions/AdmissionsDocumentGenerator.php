@@ -124,27 +124,33 @@ class AdmissionsDocumentGenerator
         $pdf->SetFillColor(0, 190, 190);
         $pdf->Rect(0, 0, 210, 10, 'F');
 
-        $pdf->SetXY(18, 18);
-        $pdf->SetDrawColor(0, 190, 190);
-        $pdf->SetFillColor(238, 252, 252);
-        $pdf->SetLineWidth(0.7);
-        $pdf->Rect(18, 18, 30, 30, 'DF');
-        $pdf->SetFont('Arial', 'B', 13);
-        $pdf->SetTextColor(7, 18, 55);
-        $pdf->SetXY(18, 28.5);
-        $pdf->Cell(30, 7, 'UAI', 0, 0, 'C');
-        $pdf->SetFont('Arial', '', 6.5);
-        $pdf->SetXY(18, 36);
-        $pdf->Cell(30, 4, 'OFFICIAL SEAL', 0, 0, 'C');
+        $logoPath = $this->logoPath();
+        if ($logoPath) {
+            $pdf->Image($logoPath, 18, 16, 34);
+        } else {
+            $pdf->SetXY(18, 18);
+            $pdf->SetDrawColor(0, 190, 190);
+            $pdf->SetFillColor(238, 252, 252);
+            $pdf->SetLineWidth(0.7);
+            $pdf->Rect(18, 18, 30, 30, 'DF');
+            $pdf->SetFont('Arial', 'B', 13);
+            $pdf->SetTextColor(7, 18, 55);
+            $pdf->SetXY(18, 28.5);
+            $pdf->Cell(30, 7, 'UAI', 0, 0, 'C');
+            $pdf->SetFont('Arial', '', 6.5);
+            $pdf->SetXY(18, 36);
+            $pdf->Cell(30, 4, 'OFFICIAL SEAL', 0, 0, 'C');
+        }
 
-        $pdf->SetXY(54, 17);
+        $pdf->SetXY(58, 17);
         $pdf->SetFont('Arial', 'B', 22);
+        $pdf->SetTextColor(7, 18, 55);
         $pdf->Cell(0, 8, UnivAiBranding::name(), 0, 1);
-        $pdf->SetX(54);
+        $pdf->SetX(58);
         $pdf->SetFont('Arial', '', 9.5);
         $pdf->SetTextColor(45, 57, 82);
         $pdf->Cell(0, 5, UnivAiBranding::officialOffice(), 0, 1);
-        $pdf->SetX(54);
+        $pdf->SetX(58);
         $pdf->Cell(0, 5, 'Official Academic Correspondence', 0, 1);
 
         $pdf->SetXY(155, 18);
@@ -287,6 +293,28 @@ class AdmissionsDocumentGenerator
         $pdf->SetTextColor(85, 95, 115);
         $pdf->MultiCell(0, 4.2, $this->cleanText(UnivAiBranding::documentVerificationNotice()));
         $pdf->Cell(0, 4.2, UnivAiBranding::name() . ' | ' . UnivAiBranding::officialOffice() . ' | ' . UnivAiBranding::publicUrl(), 0, 1, 'C');
+    }
+
+    private function logoPath(): ?string
+    {
+        $candidates = [
+            base_path('../public/images/brand/univai-logo-mark-transparent.png'),
+            base_path('../public/images/brand/univai-logo-full-transparent.png'),
+            base_path('../src/public/images/brand/univai-logo-mark-transparent.png'),
+            base_path('../src/public/images/brand/univai-logo-full-transparent.png'),
+            base_path('../../public/images/brand/univai-logo-mark-transparent.png'),
+            base_path('../../public/images/brand/univai-logo-full-transparent.png'),
+            public_path('images/brand/univai-logo-mark-transparent.png'),
+            public_path('images/brand/univai-logo-full-transparent.png'),
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_string($path) && file_exists($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     private function buildSimplePdf(Application $application, string $type): string
