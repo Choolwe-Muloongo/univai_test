@@ -21,8 +21,18 @@ export type UserRole = (typeof ROLE)[keyof typeof ROLE];
 export type AccountState = 'applicant' | 'needs_information' | 'active' | 'enrolled' | 'probation' | 'suspended' | 'withdrawn';
 export type VerificationStatus = 'none' | 'email' | 'identity' | 'academic';
 export type SubscriptionStatus = 'none' | 'free' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired';
-export type SubscriptionTier = 'none' | 'freemium' | 'premium' | 'institutional';
-export type EntitlementCode = 'student_portal' | 'course_access' | 'ai_tutor' | 'teaching' | 'employer_portal' | 'admin_portal';
+export type SubscriptionTier = 'none' | 'freemium' | 'premium' | 'institutional' | 'programme' | 'certificate';
+export type EntitlementCode =
+  | 'student_portal'
+  | 'course_access'
+  | 'ai_tutor'
+  | 'teaching'
+  | 'employer_portal'
+  | 'admin_portal'
+  | 'short-course-access'
+  | 'certificate-access'
+  | 'premium-access'
+  | 'programme-access';
 export type AccessPermission = 'student.portal' | 'student.premium' | 'admissions.applicant' | 'ai.generate' | 'lecturer.portal' | 'instructor.portal' | 'employer.portal' | 'admin.portal';
 
 export type AccessContext = {
@@ -102,12 +112,12 @@ export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = 
     roles: STUDENT_ROLES,
     states: ['active', 'enrolled', 'probation'],
     verification: 'email',
-    profile: 'complete',
-    subscriptions: ['free', 'trialing', 'active', 'past_due'],
+    profile: 'none',
+    subscriptions: ['none', 'free', 'trialing', 'active', 'past_due'],
     entitlements: ['student_portal'],
   },
   'student.premium': {
-    roles: [ROLE.PREMIUM_STUDENT, ROLE.ENROLLED],
+    roles: [ROLE.PREMIUM_STUDENT, ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED],
     states: ['active', 'enrolled', 'probation'],
     verification: 'email',
     profile: 'complete',
@@ -118,12 +128,12 @@ export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = 
     roles: [ROLE.APPLICANT, ...STUDENT_ROLES],
     states: ['applicant', 'active', 'enrolled', 'needs_information'],
     verification: 'email',
-    profile: 'started',
+    profile: 'none',
     subscriptions: ['none', 'free', 'trialing', 'active', 'past_due'],
     entitlements: [],
   },
   'ai.generate': {
-    roles: [ROLE.PREMIUM_STUDENT, ROLE.ENROLLED, ROLE.LECTURER, ROLE.INSTRUCTOR, ROLE.ADMIN],
+    roles: [ROLE.PREMIUM_STUDENT, ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED, ROLE.LECTURER, ROLE.INSTRUCTOR, ROLE.ADMIN],
     states: ['active', 'enrolled', 'probation'],
     verification: 'email',
     profile: 'complete',
@@ -166,7 +176,11 @@ export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = 
 
 const LEGACY_ROLE_PERMISSIONS: Partial<Record<UserRole, AccessPermission>> = {
   [ROLE.STUDENT]: 'student.portal',
+  [ROLE.FREE_STUDENT]: 'student.portal',
+  [ROLE.PAID_CERTIFICATE_STUDENT]: 'student.portal',
+  [ROLE.CERTIFICATE_STUDENT]: 'student.portal',
   [ROLE.PREMIUM_STUDENT]: 'student.portal',
+  [ROLE.PROGRAMME_STUDENT]: 'student.portal',
   [ROLE.FREEMIUM_STUDENT]: 'student.portal',
   [ROLE.ENROLLED]: 'student.portal',
   [ROLE.APPLICANT]: 'admissions.applicant',
@@ -174,6 +188,7 @@ const LEGACY_ROLE_PERMISSIONS: Partial<Record<UserRole, AccessPermission>> = {
   [ROLE.EMPLOYER]: 'employer.portal',
   [ROLE.INSTRUCTOR]: 'instructor.portal',
   [ROLE.ADMIN]: 'admin.portal',
+  [ROLE.EXAM_OFFICER]: 'admin.portal',
 };
 
 export function isKnownUserRole(role: string | null | undefined): role is UserRole {
@@ -230,6 +245,7 @@ export function roleToStudentAccessTier(
 ): StudentAccessTier {
   switch (role) {
     case ROLE.CERTIFICATE_STUDENT:
+    case ROLE.PAID_CERTIFICATE_STUDENT:
       return STUDENT_ACCESS_TIER.CERTIFICATE;
     case ROLE.PREMIUM_STUDENT:
       return STUDENT_ACCESS_TIER.PREMIUM;
@@ -297,7 +313,7 @@ export function hasAccess(context: AccessContext, permissionOrRole: AccessPermis
       || (requirement.profile === 'started' && normalized.profileStarted)
       || (requirement.profile === 'complete' && normalized.profileCompleted))
     && requirement.subscriptions.includes(normalized.subscriptionStatus)
-    && requirement.entitlements.every((entitlement) => normalized.entitlements.includes(entitlement));
+    && requirement.entitlements.every((entitlement) => hasEntitlement(normalized.entitlements, entitlement));
 }
 
 function toAccessPermission(permissionOrRole: AccessPermission | UserRole): AccessPermission | undefined {
@@ -323,7 +339,6 @@ function normalizeAccessContext(context: AccessContext): NormalizedAccessContext
   };
 }
 
-
 function normalizeAccountState(state: string | null | undefined, role: UserRole): AccountState {
   const knownStates: readonly AccountState[] = ['applicant', 'needs_information', 'active', 'enrolled', 'probation', 'suspended', 'withdrawn'];
   return knownStates.includes(state as AccountState) ? (state as AccountState) : fallbackState(role);
@@ -340,7 +355,7 @@ function normalizeSubscriptionStatus(status: string | null | undefined, role: Us
 }
 
 function normalizeSubscriptionTier(tier: string | null | undefined, role: UserRole): SubscriptionTier {
-  const knownTiers: readonly SubscriptionTier[] = ['none', 'freemium', 'premium', 'institutional'];
+  const knownTiers: readonly SubscriptionTier[] = ['none', 'freemium', 'premium', 'institutional', 'programme', 'certificate'];
   return knownTiers.includes(tier as SubscriptionTier) ? (tier as SubscriptionTier) : fallbackSubscriptionTier(role);
 }
 
@@ -349,6 +364,10 @@ function verificationRank(status: string | null | undefined): number {
 }
 
 function fallbackState(role: UserRole): AccountState {
+  if ([ROLE.ENROLLED, ROLE.PROGRAMME_STUDENT].includes(role)) {
+    return 'enrolled';
+  }
+
   return PENDING_APPROVAL_ROLES.includes(role) ? 'applicant' : 'active';
 }
 
@@ -361,11 +380,11 @@ function fallbackProfileCompleted(role: UserRole): boolean {
 }
 
 function fallbackSubscription(role: UserRole): SubscriptionStatus {
-  if (([ROLE.PREMIUM_STUDENT, ROLE.ENROLLED] as readonly UserRole[]).includes(role)) {
+  if (([ROLE.PREMIUM_STUDENT, ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED] as readonly UserRole[]).includes(role)) {
     return 'active';
   }
 
-  if (([ROLE.STUDENT, ROLE.FREEMIUM_STUDENT] as readonly UserRole[]).includes(role)) {
+  if (([ROLE.STUDENT, ROLE.FREE_STUDENT, ROLE.FREEMIUM_STUDENT, ROLE.CERTIFICATE_STUDENT, ROLE.PAID_CERTIFICATE_STUDENT] as readonly UserRole[]).includes(role)) {
     return 'free';
   }
 
@@ -373,11 +392,19 @@ function fallbackSubscription(role: UserRole): SubscriptionStatus {
 }
 
 function fallbackSubscriptionTier(role: UserRole): SubscriptionTier {
-  if (([ROLE.PREMIUM_STUDENT, ROLE.ENROLLED] as readonly UserRole[]).includes(role)) {
+  if (([ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED] as readonly UserRole[]).includes(role)) {
+    return 'programme';
+  }
+
+  if (role === ROLE.PREMIUM_STUDENT) {
     return 'premium';
   }
 
-  if (([ROLE.STUDENT, ROLE.FREEMIUM_STUDENT] as readonly UserRole[]).includes(role)) {
+  if (([ROLE.CERTIFICATE_STUDENT, ROLE.PAID_CERTIFICATE_STUDENT] as readonly UserRole[]).includes(role)) {
+    return 'certificate';
+  }
+
+  if (([ROLE.STUDENT, ROLE.FREE_STUDENT, ROLE.FREEMIUM_STUDENT] as readonly UserRole[]).includes(role)) {
     return 'freemium';
   }
 
@@ -387,6 +414,7 @@ function fallbackSubscriptionTier(role: UserRole): SubscriptionTier {
 function fallbackEntitlements(role: UserRole): EntitlementCode[] {
   switch (role) {
     case ROLE.ADMIN:
+    case ROLE.EXAM_OFFICER:
       return ['admin_portal'];
     case ROLE.LECTURER:
       return ['teaching'];
@@ -394,13 +422,36 @@ function fallbackEntitlements(role: UserRole): EntitlementCode[] {
       return ['teaching'];
     case ROLE.EMPLOYER:
       return ['employer_portal'];
-    case ROLE.PREMIUM_STUDENT:
+    case ROLE.PROGRAMME_STUDENT:
     case ROLE.ENROLLED:
-      return ['student_portal', 'course_access', 'ai_tutor'];
+      return ['student_portal', 'course_access', 'ai_tutor', 'programme-access', 'premium-access', 'certificate-access', 'short-course-access'];
+    case ROLE.PREMIUM_STUDENT:
+      return ['student_portal', 'course_access', 'ai_tutor', 'premium-access', 'certificate-access', 'short-course-access'];
+    case ROLE.CERTIFICATE_STUDENT:
+    case ROLE.PAID_CERTIFICATE_STUDENT:
+      return ['student_portal', 'course_access', 'certificate-access', 'short-course-access'];
     case ROLE.STUDENT:
+    case ROLE.FREE_STUDENT:
     case ROLE.FREEMIUM_STUDENT:
-      return ['student_portal'];
+      return ['student_portal', 'short-course-access'];
     default:
       return [];
   }
+}
+
+function hasEntitlement(actual: readonly string[], required: EntitlementCode): boolean {
+  const aliases: Record<EntitlementCode, readonly string[]> = {
+    student_portal: ['student_portal', 'short-course-access', 'certificate-access', 'premium-access', 'programme-access'],
+    course_access: ['course_access', 'short-course-access', 'certificate-access', 'premium-access', 'programme-access'],
+    ai_tutor: ['ai_tutor', 'premium-access', 'programme-access'],
+    teaching: ['teaching'],
+    employer_portal: ['employer_portal'],
+    admin_portal: ['admin_portal'],
+    'short-course-access': ['short-course-access'],
+    'certificate-access': ['certificate-access'],
+    'premium-access': ['premium-access'],
+    'programme-access': ['programme-access'],
+  };
+
+  return aliases[required].some((code) => actual.includes(code));
 }
