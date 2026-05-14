@@ -26,6 +26,7 @@ class Application extends Model
         'notes',
         'offer_letter_message',
         'offer_letter_url',
+        'admission_letter_url',
         'offer_issued_at',
         'offer_accepted_at',
         'needs_info_message',
