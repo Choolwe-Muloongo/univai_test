@@ -81,6 +81,10 @@ export const ADMIN_ROLES: readonly UserRole[] = [ROLE.ADMIN, ROLE.EXAM_OFFICER];
 export const LECTURER_ROLES: readonly UserRole[] = [ROLE.LECTURER];
 export const EMPLOYER_ROLES: readonly UserRole[] = [ROLE.EMPLOYER];
 export const INSTRUCTOR_ROLES: readonly UserRole[] = [ROLE.INSTRUCTOR];
+export const PROGRAMME_STUDENT_ROLES: readonly UserRole[] = [ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED];
+export const PREMIUM_STUDENT_ROLES: readonly UserRole[] = [ROLE.PREMIUM_STUDENT, ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED];
+export const FREE_STUDENT_ROLES: readonly UserRole[] = [ROLE.STUDENT, ROLE.FREE_STUDENT, ROLE.FREEMIUM_STUDENT];
+export const CERTIFICATE_STUDENT_ROLES: readonly UserRole[] = [ROLE.CERTIFICATE_STUDENT, ROLE.PAID_CERTIFICATE_STUDENT];
 
 export const PENDING_APPROVAL_ROLES: readonly UserRole[] = [
   ROLE.APPLICANT,
@@ -117,7 +121,7 @@ export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = 
     entitlements: ['student_portal'],
   },
   'student.premium': {
-    roles: [ROLE.PREMIUM_STUDENT, ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED],
+    roles: PREMIUM_STUDENT_ROLES,
     states: ['active', 'enrolled', 'probation'],
     verification: 'email',
     profile: 'complete',
@@ -364,7 +368,7 @@ function verificationRank(status: string | null | undefined): number {
 }
 
 function fallbackState(role: UserRole): AccountState {
-  if ([ROLE.ENROLLED, ROLE.PROGRAMME_STUDENT].includes(role)) {
+  if (PROGRAMME_STUDENT_ROLES.includes(role)) {
     return 'enrolled';
   }
 
@@ -380,11 +384,11 @@ function fallbackProfileCompleted(role: UserRole): boolean {
 }
 
 function fallbackSubscription(role: UserRole): SubscriptionStatus {
-  if (([ROLE.PREMIUM_STUDENT, ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED] as readonly UserRole[]).includes(role)) {
+  if (PREMIUM_STUDENT_ROLES.includes(role)) {
     return 'active';
   }
 
-  if (([ROLE.STUDENT, ROLE.FREE_STUDENT, ROLE.FREEMIUM_STUDENT, ROLE.CERTIFICATE_STUDENT, ROLE.PAID_CERTIFICATE_STUDENT] as readonly UserRole[]).includes(role)) {
+  if ([...FREE_STUDENT_ROLES, ...CERTIFICATE_STUDENT_ROLES].includes(role)) {
     return 'free';
   }
 
@@ -392,7 +396,7 @@ function fallbackSubscription(role: UserRole): SubscriptionStatus {
 }
 
 function fallbackSubscriptionTier(role: UserRole): SubscriptionTier {
-  if (([ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED] as readonly UserRole[]).includes(role)) {
+  if (PROGRAMME_STUDENT_ROLES.includes(role)) {
     return 'programme';
   }
 
@@ -400,11 +404,11 @@ function fallbackSubscriptionTier(role: UserRole): SubscriptionTier {
     return 'premium';
   }
 
-  if (([ROLE.CERTIFICATE_STUDENT, ROLE.PAID_CERTIFICATE_STUDENT] as readonly UserRole[]).includes(role)) {
+  if (CERTIFICATE_STUDENT_ROLES.includes(role)) {
     return 'certificate';
   }
 
-  if (([ROLE.STUDENT, ROLE.FREE_STUDENT, ROLE.FREEMIUM_STUDENT] as readonly UserRole[]).includes(role)) {
+  if (FREE_STUDENT_ROLES.includes(role)) {
     return 'freemium';
   }
 
