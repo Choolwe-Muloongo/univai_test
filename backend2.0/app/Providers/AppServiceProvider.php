@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\Api\AdmissionsLettersController;
 use App\Models\Application;
 use App\Observers\ApplicationObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Application::observe(ApplicationObserver::class);
+
+        Route::middleware(['api', 'session.auth', 'access:admissions.applicant'])
+            ->get('/api/admissions/admission-letter', [AdmissionsLettersController::class, 'downloadAdmissionLetter']);
 
         RateLimiter::for('login', function (Request $request) {
             $email = strtolower((string) $request->input('email', ''));
