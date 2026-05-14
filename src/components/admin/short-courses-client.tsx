@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Textarea } from '@/components/ui/textarea';
-import { createCourse, generateAi, getAdminAcademicStructure, getCourses, getPrograms, getSchools } from '@/lib/api';
-import type { AdminAcademicStructureResponse, Course, Program, School } from '@/lib/api/types';
+import { createCourse, createShortCourseDraftWithBlueprint, generateAi, getAdminAcademicStructure, getCourses, getPrograms, getSchools } from '@/lib/api';
+import type { AdminAcademicStructureResponse, AiShortCourseBlueprint, Course, Program, School } from '@/lib/api/types';
 
 const blankStructure: AdminAcademicStructureResponse = {
   departments: [],
@@ -33,7 +33,9 @@ export function ShortCoursesClient() {
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiOutline, setAiOutline] = useState('');
+  const [aiBlueprint, setAiBlueprint] = useState<AiShortCourseBlueprint | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiFailedFallback, setAiFailedFallback] = useState(false);
   const [sourceMode, setSourceMode] = useState<'new' | 'programme-course'>('new');
   const [programmeCourseId, setProgrammeCourseId] = useState('');
   const [form, setForm] = useState({
@@ -48,9 +50,9 @@ export function ShortCoursesClient() {
     level: 'beginner',
     status: 'draft' as 'draft' | 'published',
   });
-  const derivedModules = aiOutline.match(/module\s+\d+|^module:/gim)?.length ?? 0;
-  const derivedLessons = aiOutline.match(/lesson\s+\d+|^lesson:/gim)?.length ?? 0;
-  const derivedOutcomes = aiOutline.match(/outcomes?:|^-\s+/gim)?.length ?? 0;
+  const derivedModules = aiBlueprint?.modules.length ?? 0;
+  const derivedLessons = aiBlueprint?.modules.reduce((sum, module) => sum + module.lessons.length, 0) ?? 0;
+  const derivedOutcomes = aiBlueprint?.courseSummary.outcomes.length ?? 0;
   const checklist = [
     { label: 'At least 1 module', done: derivedModules > 0 },
     { label: 'At least 1 lesson', done: derivedLessons > 0 },
@@ -117,13 +119,18 @@ export function ShortCoursesClient() {
       });
       const generated = response as Record<string, unknown>;
       const output = String(generated.text || generated.output || generated.content || JSON.stringify(response));
+      const parsedBlueprint = parseAiShortCourseBlueprint(output);
       setAiOutline(output);
+      setAiBlueprint(parsedBlueprint);
+      setAiFailedFallback(false);
       setForm((value) => ({
         ...value,
-        title: value.title || deriveShortCourseTitle(seed),
-        description: value.description || output.slice(0, 700),
+        title: value.title || parsedBlueprint.courseSummary.title || deriveShortCourseTitle(seed),
+        description: value.description || parsedBlueprint.courseSummary.description || output.slice(0, 700),
       }));
     } catch (cause) {
+      setAiBlueprint(buildManualScaffold(seed, form.level, Number(form.durationHours) || 8));
+      setAiFailedFallback(true);
       setError(cause instanceof Error ? cause.message : 'AI generation failed.');
     } finally {
       setAiLoading(false);
@@ -141,7 +148,7 @@ export function ShortCoursesClient() {
         : null;
       const cleanId = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-      await createCourse({
+      const coursePayload = {
         id: cleanId || `short-course-${Date.now()}`,
         title: form.title,
         description: buildShortCourseDescription({
@@ -161,13 +168,26 @@ export function ShortCoursesClient() {
         durationHours: Number(form.durationHours),
         level: form.level,
         status: form.status,
-        modules: derivedModules > 0 ? [{ title: 'Module 1' }] : [],
-        lessons: derivedLessons > 0 ? [{ title: 'Lesson 1' }] : [],
-        outcomes: derivedOutcomes > 0 ? ['Outcome 1'] : [],
-      });
+        modules: aiBlueprint?.modules.map((module) => ({ title: module.title, description: module.description })) ?? [],
+        lessons: aiBlueprint?.modules.flatMap((module) => module.lessons.map((lesson) => ({ title: lesson.title, summary: lesson.summary }))) ?? [],
+        outcomes: aiBlueprint?.courseSummary.outcomes ?? [],
+      };
+      if (aiBlueprint) {
+        await createShortCourseDraftWithBlueprint({
+          course: coursePayload,
+          blueprint: aiBlueprint,
+          sourceMode,
+          programmeTitle: selectedProgram?.title ?? null,
+          programmeCourseTitle: selectedProgrammeCourse?.moduleTitle || selectedProgrammeCourse?.courseTitle || null,
+        });
+      } else {
+        await createCourse(coursePayload);
+      }
       await refresh();
       setForm((value) => ({ ...value, title: '', description: '' }));
       setAiOutline('');
+      setAiBlueprint(null);
+      setAiFailedFallback(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to create short course.');
     } finally {
@@ -273,6 +293,17 @@ export function ShortCoursesClient() {
               </div>
               <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row">
                 <Button type="button" variant="outline" onClick={generateOutline} disabled={aiLoading || !(aiPrompt || form.title || programmeCourseId)}>{aiLoading ? 'Generating...' : 'Generate professional course with AI'}</Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const seed = aiPrompt || form.title || 'Manual short course draft';
+                    setAiBlueprint(buildManualScaffold(seed, form.level, Number(form.durationHours) || 8));
+                    setAiFailedFallback(true);
+                  }}
+                >
+                  AI failed, continue manually
+                </Button>
                 <Button disabled={saving || !form.schoolId || (form.status === 'published' && !canPublish)}>{saving ? 'Saving...' : form.status === 'published' ? 'Create as live' : 'Save draft'}</Button>
               </div>
             </form>
@@ -287,6 +318,8 @@ export function ShortCoursesClient() {
             <p className="whitespace-pre-line text-sm text-muted-foreground">
               {aiOutline || 'AI-generated course outlines appear here. They remain drafts until reviewed.'}
             </p>
+            {aiBlueprint ? <pre className="mt-4 overflow-auto rounded border bg-muted p-3 text-xs">{JSON.stringify(aiBlueprint, null, 2)}</pre> : null}
+            {aiFailedFallback ? <p className="mt-3 text-xs text-amber-700">AI failed or output was malformed. Manual scaffold has been prepared so instructors/admin can continue editing.</p> : null}
           </CardContent>
         </Card>
       </div>
@@ -376,22 +409,98 @@ Requirements:
 9. Keep official content human-reviewed and lecturer/instructor supervised.
 10. Avoid hype, fake accreditation claims, and promises of jobs.
 
-Return in this exact structure:
-Title:
-Audience:
-Level:
-Duration:
-Prerequisites:
-Description:
-Learning Outcomes:
-Modules and Lessons:
-Practical Work:
-Quizzes:
-Final Assessment:
-Certificate Criteria:
-AI Study Support:
-Instructor Review Checklist:
+Return ONLY valid JSON matching this strict schema:
+{
+  "courseSummary": {
+    "title": "string",
+    "audience": "string",
+    "level": "string",
+    "description": "string",
+    "prerequisites": ["string"],
+    "totalDurationHours": "number",
+    "outcomes": ["string"],
+    "finalAssessment": "string",
+    "certificateCriteria": "string"
+  },
+  "assessments": {
+    "quizzes": ["string"],
+    "practicalWork": ["string"],
+    "instructorReviewChecklist": ["string"]
+  },
+  "modules": [
+    {
+      "title": "string",
+      "description": "string",
+      "durationMinutes": "number",
+      "outcomes": ["string"],
+      "moduleAssessment": "string",
+      "lessons": [
+        {
+          "title": "string",
+          "summary": "string",
+          "durationMinutes": "number",
+          "outcomes": ["string"],
+          "activities": ["string"],
+          "assessment": "string"
+        }
+      ]
+    }
+  ]
+}
 `.trim();
+}
+
+function parseAiShortCourseBlueprint(raw: string): AiShortCourseBlueprint {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('AI returned non-JSON output. Use manual fallback or regenerate.');
+  }
+  const candidate = parsed as AiShortCourseBlueprint;
+  if (!candidate?.courseSummary?.title || !Array.isArray(candidate?.modules) || !candidate.modules.length) {
+    throw new Error('AI returned malformed course structure. Use manual fallback or regenerate.');
+  }
+  if (!candidate.modules.every((module) => module.title && Array.isArray(module.lessons) && module.lessons.length > 0)) {
+    throw new Error('AI module/lesson structure is incomplete. Use manual fallback or repair manually.');
+  }
+  return candidate;
+}
+
+function buildManualScaffold(seed: string, level: string, durationHours: number): AiShortCourseBlueprint {
+  return {
+    courseSummary: {
+      title: deriveShortCourseTitle(seed) || 'New short course draft',
+      audience: 'General learners',
+      level: level || 'beginner',
+      description: 'Manual scaffold created after AI generation failure. Update all fields before publishing.',
+      prerequisites: ['No prior experience required'],
+      totalDurationHours: durationHours,
+      outcomes: ['Outcome 1 (edit)', 'Outcome 2 (edit)'],
+      finalAssessment: 'Final assessment pending instructor design.',
+      certificateCriteria: 'Certificate criteria pending instructor review.',
+    },
+    assessments: {
+      quizzes: ['Quiz 1 (edit)'],
+      practicalWork: ['Practical activity 1 (edit)'],
+      instructorReviewChecklist: ['Review module outcomes', 'Review lesson quality'],
+    },
+    modules: [{
+      title: 'Module 1 (edit)',
+      description: 'Describe module intent.',
+      durationMinutes: Math.max(60, Math.round((durationHours * 60) / 2)),
+      outcomes: ['Module outcome 1 (edit)'],
+      moduleAssessment: 'Module assessment pending.',
+      lessons: [{
+        title: 'Lesson 1 (edit)',
+        summary: 'Add lesson summary.',
+        durationMinutes: 45,
+        outcomes: ['Lesson outcome 1 (edit)'],
+        activities: ['Activity 1 (edit)'],
+        assessment: 'Lesson check pending.',
+      }],
+    }],
+  };
 }
 
 function buildShortCourseDescription(input: {
