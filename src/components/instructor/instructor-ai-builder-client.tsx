@@ -247,21 +247,40 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function GenerationList({ generations }: { generations: Row[] }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Generated Drafts</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {generations.length ? generations.map((generation) => (
-          <article key={String(generation.id)} className="rounded-lg border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-semibold">{String(generation.title ?? generation.generation_type ?? 'AI draft')}</p>
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">{String(generation.status ?? 'ai_generated')}</span>
-            </div>
-            <p className="mt-3 whitespace-pre-line text-sm text-muted-foreground">{String(generation.output ?? '').slice(0, 1600)}</p>
-          </article>
-        )) : <p className="text-sm text-muted-foreground">No generated drafts yet.</p>}
+        {generations.length ? generations.map((generation) => {
+          const id = String(generation.id);
+          const output = String(generation.output ?? '');
+          const isExpanded = expanded[id] ?? false;
+          const preview = isExpanded ? output : output.slice(0, 1600);
+
+          return (
+            <article key={id} className="rounded-lg border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">{String(generation.title ?? generation.generation_type ?? 'AI draft')}</p>
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">{String(generation.status ?? 'ai_generated')}</span>
+              </div>
+              <p className="mt-3 whitespace-pre-line text-sm text-muted-foreground">{preview}</p>
+              {output.length > 1600 ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  className="mt-2 h-auto px-0 text-xs"
+                  onClick={() => setExpanded((current) => ({ ...current, [id]: !isExpanded }))}
+                >
+                  {isExpanded ? 'Show less' : 'View full draft'}
+                </Button>
+              ) : null}
+            </article>
+          );
+        }) : <p className="text-sm text-muted-foreground">No generated drafts yet.</p>}
       </CardContent>
     </Card>
   );

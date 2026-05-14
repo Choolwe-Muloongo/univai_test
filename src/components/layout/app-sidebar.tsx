@@ -265,6 +265,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/instructor/courses/create', label: 'Create Course', icon: Settings },
         { href: '/instructor/course-builder', label: 'Course Materials', icon: BookMarked },
         { href: '/instructor/ai-builder', label: 'AI Course Builder', icon: Sparkles },
+        { href: '/instructor/ai-builder/generations', label: 'AI Drafts', icon: BookMarked, key: 'instructor-ai-drafts' },
         { href: '/instructor/ai-builder/packages', label: 'AI Packages', icon: CreditCard },
         { href: '/instructor/ai-builder/sources', label: 'AI Sources', icon: BookMarked },
         { href: '/instructor/courses/review', label: 'Review Submission', icon: ClipboardCheck },
@@ -296,22 +297,27 @@ function normalizeRole(role?: string) {
   return role || 'premium-student';
 }
 
-function isLinkActive(pathname: string, href: string) {
-  if (pathname === href) return true;
-  if (href === '/student/dashboard' || href === '/admin/dashboard' || href === '/lecturer/dashboard' || href === '/employer/dashboard') {
-    return false;
-  }
-
-  return pathname.startsWith(href) && href.split('/').length > 2;
+function isLinkActive(pathname: string, href: string, activeHref: string | null) {
+  return activeHref === href;
 }
 
 export function AppSidebar({ role }: { role?: string }) {
   const pathname = usePathname();
   const [groups, setGroups] = useState<NavGroup[]>([]);
+  const [activeHref, setActiveHref] = useState<string | null>(null);
 
   useEffect(() => {
     const normalizedRole = normalizeRole(role);
-    setGroups(groupedLinks[normalizedRole] || groupedLinks['premium-student']);
+    const nextGroups = groupedLinks[normalizedRole] || groupedLinks['premium-student'];
+    setGroups(nextGroups);
+
+    const links = nextGroups.flatMap((group) => group.links);
+    const ranked = links
+      .map((link) => ({ href: link.href, score: pathname === link.href ? 10_000 : pathname.startsWith(link.href) ? link.href.length : -1 }))
+      .filter((item) => item.score >= 0)
+      .sort((a, b) => b.score - a.score);
+
+    setActiveHref(ranked[0]?.href ?? null);
   }, [pathname, role]);
 
   return (
@@ -332,7 +338,7 @@ export function AppSidebar({ role }: { role?: string }) {
                   <SidebarMenuItem key={link.key || link.href}>
                     <SidebarMenuButton
                       asChild
-                      isActive={isLinkActive(pathname, link.href)}
+                      isActive={isLinkActive(pathname, link.href, activeHref)}
                       tooltip={link.label}
                       className="justify-start data-[active=true]:bg-sidebar-accent/70"
                     >
