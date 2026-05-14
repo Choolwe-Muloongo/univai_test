@@ -28,6 +28,8 @@ class Course extends Model
         'level',
         'progress',
         'image_id',
+        'status',
+        'review_status',
     ];
 
     protected $casts = [
