@@ -3,16 +3,20 @@
 namespace App\Observers;
 
 use App\Models\Application;
-use App\Support\Admissions\AdmissionLetterGenerator;
+use App\Support\Admissions\AdmissionsDocumentGenerator;
 
 class ApplicationObserver
 {
     public function saved(Application $application): void
     {
-        if ($application->status !== 'admitted') {
-            return;
+        $generator = app(AdmissionsDocumentGenerator::class);
+
+        if (in_array($application->status, ['offer_sent', 'approved', 'admitted'], true)) {
+            $generator->ensureOfferLetter($application);
         }
 
-        app(AdmissionLetterGenerator::class)->ensureAdmissionLetter($application);
+        if ($application->status === 'admitted') {
+            $generator->ensureAdmissionLetter($application);
+        }
     }
 }
