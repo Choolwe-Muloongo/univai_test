@@ -142,6 +142,7 @@ export default function AdmissionsPortalPage() {
   const admitted = application.status === 'admitted';
   const needsInfo = application.status === 'needs_info';
   const reviewInProgress = ['under_review', 'needs_info', 'offer_sent', 'approved', 'admitted'].includes(application.status);
+  const offerLetterUrl = application.offerLetterUrl ? buildApiUrl('/admissions/offer-letter') : null;
   const admissionLetterUrl = admitted ? buildApiUrl('/admissions/admission-letter') : null;
 
   const steps = [
@@ -348,9 +349,9 @@ export default function AdmissionsPortalPage() {
             <p className="mb-4 text-sm text-muted-foreground">
               {offerReady ? application.offerLetterMessage ?? 'Your offer letter is ready.' : 'Your offer letter will appear here after admissions approval.'}
             </p>
-            {application.offerLetterUrl ? (
+            {offerLetterUrl ? (
               <Button variant="outline" asChild>
-                <Link href={application.offerLetterUrl}>View Offer Letter</Link>
+                <Link href={offerLetterUrl}>View Offer Letter</Link>
               </Button>
             ) : (
               <Badge variant="outline">Not available yet</Badge>
