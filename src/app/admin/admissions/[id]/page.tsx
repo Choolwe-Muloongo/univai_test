@@ -7,11 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getApplicationById, updateApplicationStatus, getIntakes, getApplicationDocuments, reviewApplicationDocument } from '@/lib/api';
-import type { ApplicationDetail, ApplicationStatus, Intake, ApplicationDocument } from '@/lib/api/types';
-import { ClipboardCheck, Mail, ShieldCheck, User, AlertTriangle } from 'lucide-react';
+import {
+  getApplicationById,
+  getApplicationDocuments,
+  getIntakes,
+  reviewApplicationDocument,
+  updateApplicationStatus,
+} from '@/lib/api';
+import type { ApplicationDetail, ApplicationDocument, ApplicationStatus, Intake } from '@/lib/api/types';
+import { AlertTriangle, CheckCircle2, ClipboardCheck, FileText, Mail, ShieldCheck, User } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AdminActionPanel } from '@/components/admin/admin-action-panel';
 
 const requiredSubjects = ['english-language', 'mathematics'];
 
@@ -22,10 +27,21 @@ const statusLabels: Record<ApplicationStatus, string> = {
   under_review: 'Under Review',
   needs_info: 'Needs Info',
   offer_sent: 'Offer Sent',
-  approved: 'Approved',
+  approved: 'Offer Sent',
   rejected: 'Rejected',
   admitted: 'Admitted',
 };
+
+const flowSteps = [
+  'Application submitted',
+  'Admin reviews',
+  'Admin sends offer',
+  'Offer Letter appears',
+  'Student accepts offer',
+  'Admission Letter appears',
+  'Student completes enrollment',
+  'Full student dashboard opens',
+];
 
 export default function AdmissionDetailPage() {
   const { id } = useParams();
@@ -59,6 +75,7 @@ export default function AdmissionDetailPage() {
       setDocuments(docList);
       setLoading(false);
     };
+
     loadApplication();
   }, [id]);
 
@@ -75,14 +92,25 @@ export default function AdmissionDetailPage() {
 
   const handleStatusChange = async (status: ApplicationStatus) => {
     if (!application) return;
-    if ((status === 'offer_sent' || status === 'admitted' || status === 'approved') && !selectedIntake) {
+
+    if ((status === 'offer_sent' || status === 'approved' || status === 'admitted') && !selectedIntake) {
       toast({
         title: 'Select an intake first',
-        description: 'Assign the applicant to an intake before approval.',
+        description: 'Assign the applicant to an intake before sending an offer or applying a manual admission override.',
         variant: 'destructive',
       });
       return;
     }
+
+    if (status === 'admitted' && !['offer_sent', 'approved'].includes(application.status)) {
+      toast({
+        title: 'Send the offer first',
+        description: 'The standard flow is: Send Offer → student accepts offer → Admission Letter appears. Use manual admission only after an offer exists.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const updated = await updateApplicationStatus(application.id, status, notes, selectedIntake || null, {
         offerMessage,
@@ -114,15 +142,39 @@ export default function AdmissionDetailPage() {
     return <p className="text-sm text-muted-foreground">Application not found.</p>;
   }
 
+  const canSendOffer = ['submitted', 'fee_paid', 'under_review', 'needs_info'].includes(application.status);
+  const offerAlreadySent = ['offer_sent', 'approved', 'admitted'].includes(application.status);
+  const canManualAdmit = ['offer_sent', 'approved'].includes(application.status);
+  const isAdmitted = application.status === 'admitted';
+  const verifiedDocumentCount = documents.filter((doc) => doc.status === 'verified').length;
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Applicant Review</h1>
-          <p className="text-muted-foreground">Admissions decision and enrollment prep.</p>
+          <p className="text-muted-foreground">Use the official admissions flow: review, send offer, student accepts, then admission letter appears.</p>
         </div>
         <Badge variant="secondary">{statusLabels[application.status]}</Badge>
       </div>
+
+      <Card className="border-primary/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            Official Admissions Flow
+          </CardTitle>
+          <CardDescription>Do not skip straight to admission unless you are correcting a special case.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 md:grid-cols-4">
+          {flowSteps.map((step, index) => (
+            <div key={step} className="rounded-lg border p-3 text-sm">
+              <p className="text-xs font-semibold text-muted-foreground">Step {index + 1}</p>
+              <p className="font-medium">{step}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <Card>
@@ -131,7 +183,7 @@ export default function AdmissionDetailPage() {
               <User className="h-5 w-5 text-primary" />
               Applicant Details
             </CardTitle>
-            <CardDescription>Review personal and program selections.</CardDescription>
+            <CardDescription>Review personal details, programme choice, and assigned intake.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -162,11 +214,11 @@ export default function AdmissionDetailPage() {
                 <p className="text-xs text-muted-foreground">Learning Style</p>
                 <p className="font-semibold">{application.learningStyle}</p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Assigned Intake</p>
-                <Select value={selectedIntake} onValueChange={setSelectedIntake}>
+              <div className="md:col-span-2">
+                <p className="mb-2 text-xs text-muted-foreground">Assigned Intake</p>
+                <Select value={selectedIntake} onValueChange={setSelectedIntake} disabled={isAdmitted}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select intake" />
+                    <SelectValue placeholder="Select intake before sending offer" />
                   </SelectTrigger>
                   <SelectContent>
                     {intakes.map((intake) => (
@@ -180,7 +232,7 @@ export default function AdmissionDetailPage() {
             </div>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
-            Select an intake before sending an offer or marking the applicant admitted.
+            Intake is required before the Offer Letter can be generated.
           </CardFooter>
         </Card>
 
@@ -188,9 +240,9 @@ export default function AdmissionDetailPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
-              AI Eligibility Summary
+              Eligibility Summary
             </CardTitle>
-            <CardDescription>Automated checks for required subjects.</CardDescription>
+            <CardDescription>Quick checks before sending an offer.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
@@ -200,6 +252,10 @@ export default function AdmissionDetailPage() {
             <div className="flex items-center justify-between">
               <span>Total points</span>
               <span className="font-semibold">{subjectSummary.totalPoints}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Verified documents</span>
+              <span className="font-semibold">{verifiedDocumentCount}</span>
             </div>
             {subjectSummary.missing.length > 0 ? (
               <div className="rounded-lg border border-dashed p-3 text-xs text-destructive">
@@ -217,10 +273,12 @@ export default function AdmissionDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
-            Offer & Needs Info
+            <FileText className="h-5 w-5 text-primary" />
+            Decision & Letters
           </CardTitle>
-          <CardDescription>Compose offer letters and request missing documents.</CardDescription>
+          <CardDescription>
+            The normal decision is Send Offer. The Admission Letter appears after the student accepts the offer.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
@@ -229,16 +287,18 @@ export default function AdmissionDetailPage() {
               className="min-h-24"
               value={offerMessage}
               onChange={(event) => setOfferMessage(event.target.value)}
-              placeholder="Offer letter message shown to the applicant."
+              placeholder="Optional custom message for the offer letter."
+              disabled={isAdmitted}
             />
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-semibold">Offer Letter URL (optional)</p>
+            <p className="text-sm font-semibold">Custom Offer Letter URL</p>
             <Textarea
               className="min-h-24"
               value={offerLetterUrl}
               onChange={(event) => setOfferLetterUrl(event.target.value)}
-              placeholder="Paste a custom offer letter URL if needed."
+              placeholder="Optional. Leave empty to let UnivAI generate the official letter."
+              disabled={isAdmitted}
             />
           </div>
           <div className="space-y-2 md:col-span-2">
@@ -247,34 +307,42 @@ export default function AdmissionDetailPage() {
               className="min-h-24"
               value={needsInfoMessage}
               onChange={(event) => setNeedsInfoMessage(event.target.value)}
-              placeholder="Describe the missing documents or corrections needed."
+              placeholder="Tell the applicant what documents or corrections are needed."
+              disabled={isAdmitted}
             />
           </div>
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => handleStatusChange('under_review')}>
-            Mark Under Review
-          </Button>
-          <Button variant="outline" onClick={() => handleStatusChange('needs_info')}>
-            Send Needs Info
-          </Button>
-          <Button onClick={() => handleStatusChange('offer_sent')}>
-            Send Offer
-          </Button>
-          <Button variant="secondary" onClick={() => handleStatusChange('admitted')}>
-            Mark Admitted
-          </Button>
-          <Button variant="destructive" onClick={() => handleStatusChange('rejected')}>
-            Reject Application
-          </Button>
+          {!offerAlreadySent && (
+            <Button variant="outline" onClick={() => handleStatusChange('under_review')}>
+              Mark Under Review
+            </Button>
+          )}
+          {!offerAlreadySent && (
+            <Button variant="outline" onClick={() => handleStatusChange('needs_info')}>
+              Send Needs Info
+            </Button>
+          )}
+          {canSendOffer && (
+            <Button onClick={() => handleStatusChange('offer_sent')}>
+              Send Offer & Generate Offer Letter
+            </Button>
+          )}
+          {canManualAdmit && (
+            <Button variant="secondary" onClick={() => handleStatusChange('admitted')}>
+              Manual Override: Mark Admitted
+            </Button>
+          )}
+          {!isAdmitted && (
+            <Button variant="destructive" onClick={() => handleStatusChange('rejected')}>
+              Reject Application
+            </Button>
+          )}
+          {isAdmitted && (
+            <Badge variant="default">Admission letter will be available in the applicant portal.</Badge>
+          )}
         </CardFooter>
       </Card>
-
-      <AdminActionPanel
-        title="Admission Decision Guidance"
-        description="Use this optional panel to structure high-risk admissions decisions."
-        scenarios={['intake_overcapacity', 'high_rejection_spike']}
-      />
 
       <Card>
         <CardHeader>
@@ -288,10 +356,12 @@ export default function AdmissionDetailPage() {
           {documents.length === 0 && (
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
               <p className="font-semibold text-foreground">No documents uploaded yet</p>
-              <p className="mt-1">Next action: request missing uploads via "Send Needs Info" before making a final decision.</p>
-              <Button className="mt-3" size="sm" variant="outline" onClick={() => handleStatusChange('needs_info')}>
-                Send Needs Info
-              </Button>
+              <p className="mt-1">Next action: request missing uploads before sending an offer.</p>
+              {!offerAlreadySent && (
+                <Button className="mt-3" size="sm" variant="outline" onClick={() => handleStatusChange('needs_info')}>
+                  Send Needs Info
+                </Button>
+              )}
             </div>
           )}
           {documents.map((doc) => (
@@ -310,27 +380,30 @@ export default function AdmissionDetailPage() {
                 value={docNotes[doc.id] ?? doc.reviewNotes ?? ''}
                 onChange={(event) => setDocNotes((prev) => ({ ...prev, [doc.id]: event.target.value }))}
                 className="min-h-20"
+                disabled={isAdmitted}
               />
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    const updated = await reviewApplicationDocument(id as string, doc.id, 'verified', docNotes[doc.id]);
-                    setDocuments((prev) => prev.map((item) => (item.id === doc.id ? updated : item)));
-                  }}
-                >
-                  Verify
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={async () => {
-                    const updated = await reviewApplicationDocument(id as string, doc.id, 'rejected', docNotes[doc.id]);
-                    setDocuments((prev) => prev.map((item) => (item.id === doc.id ? updated : item)));
-                  }}
-                >
-                  Reject
-                </Button>
-              </div>
+              {!isAdmitted && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      const updated = await reviewApplicationDocument(id as string, doc.id, 'verified', docNotes[doc.id]);
+                      setDocuments((prev) => prev.map((item) => (item.id === doc.id ? updated : item)));
+                    }}
+                  >
+                    Verify
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      const updated = await reviewApplicationDocument(id as string, doc.id, 'rejected', docNotes[doc.id]);
+                      setDocuments((prev) => prev.map((item) => (item.id === doc.id ? updated : item)));
+                    }}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </CardContent>
@@ -342,7 +415,7 @@ export default function AdmissionDetailPage() {
             <ClipboardCheck className="h-5 w-5 text-primary" />
             Subject Points
           </CardTitle>
-          <CardDescription>Verified Grade 12 results.</CardDescription>
+          <CardDescription>Submitted Grade 12 or equivalent results.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {Object.entries(application.subjectPoints).map(([subject, points]) => (
@@ -360,14 +433,14 @@ export default function AdmissionDetailPage() {
             <AlertTriangle className="h-5 w-5 text-primary" />
             Reviewer Notes
           </CardTitle>
-          <CardDescription>Capture decisions and follow-ups.</CardDescription>
+          <CardDescription>Capture admissions rationale and follow-ups.</CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea
             className="min-h-32"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Add notes or rationale for approval/rejection."
+            placeholder="Add notes or rationale for the decision."
           />
         </CardContent>
       </Card>
