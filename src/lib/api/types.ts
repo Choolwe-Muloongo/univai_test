@@ -122,6 +122,52 @@ export type Course = {
 
 export type CoursePayload = Omit<Course, 'supportedDeliveryModes'>;
 
+export type AiShortCourseLesson = {
+  title: string;
+  summary: string;
+  durationMinutes: number;
+  outcomes: string[];
+  activities: string[];
+  assessment: string;
+};
+
+export type AiShortCourseModule = {
+  title: string;
+  description: string;
+  durationMinutes: number;
+  outcomes: string[];
+  lessons: AiShortCourseLesson[];
+  moduleAssessment: string;
+};
+
+export type AiShortCourseBlueprint = {
+  courseSummary: {
+    title: string;
+    audience: string;
+    level: string;
+    description: string;
+    prerequisites: string[];
+    totalDurationHours: number;
+    outcomes: string[];
+    finalAssessment: string;
+    certificateCriteria: string;
+  };
+  assessments: {
+    quizzes: string[];
+    practicalWork: string[];
+    instructorReviewChecklist: string[];
+  };
+  modules: AiShortCourseModule[];
+};
+
+export type ShortCourseDraftCreatePayload = {
+  course: CoursePayload;
+  blueprint: AiShortCourseBlueprint;
+  sourceMode: 'new' | 'programme-course';
+  programmeTitle?: string | null;
+  programmeCourseTitle?: string | null;
+};
+
 export type QualificationLevel = {
   id: string;
   name: string;

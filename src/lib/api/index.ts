@@ -68,6 +68,7 @@ import type {
   WalletSettings,
   PaymentMethod,
   ScholarshipApplication,
+  ShortCourseDraftCreatePayload,
   PortfolioItem,
   FinanceReportRow,
   ResearchApplication,
@@ -464,6 +465,13 @@ export async function createCourse(course: CoursePayload): Promise<Course> {
   return apiFetch('/admin/courses', {
     method: 'POST',
     body: JSON.stringify(course),
+  });
+}
+
+export async function createShortCourseDraftWithBlueprint(payload: ShortCourseDraftCreatePayload): Promise<Course> {
+  return apiFetch('/admin/short-courses/drafts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
 
