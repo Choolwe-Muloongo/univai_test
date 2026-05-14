@@ -34,6 +34,7 @@ type RoleGuardProps = {
 const rolePortalMap: Partial<Record<UserRole, GuardAction>> = {
   [ROLE.ADMIN]: { label: 'Go to Admin Portal', href: '/admin/dashboard' },
   [ROLE.LECTURER]: { label: 'Go to Lecturer Portal', href: '/lecturer/dashboard' },
+  [ROLE.INSTRUCTOR]: { label: 'Go to Instructor Portal', href: '/instructor/dashboard' },
   [ROLE.EMPLOYER]: { label: 'Go to Employer Portal', href: '/employer/dashboard' },
   [ROLE.STUDENT]: { label: 'Go to Student Portal', href: '/student/dashboard' },
   [ROLE.PREMIUM_STUDENT]: { label: 'Go to Student Portal', href: '/student/dashboard' },

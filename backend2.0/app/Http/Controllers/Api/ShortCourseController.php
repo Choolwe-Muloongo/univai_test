@@ -82,9 +82,17 @@ class ShortCourseController extends Controller
     {
         $studentId = $this->studentId($request);
         $payload = $request->validate(['answers' => ['required', 'array']]);
-        $questions = ExamQuestion::where('course_id', $courseId)->get();
-        $correct = $questions->filter(fn ($q, $index) => ($payload['answers'][$index] ?? null) === $q->answer)->count();
-        $score = $questions->count() > 0 ? round(($correct / $questions->count()) * 100, 2) : 100;
+        $allQuestions = ExamQuestion::where('course_id', $courseId)->get();
+
+        if ($allQuestions->count() < 25) {
+            return response()->json([
+                'message' => 'This lesson/course needs at least 25 assessment questions before exam submission is enabled.',
+            ], 422);
+        }
+
+        $selectedQuestions = $allQuestions->shuffle()->take(25)->values();
+        $correct = $selectedQuestions->filter(fn ($q, $index) => ($payload['answers'][$index] ?? null) === $q->answer)->count();
+        $score = round(($correct / $selectedQuestions->count()) * 100, 2);
 
         $enrollment = ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $courseId)->firstOrFail();
         $enrollment->update([

@@ -2,6 +2,7 @@ export const ROLE = {
   ADMIN: 'admin',
   LECTURER: 'lecturer',
   EMPLOYER: 'employer',
+  INSTRUCTOR: 'instructor',
   STUDENT: 'student',
   FREE_STUDENT: 'free-student',
   PAID_CERTIFICATE_STUDENT: 'paid-certificate-student',
@@ -22,7 +23,7 @@ export type VerificationStatus = 'none' | 'email' | 'identity' | 'academic';
 export type SubscriptionStatus = 'none' | 'free' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired';
 export type SubscriptionTier = 'none' | 'freemium' | 'premium' | 'institutional';
 export type EntitlementCode = 'student_portal' | 'course_access' | 'ai_tutor' | 'teaching' | 'employer_portal' | 'admin_portal';
-export type AccessPermission = 'student.portal' | 'student.premium' | 'admissions.applicant' | 'ai.generate' | 'lecturer.portal' | 'employer.portal' | 'admin.portal';
+export type AccessPermission = 'student.portal' | 'student.premium' | 'admissions.applicant' | 'ai.generate' | 'lecturer.portal' | 'instructor.portal' | 'employer.portal' | 'admin.portal';
 
 export type AccessContext = {
   role: string | null | undefined;
@@ -69,6 +70,7 @@ export const STUDENT_ROLES: readonly UserRole[] = [
 export const ADMIN_ROLES: readonly UserRole[] = [ROLE.ADMIN, ROLE.EXAM_OFFICER];
 export const LECTURER_ROLES: readonly UserRole[] = [ROLE.LECTURER];
 export const EMPLOYER_ROLES: readonly UserRole[] = [ROLE.EMPLOYER];
+export const INSTRUCTOR_ROLES: readonly UserRole[] = [ROLE.INSTRUCTOR];
 
 export const PENDING_APPROVAL_ROLES: readonly UserRole[] = [
   ROLE.APPLICANT,
@@ -80,6 +82,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [ROLE.ADMIN]: 'Admin',
   [ROLE.LECTURER]: 'Lecturer',
   [ROLE.EMPLOYER]: 'Employer',
+  [ROLE.INSTRUCTOR]: 'Instructor',
   [ROLE.STUDENT]: 'Student',
   [ROLE.FREE_STUDENT]: 'Free Student',
   [ROLE.PAID_CERTIFICATE_STUDENT]: 'Paid Certificate Student',
@@ -120,7 +123,7 @@ export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = 
     entitlements: [],
   },
   'ai.generate': {
-    roles: [ROLE.PREMIUM_STUDENT, ROLE.ENROLLED, ROLE.LECTURER, ROLE.ADMIN],
+    roles: [ROLE.PREMIUM_STUDENT, ROLE.ENROLLED, ROLE.LECTURER, ROLE.INSTRUCTOR, ROLE.ADMIN],
     states: ['active', 'enrolled', 'probation'],
     verification: 'email',
     profile: 'complete',
@@ -130,6 +133,14 @@ export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = 
   'lecturer.portal': {
     roles: LECTURER_ROLES,
     states: ['active'],
+    verification: 'identity',
+    profile: 'complete',
+    subscriptions: ['none', 'free', 'trialing', 'active'],
+    entitlements: ['teaching'],
+  },
+  'instructor.portal': {
+    roles: INSTRUCTOR_ROLES,
+    states: ['active', 'probation'],
     verification: 'identity',
     profile: 'complete',
     subscriptions: ['none', 'free', 'trialing', 'active'],
@@ -161,6 +172,7 @@ const LEGACY_ROLE_PERMISSIONS: Partial<Record<UserRole, AccessPermission>> = {
   [ROLE.APPLICANT]: 'admissions.applicant',
   [ROLE.LECTURER]: 'lecturer.portal',
   [ROLE.EMPLOYER]: 'employer.portal',
+  [ROLE.INSTRUCTOR]: 'instructor.portal',
   [ROLE.ADMIN]: 'admin.portal',
 };
 
@@ -341,7 +353,7 @@ function fallbackState(role: UserRole): AccountState {
 }
 
 function fallbackVerification(role: UserRole): VerificationStatus {
-  return ([ROLE.ADMIN, ROLE.LECTURER] as readonly UserRole[]).includes(role) ? 'identity' : 'email';
+  return ([ROLE.ADMIN, ROLE.LECTURER, ROLE.INSTRUCTOR] as readonly UserRole[]).includes(role) ? 'identity' : 'email';
 }
 
 function fallbackProfileCompleted(role: UserRole): boolean {
@@ -377,6 +389,8 @@ function fallbackEntitlements(role: UserRole): EntitlementCode[] {
     case ROLE.ADMIN:
       return ['admin_portal'];
     case ROLE.LECTURER:
+      return ['teaching'];
+    case ROLE.INSTRUCTOR:
       return ['teaching'];
     case ROLE.EMPLOYER:
       return ['employer_portal'];
