@@ -11,10 +11,6 @@ class AdmissionsDocumentGenerator
 {
     public function ensureOfferLetter(Application $application): string
     {
-        if (!empty($application->offer_letter_url) && Storage::disk('local')->exists($application->offer_letter_url)) {
-            return $application->offer_letter_url;
-        }
-
         $path = $this->generate($application, 'offer');
         $application->forceFill([
             'offer_letter_url' => $path,
@@ -28,10 +24,6 @@ class AdmissionsDocumentGenerator
     {
         if ($application->status !== 'admitted') {
             return null;
-        }
-
-        if (!empty($application->admission_letter_url) && Storage::disk('local')->exists($application->admission_letter_url)) {
-            return $application->admission_letter_url;
         }
 
         $path = $this->generate($application, 'admission');
@@ -134,12 +126,16 @@ class AdmissionsDocumentGenerator
 
         $pdf->SetXY(18, 18);
         $pdf->SetDrawColor(0, 190, 190);
+        $pdf->SetFillColor(238, 252, 252);
         $pdf->SetLineWidth(0.7);
-        $pdf->Ellipse(18, 18, 15, 15);
-        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Rect(18, 18, 30, 30, 'DF');
+        $pdf->SetFont('Arial', 'B', 13);
         $pdf->SetTextColor(7, 18, 55);
-        $pdf->SetXY(18, 23.5);
-        $pdf->Cell(30, 5, 'UAI', 0, 0, 'C');
+        $pdf->SetXY(18, 28.5);
+        $pdf->Cell(30, 7, 'UAI', 0, 0, 'C');
+        $pdf->SetFont('Arial', '', 6.5);
+        $pdf->SetXY(18, 36);
+        $pdf->Cell(30, 4, 'OFFICIAL SEAL', 0, 0, 'C');
 
         $pdf->SetXY(54, 17);
         $pdf->SetFont('Arial', 'B', 22);
@@ -161,8 +157,8 @@ class AdmissionsDocumentGenerator
 
         $pdf->Ln(8);
         $pdf->SetDrawColor(220, 230, 236);
-        $pdf->Line(18, 45, 192, 45);
-        $pdf->SetY(52);
+        $pdf->Line(18, 52, 192, 52);
+        $pdf->SetY(58);
     }
 
     private function drawTitleBlock(\FPDF $pdf, string $title, Application $application): void
