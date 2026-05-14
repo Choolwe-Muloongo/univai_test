@@ -120,8 +120,10 @@ export default function AdmissionDetailPage() {
       if (updated) {
         setApplication(updated);
         toast({
-          title: 'Application updated',
-          description: `Status set to ${statusLabels[status]}.`,
+          title: status === application.status ? 'Offer letter resent' : 'Application updated',
+          description: status === application.status
+            ? 'The offer letter was regenerated and the applicant was notified again.'
+            : `Status set to ${statusLabels[status]}.`,
         });
       }
     } catch (error) {
@@ -144,6 +146,7 @@ export default function AdmissionDetailPage() {
 
   const canSendOffer = ['submitted', 'fee_paid', 'under_review', 'needs_info'].includes(application.status);
   const offerAlreadySent = ['offer_sent', 'approved', 'admitted'].includes(application.status);
+  const canResendOffer = ['offer_sent', 'approved'].includes(application.status);
   const canManualAdmit = ['offer_sent', 'approved'].includes(application.status);
   const isAdmitted = application.status === 'admitted';
   const verifiedDocumentCount = documents.filter((doc) => doc.status === 'verified').length;
@@ -277,7 +280,7 @@ export default function AdmissionDetailPage() {
             Decision & Letters
           </CardTitle>
           <CardDescription>
-            The normal decision is Send Offer. The Admission Letter appears after the student accepts the offer.
+            The normal decision is Send Offer. Use Resend / Regenerate if the applicant needs the latest copy.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
@@ -326,6 +329,11 @@ export default function AdmissionDetailPage() {
           {canSendOffer && (
             <Button onClick={() => handleStatusChange('offer_sent')}>
               Send Offer & Generate Offer Letter
+            </Button>
+          )}
+          {canResendOffer && (
+            <Button onClick={() => handleStatusChange(application.status)}>
+              Resend / Regenerate Offer Letter
             </Button>
           )}
           {canManualAdmit && (
