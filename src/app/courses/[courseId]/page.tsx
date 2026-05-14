@@ -57,6 +57,7 @@ export default function PublicShortCoursePage() {
   if (loading) return <main className="mx-auto max-w-5xl px-4 py-8"><PageLoading message="Loading short course..." /></main>;
   if (error && !course) return <main className="mx-auto max-w-5xl px-4 py-8"><PageError message={error} actionHref="/" actionLabel="Back home" /></main>;
   if (!course) return <main className="mx-auto max-w-5xl px-4 py-8"><PageError title="Course not found" message="This short course is not currently available." actionHref="/" actionLabel="Back home" /></main>;
+  const isDraftLike = (course.status ?? 'draft') !== 'published';
 
   return (
     <main className="min-h-screen bg-background">
@@ -66,7 +67,7 @@ export default function PublicShortCoursePage() {
           <h1 className="text-4xl font-bold tracking-normal">{course.title}</h1>
           <p className="max-w-3xl text-primary-foreground/85">{course.description}</p>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" variant="secondary" onClick={startEnrollment} disabled={paying}>
+            <Button size="lg" variant="secondary" onClick={startEnrollment} disabled={paying || isDraftLike}>
               {paying ? 'Starting payment...' : course.pricingType === 'free' ? 'Enroll now' : 'Pay and enroll'}
             </Button>
             <Button asChild size="lg" variant="outline" className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10">
@@ -83,6 +84,7 @@ export default function PublicShortCoursePage() {
           </CardHeader>
           <CardContent className="space-y-3 text-muted-foreground">
             <p>Protected lessons, progress tracking, quizzes, final assessment and certificate eligibility.</p>
+            {isDraftLike ? <p className="font-medium text-amber-600">This course is currently in draft/incomplete status and not yet open for learner enrollment.</p> : null}
             <p>AI-powered learning support can summarize concepts, generate practice questions and help with revision.</p>
             {error ? <PageError message={error} /> : null}
           </CardContent>

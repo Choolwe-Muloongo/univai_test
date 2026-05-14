@@ -10,6 +10,7 @@ import type {
   ApplicationDocument,
   ConsultantApplication,
   Course,
+  CoursePayload,
   AcademicYear,
   AdminAcademicStructureResponse,
   CreateJobPayload,
@@ -459,7 +460,7 @@ export async function createSchool(name: string): Promise<School> {
   });
 }
 
-export async function createCourse(course: Course): Promise<Course> {
+export async function createCourse(course: CoursePayload): Promise<Course> {
   return apiFetch('/admin/courses', {
     method: 'POST',
     body: JSON.stringify(course),

@@ -46,7 +46,17 @@ export function ShortCoursesClient() {
     certificateCurrency: 'ZMW',
     durationHours: '8',
     level: 'beginner',
+    status: 'draft' as 'draft' | 'published',
   });
+  const derivedModules = aiOutline.match(/module\s+\d+|^module:/gim)?.length ?? 0;
+  const derivedLessons = aiOutline.match(/lesson\s+\d+|^lesson:/gim)?.length ?? 0;
+  const derivedOutcomes = aiOutline.match(/outcomes?:|^-\s+/gim)?.length ?? 0;
+  const checklist = [
+    { label: 'At least 1 module', done: derivedModules > 0 },
+    { label: 'At least 1 lesson', done: derivedLessons > 0 },
+    { label: 'At least 1 learning outcome', done: derivedOutcomes > 0 },
+  ];
+  const canPublish = checklist.every((item) => item.done);
 
   async function refresh() {
     const [schoolData, courseData, programData, structureData] = await Promise.all([
@@ -150,6 +160,10 @@ export function ShortCoursesClient() {
         certificateCurrency: form.certificateCurrency,
         durationHours: Number(form.durationHours),
         level: form.level,
+        status: form.status,
+        modules: derivedModules > 0 ? [{ title: 'Module 1' }] : [],
+        lessons: derivedLessons > 0 ? [{ title: 'Lesson 1' }] : [],
+        outcomes: derivedOutcomes > 0 ? ['Outcome 1'] : [],
       });
       await refresh();
       setForm((value) => ({ ...value, title: '', description: '' }));
@@ -246,9 +260,20 @@ export function ShortCoursesClient() {
               <Field label="Currency"><Input value={form.currency} onChange={(event) => setForm((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} /></Field>
               <Field label="Certificate fee"><Input type="number" min={0} value={form.certificateFee} onChange={(event) => setForm((value) => ({ ...value, certificateFee: event.target.value }))} /></Field>
               <Field label="Duration hours"><Input type="number" min={1} value={form.durationHours} onChange={(event) => setForm((value) => ({ ...value, durationHours: event.target.value }))} /></Field>
+              <Field label="Status">
+                <select className="h-10 rounded-md border bg-background px-3 text-sm" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value as 'draft' | 'published' }))}>
+                  <option value="draft">Draft</option>
+                  <option value="published">Publish now</option>
+                </select>
+              </Field>
+              <div className="space-y-2 rounded-md border p-3 text-sm sm:col-span-2">
+                <p className="font-medium">Publish checklist</p>
+                {checklist.map((item) => <p key={item.label} className={item.done ? 'text-green-600' : 'text-muted-foreground'}>{item.done ? '✓' : '•'} {item.label}</p>)}
+                {!canPublish && form.status === 'published' ? <p className="text-xs text-destructive">Generate/edit the AI outline so it includes modules, lessons and outcomes before publishing.</p> : null}
+              </div>
               <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row">
                 <Button type="button" variant="outline" onClick={generateOutline} disabled={aiLoading || !(aiPrompt || form.title || programmeCourseId)}>{aiLoading ? 'Generating...' : 'Generate professional course with AI'}</Button>
-                <Button disabled={saving || !form.schoolId}>{saving ? 'Saving...' : 'Create short course'}</Button>
+                <Button disabled={saving || !form.schoolId || (form.status === 'published' && !canPublish)}>{saving ? 'Saving...' : form.status === 'published' ? 'Create as live' : 'Save draft'}</Button>
               </div>
             </form>
           </CardContent>

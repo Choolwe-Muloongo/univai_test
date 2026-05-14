@@ -44,6 +44,7 @@ class CatalogController extends Controller
                 'certificateCurrency' => $course->certificate_currency,
                 'durationHours' => $course->duration_hours,
                 'level' => $course->level,
+                'status' => $course->status ?? 'draft',
             ]));
     }
 
@@ -70,6 +71,7 @@ class CatalogController extends Controller
                 'certificateCurrency' => $course->certificate_currency,
                 'durationHours' => $course->duration_hours,
                 'level' => $course->level,
+                'status' => $course->status ?? 'draft',
             ];
         });
 

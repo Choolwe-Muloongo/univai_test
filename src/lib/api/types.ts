@@ -113,8 +113,14 @@ export type Course = {
   certificateCurrency?: string | null;
   durationHours?: number | null;
   level?: string | null;
+  status?: 'draft' | 'published' | string | null;
+  modules?: Array<{ title: string; description?: string | null }>;
+  lessons?: Array<{ title: string; summary?: string | null }>;
+  outcomes?: string[];
   supportedDeliveryModes?: string[];
 };
+
+export type CoursePayload = Omit<Course, 'supportedDeliveryModes'>;
 
 export type QualificationLevel = {
   id: string;

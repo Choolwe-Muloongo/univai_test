@@ -147,7 +147,35 @@ class AdminCatalogController extends Controller
             'level' => ['nullable', 'string'],
             'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'imageId' => ['nullable', 'string'],
+            'status' => ['nullable', 'in:draft,published'],
+            'modules' => ['nullable', 'array'],
+            'modules.*.title' => ['required_with:modules', 'string'],
+            'lessons' => ['nullable', 'array'],
+            'lessons.*.title' => ['required_with:lessons', 'string'],
+            'outcomes' => ['nullable', 'array'],
+            'outcomes.*' => ['string'],
         ]);
+
+        $status = $payload['status'] ?? 'draft';
+        $moduleCount = count($payload['modules'] ?? []);
+        $lessonCount = count($payload['lessons'] ?? []);
+        $outcomeCount = count($payload['outcomes'] ?? []);
+        if (!empty($payload['id'])) {
+            $existing = Course::withCount('lessons')->find($payload['id']);
+            if ($existing) {
+                $lessonCount = max($lessonCount, (int) $existing->lessons_count);
+            }
+        }
+        if ($status === 'published' && ($moduleCount < 1 || $lessonCount < 1 || $outcomeCount < 1)) {
+            return response()->json([
+                'message' => 'Published short courses require at least 1 module, 1 lesson and 1 learning outcome.',
+                'errors' => [
+                    'modules' => $moduleCount < 1 ? ['Add at least one module.'] : [],
+                    'lessons' => $lessonCount < 1 ? ['Add at least one lesson.'] : [],
+                    'outcomes' => $outcomeCount < 1 ? ['Add at least one learning outcome.'] : [],
+                ],
+            ], 422);
+        }
 
         $course = Course::updateOrCreate(
             ['id' => $payload['id'] ?? $this->slug($payload['title'])],
@@ -165,6 +193,7 @@ class AdminCatalogController extends Controller
                 'level' => $payload['level'] ?? 'beginner',
                 'progress' => $payload['progress'] ?? 0,
                 'image_id' => $payload['imageId'] ?? null,
+                'status' => $status,
             ]
         );
 
@@ -272,6 +301,7 @@ class AdminCatalogController extends Controller
             'certificateCurrency' => $course->certificate_currency ?? 'USD',
             'durationHours' => $course->duration_hours,
             'level' => $course->level,
+            'status' => $course->status ?? 'draft',
         ];
     }
 
