@@ -34,7 +34,7 @@ export default function LoginPage() {
     try {
       const session = await login({ email, password });
       await refresh();
-      router.push(getPostAuthDestination(session?.user?.role));
+      router.push(getPostAuthDestination(session?.user));
     } catch (err) {
       console.error(err);
       const message =
@@ -59,7 +59,7 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Student Login</CardTitle>
             <CardDescription>
-              Sign in to continue to your learning dashboard.
+              Sign in to continue to admissions or your learning dashboard.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleStudentLogin}>
