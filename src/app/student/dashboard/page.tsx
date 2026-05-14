@@ -27,8 +27,9 @@ import { QuickLinks } from "@/components/dashboard/quick-links";
 import { PageHeader } from "@/components/student/page-header";
 import { StatCard } from "@/components/student/stat-card";
 import { EmptyState } from "@/components/student/empty-state";
-import { type Program } from "@/lib/api/types";
+import { type EnrollmentData, type Program } from "@/lib/api/types";
 import {
+  getEnrollment,
   getProgram,
   getStudentDashboard,
   getStudentEntitlements,
@@ -51,6 +52,7 @@ export default function DashboardPage() {
   const { session } = useSession();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [program, setProgram] = useState<Program | null>(null);
+  const [enrollment, setEnrollment] = useState<EnrollmentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [nextActions, setNextActions] = useState<StudentDashboardAction[]>([]);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<
@@ -88,6 +90,22 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
+
+      let enrollmentData: EnrollmentData | null = null;
+      try {
+        enrollmentData = await getEnrollment();
+        setEnrollment(enrollmentData);
+      } catch (error) {
+        console.error("Failed to load enrollment", error);
+        setEnrollment(null);
+      }
+
+      const enrollmentConfirmed = enrollmentData?.status === "active" && Boolean(enrollmentData.confirmedAt);
+      if (!enrollmentConfirmed) {
+        setLoading(false);
+        return;
+      }
+
       if (!session?.user?.programId) {
         setProgram(null);
         setLoading(false);
@@ -126,6 +144,7 @@ export default function DashboardPage() {
     null,
   );
   const tierLabel = STUDENT_ACCESS_TIER_LABELS[accessTier];
+  const enrollmentConfirmed = enrollment?.status === "active" && Boolean(enrollment.confirmedAt);
 
   if (!hasProgrammeAccess) {
     return (
@@ -164,6 +183,36 @@ export default function DashboardPage() {
               </Button>
             </CardFooter>
           </Card>
+        </div>
+        <div className="lg:col-span-1 space-y-6">
+          <QuickLinks />
+        </div>
+      </div>
+    );
+  }
+
+  if (!enrollmentConfirmed) {
+    return (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <PageHeader
+            title="Complete your enrollment"
+            description="Your offer has been accepted, but your full student dashboard opens only after enrollment is confirmed."
+          />
+          <EmptyState
+            title="Enrollment is still pending"
+            description="Complete module selection, payment, and enrollment confirmation to activate your full student dashboard."
+            action={
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link href="/student/enroll">Complete Enrollment</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/admissions/portal">View Admissions Letters</Link>
+                </Button>
+              </div>
+            }
+          />
         </div>
         <div className="lg:col-span-1 space-y-6">
           <QuickLinks />
