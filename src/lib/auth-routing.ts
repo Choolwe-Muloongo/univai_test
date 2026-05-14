@@ -6,11 +6,12 @@ export type AuthRole =
   | 'programme-student'
   | 'applicant'
   | 'lecturer'
+  | 'instructor'
   | 'admin'
   | 'employer'
   | (string & {});
 
-export type RoleKey = 'student' | 'lecturer' | 'admin' | 'employer';
+export type RoleKey = 'student' | 'lecturer' | 'instructor' | 'admin' | 'employer';
 
 export type RoleIntentOption = {
   key: RoleKey;
@@ -42,6 +43,13 @@ const roleIntentOptions: RoleIntentOption[] = [
     recommendedGoal: 'Track your lecturer application and teach',
   },
   {
+    key: 'instructor',
+    label: 'Instructor',
+    description: 'Create and monetize short courses with AI-assisted tools.',
+    loginPath: '/login/instructor',
+    recommendedGoal: 'Publish your courses and manage instructor AI tools',
+  },
+  {
     key: 'admin',
     label: 'Admin',
     description: 'Operate governance, compliance, and system setup.',
@@ -68,6 +76,11 @@ const onboardingByRole: Record<RoleKey, OnboardingChecklist> = {
     title: 'Lecturer onboarding path',
     steps: ['Application', 'Approval status', 'Dashboard'],
   },
+  instructor: {
+    role: 'instructor',
+    title: 'Instructor onboarding path',
+    steps: ['Application', 'Approval status', 'Instructor dashboard'],
+  },
   admin: {
     role: 'admin',
     title: 'Admin onboarding path',
@@ -83,10 +96,11 @@ const onboardingByRole: Record<RoleKey, OnboardingChecklist> = {
 const postAuthRules: Array<{ matches: (role: AuthRole) => boolean; destination: string }> = [
   { matches: (role) => role === 'applicant', destination: '/admissions/status' },
   {
-    matches: (role) => role === 'student' || role === 'premium-student',
+    matches: (role) => ['student', 'free-student', 'freemium-student', 'paid-certificate-student', 'certificate-student', 'premium-student', 'programme-student', 'enrolled'].includes(role),
     destination: '/student/dashboard',
   },
   { matches: (role) => role === 'lecturer', destination: '/lecturer/dashboard' },
+  { matches: (role) => role === 'instructor', destination: '/instructor/dashboard' },
   { matches: (role) => role === 'admin', destination: '/admin/dashboard' },
   { matches: (role) => role === 'employer', destination: '/employer/dashboard' },
 ];

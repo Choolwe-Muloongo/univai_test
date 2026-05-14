@@ -95,6 +95,7 @@ export default function LoginPage() {
               <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>
                 <p>student.premium@univai.edu / password123</p>
+                <p>applicant@univai.edu / password123 (admissions portal)</p>
               </div>
               <RoleIntentSwitcher currentRole="student" compact />
               <p className="text-sm text-muted-foreground">

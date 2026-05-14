@@ -11,6 +11,7 @@ const navLinks = [
   { href: '/#short-courses', label: 'Short Courses' },
   { href: '/#features', label: 'AI Learning' },
   { href: '/apply/instructor', label: 'Teach' },
+  { href: '/login/instructor', label: 'Instructor Login' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];

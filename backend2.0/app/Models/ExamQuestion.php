@@ -12,6 +12,7 @@ class ExamQuestion extends Model
         'question',
         'options',
         'answer',
+        'difficulty',
     ];
 
     protected $casts = [
