@@ -16,8 +16,8 @@ import { RoleIntentSwitcher } from '@/components/auth/role-intent-switcher';
 export default function InstructorLoginPage() {
   const router = useRouter();
   const { refresh } = useSession();
-  const [email, setEmail] = useState('instructor@univai.edu');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -29,7 +29,7 @@ export default function InstructorLoginPage() {
       router.push(getPostAuthDestination('instructor'));
     } catch (err) {
       console.error(err);
-      setError('Login failed. Please check your credentials and try again.');
+      setError('Sign in failed. Check your details and try again.');
     }
   };
 
@@ -47,7 +47,7 @@ export default function InstructorLoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Instructor Login</CardTitle>
             <CardDescription>
-              Access your instructor workspace.
+              Sign in to manage your courses and learners.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
@@ -81,12 +81,12 @@ export default function InstructorLoginPage() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button className="w-full" type="submit">
-                Login as Instructor
+                Continue as Instructor
               </Button>
-              <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+              {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>
                 <p>instructor@univai.edu / password123</p>
-              </div>
+              </div> : null}
               <RoleIntentSwitcher currentRole="instructor" compact />
             </CardFooter>
           </form>

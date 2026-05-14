@@ -15,8 +15,8 @@ import { getPostAuthDestination } from '@/lib/auth-routing';
 export default function AdminLoginPage() {
   const router = useRouter();
   const { refresh } = useSession();
-  const [email, setEmail] = useState('admin@univai.edu');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
       router.push(getPostAuthDestination('admin'));
     } catch (err) {
       console.error(err);
-      setError('Login failed. Please check your credentials and try again.');
+      setError('Sign in failed. Check your details and try again.');
     }
   };
 
@@ -46,7 +46,7 @@ export default function AdminLoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Admin Login</CardTitle>
             <CardDescription>
-              Access the administrative dashboard.
+              Sign in to manage platform operations and governance.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
@@ -80,12 +80,12 @@ export default function AdminLoginPage() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button className="w-full" type="submit">
-                Login as Admin
+                Continue as Admin
               </Button>
-              <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+              {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>
                 <p>admin@univai.edu / password123</p>
-              </div>
+              </div> : null}
             </CardFooter>
           </form>
         </Card>

@@ -7,19 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const navLinks = [
-  { href: '/#programmes', label: 'Programmes' },
-  { href: '/#short-courses', label: 'Short Courses' },
-  { href: '/#features', label: 'AI Learning' },
-  { href: '/apply/instructor', label: 'Teach' },
-  { href: '/login/instructor', label: 'Instructor Login' },
+  { href: '/', label: 'Home' },
+  { href: '/programs', label: 'Programs' },
+  { href: '/short-courses', label: 'Short Courses' },
+  { href: '/for-instructors', label: 'For Instructors' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];
 
 export function SiteHeader() {
   return (
-    <header className="glass-nav sticky top-0 z-50 w-full border-b">
-      <div className="page-shell flex h-16 items-center justify-between gap-2">
+    <header className="glass-nav sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 text-base font-semibold text-primary sm:text-lg">
           <Logo className="size-9 rounded-lg brand-logo-glow sm:hidden" />
           <Logo className="hidden size-10 rounded-xl brand-logo-glow sm:block" />
@@ -28,11 +27,7 @@ export function SiteHeader() {
 
         <nav className="hidden items-center gap-5 text-sm font-medium lg:flex">
           {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
+            <Link key={link.href} href={link.href} className="text-muted-foreground transition-colors hover:text-foreground">
               {link.label}
             </Link>
           ))}
@@ -50,35 +45,14 @@ export function SiteHeader() {
               <nav className="mt-8 flex flex-col gap-3">
                 {navLinks.map((link) => (
                   <SheetClose asChild key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="rounded-md px-2 py-2 text-base font-medium text-foreground hover:bg-muted"
-                    >
-                      {link.label}
-                    </Link>
+                    <Link href={link.href} className="rounded-md px-2 py-2 text-base font-medium text-foreground hover:bg-muted">{link.label}</Link>
                   </SheetClose>
                 ))}
-                <div className="mt-4 flex flex-col gap-2">
-                  <SheetClose asChild>
-                    <Button variant="outline" asChild>
-                      <Link href="/login">Login</Link>
-                    </Button>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Button asChild>
-                      <Link href="/register">Get Started</Link>
-                    </Button>
-                  </SheetClose>
-                </div>
               </nav>
             </SheetContent>
           </Sheet>
-          <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href="/login">Login</Link>
-          </Button>
-          <Button asChild size="sm" className="sm:h-10 sm:px-4">
-            <Link href="/register">Get Started</Link>
-          </Button>
+          <Button variant="ghost" asChild className="hidden sm:inline-flex"><Link href="/login">Login</Link></Button>
+          <Button asChild size="sm" className="sm:h-10 sm:px-4"><Link href="/register">Get Started</Link></Button>
         </div>
       </div>
     </header>
