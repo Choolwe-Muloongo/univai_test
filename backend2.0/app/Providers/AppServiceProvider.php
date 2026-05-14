@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Application;
+use App\Observers\ApplicationObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Application::observe(ApplicationObserver::class);
+
         RateLimiter::for('login', function (Request $request) {
             $email = strtolower((string) $request->input('email', ''));
             $key = $email !== '' ? "{$request->ip()}|{$email}" : $request->ip();
