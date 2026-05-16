@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { getLessonById } from '@/lib/api';
+import { completeProgrammeLesson } from '@/lib/api/academic';
 import type { LessonWithCourseId } from '@/lib/api/types';
 import { readRouteParam } from '@/lib/route-params';
 
@@ -52,6 +53,14 @@ export default function LessonFocusPage() {
     };
   }, [lessonId]);
 
+  async function finishLesson() {
+    if (!lessonId || !lesson) return;
+    await completeProgrammeLesson(lessonId, {
+      courseId: lesson.courseId ?? null,
+    });
+    setCompleted(true);
+  }
+
   if (loading) {
     return <PageLoading message="Loading interactive lesson..." />;
   }
@@ -78,7 +87,7 @@ export default function LessonFocusPage() {
       backHref={`/student/lessons/${lessonId}`}
       completed={completed}
       completeLabel="Finish lesson"
-      onComplete={() => setCompleted(true)}
+      onComplete={finishLesson}
     />
   );
 }
