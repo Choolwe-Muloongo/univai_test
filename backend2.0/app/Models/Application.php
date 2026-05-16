@@ -20,7 +20,6 @@ class Application extends Model
         'subject_count',
         'total_points',
         'delivery_mode',
-        'learning_style',
         'study_pace',
         'country',
         'notes',
