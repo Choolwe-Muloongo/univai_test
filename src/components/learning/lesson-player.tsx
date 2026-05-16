@@ -307,6 +307,7 @@ function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
   const cleaned = blocks
     .filter((block) => block && typeof block === 'object')
     .map((block) => ({ ...block, type: normalizeBlockType(block.type) }))
+    .map((block) => coerceIncompleteInteractiveBlock(block))
     .filter((block) => ['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'].includes(block.type));
 
   if (!cleaned.length) {
@@ -314,6 +315,34 @@ function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
   }
 
   return cleaned;
+}
+
+function coerceIncompleteInteractiveBlock(block: LessonBlock): LessonBlock {
+  if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) {
+    return {
+      type: 'explanation',
+      title: block.title ?? 'Checkpoint note',
+      body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.',
+    };
+  }
+
+  if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) {
+    return {
+      type: 'explanation',
+      title: block.title ?? 'Practice note',
+      body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.',
+    };
+  }
+
+  if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) {
+    return {
+      type: 'explanation',
+      title: block.title ?? 'True/false note',
+      body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.',
+    };
+  }
+
+  return block;
 }
 
 function normalizeBlockType(type: string): LessonBlockType {
