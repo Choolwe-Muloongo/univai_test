@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { InlineMath } from 'react-katex';
 
 type MathTextProps = {
   text?: string | number | boolean | null;
@@ -24,10 +25,18 @@ function renderText(value: string): ReactNode[] {
   const parts = splitMathBlocks(value);
   return parts.map((part, index) => {
     if (part.math) {
-      return <span key={index} className="mx-0.5 inline-flex items-center rounded-md bg-muted/40 px-1 py-0.5 font-mono text-[0.95em] text-foreground">{renderMath(part.text, `${index}`)}</span>;
+      return <KatexInline key={index} math={normaliseLatex(part.text)} fallback={renderMath(part.text, `${index}`)} />;
     }
     return <span key={index}>{renderMath(part.text, `${index}`)}</span>;
   });
+}
+
+function KatexInline({ math, fallback }: { math: string; fallback: ReactNode[] }) {
+  try {
+    return <span className="mx-0.5 inline-flex items-center rounded-md bg-muted/40 px-1 py-0.5 text-[0.95em] text-foreground"><InlineMath math={math} /></span>;
+  } catch {
+    return <span className="mx-0.5 inline-flex items-center rounded-md bg-muted/40 px-1 py-0.5 font-mono text-[0.95em] text-foreground">{fallback}</span>;
+  }
 }
 
 function splitMathBlocks(value: string) {
@@ -51,6 +60,14 @@ function unwrapMath(value: string) {
     .replace(/^\\\(|\\\)$/g, '')
     .replace(/^\\\[|\\\]$/g, '')
     .trim();
+}
+
+function normaliseLatex(value: string) {
+  return value
+    .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')
+    .replace(/frac\(([^,]+),\s*([^)]+)\)/g, '\\frac{$1}{$2}')
+    .replace(/([A-Za-z0-9)\]])\^([A-Za-z0-9]+)/g, '$1^{$2}')
+    .replace(/([A-Za-z0-9)\]])_([A-Za-z0-9]+)/g, '$1_{$2}');
 }
 
 function renderMath(value: string, keyPrefix: string): ReactNode[] {
