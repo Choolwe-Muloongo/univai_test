@@ -52,7 +52,7 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'min:2'],
             'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:6'],
-            'role' => ['nullable', 'in:applicant,employer,instructor-applicant'],
+            'role' => ['nullable', 'in:applicant,free-student,employer,instructor-applicant'],
         ]);
 
         if (User::where('email', $payload['email'])->exists()) {
@@ -61,7 +61,7 @@ class AuthController extends Controller
 
         $role = $payload['role'] ?? 'applicant';
         $accountState = $role === 'applicant' ? 'applicant' : 'active';
-        $profileCompletedAt = $role === 'employer' ? now() : null;
+        $profileCompletedAt = in_array($role, ['employer', 'free-student'], true) ? now() : null;
 
         $user = User::create([
             'name' => $payload['name'],
@@ -75,6 +75,8 @@ class AuthController extends Controller
 
         if ($role === 'applicant') {
             StudentAccess::syncUserEntitlements($user, StudentAccess::TIER_FREE, 'registration');
+        } elseif ($role === 'free-student') {
+            StudentAccess::syncUserEntitlements($user, StudentAccess::TIER_FREE, 'short_course_registration');
         } else {
             $this->syncRoleEntitlements($user, $role);
         }
@@ -239,68 +241,13 @@ class AuthController extends Controller
                 'programId' => 'cs101',
                 'intakeId' => 'cs101-2026-jan',
             ]),
-            'lecturer' => [
-                'id' => 'lecturer-1',
-                'name' => 'Lecturer',
-                'email' => 'lecturer@univai.edu',
-                'role' => 'lecturer',
-                'accountState' => 'active',
-                'verificationStatus' => 'identity',
-                'profileCompleted' => true,
-                'subscriptionStatus' => 'none',
-                'subscriptionTier' => 'none',
-                'entitlements' => ['teaching'],
-            ],
-            'employer' => [
-                'id' => 'employer-1',
-                'name' => 'Employer',
-                'email' => 'employer@univai.edu',
-                'role' => 'employer',
-                'accountState' => 'active',
-                'verificationStatus' => 'email',
-                'profileCompleted' => true,
-                'subscriptionStatus' => 'none',
-                'subscriptionTier' => 'none',
-                'entitlements' => ['employer_portal'],
-            ],
-            'instructor' => [
-                'id' => 'instructor-1',
-                'name' => 'Instructor',
-                'email' => 'instructor@univai.edu',
-                'role' => 'instructor',
-                'accountState' => 'active',
-                'verificationStatus' => 'identity',
-                'profileCompleted' => true,
-                'subscriptionStatus' => 'none',
-                'subscriptionTier' => 'none',
-                'entitlements' => ['instructor_portal', 'instructor_ai'],
-            ],
-            'admin' => [
-                'id' => 'admin-1',
-                'name' => 'Admin',
-                'email' => 'admin@univai.edu',
-                'role' => 'admin',
-                'accountState' => 'active',
-                'verificationStatus' => 'identity',
-                'profileCompleted' => true,
-                'subscriptionStatus' => 'none',
-                'subscriptionTier' => 'none',
-                'entitlements' => ['admin_portal'],
-            ],
             default => StudentAccess::sessionPayload([
                 'id' => 'student-premium',
                 'name' => 'Premium Student',
                 'email' => 'student.premium@univai.edu',
                 'role' => StudentAccess::ROLE_PREMIUM,
-                'schoolId' => 'ict',
-                'programId' => 'cs101',
-                'intakeId' => 'cs101-2026-jan',
-                'accountState' => 'active',
-                'verificationStatus' => 'email',
-                'profileCompleted' => true,
-                'subscriptionStatus' => 'active',
-                'subscriptionTier' => 'premium',
-                'entitlements' => ['student_portal', 'course_access', 'ai_tutor'],
+                'schoolId' => null,
+                'programId' => null,
             ]),
         };
     }
