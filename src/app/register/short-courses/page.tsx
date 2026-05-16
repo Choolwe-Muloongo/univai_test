@@ -1,18 +1,26 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
 
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageError } from '@/components/ui/page-feedback';
+import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { registerAccount } from '@/lib/api';
 
 export default function ShortCourseRegisterPage() {
+  return (
+    <Suspense fallback={<PageLoading message="Loading registration..." />}>
+      <ShortCourseRegisterContent />
+    </Suspense>
+  );
+}
+
+function ShortCourseRegisterContent() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') || '/short-courses';
