@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { LessonFocusClient } from './lesson-focus-client';
-import { getLessonById } from '@/lib/api';
+
+import { LessonPlayer } from '@/components/learning/lesson-player';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { getLessonById } from '@/lib/api';
+import type { LessonWithCourseId } from '@/lib/api/types';
 import { readRouteParam } from '@/lib/route-params';
 
 export default function LessonFocusPage() {
   const params = useParams();
   const lessonId = readRouteParam(params, 'lessonId');
-  const [lessonTitle, setLessonTitle] = useState<string | null>(null);
+  const [lesson, setLesson] = useState<LessonWithCourseId | null>(null);
+  const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,14 +28,14 @@ export default function LessonFocusPage() {
       }
 
       try {
-        const lesson = await getLessonById(lessonId);
+        const nextLesson = await getLessonById(lessonId);
         if (!isMounted) return;
-        setLessonTitle(lesson?.title ?? null);
+        setLesson(nextLesson);
         setError(null);
       } catch (err) {
         console.error('Failed to load lesson focus mode', err);
         if (isMounted) {
-          setLessonTitle(null);
+          setLesson(null);
           setError('Lesson focus mode is unavailable. Please refresh and try again.');
         }
       } finally {
@@ -50,14 +53,14 @@ export default function LessonFocusPage() {
   }, [lessonId]);
 
   if (loading) {
-    return <PageLoading message="Loading focus mode..." />;
+    return <PageLoading message="Loading interactive lesson..." />;
   }
 
   if (error) {
     return <PageError message={error} actionHref="/student/lessons" actionLabel="Back to Lessons" />;
   }
 
-  if (!lessonTitle) {
+  if (!lesson) {
     return (
       <PageError
         title="Lesson not found"
@@ -68,5 +71,14 @@ export default function LessonFocusPage() {
     );
   }
 
-  return <LessonFocusClient lessonId={lessonId} lessonTitle={lessonTitle} />;
+  return (
+    <LessonPlayer
+      lesson={lesson}
+      courseTitle={lesson.courseId ? lesson.courseId.toUpperCase() : 'Programme lesson'}
+      backHref={`/student/lessons/${lessonId}`}
+      completed={completed}
+      completeLabel="Finish lesson"
+      onComplete={() => setCompleted(true)}
+    />
+  );
 }
