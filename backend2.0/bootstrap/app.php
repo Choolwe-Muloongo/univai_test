@@ -31,5 +31,26 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function ($e, $request) {
+            if (!$request->is('api/*')) {
+                return null;
+            }
+
+            $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+
+            if (!config('app.debug')) {
+                return response()->json([
+                    'message' => $status === 500 ? 'Server error' : ($e->getMessage() ?: 'Request failed'),
+                    'status' => $status,
+                ], $status);
+            }
+
+            return response()->json([
+                'message' => $e->getMessage() ?: get_class($e),
+                'exception' => get_class($e),
+                'status' => $status,
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], $status);
+        });
     })->create();
