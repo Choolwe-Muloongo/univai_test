@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Sparkles, XCircle } from 'lucide-react';
 
+import { MathText } from '@/components/learning/math-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,14 +52,7 @@ type AnswerState = {
 const teachingTypes = new Set(['explanation', 'example']);
 const interactiveTypes = new Set(['question', 'fill_blank', 'true_false']);
 
-export function LessonPlayer({
-  lesson,
-  courseTitle,
-  backHref,
-  onComplete,
-  completed = false,
-  completeLabel = 'Complete lesson',
-}: LessonPlayerProps) {
+export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, completed = false, completeLabel = 'Complete lesson' }: LessonPlayerProps) {
   const blocks = useMemo(() => normalizeLessonBlocks(lesson), [lesson]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
@@ -123,7 +117,7 @@ export function LessonPlayer({
 
       <div className="space-y-2">
         {courseTitle ? <p className="text-sm font-medium text-primary">{courseTitle}</p> : null}
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{lesson.title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl"><MathText text={lesson.title} /></h1>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Card {index + 1} of {blocks.length}</span>
@@ -141,7 +135,7 @@ export function LessonPlayer({
             </Badge>
             {lesson.difficulty ? <Badge variant="outline" className="rounded-full capitalize">{lesson.difficulty}</Badge> : null}
           </div>
-          <CardTitle className="text-xl sm:text-2xl">{titleForBlock(block)}</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
         </CardHeader>
         <CardContent className="flex-1 space-y-5">
           <BlockContent block={block} />
@@ -158,7 +152,7 @@ export function LessonPlayer({
                     onClick={() => setChoice(option)}
                     className={`rounded-2xl border p-4 text-left text-sm transition ${selected ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
                   >
-                    {option}
+                    <MathText text={option} />
                   </button>
                 );
               })}
@@ -167,12 +161,7 @@ export function LessonPlayer({
 
           {block.type === 'fill_blank' ? (
             <div className="space-y-3">
-              <Input
-                value={textAnswer}
-                disabled={Boolean(answered)}
-                onChange={(event) => setTextAnswer(event.target.value)}
-                placeholder="Type your answer..."
-              />
+              <Input value={textAnswer} disabled={Boolean(answered)} onChange={(event) => setTextAnswer(event.target.value)} placeholder="Type your answer..." />
             </div>
           ) : null}
 
@@ -198,7 +187,7 @@ export function LessonPlayer({
                 {answered.isCorrect ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-destructive" />}
                 {answered.isCorrect ? 'Correct' : 'Not quite'}
               </div>
-              <p className="text-muted-foreground">{answered.message}</p>
+              <p className="text-muted-foreground"><MathText text={answered.message} /></p>
             </div>
           ) : null}
         </CardContent>
@@ -209,9 +198,7 @@ export function LessonPlayer({
           </Button>
 
           {isInteractive && !answered ? (
-            <Button onClick={checkAnswer} disabled={!choice && !textAnswer.trim()} className="w-full sm:w-auto">
-              Check answer
-            </Button>
+            <Button onClick={checkAnswer} disabled={!choice && !textAnswer.trim()} className="w-full sm:w-auto">Check answer</Button>
           ) : isLast ? (
             <Button onClick={completeLesson} disabled={!onComplete || completed || saving} className="w-full gap-2 bg-[#00694E] hover:bg-[#00563f] sm:w-auto">
               <Sparkles className="h-4 w-4" />
@@ -233,25 +220,16 @@ function BlockContent({ block }: { block: LessonBlock }) {
   if (block.type === 'example') {
     return (
       <div className="space-y-4">
-        {block.body ? <p className="text-base leading-7 text-muted-foreground">{block.body}</p> : null}
+        {block.body ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p> : null}
         {block.code ? <pre className="overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{block.code}</code></pre> : null}
       </div>
     );
   }
 
-  if (block.type === 'question') {
-    return <p className="text-base leading-7 text-muted-foreground">{block.question}</p>;
-  }
-
-  if (block.type === 'fill_blank') {
-    return <p className="text-base leading-7 text-muted-foreground">{block.text}</p>;
-  }
-
-  if (block.type === 'true_false') {
-    return <p className="text-base leading-7 text-muted-foreground">{block.statement}</p>;
-  }
-
-  return <p className="text-base leading-7 text-muted-foreground">{block.body}</p>;
+  if (block.type === 'question') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.question} /></p>;
+  if (block.type === 'fill_blank') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.text} /></p>;
+  if (block.type === 'true_false') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.statement} /></p>;
+  return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p>;
 }
 
 function normalizeLessonBlocks(lesson: PlayableLesson): LessonBlock[] {
@@ -261,9 +239,7 @@ function normalizeLessonBlocks(lesson: PlayableLesson): LessonBlock[] {
       if (payloadBlocks.length) return payloadBlocks;
       const bodyBlocks = readBlocksFromUnknown(parseMaybeJson(object.body));
       if (bodyBlocks.length) return bodyBlocks;
-      if (object.body && object.type !== 'video') {
-        return [{ type: 'explanation', title: object.title, body: stripHtml(object.body) } satisfies LessonBlock];
-      }
+      if (object.body && object.type !== 'video') return [{ type: 'explanation', title: object.title, body: stripHtml(object.body) } satisfies LessonBlock];
       return [];
     })
     .filter(Boolean) as LessonBlock[] | undefined;
@@ -310,38 +286,20 @@ function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
     .map((block) => coerceIncompleteInteractiveBlock(block))
     .filter((block) => ['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'].includes(block.type));
 
-  if (!cleaned.length) {
-    return [{ type: 'summary', body: 'This lesson is being prepared.' }];
-  }
-
+  if (!cleaned.length) return [{ type: 'summary', body: 'This lesson is being prepared.' }];
   return cleaned;
 }
 
 function coerceIncompleteInteractiveBlock(block: LessonBlock): LessonBlock {
   if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) {
-    return {
-      type: 'explanation',
-      title: block.title ?? 'Checkpoint note',
-      body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.',
-    };
+    return { type: 'explanation', title: block.title ?? 'Checkpoint note', body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.' };
   }
-
   if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) {
-    return {
-      type: 'explanation',
-      title: block.title ?? 'Practice note',
-      body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.',
-    };
+    return { type: 'explanation', title: block.title ?? 'Practice note', body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.' };
   }
-
   if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) {
-    return {
-      type: 'explanation',
-      title: block.title ?? 'True/false note',
-      body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.',
-    };
+    return { type: 'explanation', title: block.title ?? 'True/false note', body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.' };
   }
-
   return block;
 }
 
@@ -356,15 +314,10 @@ function normalizeBlockType(type: string): LessonBlockType {
 
 function evaluateAnswer(block: LessonBlock, rawAnswer: string): AnswerState | null {
   if (!interactiveTypes.has(block.type)) return null;
-  const expected = block.type === 'true_false'
-    ? String(block.correctAnswer ?? block.answer)
-    : String(block.correctAnswer ?? block.answer ?? '');
+  const expected = block.type === 'true_false' ? String(block.correctAnswer ?? block.answer) : String(block.correctAnswer ?? block.answer ?? '');
   const actual = rawAnswer;
   const isCorrect = normalizeAnswer(actual) === normalizeAnswer(expected);
-  return {
-    isCorrect,
-    message: block.explanation || (isCorrect ? 'Nice. You understood this card.' : 'Review the card and try to spot the key idea.'),
-  };
+  return { isCorrect, message: block.explanation || (isCorrect ? 'Nice. You understood this card.' : 'Review the card and try to spot the key idea.') };
 }
 
 function titleForBlock(block: LessonBlock) {
@@ -388,11 +341,7 @@ function parseMaybeJson(value: unknown) {
   if (typeof value !== 'string') return value;
   const trimmed = value.trim();
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return value;
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return value;
-  }
+  try { return JSON.parse(trimmed); } catch { return value; }
 }
 
 function stripHtml(value: string) {
