@@ -9,6 +9,12 @@ export type GraphPoint = {
   label?: string;
 };
 
+export type CardImageFields = {
+  imageUrl?: string;
+  imageAlt?: string;
+  imageCaption?: string;
+};
+
 export type VisualBlockType =
   | 'equation'
   | 'graph'
@@ -18,7 +24,7 @@ export type VisualBlockType =
   | 'formula_sheet'
   | 'geometry';
 
-export type EquationBlock = {
+export type EquationBlock = CardImageFields & {
   type: 'equation';
   title?: string;
   body?: string;
@@ -26,7 +32,7 @@ export type EquationBlock = {
   explanation?: string;
 };
 
-export type GraphBlock = {
+export type GraphBlock = CardImageFields & {
   type: 'graph';
   title?: string;
   description?: string;
@@ -41,7 +47,7 @@ export type GraphBlock = {
   data?: GraphPoint[];
 };
 
-export type TableBlock = {
+export type TableBlock = CardImageFields & {
   type: 'table';
   title?: string;
   description?: string;
@@ -49,7 +55,7 @@ export type TableBlock = {
   rows: Array<Array<string | number>>;
 };
 
-export type NumberLineBlock = {
+export type NumberLineBlock = CardImageFields & {
   type: 'number_line';
   title?: string;
   description?: string;
@@ -60,7 +66,7 @@ export type NumberLineBlock = {
   intervals?: Array<{ start: number; end: number; label?: string; inclusiveStart?: boolean; inclusiveEnd?: boolean }>;
 };
 
-export type MatrixBlock = {
+export type MatrixBlock = CardImageFields & {
   type: 'matrix';
   title?: string;
   description?: string;
@@ -68,13 +74,13 @@ export type MatrixBlock = {
   label?: string;
 };
 
-export type FormulaSheetBlock = {
+export type FormulaSheetBlock = CardImageFields & {
   type: 'formula_sheet';
   title?: string;
   formulas: Array<{ name: string; formula: string; description?: string }>;
 };
 
-export type GeometryBlock = {
+export type GeometryBlock = CardImageFields & {
   type: 'geometry';
   title?: string;
   description?: string;
@@ -92,15 +98,15 @@ export type LessonVisualBlock =
   | FormulaSheetBlock
   | GeometryBlock;
 
-export type LessonStep = {
+export type LessonStep = CardImageFields & {
   title?: string;
   explanation?: string;
   visual?: LessonVisualBlock;
 };
 
 export type LessonCardBlock =
-  | { type: 'explanation'; title: string; body: string; steps?: LessonStep[] }
-  | { type: 'example'; title: string; body: string; code?: string | null }
+  | (CardImageFields & { type: 'explanation'; title: string; body: string; steps?: LessonStep[] })
+  | (CardImageFields & { type: 'example'; title: string; body: string; code?: string | null })
   | EquationBlock
   | GraphBlock
   | TableBlock
@@ -108,10 +114,10 @@ export type LessonCardBlock =
   | MatrixBlock
   | FormulaSheetBlock
   | GeometryBlock
-  | { type: 'question'; title?: string; question: string; visual?: LessonVisualBlock; options: string[]; correctAnswer: string; explanation: string }
-  | { type: 'fill_blank'; title?: string; text: string; visual?: LessonVisualBlock; correctAnswer: string; explanation: string }
-  | { type: 'true_false'; title?: string; statement: string; visual?: LessonVisualBlock; correctAnswer: boolean; explanation: string }
-  | { type: 'summary'; title?: string; body: string };
+  | (CardImageFields & { type: 'question'; title?: string; question: string; visual?: LessonVisualBlock; options: string[]; correctAnswer: string; explanation: string })
+  | (CardImageFields & { type: 'fill_blank'; title?: string; text: string; visual?: LessonVisualBlock; correctAnswer: string; explanation: string })
+  | (CardImageFields & { type: 'true_false'; title?: string; statement: string; visual?: LessonVisualBlock; correctAnswer: boolean; explanation: string })
+  | (CardImageFields & { type: 'summary'; title?: string; body: string });
 
 export type CourseBuilderLesson = {
   title: string;
