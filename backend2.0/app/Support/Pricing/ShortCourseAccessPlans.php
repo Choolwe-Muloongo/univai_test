@@ -3,6 +3,8 @@
 namespace App\Support\Pricing;
 
 use App\Models\Course;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ShortCourseAccessPlans
 {
@@ -32,7 +34,50 @@ class ShortCourseAccessPlans
     public static function plans(?Course $course = null): array
     {
         $currency = strtoupper($course?->currency ?? 'ZMW');
+        $databasePlans = self::databasePlans($currency);
 
+        return $databasePlans ?: self::fallbackPlans($currency);
+    }
+
+    public static function get(string $code, ?Course $course = null): array
+    {
+        $plans = self::plans($course);
+        return $plans[$code] ?? $plans['access_only'];
+    }
+
+    private static function databasePlans(string $currency): array
+    {
+        try {
+            if (!Schema::hasTable('short_course_access_plans')) {
+                return [];
+            }
+
+            return DB::table('short_course_access_plans')
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->mapWithKeys(fn ($plan) => [
+                    $plan->code => [
+                        'code' => $plan->code,
+                        'name' => $plan->name,
+                        'amount' => (float) $plan->amount,
+                        'currency' => strtoupper($plan->currency ?: $currency),
+                        'accessHours' => (int) $plan->access_hours,
+                        'aiHours' => (int) $plan->ai_hours,
+                        'hourlyAiQuota' => (int) $plan->hourly_ai_quota,
+                        'dailyAiQuota' => (int) $plan->daily_ai_quota,
+                        'certificateIncluded' => (bool) $plan->certificate_included,
+                    ],
+                ])
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private static function fallbackPlans(string $currency): array
+    {
         return [
             'access_only' => [
                 'code' => 'access_only',
@@ -79,11 +124,5 @@ class ShortCourseAccessPlans
                 'certificateIncluded' => true,
             ],
         ];
-    }
-
-    public static function get(string $code, ?Course $course = null): array
-    {
-        $plans = self::plans($course);
-        return $plans[$code] ?? $plans['access_only'];
     }
 }
