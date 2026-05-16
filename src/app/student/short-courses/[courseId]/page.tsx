@@ -3,20 +3,132 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { enrollShortCourse, getCourseById, getLessonsByCourse, getShortCourseProgress } from '@/lib/api';
-import type { Course, Lesson } from '@/lib/api/types';
+import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { enrollShortCourse, formatMoney, getLessonsByShortCourse, getPublicShortCourse, getShortCourseCertificateUrl, getShortCourseProgress, payShortCourseCertificate, paymentUrl, type PublicShortCourse, type PublicShortCourseLesson, type ShortCourseProgress } from '@/lib/api/short-courses';
 
-export default function ShortCourseDetailPage() {
+export default function StudentShortCourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [progress, setProgress] = useState<any>(null);
-  useEffect(() => { Promise.all([getCourseById(courseId), getLessonsByCourse(courseId), getShortCourseProgress(courseId).catch(() => null)]).then(([c, l, p]) => { setCourse(c); setLessons(l); setProgress(p); }); }, [courseId]);
-  const start = async () => { const result = await enrollShortCourse(courseId); const url = result.checkout_url ?? result.checkoutUrl; if (url) window.location.href = url; else setProgress(await getShortCourseProgress(courseId)); };
-  if (!course) return <p>Loading course...</p>;
-  const incomplete = (course.status ?? 'draft') !== 'published' || lessons.length === 0;
-  return <div className="space-y-6"><Card className="border-[#00694E]/20"><CardHeader><CardTitle className="text-3xl">{course.title}</CardTitle><CardDescription>{course.description}</CardDescription></CardHeader><CardContent className="space-y-4"><div className="grid gap-3 md:grid-cols-3"><div className="rounded-lg border p-4"><p className="text-muted-foreground">Entry</p><p className="font-bold">{course.currency} {course.price}</p></div><div className="rounded-lg border p-4"><p className="text-muted-foreground">Certificate</p><p className="font-bold">{course.certificateCurrency} {course.certificateFee}</p></div><div className="rounded-lg border p-4"><p className="text-muted-foreground">Duration</p><p className="font-bold">{course.durationHours ?? 0} hours</p></div></div><Progress value={progress?.progress ?? 0} />{incomplete ? <p className="text-sm font-medium text-amber-600">This short course is draft/incomplete and lessons are not yet available.</p> : null}<div className="flex gap-3"><Button onClick={start} className="bg-[#00694E] hover:bg-[#00563f]" disabled={incomplete}>{progress?.entryFeePaid ? 'Continue course' : 'Pay entry fee / Start'}</Button><Button variant="outline" asChild><Link href={`/student/short-courses/${courseId}/exam`}>Take exam</Link></Button></div></CardContent></Card><Card><CardHeader><CardTitle>Lessons</CardTitle></CardHeader><CardContent className="space-y-2">{lessons.length ? lessons.map((lesson) => <Link key={lesson.id} className="block rounded-lg border p-4 hover:border-[#00694E]" href={`/student/short-courses/${courseId}/lesson/${lesson.id}`}>{lesson.title}</Link>) : <p className="text-sm text-muted-foreground">No lessons have been added yet.</p>}</CardContent></Card></div>;
+  const [course, setCourse] = useState<PublicShortCourse | null>(null);
+  const [lessons, setLessons] = useState<PublicShortCourseLesson[]>([]);
+  const [progress, setProgress] = useState<ShortCourseProgress | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function refresh() {
+    const [courseData, lessonData, progressData] = await Promise.all([
+      getPublicShortCourse(courseId),
+      getLessonsByShortCourse(courseId).catch(() => []),
+      getShortCourseProgress(courseId).catch(() => null),
+    ]);
+    setCourse(courseData);
+    setLessons(lessonData);
+    setProgress(progressData);
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    refresh()
+      .catch((cause) => { if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load short course.'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [courseId]);
+
+  async function start() {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await enrollShortCourse(courseId);
+      const url = paymentUrl(response);
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to open course.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCertificate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await payShortCourseCertificate(courseId);
+      const url = paymentUrl(response);
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      window.location.href = getShortCourseCertificateUrl(courseId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to open certificate.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) return <PageLoading message="Loading course..." />;
+  if (error) return <PageError message={error} actionHref="/student/short-courses" actionLabel="Back to my courses" />;
+  if (!course) return <PageError title="Course not found" message="This short course is unavailable." actionHref="/student/short-courses" actionLabel="Back to my courses" />;
+
+  const entryFee = formatMoney(course.price, course.currency || 'ZMW');
+  const certificateFee = formatMoney(course.certificateFee, course.certificateCurrency || course.currency || 'ZMW');
+  const isPaid = progress?.entryFeePaid;
+  const firstLesson = lessons[0];
+
+  return (
+    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <Card className="rounded-3xl border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-3xl">{course.title}</CardTitle>
+          <CardDescription>{course.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-4">
+            <Info label="Entry" value={entryFee} />
+            <Info label="Certificate" value={certificateFee} />
+            <Info label="Duration" value={`${course.durationHours ?? 0} hours`} />
+            <Info label="Progress" value={`${progress?.progress ?? 0}%`} />
+          </div>
+          <div className="h-3 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${progress?.progress ?? 0}%` }} /></div>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={start} disabled={busy}>{busy ? 'Working...' : isPaid ? 'Refresh access' : entryFee === 'Free' ? 'Start course' : `Pay entry fee (${entryFee})`}</Button>
+            {firstLesson ? <Button asChild variant="outline" disabled={!isPaid}><Link href={`/student/short-courses/${courseId}/lesson/${firstLesson.id}`}>Continue lesson</Link></Button> : null}
+            <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/exam`}>Final assessment</Link></Button>
+            <Button variant="outline" onClick={handleCertificate} disabled={busy || !progress?.completedAt}>Certificate</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Lessons</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {lessons.length ? lessons.map((lesson, index) => {
+            const done = progress?.completedLessons?.includes(String(lesson.id));
+            return (
+              <Link key={lesson.id ?? index} className="block rounded-xl border p-4 transition hover:border-primary" href={`/student/short-courses/${courseId}/lesson/${lesson.id}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{index + 1}. {lesson.title}</p>
+                    {lesson.summary ? <p className="mt-1 text-sm text-muted-foreground">{lesson.summary}</p> : null}
+                  </div>
+                  <span className="text-sm text-muted-foreground">{done ? 'Done' : 'Open'}</span>
+                </div>
+              </Link>
+            );
+          }) : <p className="text-sm text-muted-foreground">No lessons are available yet.</p>}
+        </CardContent>
+      </Card>
+    </main>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">{label}</p><p className="font-bold">{value}</p></div>;
 }
