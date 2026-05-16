@@ -10,6 +10,7 @@ use App\Models\ShortCourseEnrollment;
 use App\Models\ShortCourseLessonProgress;
 use App\Services\LencoPaymentService;
 use App\Support\Pricing\LaunchFeeSchedule;
+use App\Support\Pricing\ShortCourseAccessPlans;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -34,6 +35,13 @@ class ShortCourseController extends Controller
             'examScore' => $enrollment->exam_score,
             'completedAt' => optional($enrollment->completed_at)->toISOString(),
             'certificateIssuedAt' => optional($enrollment->certificate_issued_at)->toISOString(),
+            'accessExpiresAt' => optional($enrollment->access_expires_at)->toISOString(),
+            'accessPlan' => $enrollment->access_plan,
+            'aiPlan' => $enrollment->ai_plan,
+            'aiAccessExpiresAt' => optional($enrollment->ai_access_expires_at)->toISOString(),
+            'hourlyAiQuota' => $enrollment->hourly_ai_quota,
+            'dailyAiQuota' => $enrollment->daily_ai_quota,
+            'certificateIncluded' => (bool) $enrollment->certificate_included,
         ])->values());
     }
 
@@ -49,8 +57,8 @@ class ShortCourseController extends Controller
         ]);
 
         if ($enrollment->entry_fee_paid || (float) $fee['amount'] <= 0) {
-            $enrollment->update(['entry_fee_paid' => true, 'status' => 'active']);
-            return response()->json(['status' => $enrollment->status, 'checkout_url' => null]);
+            $this->applyInitialEntryAccess($enrollment, $course);
+            return response()->json(['status' => 'active', 'checkout_url' => null]);
         }
 
         $invoice = $this->invoiceFor($studentId, $course, 'short_course_entry', 'Entry fee: ' . $course->title, $fee);
@@ -73,6 +81,13 @@ class ShortCourseController extends Controller
             'examScore' => $enrollment->exam_score,
             'completedAt' => optional($enrollment->completed_at)->toISOString(),
             'certificateIssuedAt' => optional($enrollment->certificate_issued_at)->toISOString(),
+            'accessExpiresAt' => optional($enrollment->access_expires_at)->toISOString(),
+            'accessPlan' => $enrollment->access_plan,
+            'aiPlan' => $enrollment->ai_plan,
+            'aiAccessExpiresAt' => optional($enrollment->ai_access_expires_at)->toISOString(),
+            'hourlyAiQuota' => $enrollment->hourly_ai_quota,
+            'dailyAiQuota' => $enrollment->daily_ai_quota,
+            'certificateIncluded' => (bool) $enrollment->certificate_included,
         ]);
     }
 
@@ -82,8 +97,8 @@ class ShortCourseController extends Controller
         $course = Course::with('lessons')->findOrFail($courseId);
         $enrollment = ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $course->id)->firstOrFail();
 
-        if (!$enrollment->entry_fee_paid) {
-            return response()->json(['message' => 'Entry fee required before starting lessons.'], 402);
+        if (!$enrollment->entry_fee_paid || !$enrollment->hasActiveCourseAccess()) {
+            return response()->json(['message' => 'Active course access is required before starting lessons.'], 402);
         }
 
         ShortCourseLessonProgress::updateOrCreate(
@@ -242,7 +257,7 @@ class ShortCourseController extends Controller
         }
 
         $fee = LaunchFeeSchedule::shortCourseCertificateFee($course);
-        if ((float) $fee['amount'] <= 0 || $enrollment->certificate_fee_paid) {
+        if ((float) $fee['amount'] <= 0 || $enrollment->certificate_fee_paid || $enrollment->certificate_included) {
             $enrollment->update(['certificate_fee_paid' => true]);
             return response()->json(['status' => 'paid', 'checkout_url' => null]);
         }
@@ -255,7 +270,7 @@ class ShortCourseController extends Controller
     {
         $studentId = $this->studentId($request);
         $enrollment = ShortCourseEnrollment::with(['student', 'course'])->where('student_id', $studentId)->where('short_course_id', $courseId)->firstOrFail();
-        if (!$enrollment->certificate_fee_paid) {
+        if (!$enrollment->certificate_fee_paid && !$enrollment->certificate_included) {
             return response()->json(['message' => 'Certificate fee payment required.'], 402);
         }
 
@@ -266,6 +281,21 @@ class ShortCourseController extends Controller
         }
 
         return Storage::disk('local')->download($enrollment->certificate_path, 'univai-certificate-' . $courseId . '.html');
+    }
+
+    private function applyInitialEntryAccess(ShortCourseEnrollment $enrollment, Course $course): void
+    {
+        $entry = ShortCourseAccessPlans::initialEntryAccess($course);
+        $enrollment->update([
+            'entry_fee_paid' => true,
+            'status' => 'active',
+            'access_plan' => 'entry',
+            'access_expires_at' => now()->addHours($entry['accessHours']),
+            'ai_plan' => 'entry_included',
+            'ai_access_expires_at' => now()->addHours($entry['aiHours']),
+            'hourly_ai_quota' => $entry['hourlyAiQuota'],
+            'daily_ai_quota' => $entry['dailyAiQuota'],
+        ]);
     }
 
     private function studentId(Request $request): int
