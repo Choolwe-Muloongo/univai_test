@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Support\Branding\UnivAiBranding;
+use App\Support\Ai\ShortCourseAiQuota;
 use Illuminate\Support\Facades\Http;
 
 class AiController extends Controller
@@ -21,6 +22,8 @@ class AiController extends Controller
             'feature' => 'nullable|string',
             'audience' => 'nullable|string',
             'brandContext' => 'nullable|string',
+            'courseId' => 'nullable|string',
+            'shortCourseId' => 'nullable|string',
         ]);
 
         $mode = $data['mode'] ?? 'general';
@@ -41,6 +44,19 @@ class AiController extends Controller
         $policy = $this->accessPolicyFor($tier);
 
         $feature = $data['feature'] ?? null;
+        $courseId = $data['courseId'] ?? $data['shortCourseId'] ?? null;
+        $studentId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+        $isShortCourseAi = ($feature && str_contains($feature, 'short_course')) || ($data['accessTier'] ?? null) === 'short-course' || $courseId;
+        if ($isShortCourseAi && $studentId && is_numeric($studentId)) {
+            $quota = ShortCourseAiQuota::checkAndIncrement((int) $studentId, $courseId ? (string) $courseId : null);
+            if (!$quota['allowed']) {
+                return response()->json([
+                    'error' => 'AI quota reached for this short-course account.',
+                    'quota' => $quota,
+                ], 429);
+            }
+        }
+
         if ($feature && !in_array($feature, $policy['features'], true)) {
             return response()->json([
                 'error' => "The {$policy['label']} tier does not include {$feature} AI access.",
@@ -104,14 +120,11 @@ class AiController extends Controller
         if ($provider === 'apifree') {
             $apiKey = env('AI_API_KEY');
             if (!$apiKey) {
-                return response()->json([
-                    'error' => 'AI_API_KEY is not configured for apifree.',
-                ], 500);
+                return response()->json(['error' => 'AI_API_KEY is not configured for apifree.'], 500);
             }
 
             $model = $data['model'] ?? env('AI_MODEL', 'google/gemini-2.5-pro');
             $baseUrl = rtrim(env('AI_BASE_URL', 'https://api.apifree.ai'), '/');
-
             $payload = [
                 'max_tokens' => (int) env('AI_MAX_TOKENS', 1024),
                 'messages' => [
@@ -124,17 +137,10 @@ class AiController extends Controller
                 'top_p' => 1,
             ];
 
-            $response = Http::timeout(30)
-                ->withHeaders(['Authorization' => "Bearer {$apiKey}"])
-                ->post("{$baseUrl}/v1/chat/completions", $payload);
-
+            $response = Http::timeout(30)->withHeaders(['Authorization' => "Bearer {$apiKey}"])->post("{$baseUrl}/v1/chat/completions", $payload);
             $json = $response->json();
-
             if (!$response->successful() || isset($json['error'])) {
-                return response()->json([
-                    'error' => 'Apifree request failed.',
-                    'details' => $json,
-                ], 502);
+                return response()->json(['error' => 'Apifree request failed.', 'details' => $json], 502);
             }
 
             $text = $json['choices'][0]['message']['content'] ?? '';
@@ -143,50 +149,27 @@ class AiController extends Controller
 
         $apiKey = env('GEMINI_API_KEY');
         if (!$apiKey) {
-            return response()->json([
-                'error' => 'GEMINI_API_KEY is not configured.',
-            ], 500);
+            return response()->json(['error' => 'GEMINI_API_KEY is not configured.'], 500);
         }
 
         $model = $data['model'] ?? env('AI_MODEL', 'gemini-1.5-flash');
         $payload = [
-            'systemInstruction' => [
-                'parts' => [
-                    ['text' => $systemInstruction],
-                ],
-            ],
-            'contents' => [
-                [
-                    'role' => 'user',
-                    'parts' => [
-                        ['text' => $prompt],
-                    ],
-                ],
-            ],
+            'systemInstruction' => ['parts' => [['text' => $systemInstruction]]],
+            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]],
             'generationConfig' => [
                 'temperature' => (float) env('AI_TEMPERATURE', 0.5),
                 'maxOutputTokens' => (int) env('AI_MAX_TOKENS', 1024),
             ],
         ];
 
-        $response = Http::timeout(30)->post(
-            "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}",
-            $payload
-        );
-
+        $response = Http::timeout(30)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", $payload);
         if (!$response->successful()) {
-            return response()->json([
-                'error' => 'Gemini request failed.',
-                'details' => $response->json(),
-            ], 502);
+            return response()->json(['error' => 'Gemini request failed.', 'details' => $response->json()], 502);
         }
 
         $json = $response->json();
         $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
-
-        return response()->json([
-            'text' => $text,
-        ]);
+        return response()->json(['text' => $text]);
     }
 
     private function systemInstructionFor(string $mode, string $tier, array $policy): string
@@ -195,22 +178,20 @@ class AiController extends Controller
         $guardrails = implode(' ', config('univai.ai.brand_guardrails', []));
         $base = "You are " . UnivAiBranding::name() . "'s academic assistant for an online-first and hybrid university platform. Brand name: " . UnivAiBranding::name() . ". Legal name: " . ($brand['legal_name'] ?? UnivAiBranding::name()) . ". Tagline: " . ($brand['tagline'] ?? '') . ". Public URL: " . UnivAiBranding::publicUrl() . ". Support email: " . UnivAiBranding::supportEmail() . ". Use UnivAI branding on every public-facing output. Never invent accreditation, tuition, dates, policies, or guarantees not supplied in context. Formal programme content, admissions letters, certificates, policy documents, and public notices must be marked as human-review-required drafts. Use the provided student context to personalize responses and reference their program, progress, GPA, standing, and upcoming tasks. If context is missing, ask a clarifying question instead of guessing. Be concise, structured, accessible, and accurate. Apply this AI access tier: {$policy['label']}. {$policy['guidance']} Brand guardrails: {$guardrails}";
         $modeInstruction = match ($mode) {
-            'lesson' => <<<'TEXT'
-Produce a SoloLearn-style UnivAI lesson as strict JSON only. Do not return markdown, prose outside JSON, or code fences. No videos for launch. The lesson must be card-based and use only these block types: explanation, example, question, fill_blank, true_false, summary. The AI must decide the correct number of cards based on topic complexity, learner level, source depth, and estimated duration. Guidance: simple lessons 6-10 cards, normal lessons 10-18 cards, complex lessons 18-30 cards. If more than 30 cards are needed, split into multiple lessons. Questions must appear between cards, not only at the end. Add a checkpoint after every 2-3 teaching cards, at least 25% of cards must be interactive, and no more than 3 teaching cards may appear in a row without a question. Each card should teach one idea only and avoid long textbook paragraphs. Use this JSON shape: {"title":"","summary":"","estimatedMinutes":0,"difficulty":"beginner|intermediate|advanced","blocks":[{"type":"explanation","title":"","body":""},{"type":"example","title":"","body":"","code":"optional"},{"type":"question","question":"","options":["A","B","C","D"],"correctAnswer":"","explanation":""},{"type":"fill_blank","text":"","correctAnswer":"","explanation":""},{"type":"true_false","statement":"","correctAnswer":true,"explanation":""},{"type":"summary","body":""}]}. Formal programme lessons must be marked human-review-required in the summary or metadata and must be grounded only in supplied approved materials.
-TEXT,
+            'lesson' => 'Produce a SoloLearn-style UnivAI lesson as strict JSON only. Do not return markdown, prose outside JSON, or code fences. No videos for launch. The lesson must be card-based and use block types such as explanation, example, question, fill_blank, true_false, summary, equation, graph, table and visual blocks where useful. Questions must appear between cards. Each card should teach one idea only.',
             'quiz' => 'Create clear UnivAI assessment questions with answer keys and rationale. Return 3-5 questions unless asked otherwise.',
             'summary' => 'Summarize the provided material into a clear, student-friendly UnivAI explanation.',
             'tutor' => 'Act as a supportive UnivAI tutor. Ask clarifying questions when needed and give step-by-step guidance.',
-            'document' => 'Create a branded UnivAI document draft suitable for formal programmes and short courses: include programme/course context, title, purpose, audience, body, academic integrity checks, next steps, review status, and support contact.',
-            'video' => 'Video generation is disabled for launch. Instead, create a no-video interactive lesson support package with learning objectives, SoloLearn-style card ideas, accessibility notes, and review-required production notes.',
+            'document' => 'Create a branded UnivAI document draft suitable for formal programmes and short courses: include context, title, purpose, audience, body, academic integrity checks, next steps, review status, and support contact.',
+            'video' => 'Video generation is disabled for launch. Instead, create a no-video interactive lesson support package with learning objectives, card ideas, accessibility notes, and review-required production notes.',
             'email' => 'Create a branded UnivAI email with subject, preview text, greeting, concise body, call to action, support contact, and compliant footer.',
-            'public-notice' => 'Create a branded UnivAI public notice with headline, plain-language summary, details, dates if provided, next steps, support contact, and review-required note.',
+            'public-notice' => 'Create a branded UnivAI public notice with headline, summary, details, dates if provided, next steps, support contact, and review-required note.',
             'admissions-letter' => 'Create a formal UnivAI admissions letter draft with reference placeholders, programme details from context only, conditions, next steps, admissions contact, and review-required note.',
             default => 'Answer as a helpful UnivAI university assistant.',
         };
 
         $grounding = $tier === 'programme'
-            ? ' Programme student rule: ground answers in approved module materials supplied in Approved module materials or Student context. If those materials are insufficient, state that the approved module materials do not contain the answer and ask for the correct material. Formal programme delivery modes are online, hybrid, and physical only; do not use traditional as a learning style.'
+            ? ' Programme student rule: ground answers in approved module materials supplied in Approved module materials or Student context. If materials are insufficient, state that the approved module materials do not contain the answer. Formal programme delivery modes are online, hybrid, and physical only.'
             : '';
 
         return $base . ' ' . $modeInstruction . $grounding;
@@ -218,6 +199,9 @@ TEXT,
 
     private function resolveAccessTier(?string $role, ?string $requestedTier): string
     {
+        if ($requestedTier === 'short-course') {
+            return 'paid-certificate';
+        }
         return match ($role) {
             'free-student', 'freemium-student' => 'free',
             'paid-certificate-student', 'paid-certificate', 'certificate-student' => 'paid-certificate',
@@ -235,14 +219,14 @@ TEXT,
                 'maxPrompt' => 700,
                 'modes' => ['general', 'summary', 'tutor'],
                 'features' => ['chat', 'tutor', 'notes'],
-                'guidance' => 'Free students receive limited AI support only. Keep answers brief, introductory, and practical. Do not offer cashback, mock exams, flashcards, full study plans, or advanced weak-area coaching.',
+                'guidance' => 'Free students receive limited AI support only. Keep answers brief, introductory, and practical.',
             ],
             'paid-certificate' => [
                 'label' => 'Paid Certificate AI',
                 'maxPrompt' => 2500,
                 'modes' => ['general', 'summary', 'tutor', 'lesson', 'document', 'email'],
-                'features' => ['chat', 'tutor', 'lessonCompanion', 'notes', 'studyPlan'],
-                'guidance' => 'Support certificate completion with course explanations, summaries, and focused revision. Do not provide premium-only flashcards, mock exams, or weak-area diagnostics.',
+                'features' => ['chat', 'tutor', 'lessonCompanion', 'notes', 'studyPlan', 'short_course_ai', 'admin_short_course_builder_multi_document'],
+                'guidance' => 'Support certificate and short-course completion with explanations, summaries, and focused revision.',
             ],
             'programme' => [
                 'label' => 'Programme AI',
@@ -255,7 +239,7 @@ TEXT,
                 'label' => 'Premium AI',
                 'maxPrompt' => 6000,
                 'modes' => ['general', 'summary', 'tutor', 'lesson', 'quiz', 'document', 'video', 'email', 'public-notice', 'admissions-letter'],
-                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'cashback', 'docs', 'video', 'email', 'publicComms'],
+                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'cashback', 'docs', 'video', 'email', 'publicComms', 'short_course_ai', 'admin_short_course_builder_multi_document'],
                 'guidance' => 'Premium students receive advanced tutor, adaptive study plan, flashcards, mock exam, and weak-area support.',
             ],
         };
