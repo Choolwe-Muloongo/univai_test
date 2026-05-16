@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: univai-frontend
+    env: node
+    plan: free
+    buildCommand: npm run render:build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.3
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
