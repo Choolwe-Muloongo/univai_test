@@ -6,7 +6,9 @@ function forceDraftCourse<T extends Record<string, unknown>>(course: T): T {
 }
 
 function normalizeDraftPayload(payload: ShortCourseDraftCreatePayload): ShortCourseDraftCreatePayload {
-  const sourceMode = payload.sourceMode === 'manual-studio' ? 'new' : payload.sourceMode;
+  const legacySourceMode = (payload as unknown as { sourceMode?: string }).sourceMode;
+  const sourceMode: ShortCourseDraftCreatePayload['sourceMode'] =
+    legacySourceMode === 'manual-studio' ? 'new' : payload.sourceMode;
 
   return {
     ...payload,
