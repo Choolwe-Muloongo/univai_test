@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Textarea } from '@/components/ui/textarea';
 import { createShortCourseDraftWithBlueprint, generateAi, getCourses, getSchools } from '@/lib/api';
-import type { CourseBuilderBlueprint, CourseBuilderLesson, LessonCardBlock } from '@/lib/api/course-builder-types';
+import type { CourseBuilderBlueprint, CourseBuilderLesson, LessonCardBlock, LessonVisualBlock } from '@/lib/api/course-builder-types';
 import type { Course, School } from '@/lib/api/types';
+import { extractDocumentText } from '@/lib/document-text-extractor';
 
 type FormState = {
   title: string;
@@ -42,7 +43,6 @@ const allowedCardTypes = new Set([
   'true_false',
   'summary',
 ]);
-const textDocumentExtensions = ['.txt', '.md', '.markdown', '.csv', '.json', '.html', '.htm', '.xml'];
 
 export function ShortCourseLaunchBuilderClient() {
   const [schools, setSchools] = useState<School[]>([]);
@@ -109,21 +109,20 @@ export function ShortCourseLaunchBuilderClient() {
     setError(null);
     setMessage(null);
     try {
-      const name = file.name;
-      const lowerName = name.toLowerCase();
-      const isTextReadable = textDocumentExtensions.some((extension) => lowerName.endsWith(extension)) || file.type.startsWith('text/');
-      setSourceDocumentName(name);
+      setSourceDocumentName(file.name);
+      const result = await extractDocumentText(file);
+      const clipped = result.text.slice(0, 60000);
+      setSourceDocumentText(clipped);
 
-      if (!isTextReadable) {
-        setSourceDocumentText(`Uploaded file: ${name}. This file type cannot be read directly in the browser yet. Paste the important content below or upload a .txt, .md, .csv, .json, .html, or .xml version for full AI context.`);
-        setMessage('Document attached by name. For PDF/DOCX content, paste the extracted text into the source box so AI can use it.');
+      if (!result.text.trim()) {
+        setMessage(result.warning || `${file.name} was attached, but no readable text was extracted.`);
         return;
       }
 
-      const text = await file.text();
-      const clipped = text.slice(0, 60000);
-      setSourceDocumentText(clipped);
-      setMessage(text.length > clipped.length ? 'Document loaded. It was shortened to the first 60,000 characters for AI context.' : 'Document loaded. AI will use it together with your prompt.');
+      const baseMessage = `${file.name} loaded as ${result.mode.toUpperCase()} source. AI will use the extracted text together with your prompt.`;
+      const clippedMessage = result.text.length > clipped.length ? ' It was shortened to the first 60,000 characters for AI context.' : '';
+      const warningMessage = result.warning ? ` Note: ${result.warning}` : '';
+      setMessage(`${baseMessage}${clippedMessage}${warningMessage}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to read document.');
     } finally {
@@ -135,7 +134,7 @@ export function ShortCourseLaunchBuilderClient() {
   async function generateCourse() {
     const seed = prompt || form.title || (sourceDocumentText ? 'Create a course from the attached source document.' : '');
     if (!seed.trim() && !sourceDocumentText.trim()) {
-      setError('Describe the course or attach/paste a source document first.');
+      setError('Describe the course or attach a readable source document first.');
       return;
     }
 
@@ -247,10 +246,10 @@ export function ShortCourseLaunchBuilderClient() {
               <Textarea rows={5} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Example: Create a 19-hour beginner algebra course from the attached notes, with math cards and checkpoint questions." />
             </Field>
             <Field label="Attach source document">
-              <Input type="file" accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.xml,.pdf,.doc,.docx" onChange={readDocument} disabled={readingDocument} />
+              <Input type="file" accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.xml,.pdf,.docx" onChange={readDocument} disabled={readingDocument} />
             </Field>
-            <Field label={sourceDocumentName ? `Source content: ${sourceDocumentName}` : 'Source content / pasted notes'}>
-              <Textarea rows={6} value={sourceDocumentText} onChange={(event) => setSourceDocumentText(event.target.value)} placeholder="Paste notes here, or upload a readable text document. AI will use this together with the prompt." />
+            <Field label={sourceDocumentName ? `Extracted source content: ${sourceDocumentName}` : 'Extracted source content / pasted notes'}>
+              <Textarea rows={6} value={sourceDocumentText} onChange={(event) => setSourceDocumentText(event.target.value)} placeholder="Upload TXT, MD, CSV, JSON, HTML, XML, PDF or DOCX. Extracted text appears here and AI uses it with your prompt." />
             </Field>
             <Field label="Title"><Input value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} /></Field>
             <Field label="Description"><Textarea rows={3} value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} /></Field>
@@ -364,19 +363,19 @@ function normalizeCard(card: LessonCardBlock): LessonCardBlock {
   const raw = card as AnyCard;
   const type = normalizeCardType(raw.type);
 
-  if (type === 'question') return { type: 'question', title: raw.title, question: raw.question || 'Question?', visual: normalizeVisual(raw.visual), options: raw.options?.length ? raw.options : ['A', 'B', 'C', 'D'], correctAnswer: raw.correctAnswer || 'A', explanation: raw.explanation || 'Explanation.' } as any;
-  if (type === 'fill_blank') return { type: 'fill_blank', title: raw.title, text: raw.text || 'Fill in ____', visual: normalizeVisual(raw.visual), correctAnswer: raw.correctAnswer || 'answer', explanation: raw.explanation || 'Explanation.' } as any;
-  if (type === 'true_false') return { type: 'true_false', title: raw.title, statement: raw.statement || 'This is true.', visual: normalizeVisual(raw.visual), correctAnswer: Boolean(raw.correctAnswer ?? true), explanation: raw.explanation || 'Explanation.' } as any;
-  if (type === 'example') return { type: 'example', title: raw.title || 'Example', body: raw.body || 'Example body.', code: raw.code || '' } as any;
-  if (type === 'equation') return { type: 'equation', title: raw.title || 'Equation', body: raw.body || '', equation: raw.equation || raw.formula || 'x^2', explanation: raw.explanation || '' } as any;
-  if (type === 'graph') return normalizeVisual({ ...raw, type: 'graph' }) as any;
-  if (type === 'table') return normalizeVisual({ ...raw, type: 'table' }) as any;
-  if (type === 'number_line') return normalizeVisual({ ...raw, type: 'number_line' }) as any;
-  if (type === 'matrix') return normalizeVisual({ ...raw, type: 'matrix' }) as any;
-  if (type === 'formula_sheet') return normalizeVisual({ ...raw, type: 'formula_sheet' }) as any;
-  if (type === 'geometry') return normalizeVisual({ ...raw, type: 'geometry' }) as any;
-  if (type === 'summary') return { type: 'summary', title: raw.title || 'Summary', body: raw.body || 'Summary.' } as any;
-  return { type: 'explanation', title: raw.title || 'Core idea', body: raw.body || 'Explanation.', steps: normalizeSteps(raw.steps) } as any;
+  if (type === 'question') return { type: 'question', title: raw.title, question: raw.question || 'Question?', visual: normalizeVisual(raw.visual), options: raw.options?.length ? raw.options : ['A', 'B', 'C', 'D'], correctAnswer: raw.correctAnswer || 'A', explanation: raw.explanation || 'Explanation.' } as LessonCardBlock;
+  if (type === 'fill_blank') return { type: 'fill_blank', title: raw.title, text: raw.text || 'Fill in ____', visual: normalizeVisual(raw.visual), correctAnswer: raw.correctAnswer || 'answer', explanation: raw.explanation || 'Explanation.' } as LessonCardBlock;
+  if (type === 'true_false') return { type: 'true_false', title: raw.title, statement: raw.statement || 'This is true.', visual: normalizeVisual(raw.visual), correctAnswer: Boolean(raw.correctAnswer ?? true), explanation: raw.explanation || 'Explanation.' } as LessonCardBlock;
+  if (type === 'example') return { type: 'example', title: raw.title || 'Example', body: raw.body || 'Example body.', code: raw.code || '' };
+  if (type === 'equation') return { type: 'equation', title: raw.title || 'Equation', body: raw.body || '', equation: raw.equation || raw.formula || 'x^2', explanation: raw.explanation || '' };
+  if (type === 'graph') return normalizeVisual({ ...raw, type: 'graph' }) as LessonCardBlock;
+  if (type === 'table') return normalizeVisual({ ...raw, type: 'table' }) as LessonCardBlock;
+  if (type === 'number_line') return normalizeVisual({ ...raw, type: 'number_line' }) as LessonCardBlock;
+  if (type === 'matrix') return normalizeVisual({ ...raw, type: 'matrix' }) as LessonCardBlock;
+  if (type === 'formula_sheet') return normalizeVisual({ ...raw, type: 'formula_sheet' }) as LessonCardBlock;
+  if (type === 'geometry') return normalizeVisual({ ...raw, type: 'geometry' }) as LessonCardBlock;
+  if (type === 'summary') return { type: 'summary', title: raw.title || 'Summary', body: raw.body || 'Summary.' };
+  return { type: 'explanation', title: raw.title || 'Core idea', body: raw.body || 'Explanation.', steps: normalizeSteps(raw.steps) };
 }
 
 function normalizeCardType(type: unknown) {
@@ -389,7 +388,7 @@ function normalizeCardType(type: unknown) {
   return value;
 }
 
-function normalizeVisual(visual: unknown): AnyCard | undefined {
+function normalizeVisual(visual: unknown): LessonVisualBlock | undefined {
   if (!visual || typeof visual !== 'object') return undefined;
   const raw = visual as AnyCard;
   const type = normalizeCardType(raw.type);
