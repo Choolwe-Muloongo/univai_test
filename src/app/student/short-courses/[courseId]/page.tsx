@@ -100,6 +100,7 @@ export default function StudentShortCourseDetailPage() {
           <div className="flex flex-wrap gap-3">
             <Button onClick={start} disabled={busy}>{busy ? 'Working...' : isPaid ? 'Refresh access' : entryFee === 'Free' ? 'Start course' : `Pay entry fee (${entryFee})`}</Button>
             {firstLesson ? <Button asChild variant="outline" disabled={!isPaid}><Link href={`/student/short-courses/${courseId}/lesson/${firstLesson.id}`}>Continue lesson</Link></Button> : null}
+            <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/practice`}>Practice arena</Link></Button>
             <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/exam`}>Final assessment</Link></Button>
             <Button variant="outline" onClick={handleCertificate} disabled={busy || !progress?.completedAt}>Certificate</Button>
           </div>
