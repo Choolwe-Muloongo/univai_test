@@ -328,6 +328,7 @@ Route::middleware('api')->group(function () {
         Route::post('/programs', [AdminCatalogController::class, 'createProgram'])->middleware('access:admin.academic');
         Route::patch('/programs/{id}', [AdminCatalogController::class, 'updateProgram'])->middleware('access:admin.academic');
         Route::post('/courses', [AdminCatalogController::class, 'createCourse'])->middleware('access:admin.academic');
+        Route::post('/short-courses/drafts', [AdminCatalogController::class, 'createShortCourseDraft'])->middleware('access:admin.academic');
         Route::patch('/courses/{id}', [AdminCatalogController::class, 'updateCourse'])->middleware('access:admin.academic');
         Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool'])->middleware('access:admin.academic');
         Route::delete('/programs/{id}', [AdminCatalogController::class, 'deleteProgram'])->middleware('access:admin.academic');
