@@ -17,6 +17,8 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
                 Route::post('/{courseId}/enroll', [ShortCourseController::class, 'enroll']);
                 Route::get('/{courseId}/progress', [ShortCourseController::class, 'progress']);
                 Route::post('/{courseId}/lessons/{lessonId}/complete', [ShortCourseController::class, 'completeLesson']);
+                Route::post('/{courseId}/practice', [ShortCourseController::class, 'practice']);
+                Route::post('/{courseId}/practice/submit', [ShortCourseController::class, 'submitPractice']);
                 Route::get('/{courseId}/exam', [ShortCourseController::class, 'exam']);
                 Route::post('/{courseId}/exam/submit', [ShortCourseController::class, 'submitExam']);
                 Route::post('/{courseId}/certificate/pay', [ShortCourseController::class, 'payCertificate']);
