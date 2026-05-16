@@ -1,18 +1,13 @@
+import { ShortCourseMetricsClient } from '@/components/admin/short-courses/short-course-metrics-client';
 import { ShortCourseShell } from '@/components/admin/short-courses/short-course-shell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ShortCourseLearnersPage() {
   return (
     <ShortCourseShell
       title="Short-course learners"
-      description="A focused space for learner lists, progress snapshots, completion status and certificate readiness."
+      description="Review learner-progress readiness across courses and confirm the progress and certificate data sources are connected."
     >
-      <Card>
-        <CardHeader><CardTitle>Learner management</CardTitle></CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          This page is ready for the learner table: name, course, payment status, progress percentage, final score, certificate status and last activity.
-        </CardContent>
-      </Card>
+      <ShortCourseMetricsClient mode="learners" />
     </ShortCourseShell>
   );
 }
