@@ -8,11 +8,25 @@ class ShortCourseAccessPlans
 {
     public const MIN_ENTRY_ACCESS_HOURS = 336;
     public const MONTHLY_ACCESS_HOURS = 720;
+    public const ENTRY_HOURLY_AI_QUOTA = 40;
+    public const ENTRY_DAILY_AI_QUOTA = 240;
 
     public static function initialAccessEndsAt(?Course $course = null)
     {
         $hours = max((int) ($course?->duration_hours ?? 0), self::MIN_ENTRY_ACCESS_HOURS);
         return now()->addHours($hours);
+    }
+
+    public static function initialEntryAccess(?Course $course = null): array
+    {
+        $accessHours = max((int) ($course?->duration_hours ?? 0), self::MIN_ENTRY_ACCESS_HOURS);
+
+        return [
+            'accessHours' => $accessHours,
+            'aiHours' => $accessHours,
+            'hourlyAiQuota' => self::ENTRY_HOURLY_AI_QUOTA,
+            'dailyAiQuota' => self::ENTRY_DAILY_AI_QUOTA,
+        ];
     }
 
     public static function plans(?Course $course = null): array
@@ -49,8 +63,8 @@ class ShortCourseAccessPlans
                 'currency' => $currency,
                 'accessHours' => self::MONTHLY_ACCESS_HOURS,
                 'aiHours' => self::MONTHLY_ACCESS_HOURS,
-                'hourlyAiQuota' => 40,
-                'dailyAiQuota' => 240,
+                'hourlyAiQuota' => 100,
+                'dailyAiQuota' => 600,
                 'certificateIncluded' => true,
             ],
             'elite_certificate' => [
@@ -60,8 +74,8 @@ class ShortCourseAccessPlans
                 'currency' => $currency,
                 'accessHours' => self::MONTHLY_ACCESS_HOURS,
                 'aiHours' => self::MONTHLY_ACCESS_HOURS,
-                'hourlyAiQuota' => 40,
-                'dailyAiQuota' => 240,
+                'hourlyAiQuota' => 180,
+                'dailyAiQuota' => 1000,
                 'certificateIncluded' => true,
             ],
         ];
