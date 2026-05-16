@@ -1,13 +1,13 @@
-import { ShortCourseBuilderSafeClient } from '@/components/admin/short-courses/short-course-builder-safe-client';
+import { ShortCourseLaunchBuilderClient } from '@/components/admin/short-courses/short-course-launch-builder-client';
 import { ShortCourseShell } from '@/components/admin/short-courses/short-course-shell';
 
 export default function ShortCourseBuilderPage() {
   return (
     <ShortCourseShell
       title="AI course builder"
-      description="Generate short courses with AI, edit every module, lesson and card, preview the student experience, then save drafts for review."
+      description="Generate short courses with AI, review/edit the JSON blueprint, preview the student lesson, then save drafts for human review."
     >
-      <ShortCourseBuilderSafeClient />
+      <ShortCourseLaunchBuilderClient />
     </ShortCourseShell>
   );
 }
