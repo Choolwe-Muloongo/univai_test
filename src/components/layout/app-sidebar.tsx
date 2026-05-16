@@ -109,7 +109,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
       links: [
         { href: '/admin/users', label: 'All Learners', icon: Users },
         { href: '/admin/reports/enrollment', label: 'Programme Students', icon: GraduationCap },
-        { href: '/admin/short-courses', label: 'Short Course Learners', icon: BookOpen },
+        { href: '/admin/short-courses/learners', label: 'Short Course Learners', icon: BookOpen },
         { href: '/admin/reports/enrollment', label: 'Progress', icon: Trophy, key: 'admin-learner-progress' },
         { href: '/admin/certificates', label: 'Certificates', icon: BadgeCheck },
       ],
@@ -142,10 +142,12 @@ const groupedLinks: Record<string, NavGroup[]> = {
     {
       label: 'Short Courses',
       links: [
-        { href: '/admin/short-courses', label: 'Course Catalogue', icon: BookOpen },
-        { href: '/admin/short-courses', label: 'Create Course', icon: Settings, key: 'admin-short-create' },
-        { href: '/admin/short-courses', label: 'Enrolments', icon: Users, key: 'admin-short-enrolments' },
-        { href: '/admin/short-courses', label: 'Pricing', icon: CreditCard, key: 'admin-short-pricing' },
+        { href: '/admin/short-courses', label: 'Overview', icon: LayoutDashboard },
+        { href: '/admin/short-courses/catalogue', label: 'Course Catalogue', icon: BookOpen },
+        { href: '/admin/short-courses/builder', label: 'AI Course Builder', icon: Sparkles },
+        { href: '/admin/short-courses/review', label: 'Review & Publish', icon: BadgeCheck },
+        { href: '/admin/short-courses/enrolments', label: 'Enrolments', icon: Users },
+        { href: '/admin/short-courses/pricing', label: 'Pricing', icon: CreditCard },
         { href: '/admin/certificates', label: 'Certificates', icon: BadgeCheck, key: 'admin-short-certificates' },
       ],
     },
@@ -313,7 +315,7 @@ export function AppSidebar({ role }: { role?: string }) {
 
     const links = nextGroups.flatMap((group) => group.links);
     const ranked = links
-      .map((link) => ({ href: link.href, score: pathname === link.href ? 10_000 : pathname.startsWith(link.href) ? link.href.length : -1 }))
+      .map((link) => ({ href: link.href, score: pathname === link.href ? 10_000 : pathname.startsWith(`${link.href}/`) ? link.href.length : -1 }))
       .filter((item) => item.score >= 0)
       .sort((a, b) => b.score - a.score);
 
