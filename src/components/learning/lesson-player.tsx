@@ -34,6 +34,9 @@ type LessonStep = {
   title?: string;
   explanation?: string;
   visual?: LessonVisualBlock;
+  imageUrl?: string;
+  imageAlt?: string;
+  imageCaption?: string;
 };
 
 type LessonBlock = {
@@ -50,6 +53,9 @@ type LessonBlock = {
   statement?: string;
   visual?: LessonVisualBlock;
   steps?: LessonStep[];
+  imageUrl?: string;
+  imageAlt?: string;
+  imageCaption?: string;
   [key: string]: unknown;
 };
 
@@ -239,13 +245,16 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
 }
 
 function BlockContent({ block }: { block: LessonBlock }) {
+  const cardImage = <CardImage block={block} />;
+
   if (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'].includes(block.type)) {
-    return <MathVisualBlock block={block} />;
+    return <div className="space-y-4">{cardImage}<MathVisualBlock block={block} /></div>;
   }
 
   if (block.type === 'example') {
     return (
       <div className="space-y-4">
+        {cardImage}
         {block.body ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p> : null}
         {block.code ? <pre className="overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{block.code}</code></pre> : null}
       </div>
@@ -255,6 +264,7 @@ function BlockContent({ block }: { block: LessonBlock }) {
   if (block.type === 'question') {
     return (
       <div className="space-y-5">
+        {cardImage}
         {block.visual ? <VisualFrame visual={block.visual} /> : null}
         <p className="text-base leading-7 text-muted-foreground"><MathText text={block.question} /></p>
       </div>
@@ -264,6 +274,7 @@ function BlockContent({ block }: { block: LessonBlock }) {
   if (block.type === 'fill_blank') {
     return (
       <div className="space-y-5">
+        {cardImage}
         {block.visual ? <VisualFrame visual={block.visual} /> : null}
         <p className="text-base leading-7 text-muted-foreground"><MathText text={block.text} /></p>
       </div>
@@ -273,6 +284,7 @@ function BlockContent({ block }: { block: LessonBlock }) {
   if (block.type === 'true_false') {
     return (
       <div className="space-y-5">
+        {cardImage}
         {block.visual ? <VisualFrame visual={block.visual} /> : null}
         <p className="text-base leading-7 text-muted-foreground"><MathText text={block.statement} /></p>
       </div>
@@ -282,11 +294,13 @@ function BlockContent({ block }: { block: LessonBlock }) {
   if (block.type === 'explanation' && Array.isArray(block.steps) && block.steps.length > 0) {
     return (
       <div className="space-y-4">
+        {cardImage}
         {block.body ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p> : null}
         <div className="space-y-4">
           {block.steps.map((step, index) => (
             <div key={`${step.title ?? 'step'}-${index}`} className="space-y-3 rounded-2xl border bg-muted/10 p-4">
               <p className="font-semibold"><MathText text={step.title || `Step ${index + 1}`} /></p>
+              <CardImage block={step} />
               {step.explanation ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={step.explanation} /></p> : null}
               {step.visual ? <VisualFrame visual={step.visual} /> : null}
             </div>
@@ -296,7 +310,17 @@ function BlockContent({ block }: { block: LessonBlock }) {
     );
   }
 
-  return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p>;
+  return <div className="space-y-4">{cardImage}<p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p></div>;
+}
+
+function CardImage({ block }: { block: Pick<LessonBlock, 'imageUrl' | 'imageAlt' | 'imageCaption'> }) {
+  if (!block.imageUrl || typeof block.imageUrl !== 'string') return null;
+  return (
+    <figure className="overflow-hidden rounded-2xl border bg-muted/20">
+      <img src={block.imageUrl} alt={block.imageAlt || 'Lesson card illustration'} className="max-h-[420px] w-full object-contain" />
+      {block.imageCaption ? <figcaption className="border-t bg-background/80 px-4 py-3 text-sm text-muted-foreground"><MathText text={block.imageCaption} /></figcaption> : null}
+    </figure>
+  );
 }
 
 function VisualFrame({ visual }: { visual: LessonVisualBlock }) {
@@ -353,9 +377,9 @@ function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
 }
 
 function coerceIncompleteInteractiveBlock(block: LessonBlock): LessonBlock {
-  if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Checkpoint note', body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.', visual: block.visual };
-  if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Practice note', body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.', visual: block.visual };
-  if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) return { type: 'explanation', title: block.title ?? 'True/false note', body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.', visual: block.visual };
+  if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) return { ...block, type: 'explanation', title: block.title ?? 'Checkpoint note', body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.', visual: block.visual };
+  if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) return { ...block, type: 'explanation', title: block.title ?? 'Practice note', body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.', visual: block.visual };
+  if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) return { ...block, type: 'explanation', title: block.title ?? 'True/false note', body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.', visual: block.visual };
   return block;
 }
 
