@@ -34,6 +34,13 @@ export type ShortCourseProgress = {
   examScore?: string | number | null;
   completedAt?: string | null;
   certificateIssuedAt?: string | null;
+  accessExpiresAt?: string | null;
+  accessPlan?: string | null;
+  aiPlan?: string | null;
+  aiAccessExpiresAt?: string | null;
+  hourlyAiQuota?: number | null;
+  dailyAiQuota?: number | null;
+  certificateIncluded?: boolean | null;
 };
 
 export type ShortCourseEnrollmentSummary = {
@@ -46,6 +53,9 @@ export type ShortCourseEnrollmentSummary = {
   examScore?: string | number | null;
   completedAt?: string | null;
   certificateIssuedAt?: string | null;
+  accessExpiresAt?: string | null;
+  accessPlan?: string | null;
+  aiPlan?: string | null;
 };
 
 export type PaymentInitiation = {
@@ -54,6 +64,8 @@ export type PaymentInitiation = {
   checkoutUrl?: string | null;
   reference?: string;
   status?: string;
+  testMode?: boolean;
+  message?: string;
 };
 
 export type ShortCourseQuestion = {
