@@ -13,34 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import type { LessonWithCourseId } from '@/lib/api/types';
 
-type LessonBlockType =
-  | 'explanation'
-  | 'example'
-  | 'equation'
-  | 'graph'
-  | 'table'
-  | 'number_line'
-  | 'matrix'
-  | 'formula_sheet'
-  | 'geometry'
-  | 'question'
-  | 'fill_blank'
-  | 'true_false'
-  | 'summary';
-
 type LessonVisualBlock = Record<string, unknown>;
 
-type LessonStep = {
-  title?: string;
-  explanation?: string;
-  visual?: LessonVisualBlock;
-  imageUrl?: string;
-  imageAlt?: string;
-  imageCaption?: string;
-};
-
 type LessonBlock = {
-  type: LessonBlockType | string;
+  type: string;
   title?: string;
   body?: string;
   code?: string;
@@ -52,10 +28,17 @@ type LessonBlock = {
   text?: string;
   statement?: string;
   visual?: LessonVisualBlock;
-  steps?: LessonStep[];
   imageUrl?: string;
   imageAlt?: string;
   imageCaption?: string;
+  steps?: Array<{
+    title?: string;
+    explanation?: string;
+    visual?: LessonVisualBlock;
+    imageUrl?: string;
+    imageAlt?: string;
+    imageCaption?: string;
+  }>;
   [key: string]: unknown;
 };
 
@@ -75,44 +58,40 @@ type LessonPlayerProps = {
   completeLabel?: string;
 };
 
-type AnswerState = {
-  isCorrect: boolean;
-  message: string;
-};
+type AnswerState = { isCorrect: boolean; message: string };
 
-const teachingTypes = new Set(['explanation', 'example', 'equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry']);
 const interactiveTypes = new Set(['question', 'fill_blank', 'true_false']);
-const supportedTypes = ['explanation', 'example', 'equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'question', 'fill_blank', 'true_false', 'summary'];
+const visualBlockTypes = new Set(['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry']);
 
 export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, completed = false, completeLabel = 'Complete lesson' }: LessonPlayerProps) {
   const blocks = useMemo(() => normalizeLessonBlocks(lesson), [lesson]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
-  const [choice, setChoice] = useState<string>('');
+  const [choice, setChoice] = useState('');
   const [textAnswer, setTextAnswer] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const block = blocks[index];
-  const progress = Math.round(((index + 1) / blocks.length) * 100);
+  const block = blocks[index] ?? { type: 'summary', body: 'This lesson is being prepared.' };
+  const progress = Math.round(((index + 1) / Math.max(1, blocks.length)) * 100);
   const answered = answers[index];
   const isInteractive = interactiveTypes.has(block.type);
   const canContinue = !isInteractive || Boolean(answered);
   const isLast = index === blocks.length - 1;
 
-  function resetCardInput() {
+  function resetInput() {
     setChoice('');
     setTextAnswer('');
   }
 
   function goPrevious() {
     setIndex((value) => Math.max(value - 1, 0));
-    resetCardInput();
+    resetInput();
   }
 
   function goNext() {
     if (!canContinue) return;
     setIndex((value) => Math.min(value + 1, blocks.length - 1));
-    resetCardInput();
+    resetInput();
   }
 
   async function completeLesson() {
@@ -148,7 +127,7 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
       </div>
 
       <div className="space-y-2">
-        {courseTitle ? <p className="text-sm font-medium text-primary">{courseTitle}</p> : null}
+        {courseTitle ? <p className="text-sm font-medium text-primary"><MathText text={courseTitle} /></p> : null}
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl"><MathText text={lesson.title} /></h1>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -169,25 +148,23 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
           </div>
           <CardTitle className="text-xl sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
         </CardHeader>
+
         <CardContent className="flex-1 space-y-5">
           <BlockContent block={block} />
 
           {block.type === 'question' ? (
             <div className="grid gap-3">
-              {(block.options ?? []).map((option) => {
-                const selected = choice === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    disabled={Boolean(answered)}
-                    onClick={() => setChoice(option)}
-                    className={`rounded-2xl border p-4 text-left text-sm transition ${selected ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
-                  >
-                    <MathText text={option} />
-                  </button>
-                );
-              })}
+              {(block.options ?? []).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  disabled={Boolean(answered)}
+                  onClick={() => setChoice(option)}
+                  className={`rounded-2xl border p-4 text-left text-sm transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
+                >
+                  <MathText text={option} />
+                </button>
+              ))}
             </div>
           ) : null}
 
@@ -219,6 +196,7 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
             </div>
           ) : null}
         </CardContent>
+
         <CardFooter className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-between">
           <Button variant="outline" onClick={goPrevious} disabled={index === 0} className="w-full gap-2 sm:w-auto">
             <ChevronLeft className="h-4 w-4" />
@@ -245,72 +223,32 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
 }
 
 function BlockContent({ block }: { block: LessonBlock }) {
-  const cardImage = <CardImage block={block} />;
+  const text = block.type === 'question' ? block.question : block.type === 'fill_blank' ? block.text : block.type === 'true_false' ? block.statement : block.body;
 
-  if (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'].includes(block.type)) {
-    return <div className="space-y-4">{cardImage}<MathVisualBlock block={block} /></div>;
+  if (visualBlockTypes.has(block.type)) {
+    return <div className="space-y-4"><CardImage block={block} /><MathVisualBlock block={block} /></div>;
   }
 
-  if (block.type === 'example') {
-    return (
-      <div className="space-y-4">
-        {cardImage}
-        {block.body ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p> : null}
-        {block.code ? <pre className="overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{block.code}</code></pre> : null}
-      </div>
-    );
-  }
-
-  if (block.type === 'question') {
-    return (
-      <div className="space-y-5">
-        {cardImage}
-        {block.visual ? <VisualFrame visual={block.visual} /> : null}
-        <p className="text-base leading-7 text-muted-foreground"><MathText text={block.question} /></p>
-      </div>
-    );
-  }
-
-  if (block.type === 'fill_blank') {
-    return (
-      <div className="space-y-5">
-        {cardImage}
-        {block.visual ? <VisualFrame visual={block.visual} /> : null}
-        <p className="text-base leading-7 text-muted-foreground"><MathText text={block.text} /></p>
-      </div>
-    );
-  }
-
-  if (block.type === 'true_false') {
-    return (
-      <div className="space-y-5">
-        {cardImage}
-        {block.visual ? <VisualFrame visual={block.visual} /> : null}
-        <p className="text-base leading-7 text-muted-foreground"><MathText text={block.statement} /></p>
-      </div>
-    );
-  }
-
-  if (block.type === 'explanation' && Array.isArray(block.steps) && block.steps.length > 0) {
-    return (
-      <div className="space-y-4">
-        {cardImage}
-        {block.body ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p> : null}
+  return (
+    <div className="space-y-4">
+      <CardImage block={block} />
+      {text ? <p className="text-base leading-7 text-muted-foreground"><MathText text={text} /></p> : null}
+      {block.code ? <pre className="overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{block.code}</code></pre> : null}
+      {block.visual ? <VisualFrame visual={block.visual} /> : null}
+      {Array.isArray(block.steps) && block.steps.length > 0 ? (
         <div className="space-y-4">
-          {block.steps.map((step, index) => (
-            <div key={`${step.title ?? 'step'}-${index}`} className="space-y-3 rounded-2xl border bg-muted/10 p-4">
-              <p className="font-semibold"><MathText text={step.title || `Step ${index + 1}`} /></p>
+          {block.steps.map((step, stepIndex) => (
+            <div key={`${step.title ?? 'step'}-${stepIndex}`} className="space-y-3 rounded-2xl border bg-muted/10 p-4">
+              <p className="font-semibold"><MathText text={step.title || `Step ${stepIndex + 1}`} /></p>
               <CardImage block={step} />
               {step.explanation ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={step.explanation} /></p> : null}
               {step.visual ? <VisualFrame visual={step.visual} /> : null}
             </div>
           ))}
         </div>
-      </div>
-    );
-  }
-
-  return <div className="space-y-4">{cardImage}<p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p></div>;
+      ) : null}
+    </div>
+  );
 }
 
 function CardImage({ block }: { block: Pick<LessonBlock, 'imageUrl' | 'imageAlt' | 'imageCaption'> }) {
@@ -338,23 +276,22 @@ function normalizeLessonBlocks(lesson: PlayableLesson): LessonBlock[] {
       if (payloadBlocks.length) return payloadBlocks;
       const bodyBlocks = readBlocksFromUnknown(parseMaybeJson(object.body));
       if (bodyBlocks.length) return bodyBlocks;
-      if (object.body && object.type !== 'video') return [{ type: 'explanation', title: object.title, body: stripHtml(object.body) } satisfies LessonBlock];
+      if (object.body && object.type !== 'video') return [{ type: 'explanation', title: object.title, body: stripHtml(object.body) } as LessonBlock];
       return [];
     })
     .filter(Boolean) as LessonBlock[] | undefined;
 
   if (fromLearningObjects?.length) return sanitizeBlocks(fromLearningObjects);
+
   const parsedContent = readBlocksFromUnknown(parseMaybeJson(lesson.content));
   if (parsedContent.length) return sanitizeBlocks(parsedContent);
 
-  const fallback: LessonBlock[] = [];
-  const plainContent = stripHtml(lesson.content ?? lesson.summary ?? 'This lesson is being prepared.');
-  fallback.push({ type: 'explanation', title: 'Core idea', body: plainContent });
+  const fallback: LessonBlock[] = [{ type: 'explanation', title: 'Core idea', body: stripHtml(lesson.content ?? lesson.summary ?? 'This lesson is being prepared.') }];
   const quizQuestions = lesson.quiz?.questions ?? [];
   quizQuestions.slice(0, 4).forEach((question, idx) => {
     fallback.push({ type: 'question', question: question.question, options: question.options, correctAnswer: question.answer ?? question.options[0] ?? '', explanation: 'Review the lesson card and compare the options carefully.', title: `Quick check ${idx + 1}` });
   });
-  fallback.push({ type: 'summary', body: 'Great work. You have reached the end of this lesson. Review any missed questions before moving on.' });
+  fallback.push({ type: 'summary', body: 'Great work. You have reached the end of this lesson.' });
   return sanitizeBlocks(fallback);
 }
 
@@ -369,11 +306,9 @@ function readBlocksFromUnknown(value: unknown): LessonBlock[] {
 function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
   const cleaned = blocks
     .filter((block) => block && typeof block === 'object')
-    .map((block) => ({ ...block, type: normalizeBlockType(block.type) }))
-    .map((block) => coerceIncompleteInteractiveBlock(block))
-    .filter((block) => supportedTypes.includes(block.type));
-  if (!cleaned.length) return [{ type: 'summary', body: 'This lesson is being prepared.' }];
-  return cleaned;
+    .map((block) => ({ ...block, type: normalizeBlockType(String(block.type || 'explanation')) }))
+    .map((block) => coerceIncompleteInteractiveBlock(block));
+  return cleaned.length ? cleaned : [{ type: 'summary', body: 'This lesson is being prepared.' }];
 }
 
 function coerceIncompleteInteractiveBlock(block: LessonBlock): LessonBlock {
@@ -383,15 +318,14 @@ function coerceIncompleteInteractiveBlock(block: LessonBlock): LessonBlock {
   return block;
 }
 
-function normalizeBlockType(type: string): LessonBlockType {
+function normalizeBlockType(type: string) {
   if (type === 'multiple_choice' || type === 'mcq' || type === 'checkpoint' || type === 'visual_question' || type === 'graph_question' || type === 'geometry_question' || type === 'table_question' || type === 'number_line_question') return 'question';
   if (type === 'fill-in-the-blank') return 'fill_blank';
   if (type === 'truefalse') return 'true_false';
   if (type === 'content' || type === 'read') return 'explanation';
   if (type === 'chart' || type === 'plot') return 'graph';
   if (type === 'formula') return 'equation';
-  if (supportedTypes.includes(type)) return type as LessonBlockType;
-  return 'explanation';
+  return type;
 }
 
 function evaluateAnswer(block: LessonBlock, rawAnswer: string): AnswerState | null {
@@ -418,11 +352,11 @@ function titleForBlock(block: LessonBlock) {
 }
 
 function labelForBlock(type: string) {
-  if (teachingTypes.has(type)) return type.replace('_', ' ');
   if (type === 'fill_blank') return 'fill blank';
   if (type === 'true_false') return 'true/false';
   if (type === 'question') return 'checkpoint';
-  return type;
+  if (type === 'explanation') return 'explanation';
+  return type.replace('_', ' ');
 }
 
 function parseMaybeJson(value: unknown) {
