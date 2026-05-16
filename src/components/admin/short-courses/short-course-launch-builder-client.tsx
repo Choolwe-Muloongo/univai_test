@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ type FormState = {
 };
 
 const allowedCardTypes = new Set(['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary']);
+const textDocumentExtensions = ['.txt', '.md', '.markdown', '.csv', '.json', '.html', '.htm', '.xml'];
 
 export function ShortCourseLaunchBuilderClient() {
   const [schools, setSchools] = useState<School[]>([]);
@@ -33,9 +34,12 @@ export function ShortCourseLaunchBuilderClient() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [readingDocument, setReadingDocument] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
+  const [sourceDocumentName, setSourceDocumentName] = useState('');
+  const [sourceDocumentText, setSourceDocumentText] = useState('');
   const [blueprintText, setBlueprintText] = useState('');
   const [form, setForm] = useState<FormState>({
     title: '',
@@ -81,10 +85,41 @@ export function ShortCourseLaunchBuilderClient() {
   const validation = useMemo(() => validateBlueprint(parsedBlueprint), [parsedBlueprint]);
   const previewLesson = parsedBlueprint?.modules?.[0]?.lessons?.[0] ?? null;
 
+  async function readDocument(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setReadingDocument(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const name = file.name;
+      const lowerName = name.toLowerCase();
+      const isTextReadable = textDocumentExtensions.some((extension) => lowerName.endsWith(extension)) || file.type.startsWith('text/');
+      setSourceDocumentName(name);
+
+      if (!isTextReadable) {
+        setSourceDocumentText(`Uploaded file: ${name}. This file type cannot be read directly in the browser yet. Paste the important content below or upload a .txt, .md, .csv, .json, .html, or .xml version for full AI context.`);
+        setMessage('Document attached by name. For PDF/DOCX content, paste the extracted text into the source box so AI can use it.');
+        return;
+      }
+
+      const text = await file.text();
+      const clipped = text.slice(0, 60000);
+      setSourceDocumentText(clipped);
+      setMessage(text.length > clipped.length ? 'Document loaded. It was shortened to the first 60,000 characters for AI context.' : 'Document loaded. AI will use it together with your prompt.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to read document.');
+    } finally {
+      setReadingDocument(false);
+      event.target.value = '';
+    }
+  }
+
   async function generateCourse() {
-    const seed = prompt || form.title;
-    if (!seed.trim()) {
-      setError('Describe the course first.');
+    const seed = prompt || form.title || (sourceDocumentText ? 'Create a course from the attached source document.' : '');
+    if (!seed.trim() && !sourceDocumentText.trim()) {
+      setError('Describe the course or attach/paste a source document first.');
       return;
     }
 
@@ -97,7 +132,7 @@ export function ShortCourseLaunchBuilderClient() {
         feature: 'admin_short_course_builder',
         audience: 'short-course learners',
         brandContext: 'UnivAI Institute creates AI-assisted short courses that are human-reviewed before publishing.',
-        prompt: buildLaunchPrompt(seed, form),
+        prompt: buildLaunchPrompt(seed, form, sourceDocumentText, sourceDocumentName),
       });
       const raw = String((response as Record<string, unknown>).text || (response as Record<string, unknown>).output || (response as Record<string, unknown>).content || JSON.stringify(response));
       const blueprint = normalizeBlueprint(JSON.parse(cleanJson(raw)) as CourseBuilderBlueprint);
@@ -110,7 +145,7 @@ export function ShortCourseLaunchBuilderClient() {
         durationHours: String(blueprint.courseSummary.totalDurationHours || value.durationHours),
         level: value.level || blueprint.courseSummary.level || 'beginner',
       }));
-      setMessage('AI course draft generated. Review and edit the blueprint before saving.');
+      setMessage('AI course draft generated from your prompt and source document. Review and edit the blueprint before saving.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'AI generation failed.');
     } finally {
@@ -160,9 +195,9 @@ export function ShortCourseLaunchBuilderClient() {
           outcomes: parsedBlueprint.courseSummary.outcomes ?? [],
         } as any,
         blueprint: parsedBlueprint as any,
-        sourceMode: 'new',
+        sourceMode: sourceDocumentText ? 'document' as any : 'new',
         programmeTitle: null,
-        programmeCourseTitle: null,
+        programmeCourseTitle: sourceDocumentName || null,
       });
       const nextCourses = await getCourses();
       setCourses(nextCourses);
@@ -193,7 +228,13 @@ export function ShortCourseLaunchBuilderClient() {
           <CardHeader><CardTitle>Course setup</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <Field label="Course idea / AI prompt">
-              <Textarea rows={6} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Example: Create a 19-hour beginner HTML and CSS course with interactive cards and checkpoint questions." />
+              <Textarea rows={5} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Example: Create a 19-hour beginner algebra course from the attached notes, with math cards and checkpoint questions." />
+            </Field>
+            <Field label="Attach source document">
+              <Input type="file" accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.xml,.pdf,.doc,.docx" onChange={readDocument} disabled={readingDocument} />
+            </Field>
+            <Field label={sourceDocumentName ? `Source content: ${sourceDocumentName}` : 'Source content / pasted notes'}>
+              <Textarea rows={6} value={sourceDocumentText} onChange={(event) => setSourceDocumentText(event.target.value)} placeholder="Paste notes here, or upload a readable text document. AI will use this together with the prompt." />
             </Field>
             <Field label="Title"><Input value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} /></Field>
             <Field label="Description"><Textarea rows={3} value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} /></Field>
@@ -209,7 +250,7 @@ export function ShortCourseLaunchBuilderClient() {
               <Field label="Hours"><Input type="number" min={1} value={form.durationHours} onChange={(event) => setForm((value) => ({ ...value, durationHours: event.target.value }))} /></Field>
             </div>
             <div className="grid gap-2">
-              <Button type="button" onClick={generateCourse} disabled={generating}>{generating ? 'Generating...' : 'Generate with AI'}</Button>
+              <Button type="button" onClick={generateCourse} disabled={generating || readingDocument}>{generating ? 'Generating...' : 'Generate with AI'}</Button>
               <Button type="button" variant="outline" onClick={startManualDraft}>Start manual draft</Button>
             </div>
           </CardContent>
@@ -360,19 +401,24 @@ function buildManualBlueprint(title: string, form: FormState): CourseBuilderBlue
   });
 }
 
-function buildLaunchPrompt(seed: string, form: FormState) {
+function buildLaunchPrompt(seed: string, form: FormState, sourceDocumentText: string, sourceDocumentName: string) {
+  const sourceSection = sourceDocumentText.trim()
+    ? `\n\nSOURCE DOCUMENT (${sourceDocumentName || 'pasted notes'}):\n${sourceDocumentText.slice(0, 60000)}\n\nUse the source document as the primary academic material. Do not merely summarize it; transform it into an interactive short course with modules, lessons, worked examples and checkpoint questions. For mathematics, output clean math-friendly text: use exponents like 2^2 or LaTeX like $x^2$, roots like sqrt(25) or \\sqrt{25}, and fractions like \\frac{a}{b}.`
+    : '';
+
   return `Create a launch-ready UnivAI Institute short course in strict JSON only. No markdown. No videos.
 Course request: ${seed}
 Title: ${form.title || 'create suitable title'}
 Description: ${form.description || 'create suitable description'}
 Level: ${form.level}
-Duration hours: ${form.durationHours}
+Duration hours: ${form.durationHours}${sourceSection}
 
 Rules:
 - Build modules and lessons with SoloLearn-style cards.
 - Allowed card types: explanation, example, question, fill_blank, true_false, summary.
 - AI decides card count based on difficulty and topic size.
 - Add questions between teaching cards.
+- If math is involved, include clear formulas, worked examples, fractions, roots, exponents and symbols where helpful.
 - Avoid fake accreditation, job guarantees, fees, official dates, or unsupported claims.
 - Return only JSON shaped as: {"courseSummary":{"title":"","audience":"","level":"","description":"","prerequisites":[],"totalDurationHours":0,"outcomes":[],"finalAssessment":"","certificateCriteria":""},"assessments":{"quizzes":[],"practicalWork":[],"instructorReviewChecklist":[]},"modules":[{"title":"","description":"","durationMinutes":0,"outcomes":[],"moduleAssessment":"","lessons":[{"title":"","summary":"","durationMinutes":0,"difficulty":"","outcomes":[],"blocks":[],"subLessons":[],"activities":[],"assessment":""}]}]}`;
 }
