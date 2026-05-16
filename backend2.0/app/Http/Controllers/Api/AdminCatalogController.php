@@ -7,28 +7,20 @@ use App\Models\Course;
 use App\Models\LearningObject;
 use App\Models\Lesson;
 use App\Models\Program;
-use App\Models\QualificationLevel;
 use App\Models\School;
-use App\Support\DeliveryModes;
+use App\Support\Catalog\DeliveryModes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AdminCatalogController extends Controller
 {
-    public function qualificationLevels()
-    {
-        return QualificationLevel::query()
-            ->orderBy('sort_order')
-            ->get()
-            ->map(fn (QualificationLevel $level) => $this->mapQualificationLevel($level));
-    }
-
     public function createSchool(Request $request)
     {
         $payload = $request->validate([
             'id' => ['nullable', 'string'],
-            'name' => ['required', 'string', 'min:2'],
+            'name' => ['required', 'string'],
         ]);
 
         $school = School::updateOrCreate(
@@ -43,81 +35,69 @@ class AdminCatalogController extends Controller
 
     public function updateSchool(Request $request, string $id)
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'min:2'],
-        ]);
-
-        $school = School::findOrFail($id);
-        $school->update(['name' => $payload['name']]);
-        Cache::forget('catalog:schools');
-
-        return $this->mapSchool($school);
+        $request->merge(['id' => $id] + $request->all());
+        return $this->createSchool($request);
     }
 
     public function createProgram(Request $request)
     {
         $payload = $request->validate([
-            'id' => ['required', 'string'],
+            'id' => ['nullable', 'string'],
             'title' => ['required', 'string'],
             'description' => ['required', 'string'],
             'schoolId' => ['required', 'string', 'exists:schools,id'],
+            'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'imageId' => ['nullable', 'string'],
             'departmentId' => ['nullable', 'integer', 'exists:departments,id'],
-            'qualificationLevelId' => ['required', 'string', 'exists:qualification_levels,id'],
+            'qualificationLevelId' => ['nullable', 'integer', 'exists:qualification_levels,id'],
+            'qualificationLevel' => ['nullable', 'string'],
             'credits' => ['nullable', 'integer', 'min:0'],
             'durationMonths' => ['nullable', 'integer', 'min:1'],
-            'admissionRequirements' => ['nullable', 'string'],
+            'admissionRequirements' => ['nullable', 'array'],
             'requiredSubjects' => ['nullable', 'array'],
-            'requiredSubjects.*.subjectId' => ['nullable', 'string'],
-            'requiredSubjects.*.subjectName' => ['required_with:requiredSubjects', 'string'],
-            'requiredSubjects.*.minimumPoints' => ['nullable', 'integer', 'min:0'],
             'deliveryModes' => ['nullable', 'array'],
-            'deliveryModes.*' => ['string'],
             'examClinicRequired' => ['nullable', 'boolean'],
             'requiresAccreditationApproval' => ['nullable', 'boolean'],
-            'accreditationApproved' => ['nullable', 'boolean'],
             'launchStatus' => ['nullable', 'string'],
             'applicationFee' => ['nullable', 'numeric', 'min:0'],
             'applicationCurrency' => ['nullable', 'string', 'size:3'],
             'tuitionFee' => ['nullable', 'numeric', 'min:0'],
             'tuitionCurrency' => ['nullable', 'string', 'size:3'],
-            'imageId' => ['nullable', 'string'],
+            'awardType' => ['nullable', 'string'],
+            'qualificationLevelName' => ['nullable', 'string'],
+            'durationSemesters' => ['nullable', 'integer', 'min:1'],
+            'totalCredits' => ['nullable', 'integer', 'min:0'],
+            'deliveryMode' => ['nullable', 'string'],
+            'supportedDeliveryModes' => ['nullable', 'array'],
         ]);
 
-        $level = QualificationLevel::findOrFail($payload['qualificationLevelId']);
-        $deliveryModes = $payload['deliveryModes'] ?? $level->allowed_delivery_modes ?? ['hybrid'];
-        $requiresAccreditation = $payload['requiresAccreditationApproval'] ?? $level->requires_accreditation_approval;
-        $accreditationApproved = (bool) ($payload['accreditationApproved'] ?? false);
-        $launchStatus = $payload['launchStatus'] ?? 'draft';
-
-        if ($requiresAccreditation && !$accreditationApproved && $launchStatus === 'published') {
-            return response()->json([
-                'message' => 'Accreditation approval is required before this qualification can be launched.',
-            ], 422);
-        }
-
         $program = Program::updateOrCreate(
-            ['id' => $payload['id']],
+            ['id' => $payload['id'] ?? $this->slug($payload['title'])],
             [
                 'title' => $payload['title'],
                 'description' => $payload['description'],
                 'school_id' => $payload['schoolId'],
                 'department_id' => $payload['departmentId'] ?? null,
-                'qualification_level_id' => $level->id,
-                'credits' => $payload['credits'] ?? $level->default_credits,
-                'duration_months' => $payload['durationMonths'] ?? $level->duration_months,
-                'admission_requirements' => $payload['admissionRequirements'] ?? $level->admission_requirements,
-                'required_subjects' => $this->normalizeRequiredSubjects($payload['requiredSubjects'] ?? []),
-                'delivery_modes' => array_values($deliveryModes),
-                'supported_delivery_modes' => DeliveryModes::normalizeMany($deliveryModes),
-                'exam_clinic_required' => $payload['examClinicRequired'] ?? $level->requires_exam_clinic,
-                'requires_accreditation_approval' => $requiresAccreditation,
-                'accreditation_approved_at' => $accreditationApproved ? now() : null,
-                'launch_status' => $launchStatus,
+                'qualification_level_id' => $payload['qualificationLevelId'] ?? null,
+                'qualification_level' => $payload['qualificationLevel'] ?? $payload['qualificationLevelName'] ?? null,
+                'credits' => $payload['credits'] ?? 0,
+                'duration_months' => $payload['durationMonths'] ?? null,
+                'admission_requirements' => $payload['admissionRequirements'] ?? [],
+                'required_subjects' => $payload['requiredSubjects'] ?? [],
+                'delivery_modes' => DeliveryModes::normalizeMany($payload['deliveryModes'] ?? []),
+                'exam_clinic_required' => (bool) ($payload['examClinicRequired'] ?? false),
+                'requires_accreditation_approval' => (bool) ($payload['requiresAccreditationApproval'] ?? false),
+                'launch_status' => $payload['launchStatus'] ?? 'draft',
                 'application_fee' => $payload['applicationFee'] ?? 0,
                 'application_currency' => strtoupper($payload['applicationCurrency'] ?? 'ZMW'),
                 'tuition_fee' => $payload['tuitionFee'] ?? 0,
                 'tuition_currency' => strtoupper($payload['tuitionCurrency'] ?? 'ZMW'),
-                'progress' => 0,
+                'award_type' => $payload['awardType'] ?? null,
+                'duration_semesters' => $payload['durationSemesters'] ?? null,
+                'total_credits' => $payload['totalCredits'] ?? null,
+                'delivery_mode' => $payload['deliveryMode'] ?? null,
+                'supported_delivery_modes' => DeliveryModes::normalizeMany($payload['supportedDeliveryModes'] ?? []),
+                'progress' => $payload['progress'] ?? 0,
                 'image_id' => $payload['imageId'] ?? null,
             ]
         );
@@ -398,49 +378,51 @@ class AdminCatalogController extends Controller
         $allowed = ['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'];
         $clean = collect($blocks)
             ->filter(fn ($block) => is_array($block) && in_array($block['type'] ?? '', $allowed, true))
-            ->map(function (array $block) {
+            ->map(function (array $block) use ($lessonPayload) {
                 $type = $block['type'];
+                $shared = $this->sharedBlockFields($block);
+
                 if ($type === 'question') {
-                    return [
+                    return array_merge($shared, [
                         'type' => 'question',
                         'title' => $block['title'] ?? 'Quick check',
                         'question' => $block['question'] ?? $block['body'] ?? 'Choose the best answer.',
                         'options' => array_values($block['options'] ?? ['I understand', 'I need review']),
                         'correctAnswer' => $block['correctAnswer'] ?? $block['answer'] ?? ($block['options'][0] ?? 'I understand'),
                         'explanation' => $block['explanation'] ?? 'Review the previous card and compare each option carefully.',
-                    ];
+                    ]);
                 }
                 if ($type === 'fill_blank') {
-                    return [
+                    return array_merge($shared, [
                         'type' => 'fill_blank',
                         'title' => $block['title'] ?? 'Fill in the blank',
                         'text' => $block['text'] ?? $block['body'] ?? 'Complete the missing word: ____',
                         'correctAnswer' => $block['correctAnswer'] ?? $block['answer'] ?? '',
                         'explanation' => $block['explanation'] ?? 'The answer comes from the lesson card before this checkpoint.',
-                    ];
+                    ]);
                 }
                 if ($type === 'true_false') {
-                    return [
+                    return array_merge($shared, [
                         'type' => 'true_false',
                         'title' => $block['title'] ?? 'True or false',
                         'statement' => $block['statement'] ?? $block['body'] ?? 'This statement needs review.',
                         'correctAnswer' => (bool) ($block['correctAnswer'] ?? $block['answer'] ?? true),
                         'explanation' => $block['explanation'] ?? 'Use the lesson concept to judge this statement.',
-                    ];
+                    ]);
                 }
                 if ($type === 'example') {
-                    return [
+                    return array_merge($shared, [
                         'type' => 'example',
                         'title' => $block['title'] ?? 'Example',
                         'body' => $block['body'] ?? '',
                         'code' => $block['code'] ?? null,
-                    ];
+                    ]);
                 }
-                return [
+                return array_merge($shared, [
                     'type' => $type,
                     'title' => $block['title'] ?? ($type === 'summary' ? 'Lesson summary' : 'Core idea'),
                     'body' => $block['body'] ?? $lessonPayload['summary'] ?? 'This card needs content review.',
-                ];
+                ]);
             })
             ->values()
             ->all();
@@ -454,6 +436,14 @@ class AdminCatalogController extends Controller
             ['type' => 'question', 'title' => 'Quick check', 'question' => 'What should you do after reading a new concept?', 'options' => ['Memorize blindly', 'Connect it to an example', 'Skip practice', 'Ignore feedback'], 'correctAnswer' => 'Connect it to an example', 'explanation' => 'Understanding improves when you connect ideas to examples.'],
             ['type' => 'summary', 'title' => 'Lesson summary', 'body' => $lessonPayload['assessment'] ?? 'You have completed the main idea for this lesson.'],
         ];
+    }
+
+    private function sharedBlockFields(array $block): array
+    {
+        return collect($block)
+            ->only(['visual', 'imageUrl', 'imageAlt', 'imageCaption'])
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->all();
     }
 
     private function uniqueLessonId(string $courseId, string $title, int $index): string
@@ -519,66 +509,36 @@ class AdminCatalogController extends Controller
             'pricingType' => $course->pricing_type,
             'price' => $course->price,
             'currency' => $course->currency,
-            'certificateFee' => $course->certificate_fee ?? 15,
-            'certificateCurrency' => $course->certificate_currency ?? 'ZMW',
+            'certificateFee' => $course->certificate_fee,
+            'certificateCurrency' => $course->certificate_currency,
             'durationHours' => $course->duration_hours,
             'level' => $course->level,
-            'status' => $course->status ?? 'draft',
-            'lessonCount' => $course->relationLoaded('lessons') ? $course->lessons->count() : $course->lessons()->count(),
+            'status' => $course->status,
+            'reviewStatus' => $course->review_status,
+            'lessonCount' => $course->lessons_count ?? $course->lessons?->count() ?? 0,
         ];
     }
 
-    private function slug(string $value): string
+    private function mapQualificationLevel($level): array
     {
-        $slug = trim(strtolower(preg_replace('/[^a-z0-9]+/i', '-', $value)), '-');
-        return $slug !== '' ? $slug : 'item-' . now()->timestamp;
-    }
-
-    private function normalizeRequiredSubjects(array $subjects): array
-    {
-        return collect($subjects)
-            ->map(function ($subject) {
-                $name = trim((string) ($subject['subjectName'] ?? ''));
-                if ($name === '') {
-                    return null;
-                }
-
-                return [
-                    'subjectId' => $subject['subjectId'] ?? $this->slug($name),
-                    'subjectName' => $name,
-                    'minimumPoints' => isset($subject['minimumPoints']) ? (int) $subject['minimumPoints'] : null,
-                ];
-            })
-            ->filter()
-            ->values()
-            ->all();
+        return [
+            'id' => $level->id,
+            'name' => $level->name,
+            'category' => $level->category,
+            'levelNumber' => $level->level_number,
+        ];
     }
 
     private function forgetCourseCaches(string $courseId): void
     {
         Cache::forget('catalog:courses');
         Cache::forget("catalog:course:{$courseId}");
-        Cache::forget("catalog:course:{$courseId}:lessons");
-        Cache::forget("catalog:course:{$courseId}:exam");
+        Cache::forget("catalog:lessons:{$courseId}");
+        Cache::forget('catalog:lessons:all');
     }
 
-    private function mapQualificationLevel(QualificationLevel $level): array
+    private function slug(string $value): string
     {
-        return [
-            'id' => $level->id,
-            'name' => $level->name,
-            'category' => $level->category,
-            'defaultCredits' => $level->default_credits,
-            'minimumCredits' => $level->minimum_credits,
-            'maximumCredits' => $level->maximum_credits,
-            'durationMonths' => $level->duration_months,
-            'admissionRequirements' => $level->admission_requirements,
-            'allowedDeliveryModes' => $level->allowed_delivery_modes ?? [],
-            'requiresExamClinic' => (bool) $level->requires_exam_clinic,
-            'requiresAccreditationApproval' => (bool) $level->requires_accreditation_approval,
-            'minimumSubjectCount' => $level->minimum_subject_count,
-            'minimumTotalPoints' => $level->minimum_total_points,
-            'requiredPriorQualification' => $level->required_prior_qualification,
-        ];
+        return Str::slug($value) ?: Str::random(8);
     }
 }
