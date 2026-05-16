@@ -1,11 +1,37 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatMoney, getPublicShortCourses } from '@/lib/api/short-courses';
+import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { formatMoney, getPublicShortCourses, type PublicShortCourse } from '@/lib/api/short-courses';
 
-export default async function PublicShortCoursesPage() {
-  const courses = await getPublicShortCourses().catch(() => []);
+export default function PublicShortCoursesPage() {
+  const [courses, setCourses] = useState<PublicShortCourse[]>([]);
+  const [query, setQuery] = useState('');
+  const [level, setLevel] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getPublicShortCourses()
+      .then((data) => { if (mounted) setCourses(data); })
+      .catch((cause) => { if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load short courses.'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  const filtered = useMemo(() => courses.filter((course) => {
+    const matchesQuery = !query.trim() || `${course.title} ${course.description}`.toLowerCase().includes(query.toLowerCase());
+    const matchesLevel = level === 'all' || (course.level ?? 'beginner').toLowerCase() === level;
+    return matchesQuery && matchesLevel;
+  }), [courses, level, query]);
+
+  if (loading) return <PageLoading message="Loading short courses..." />;
+  if (error) return <PageError message={error} />;
 
   return (
     <main className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
@@ -14,22 +40,31 @@ export default async function PublicShortCoursesPage() {
         <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">Learn practical skills without applying for a formal programme.</h1>
         <p className="mt-4 max-w-2xl text-muted-foreground">Browse self-paced courses, enrol quickly, learn through interactive cards, and earn a certificate after completion.</p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button asChild><Link href="#courses">Browse courses</Link></Button>
+          <Button asChild><a href="#courses">Browse courses</a></Button>
           <Button variant="outline" asChild><Link href="/student/short-courses">My short courses</Link></Button>
         </div>
       </section>
 
       <section id="courses" className="space-y-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-2xl font-bold">Available short courses</h2>
-            <p className="text-sm text-muted-foreground">Choose a course, view the details, then enrol or continue learning.</p>
+            <p className="text-sm text-muted-foreground">Choose a course, view details, then enrol or continue learning.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input className="h-10 rounded-md border bg-background px-3 text-sm" placeholder="Search courses..." value={query} onChange={(event) => setQuery(event.target.value)} />
+            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={level} onChange={(event) => setLevel(event.target.value)}>
+              <option value="all">All levels</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
           </div>
         </div>
 
-        {courses.length ? (
+        {filtered.length ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {courses.map((course) => (
+            {filtered.map((course) => (
               <Card key={course.id} className="flex flex-col rounded-2xl">
                 <CardHeader>
                   <div className="mb-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -51,7 +86,7 @@ export default async function PublicShortCoursesPage() {
           </div>
         ) : (
           <Card>
-            <CardContent className="p-8 text-sm text-muted-foreground">No published short courses are available yet. Please check again soon.</CardContent>
+            <CardContent className="p-8 text-sm text-muted-foreground">No matching short courses are available yet.</CardContent>
           </Card>
         )}
       </section>
