@@ -21,10 +21,7 @@ class ShortCourseAccessController extends Controller
 
     public function purchase(Request $request, string $courseId, LencoPaymentService $lenco)
     {
-        $payload = $request->validate([
-            'plan' => ['required', 'string'],
-        ]);
-
+        $payload = $request->validate(['plan' => ['required', 'string']]);
         $studentId = $this->studentId($request);
         $course = Course::findOrFail($courseId);
         $plan = ShortCourseAccessPlans::get($payload['plan'], $course);
@@ -34,27 +31,30 @@ class ShortCourseAccessController extends Controller
             'short_course_id' => $course->id,
         ]);
 
+        if (!config('services.lenco.short_course_checkout_enabled', false)) {
+            $this->applyPlan($enrollment, $plan);
+            return response()->json([
+                'status' => 'active',
+                'checkout_url' => null,
+                'testMode' => true,
+                'plan' => $plan,
+            ]);
+        }
+
         if ((float) $plan['amount'] <= 0) {
             $this->applyPlan($enrollment, $plan);
             return response()->json(['status' => 'active', 'checkout_url' => null, 'plan' => $plan]);
         }
 
         $invoice = Invoice::firstOrCreate(
-            [
-                'student_id' => $studentId,
-                'type' => 'short_course_access_plan',
-                'title' => $plan['name'] . ': ' . $course->title,
-            ],
+            ['student_id' => $studentId, 'type' => 'short_course_access_plan', 'title' => $plan['name'] . ': ' . $course->title],
             [
                 'uuid' => (string) Str::uuid(),
                 'description' => $plan['name'] . ' for ' . $course->title,
                 'amount' => $plan['amount'],
                 'currency' => $plan['currency'],
                 'status' => 'pending',
-                'metadata' => [
-                    'short_course_id' => $course->id,
-                    'access_plan' => $plan['code'],
-                ],
+                'metadata' => ['short_course_id' => $course->id, 'access_plan' => $plan['code']],
                 'due_date' => now()->addDays(7),
             ]
         );
@@ -64,7 +64,7 @@ class ShortCourseAccessController extends Controller
 
     public static function applyPlan(ShortCourseEnrollment $enrollment, array $plan): void
     {
-        $accessEndsAt = now()->addHours((int) ($plan['accessHours'] ?? ShortCourseAccessPlans::MIN_ACCESS_HOURS));
+        $accessEndsAt = now()->addHours((int) ($plan['accessHours'] ?? ShortCourseAccessPlans::MONTHLY_ACCESS_HOURS));
         $aiHours = (int) ($plan['aiHours'] ?? 0);
 
         $enrollment->update([
