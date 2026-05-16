@@ -118,6 +118,17 @@ function guardReviewedPublishing(path: string, body: BodyInit | null | undefined
   }
 }
 
+function apiErrorMessage(status: number, details: unknown): string {
+  if (!details || typeof details !== 'object') return `Request failed: ${status}`;
+  const payload = details as Record<string, unknown>;
+  const message = typeof payload.message === 'string' ? payload.message : `Request failed: ${status}`;
+  const exception = typeof payload.exception === 'string' ? payload.exception : null;
+  const file = typeof payload.file === 'string' ? payload.file : null;
+  const line = typeof payload.line === 'number' || typeof payload.line === 'string' ? String(payload.line) : null;
+  const location = file && line ? ` (${file}:${line})` : '';
+  return exception ? `${message} — ${exception}${location}` : message;
+}
+
 export async function apiFetch<T>(
   path: string,
   { parseJson = true, headers, body, ...options }: FetchOptions = {}
@@ -143,7 +154,7 @@ export async function apiFetch<T>(
       details = null;
       void error;
     }
-    throw new ApiError(`Request failed: ${response.status}`, response.status, details);
+    throw new ApiError(apiErrorMessage(response.status, details), response.status, details);
   }
 
   if (!parseJson) {
