@@ -22,14 +22,18 @@ class AcademicDatasetController extends Controller
         $status = $payload['status'] ?? 'published';
         $limit = (int) ($payload['limit'] ?? 500);
 
-        $rows = DB::table('learning_objects')
-            ->where('is_current', true)
-            ->where('protected_content', false)
-            ->where(function ($query) use ($status) {
+        $query = DB::table('learning_objects')->where('is_current', true);
+
+        if (Schema::hasColumn('learning_objects', 'protected_content')) {
+            $query->where('protected_content', false);
+        }
+
+        $rows = $query
+            ->where(function ($inner) use ($status) {
                 if ($status === 'published') {
-                    $query->where('publication_status', 'published');
+                    $inner->where('publication_status', 'published');
                 } else {
-                    $query->where('review_status', 'approved');
+                    $inner->where('review_status', 'approved');
                 }
             })
             ->orderBy('updated_at', 'desc')
