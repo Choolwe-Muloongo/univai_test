@@ -28,6 +28,14 @@ type LessonBlockType =
   | 'true_false'
   | 'summary';
 
+type LessonVisualBlock = Record<string, unknown>;
+
+type LessonStep = {
+  title?: string;
+  explanation?: string;
+  visual?: LessonVisualBlock;
+};
+
 type LessonBlock = {
   type: LessonBlockType | string;
   title?: string;
@@ -40,6 +48,8 @@ type LessonBlock = {
   explanation?: string;
   text?: string;
   statement?: string;
+  visual?: LessonVisualBlock;
+  steps?: LessonStep[];
   [key: string]: unknown;
 };
 
@@ -241,10 +251,60 @@ function BlockContent({ block }: { block: LessonBlock }) {
       </div>
     );
   }
-  if (block.type === 'question') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.question} /></p>;
-  if (block.type === 'fill_blank') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.text} /></p>;
-  if (block.type === 'true_false') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.statement} /></p>;
+
+  if (block.type === 'question') {
+    return (
+      <div className="space-y-5">
+        {block.visual ? <VisualFrame visual={block.visual} /> : null}
+        <p className="text-base leading-7 text-muted-foreground"><MathText text={block.question} /></p>
+      </div>
+    );
+  }
+
+  if (block.type === 'fill_blank') {
+    return (
+      <div className="space-y-5">
+        {block.visual ? <VisualFrame visual={block.visual} /> : null}
+        <p className="text-base leading-7 text-muted-foreground"><MathText text={block.text} /></p>
+      </div>
+    );
+  }
+
+  if (block.type === 'true_false') {
+    return (
+      <div className="space-y-5">
+        {block.visual ? <VisualFrame visual={block.visual} /> : null}
+        <p className="text-base leading-7 text-muted-foreground"><MathText text={block.statement} /></p>
+      </div>
+    );
+  }
+
+  if (block.type === 'explanation' && Array.isArray(block.steps) && block.steps.length > 0) {
+    return (
+      <div className="space-y-4">
+        {block.body ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p> : null}
+        <div className="space-y-4">
+          {block.steps.map((step, index) => (
+            <div key={`${step.title ?? 'step'}-${index}`} className="space-y-3 rounded-2xl border bg-muted/10 p-4">
+              <p className="font-semibold"><MathText text={step.title || `Step ${index + 1}`} /></p>
+              {step.explanation ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={step.explanation} /></p> : null}
+              {step.visual ? <VisualFrame visual={step.visual} /> : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p>;
+}
+
+function VisualFrame({ visual }: { visual: LessonVisualBlock }) {
+  return (
+    <div className="rounded-2xl border bg-background/80 p-3">
+      <MathVisualBlock block={visual} />
+    </div>
+  );
 }
 
 function normalizeLessonBlocks(lesson: PlayableLesson): LessonBlock[] {
@@ -293,14 +353,14 @@ function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
 }
 
 function coerceIncompleteInteractiveBlock(block: LessonBlock): LessonBlock {
-  if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Checkpoint note', body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.' };
-  if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Practice note', body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.' };
-  if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) return { type: 'explanation', title: block.title ?? 'True/false note', body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.' };
+  if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Checkpoint note', body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.', visual: block.visual };
+  if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Practice note', body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.', visual: block.visual };
+  if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) return { type: 'explanation', title: block.title ?? 'True/false note', body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.', visual: block.visual };
   return block;
 }
 
 function normalizeBlockType(type: string): LessonBlockType {
-  if (type === 'multiple_choice' || type === 'mcq' || type === 'checkpoint') return 'question';
+  if (type === 'multiple_choice' || type === 'mcq' || type === 'checkpoint' || type === 'visual_question' || type === 'graph_question' || type === 'geometry_question' || type === 'table_question' || type === 'number_line_question') return 'question';
   if (type === 'fill-in-the-blank') return 'fill_blank';
   if (type === 'truefalse') return 'true_false';
   if (type === 'content' || type === 'read') return 'explanation';
@@ -319,9 +379,9 @@ function evaluateAnswer(block: LessonBlock, rawAnswer: string): AnswerState | nu
 
 function titleForBlock(block: LessonBlock) {
   if (block.title) return block.title;
-  if (block.type === 'question') return 'Quick check';
-  if (block.type === 'fill_blank') return 'Fill in the blank';
-  if (block.type === 'true_false') return 'True or false';
+  if (block.type === 'question') return block.visual ? 'Visual question' : 'Quick check';
+  if (block.type === 'fill_blank') return block.visual ? 'Visual fill-in' : 'Fill in the blank';
+  if (block.type === 'true_false') return block.visual ? 'Visual true or false' : 'True or false';
   if (block.type === 'equation') return 'Equation';
   if (block.type === 'graph') return 'Graph';
   if (block.type === 'table') return 'Table';
