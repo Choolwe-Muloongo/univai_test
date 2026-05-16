@@ -56,10 +56,15 @@ export type PaymentInitiation = {
   status?: string;
 };
 
-export type ShortCourseExamQuestion = {
+export type ShortCourseQuestion = {
   id: string | number;
   question: string;
+  questionType?: string;
   options: string[];
+  difficulty?: string;
+  timeSeconds?: number;
+  lessonId?: string | null;
+  tags?: string[];
 };
 
 export type ShortCourseExamPayload = {
@@ -67,7 +72,41 @@ export type ShortCourseExamPayload = {
   requiredQuestions: number;
   availableQuestions: number;
   ready: boolean;
-  questions: ShortCourseExamQuestion[];
+  questions: ShortCourseQuestion[];
+};
+
+export type PracticeSectionRequest = {
+  title?: string;
+  difficulty?: string;
+  questionType?: string;
+  count?: number;
+  timeMinutes?: number;
+};
+
+export type ShortCoursePracticePayload = {
+  courseId: string;
+  sections: Array<{
+    id: string;
+    title: string;
+    difficulty: string;
+    questionType: string;
+    timeMinutes: number;
+    questions: ShortCourseQuestion[];
+  }>;
+  totalQuestions: number;
+  totalTimeMinutes: number;
+};
+
+export type PracticeAnswer = {
+  questionId: string | number;
+  answer?: string;
+};
+
+export type PracticeResult = {
+  score: number;
+  correct: number;
+  total: number;
+  results: Array<{ questionId: string | number; correct: boolean; answer?: string | null; explanation?: string | null }>;
 };
 
 export async function getPublicShortCourses(): Promise<PublicShortCourse[]> {
@@ -97,6 +136,20 @@ export async function getShortCourseProgress(courseId: string): Promise<ShortCou
 
 export async function getShortCourseExam(courseId: string): Promise<ShortCourseExamPayload> {
   return apiFetch(`/students/me/short-courses/${courseId}/exam`);
+}
+
+export async function getShortCoursePractice(courseId: string, payload: { difficulty?: string; count?: number; questionType?: string; lessonId?: string; sections?: PracticeSectionRequest[] }): Promise<ShortCoursePracticePayload> {
+  return apiFetch(`/students/me/short-courses/${courseId}/practice`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function submitShortCoursePractice(courseId: string, answers: PracticeAnswer[]): Promise<PracticeResult> {
+  return apiFetch(`/students/me/short-courses/${courseId}/practice/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ answers }),
+  });
 }
 
 export async function submitShortCourseExam(courseId: string, answers: string[]): Promise<{ score: number; passed: boolean }> {
