@@ -298,7 +298,7 @@ class AuthController extends Controller
                 'profileStarted' => true,
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'staff',
-                'entitlements' => ['admin_academic', 'admin_users', 'admin_finance'],
+                'entitlements' => ['admin_portal', 'admin_academic', 'admin_users', 'admin_finance'],
             ],
             default => StudentAccess::sessionPayload([
                 'id' => 'student-premium',
