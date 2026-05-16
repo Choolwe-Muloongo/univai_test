@@ -7,6 +7,7 @@
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
+    "render:build": "bash scripts/render-build.sh",
     "start": "next start",
     "lint": "node scripts/lint.mjs",
     "typecheck": "tsc --noEmit"
