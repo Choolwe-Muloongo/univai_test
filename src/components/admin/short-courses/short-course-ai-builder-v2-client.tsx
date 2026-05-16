@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Textarea } from '@/components/ui/textarea';
-import { createShortCourseDraftWithBlueprint, generateAi, getCourses, getLessonsByCourse, getSchools } from '@/lib/api';
+import { createShortCourseDraftWithBlueprint, getCourses, getLessonsByCourse, getSchools } from '@/lib/api';
+import { generateShortCourseContent } from '@/lib/api/short-course-generation';
 import type { CourseBuilderBlueprint } from '@/lib/api/course-builder-types';
 import type { Course, School } from '@/lib/api/types';
 import { extractDocumentText, type DocumentExtractionProgress } from '@/lib/document-text-extractor';
@@ -112,7 +113,7 @@ export function ShortCourseAiBuilderV2Client() {
     if (!seed && !sourceText.trim()) { setError('Add a course prompt or upload at least one readable document.'); return; }
     setGenerating(true); setError(null); setMessage(null);
     try {
-      const response = await generateAi({
+      const response = await generateShortCourseContent({
         mode: 'general',
         feature: 'admin_short_course_builder_multi_document',
         audience: 'short-course learners',
