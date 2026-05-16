@@ -1,5 +1,15 @@
 type ExtractMode = 'text' | 'pdf' | 'docx' | 'image' | 'unsupported';
 
+type PdfRuntimeDocument = {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PdfRuntimePage>;
+};
+
+type PdfRuntimePage = {
+  getViewport: (options: { scale: number }) => unknown;
+  render: (options: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void> };
+};
+
 export type DocumentExtractionProgress = {
   fileName: string;
   stage: 'reading' | 'pdf-text' | 'ocr-start' | 'ocr-page' | 'ocr-image' | 'done' | 'error';
@@ -93,7 +103,7 @@ async function extractPdfText(file: File, options: ExtractOptions = {}): Promise
     }
 
     emit({ stage: 'ocr-start', percent: 46, message: 'No selectable text found. Starting OCR for all pages...' });
-    const ocrText = await ocrPdf(pdf, file.name, options);
+    const ocrText = await ocrPdf(pdf as unknown as PdfRuntimeDocument, file.name, options);
     emit({ stage: 'done', percent: 100, message: `${file.name} OCR complete.` });
     return {
       text: ocrText,
@@ -176,11 +186,11 @@ async function ocrPdfFromFile(file: File, options: ExtractOptions = {}): Promise
     disableFontFace: true,
     useSystemFonts: true,
   } as unknown as Parameters<typeof pdfjs.getDocument>[0]).promise;
-  return ocrPdf(pdf, file.name, options);
+  return ocrPdf(pdf as unknown as PdfRuntimeDocument, file.name, options);
 }
 
 async function ocrPdf(
-  pdf: { numPages: number; getPage: (pageNumber: number) => Promise<{ getViewport: (options: { scale: number }) => { width: number; height: number }; render: (options: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> } }> },
+  pdf: PdfRuntimeDocument,
   fileName: string,
   options: ExtractOptions = {},
 ): Promise<string> {
@@ -198,11 +208,12 @@ async function ocrPdf(
     });
     const page = await pdf.getPage(pageNumber);
     const viewport = page.getViewport({ scale: 2 });
+    const viewportSize = viewport as { width: number; height: number };
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) continue;
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
+    canvas.width = Math.ceil(viewportSize.width);
+    canvas.height = Math.ceil(viewportSize.height);
     await page.render({ canvasContext: context, viewport }).promise;
     const text = await recognizeImage(canvas, (ocrPercent) => {
       const pageShare = 100 / pdf.numPages;
