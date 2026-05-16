@@ -82,7 +82,8 @@ export function ShortCourseReviewClient() {
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {courses.length ? courses.map((course) => {
             const status = course.status ?? 'draft';
-            const reviewStatus = (course as any).reviewStatus ?? (course as any).review_status ?? 'needs_review';
+            const reviewStatus = (course as { reviewStatus?: string; review_status?: string }).reviewStatus ?? (course as { review_status?: string }).review_status ?? 'needs_review';
+            const lessonCount = (course as { lessonCount?: number; lesson_count?: number }).lessonCount ?? (course as { lesson_count?: number }).lesson_count ?? course.lessons?.length ?? 0;
             const busy = workingCourseId === course.id;
             return (
               <div key={course.id} className="rounded-lg border p-4">
@@ -95,7 +96,7 @@ export function ShortCourseReviewClient() {
                 </div>
                 <div className="mt-3 space-y-1 text-sm text-muted-foreground">
                   <p>Review: {reviewStatus}</p>
-                  <p>Lessons: {course.lessonCount ?? 0}</p>
+                  <p>Lessons: {lessonCount}</p>
                   <p>{course.pricingType === 'free' ? 'Free' : `${course.currency || 'ZMW'} ${course.price ?? 0}`}</p>
                 </div>
                 <div className="mt-4 grid gap-2">
