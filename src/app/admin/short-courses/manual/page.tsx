@@ -1,4 +1,4 @@
-import { DedicatedManualCourseBuilderV2Client } from '@/components/admin/short-courses/dedicated-manual-course-builder-v2-client';
+import { DedicatedManualCourseBuilderClient } from '@/components/admin/short-courses/dedicated-manual-course-builder-client';
 import { ShortCourseShell } from '@/components/admin/short-courses/short-course-shell';
 
 export default function ManualPage() {
@@ -7,7 +7,7 @@ export default function ManualPage() {
       title="Manual course builder"
       description="Build short courses manually with a guided visual studio. Use AI only when you choose to switch to the AI helper."
     >
-      <DedicatedManualCourseBuilderV2Client />
+      <DedicatedManualCourseBuilderClient />
     </ShortCourseShell>
   );
 }
