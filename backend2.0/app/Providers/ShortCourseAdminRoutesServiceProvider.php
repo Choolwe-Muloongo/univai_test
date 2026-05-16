@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Http\Controllers\Api\AdminExamQuestionsController;
 use App\Http\Controllers\Api\AdminShortCourseInsightsController;
+use App\Http\Controllers\Api\AdminShortCoursePlansController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,6 +16,8 @@ class ShortCourseAdminRoutesServiceProvider extends ServiceProvider
             ->prefix('api/admin')
             ->group(function () {
                 Route::get('/short-courses/insights', [AdminShortCourseInsightsController::class, 'index']);
+                Route::get('/short-courses/plans', [AdminShortCoursePlansController::class, 'index']);
+                Route::patch('/short-courses/plans/{code}', [AdminShortCoursePlansController::class, 'update']);
                 Route::get('/short-courses/question-bank', [AdminExamQuestionsController::class, 'index']);
                 Route::post('/short-courses/question-bank', [AdminExamQuestionsController::class, 'store']);
                 Route::post('/short-courses/question-bank/bulk', [AdminExamQuestionsController::class, 'bulkStore']);
