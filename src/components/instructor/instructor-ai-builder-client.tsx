@@ -124,7 +124,7 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
         <p className="text-sm font-medium uppercase tracking-normal text-primary">Paid AI Course Builder</p>
         <h1 className="text-3xl font-bold">Instructor AI Course Builder</h1>
         <p className="max-w-3xl text-muted-foreground">
-          Upload source material, turn rough ideas into professional short-course drafts, and keep every AI output in review before publication.
+          Upload source material, turn rough ideas into professional no-video interactive short-course drafts, and keep every AI output in review before publication.
         </p>
       </section>
 
@@ -156,7 +156,6 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
                     <option value="slides">Slides</option>
                     <option value="notes">Instructor notes</option>
                     <option value="curriculum">Curriculum</option>
-                    <option value="video_script">Video script</option>
                   </select>
                 </Field>
                 <Field label="Extracted text or source notes">
@@ -179,7 +178,7 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
                 <Field label="Output type">
                   <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={generationForm.generationType} onChange={(event) => setGenerationForm((value) => ({ ...value, generationType: event.target.value }))}>
                     <option value="course_outline">Course outline</option>
-                    <option value="lesson_pack">Lesson pack</option>
+                    <option value="lesson_pack">Interactive lesson pack</option>
                     <option value="quizzes">Quizzes</option>
                     <option value="assignment">Assignment</option>
                     <option value="certificate_exam">Certificate exam</option>
@@ -211,7 +210,7 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
                   </div>
                 </div>
                 <Field label="Prompt or rough idea">
-                  <Textarea rows={6} value={generationForm.prompt} onChange={(event) => setGenerationForm((value) => ({ ...value, prompt: event.target.value }))} placeholder="A vague prompt is fine. Example: turn this into a leadership course for new supervisors." />
+                  <Textarea rows={6} value={generationForm.prompt} onChange={(event) => setGenerationForm((value) => ({ ...value, prompt: event.target.value }))} placeholder="A vague prompt is fine. Example: create a 19-hour beginner digital marketing course." />
                 </Field>
                 <Button disabled={generating || !sources.length}>{generating ? 'Generating...' : 'Generate review-ready draft'}</Button>
               </form>
@@ -338,11 +337,21 @@ ${prompt || 'Create the strongest professional short course from the selected so
 Selected source titles:
 ${sourceTitles}
 
-UnivAI prompt engineering rules:
+UnivAI launch rules:
+- Short courses are the priority.
+- No videos for now.
+- Do not create a long article or lecture transcript.
+- Generate a self-paced course structure that can be reviewed before publishing.
 - Infer the real learner audience if the prompt is vague.
 - Turn incomplete instructions into a polished course architecture.
 - Use only instructor-uploaded source material as the academic base.
-- Generate a professional title, outcomes, lesson plan, activities, quizzes, final assessment and review checklist.
+- If a duration is supplied, such as 19 hours, 4 weeks, or 6 months, make the module and lesson count realistic for that duration.
+- Every lesson must be SoloLearn-style and card-based.
+- The AI decides the number of cards per lesson based on difficulty and topic size.
+- Questions must appear between cards after every 2-3 teaching cards.
+- At least 25% of lesson cards must be interactive.
+- Allowed card types: explanation, example, question, fill_blank, true_false, summary.
 - Mark all output as AI-generated and requiring instructor/admin review before publication.
+- Return structured JSON where possible so the output can be converted into lessons and learning objects.
 `.trim();
 }
