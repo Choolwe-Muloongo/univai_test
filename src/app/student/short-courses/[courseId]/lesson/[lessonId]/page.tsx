@@ -1,19 +1,74 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { completeShortCourseLesson, getLessonById } from '@/lib/api';
-import type { LessonWithCourseId } from '@/lib/api/types';
+
+import { LessonPlayer } from '@/components/learning/lesson-player';
+import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { completeShortCourseLesson, getCourseById, getLessonById } from '@/lib/api';
+import type { Course, LessonWithCourseId } from '@/lib/api/types';
 
 export default function ShortCourseLessonPage() {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId: string }>();
   const [lesson, setLesson] = useState<LessonWithCourseId | null>(null);
+  const [course, setCourse] = useState<Course | null>(null);
   const [complete, setComplete] = useState(false);
-  useEffect(() => { getLessonById(lessonId).then(setLesson); }, [lessonId]);
-  const markDone = async () => { await completeShortCourseLesson(courseId, lessonId); setComplete(true); };
-  if (!lesson) return <p>Loading lesson...</p>;
-  return <div className="space-y-6"><Card><CardHeader><CardTitle>{lesson.title}</CardTitle></CardHeader><CardContent className="prose max-w-none dark:prose-invert"><div dangerouslySetInnerHTML={{ __html: lesson.content }} />{lesson.videoUrl ? <iframe className="mt-6 aspect-video w-full rounded-xl" src={lesson.videoUrl} title={lesson.title} /> : null}</CardContent></Card><div className="flex items-center justify-between"><Button variant="outline" asChild><Link href={`/student/short-courses/${courseId}`}>Back to course</Link></Button><Button onClick={markDone} className="bg-[#00694E] hover:bg-[#00563f]">{complete ? 'Lesson completed' : 'Mark complete'}</Button></div></div>;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const [nextLesson, nextCourse] = await Promise.all([
+          getLessonById(lessonId),
+          getCourseById(courseId).catch(() => null),
+        ]);
+        if (!mounted) return;
+        setLesson(nextLesson);
+        setCourse(nextCourse);
+        setError(null);
+      } catch (cause) {
+        console.error('Failed to load short-course lesson', cause);
+        if (mounted) setError('This lesson is unavailable. Please refresh and try again.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [courseId, lessonId]);
+
+  async function markDone() {
+    await completeShortCourseLesson(courseId, lessonId);
+    setComplete(true);
+  }
+
+  if (loading) return <PageLoading message="Loading interactive lesson..." />;
+  if (error) return <PageError message={error} actionHref={`/student/short-courses/${courseId}`} actionLabel="Back to course" />;
+  if (!lesson) {
+    return (
+      <PageError
+        title="Lesson not found"
+        message="This lesson has not been published yet."
+        actionHref={`/student/short-courses/${courseId}`}
+        actionLabel="Back to course"
+      />
+    );
+  }
+
+  return (
+    <LessonPlayer
+      lesson={lesson}
+      courseTitle={course?.title ?? 'Short course'}
+      backHref={`/student/short-courses/${courseId}`}
+      onComplete={markDone}
+      completed={complete}
+      completeLabel="Complete lesson"
+    />
+  );
 }
