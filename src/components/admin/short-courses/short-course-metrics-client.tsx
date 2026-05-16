@@ -1,27 +1,26 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
-import { getCourses } from '@/lib/api';
-import type { Course } from '@/lib/api/types';
+import { getShortCourseInsights, type ShortCourseInsights } from '@/lib/api/academic';
 
 type ViewMode = 'enrolments' | 'learners' | 'pricing';
 
 export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [insights, setInsights] = useState<ShortCourseInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    getCourses()
+    getShortCourseInsights()
       .then((data) => {
-        if (mounted) setCourses(data);
+        if (mounted) setInsights(data);
       })
       .catch((cause) => {
-        if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load short-course data.');
+        if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load short-course insights.');
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -31,44 +30,38 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
     };
   }, []);
 
-  const stats = useMemo(() => {
-    const published = courses.filter((course) => course.status === 'published').length;
-    const drafts = courses.length - published;
-    const free = courses.filter((course) => course.pricingType === 'free' || Number(course.price ?? 0) <= 0).length;
-    const paid = courses.length - free;
-    const totalEntryValue = courses.reduce((sum, course) => sum + Number(course.price ?? 0), 0);
-    const totalCertificateValue = courses.reduce((sum, course) => sum + Number(course.certificateFee ?? 0), 0);
-    return { published, drafts, free, paid, totalEntryValue, totalCertificateValue };
-  }, [courses]);
-
-  if (loading) return <PageLoading message="Loading short-course data..." />;
+  if (loading) return <PageLoading message="Loading short-course insights..." />;
   if (error) return <PageError message={error} />;
+  if (!insights) return <PageError message="Short-course insights are unavailable." />;
+
+  const { summary, courses, enrollments } = insights;
 
   if (mode === 'pricing') {
     return (
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-4">
-          <Stat title="Paid courses" value={stats.paid} />
-          <Stat title="Free courses" value={stats.free} />
-          <Stat title="Entry value" value={`ZMW ${stats.totalEntryValue.toLocaleString()}`} />
-          <Stat title="Certificate value" value={`ZMW ${stats.totalCertificateValue.toLocaleString()}`} />
+          <Stat title="Paid courses" value={summary.paidCourses} />
+          <Stat title="Free courses" value={summary.freeCourses} />
+          <Stat title="Entry value" value={`ZMW ${summary.entryFeeValue.toLocaleString()}`} />
+          <Stat title="Certificate value" value={`ZMW ${summary.certificateFeeValue.toLocaleString()}`} />
         </div>
         <Card>
-          <CardHeader><CardTitle>Pricing table</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Live pricing table</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr><th className="py-2">Course</th><th>Status</th><th>Entry</th><th>Certificate</th><th>Level</th><th>Hours</th></tr>
+                <tr><th className="py-2">Course</th><th>Status</th><th>Review</th><th>Entry</th><th>Certificate</th><th>Enrolments</th><th>Paid</th></tr>
               </thead>
               <tbody>
                 {courses.map((course) => (
                   <tr key={course.id} className="border-t">
                     <td className="py-3 font-medium">{course.title}</td>
                     <td>{course.status ?? 'draft'}</td>
+                    <td>{course.reviewStatus ?? 'needs_review'}</td>
                     <td>{course.pricingType === 'free' || Number(course.price ?? 0) <= 0 ? 'Free' : `${course.currency || 'ZMW'} ${course.price ?? 0}`}</td>
                     <td>{Number(course.certificateFee ?? 0) <= 0 ? 'Free' : `${course.certificateCurrency || course.currency || 'ZMW'} ${course.certificateFee ?? 0}`}</td>
-                    <td>{course.level ?? 'beginner'}</td>
-                    <td>{course.durationHours ?? 0}</td>
+                    <td>{course.enrollmentCount ?? 0}</td>
+                    <td>{course.paidEnrollmentCount ?? 0}</td>
                   </tr>
                 ))}
               </tbody>
@@ -83,28 +76,33 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
     return (
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-4">
-          <Stat title="Published courses" value={stats.published} />
-          <Stat title="Draft courses" value={stats.drafts} />
-          <Stat title="Course catalogue" value={courses.length} />
-          <Stat title="Learner table" value="Ready" />
+          <Stat title="Learners" value={summary.enrollments} />
+          <Stat title="Active" value={summary.activeEnrollments} />
+          <Stat title="Completed" value={summary.completedEnrollments} />
+          <Stat title="Certificate ready" value={summary.certificateReady} />
         </div>
         <Card>
-          <CardHeader><CardTitle>Learner progress readiness</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Live learner progress</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[920px] text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr><th className="py-2">Course</th><th>Status</th><th>Lessons</th><th>Progress source</th><th>Certificate source</th></tr>
+                <tr><th className="py-2">Learner</th><th>Email</th><th>Course</th><th>Status</th><th>Progress</th><th>Exam</th><th>Certificate</th><th>Updated</th></tr>
               </thead>
               <tbody>
-                {courses.map((course) => (
-                  <tr key={course.id} className="border-t">
-                    <td className="py-3 font-medium">{course.title}</td>
-                    <td>{course.status ?? 'draft'}</td>
-                    <td>{course.lessonCount ?? 0}</td>
-                    <td>short_course_lesson_progress</td>
-                    <td>short_course_enrollments</td>
+                {enrollments.length ? enrollments.map((enrollment) => (
+                  <tr key={enrollment.id} className="border-t">
+                    <td className="py-3 font-medium">{enrollment.studentName}</td>
+                    <td>{enrollment.studentEmail ?? '—'}</td>
+                    <td>{enrollment.courseTitle}</td>
+                    <td>{enrollment.status}</td>
+                    <td>{enrollment.progress}%</td>
+                    <td>{enrollment.examScore ?? '—'}</td>
+                    <td>{enrollment.certificateIssuedAt ? 'Issued' : enrollment.certificateFeePaid ? 'Paid' : 'Pending'}</td>
+                    <td>{enrollment.updatedAt ? new Date(enrollment.updatedAt).toLocaleDateString() : '—'}</td>
                   </tr>
-                ))}
+                )) : (
+                  <tr><td className="py-6 text-muted-foreground" colSpan={8}>No short-course learners yet.</td></tr>
+                )}
               </tbody>
             </table>
           </CardContent>
@@ -116,29 +114,33 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
-        <Stat title="Published" value={stats.published} />
-        <Stat title="Drafts" value={stats.drafts} />
-        <Stat title="Free courses" value={stats.free} />
-        <Stat title="Paid courses" value={stats.paid} />
+        <Stat title="Enrolments" value={summary.enrollments} />
+        <Stat title="Entry fees paid" value={summary.entryFeesPaid} />
+        <Stat title="Certificate fees paid" value={summary.certificateFeesPaid} />
+        <Stat title="Completed" value={summary.completedEnrollments} />
       </div>
       <Card>
-        <CardHeader><CardTitle>Enrolment readiness</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Live enrolment table</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead className="text-left text-muted-foreground">
-              <tr><th className="py-2">Course</th><th>Status</th><th>Access rule</th><th>Progress</th><th>Exam</th><th>Certificate</th></tr>
+              <tr><th className="py-2">Course</th><th>Learner</th><th>Status</th><th>Entry fee</th><th>Progress</th><th>Exam</th><th>Certificate fee</th><th>Completed</th></tr>
             </thead>
             <tbody>
-              {courses.map((course) => (
-                <tr key={course.id} className="border-t">
-                  <td className="py-3 font-medium">{course.title}</td>
-                  <td>{course.status ?? 'draft'}</td>
-                  <td>{course.pricingType === 'free' || Number(course.price ?? 0) <= 0 ? 'Auto unlock' : 'Entry fee required'}</td>
-                  <td>Tracked</td>
-                  <td>{(course as any).examQuestionCount >= 25 ? 'Enabled' : 'Needs questions'}</td>
-                  <td>{Number(course.certificateFee ?? 0) <= 0 ? 'Free after completion' : 'Fee after completion'}</td>
+              {enrollments.length ? enrollments.map((enrollment) => (
+                <tr key={enrollment.id} className="border-t">
+                  <td className="py-3 font-medium">{enrollment.courseTitle}</td>
+                  <td>{enrollment.studentName}</td>
+                  <td>{enrollment.status}</td>
+                  <td>{enrollment.entryFeePaid ? 'Paid' : 'Pending'}</td>
+                  <td>{enrollment.progress}%</td>
+                  <td>{enrollment.examScore ?? '—'}</td>
+                  <td>{enrollment.certificateFeePaid ? 'Paid' : 'Pending'}</td>
+                  <td>{enrollment.completedAt ? new Date(enrollment.completedAt).toLocaleDateString() : '—'}</td>
                 </tr>
-              ))}
+              )) : (
+                <tr><td className="py-6 text-muted-foreground" colSpan={8}>No enrolments yet. Enrolments will appear here as soon as learners join short courses.</td></tr>
+              )}
             </tbody>
           </table>
         </CardContent>
