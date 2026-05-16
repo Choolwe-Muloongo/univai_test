@@ -13,6 +13,7 @@ class Lesson extends Model
 
     protected $fillable = [
         'id',
+        'course_id',
         'title',
         'summary',
         'display_order',
@@ -28,6 +29,11 @@ class Lesson extends Model
         'display_order' => 'integer',
         'published_at' => 'datetime',
     ];
+
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class, 'course_id');
+    }
 
     public function shortCourses(): BelongsToMany
     {
