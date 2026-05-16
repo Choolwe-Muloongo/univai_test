@@ -16,6 +16,27 @@ use Illuminate\Support\Str;
 
 class ShortCourseController extends Controller
 {
+    public function mine(Request $request)
+    {
+        $studentId = $this->studentId($request);
+        $enrollments = ShortCourseEnrollment::with(['course.lessons'])
+            ->where('student_id', $studentId)
+            ->latest()
+            ->get();
+
+        return response()->json($enrollments->map(fn (ShortCourseEnrollment $enrollment) => [
+            'id' => $enrollment->id,
+            'course' => $this->coursePayload($enrollment->course),
+            'status' => $enrollment->status,
+            'progress' => (int) $enrollment->progress,
+            'entryFeePaid' => (bool) $enrollment->entry_fee_paid,
+            'certificateFeePaid' => (bool) $enrollment->certificate_fee_paid,
+            'examScore' => $enrollment->exam_score,
+            'completedAt' => optional($enrollment->completed_at)->toISOString(),
+            'certificateIssuedAt' => optional($enrollment->certificate_issued_at)->toISOString(),
+        ])->values());
+    }
+
     public function enroll(Request $request, string $courseId, LencoPaymentService $lenco)
     {
         $studentId = $this->studentId($request);
@@ -78,6 +99,25 @@ class ShortCourseController extends Controller
         return response()->json(['progress' => $progress, 'completedLessons' => $done]);
     }
 
+    public function exam(Request $request, string $courseId)
+    {
+        $studentId = $this->studentId($request);
+        ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $courseId)->firstOrFail();
+        $questions = ExamQuestion::where('course_id', $courseId)->inRandomOrder()->take(25)->get();
+
+        return response()->json([
+            'courseId' => $courseId,
+            'requiredQuestions' => 25,
+            'availableQuestions' => $questions->count(),
+            'ready' => $questions->count() >= 25,
+            'questions' => $questions->map(fn ($question) => [
+                'id' => $question->id,
+                'question' => $question->question,
+                'options' => $question->options ?? [],
+            ])->values(),
+        ]);
+    }
+
     public function submitExam(Request $request, string $courseId)
     {
         $studentId = $this->studentId($request);
@@ -90,7 +130,7 @@ class ShortCourseController extends Controller
             ], 422);
         }
 
-        $selectedQuestions = $allQuestions->shuffle()->take(25)->values();
+        $selectedQuestions = $allQuestions->take(25)->values();
         $correct = $selectedQuestions->filter(fn ($q, $index) => ($payload['answers'][$index] ?? null) === $q->answer)->count();
         $score = round(($correct / $selectedQuestions->count()) * 100, 2);
 
@@ -114,6 +154,11 @@ class ShortCourseController extends Controller
         }
 
         $fee = LaunchFeeSchedule::shortCourseCertificateFee($course);
+        if ((float) $fee['amount'] <= 0 || $enrollment->certificate_fee_paid) {
+            $enrollment->update(['certificate_fee_paid' => true]);
+            return response()->json(['status' => 'paid', 'checkout_url' => null]);
+        }
+
         $invoice = $this->invoiceFor($studentId, $course, 'certificate_fee', 'Certificate fee: ' . $course->title, $fee);
         return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id]);
     }
@@ -157,5 +202,33 @@ class ShortCourseController extends Controller
                 'due_date' => now()->addDays(7),
             ]
         );
+    }
+
+    private function coursePayload(?Course $course): ?array
+    {
+        if (!$course) {
+            return null;
+        }
+
+        return [
+            'id' => $course->id,
+            'title' => $course->title,
+            'description' => $course->description,
+            'schoolId' => $course->school_id,
+            'imageId' => $course->image_id,
+            'pricingType' => $course->pricing_type,
+            'price' => $course->price,
+            'currency' => $course->currency,
+            'certificateFee' => $course->certificate_fee,
+            'certificateCurrency' => $course->certificate_currency,
+            'durationHours' => $course->duration_hours,
+            'level' => $course->level,
+            'status' => $course->status,
+            'lessons' => $course->lessons?->map(fn ($lesson) => [
+                'id' => $lesson->id,
+                'title' => $lesson->title,
+                'summary' => $lesson->summary ?? null,
+            ])->values(),
+        ];
     }
 }
