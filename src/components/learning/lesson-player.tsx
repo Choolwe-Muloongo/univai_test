@@ -9,10 +9,33 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import type { LessonBlock, LessonWithCourseId } from '@/lib/api/types';
+import type { LessonWithCourseId } from '@/lib/api/types';
+
+type LessonBlockType = 'explanation' | 'example' | 'question' | 'fill_blank' | 'true_false' | 'summary';
+
+type LessonBlock = {
+  type: LessonBlockType | string;
+  title?: string;
+  body?: string;
+  code?: string;
+  question?: string;
+  options?: string[];
+  correctAnswer?: string | boolean;
+  answer?: string | boolean;
+  explanation?: string;
+  text?: string;
+  statement?: string;
+};
+
+type PlayableLesson = Partial<LessonWithCourseId> & {
+  title: string;
+  summary?: string | null;
+  estimatedMinutes?: number | null;
+  difficulty?: string | null;
+};
 
 type LessonPlayerProps = {
-  lesson: Partial<LessonWithCourseId> & { title: string };
+  lesson: PlayableLesson;
   courseTitle?: string;
   backHref?: string;
   onComplete?: () => Promise<void> | void;
@@ -231,14 +254,14 @@ function BlockContent({ block }: { block: LessonBlock }) {
   return <p className="text-base leading-7 text-muted-foreground">{block.body}</p>;
 }
 
-function normalizeLessonBlocks(lesson: Partial<LessonWithCourseId> & { title: string }): LessonBlock[] {
+function normalizeLessonBlocks(lesson: PlayableLesson): LessonBlock[] {
   const fromLearningObjects = lesson.learningObjects
     ?.flatMap((object) => {
       const payloadBlocks = readBlocksFromUnknown(object.payload);
       if (payloadBlocks.length) return payloadBlocks;
       const bodyBlocks = readBlocksFromUnknown(parseMaybeJson(object.body));
       if (bodyBlocks.length) return bodyBlocks;
-      if (object.body) {
+      if (object.body && object.type !== 'video') {
         return [{ type: 'explanation', title: object.title, body: stripHtml(object.body) } satisfies LessonBlock];
       }
       return [];
@@ -293,19 +316,20 @@ function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
   return cleaned;
 }
 
-function normalizeBlockType(type: string): LessonBlock['type'] {
+function normalizeBlockType(type: string): LessonBlockType {
   if (type === 'multiple_choice' || type === 'mcq' || type === 'checkpoint') return 'question';
   if (type === 'fill-in-the-blank') return 'fill_blank';
   if (type === 'truefalse') return 'true_false';
   if (type === 'content' || type === 'read') return 'explanation';
-  return type as LessonBlock['type'];
+  if (['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'].includes(type)) return type as LessonBlockType;
+  return 'explanation';
 }
 
 function evaluateAnswer(block: LessonBlock, rawAnswer: string): AnswerState | null {
   if (!interactiveTypes.has(block.type)) return null;
   const expected = block.type === 'true_false'
-    ? String(block.correctAnswer)
-    : String(block.correctAnswer ?? '');
+    ? String(block.correctAnswer ?? block.answer)
+    : String(block.correctAnswer ?? block.answer ?? '');
   const actual = rawAnswer;
   const isCorrect = normalizeAnswer(actual) === normalizeAnswer(expected);
   return {
@@ -315,7 +339,7 @@ function evaluateAnswer(block: LessonBlock, rawAnswer: string): AnswerState | nu
 }
 
 function titleForBlock(block: LessonBlock) {
-  if ('title' in block && block.title) return block.title;
+  if (block.title) return block.title;
   if (block.type === 'question') return 'Quick check';
   if (block.type === 'fill_blank') return 'Fill in the blank';
   if (block.type === 'true_false') return 'True or false';
