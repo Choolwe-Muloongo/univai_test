@@ -146,10 +146,11 @@ class AdminCatalogController extends Controller
         $courseSummary = $blueprint['courseSummary'] ?? [];
         $lessons = $this->lessonsFromBlueprint($blueprint);
         $replaceExistingContent = !empty($coursePayload['id']) && Course::where('id', $coursePayload['id'])->exists();
+        $description = trim((string) ($coursePayload['description'] ?? ''));
 
         $request->replace(array_merge($coursePayload, [
             'title' => $coursePayload['title'] ?? $courseSummary['title'] ?? 'New short course',
-            'description' => $coursePayload['description'] ?? $courseSummary['description'] ?? 'AI-assisted short course draft.',
+            'description' => $description !== '' ? $description : ($courseSummary['description'] ?? 'Manual short course draft.'),
             'durationHours' => $coursePayload['durationHours'] ?? $courseSummary['totalDurationHours'] ?? 0,
             'level' => $coursePayload['level'] ?? $courseSummary['level'] ?? 'beginner',
             'modules' => $blueprint['modules'] ?? [],
@@ -322,6 +323,7 @@ class AdminCatalogController extends Controller
             $lesson = Lesson::updateOrCreate(
                 ['id' => $lessonId],
                 [
+                    'course_id' => $course->id,
                     'title' => $lessonTitle,
                     'summary' => $lessonPayload['summary'] ?? $lessonPayload['assessment'] ?? null,
                     'display_order' => $lessonPayload['sortOrder'] ?? $index,
