@@ -91,13 +91,42 @@ export function buildApiUrl(path: string) {
   return `${cleanBase}${apiPath}`;
 }
 
+function guardReviewedPublishing(path: string, body: BodyInit | null | undefined): BodyInit | null | undefined {
+  const isNormalCourseSave = path === '/admin/courses' || path === '/admin/short-courses/drafts';
+  const isReviewedPublish = /^\/admin\/courses\/[^/]+\/publish-reviewed$/.test(path);
+
+  if (!isNormalCourseSave || isReviewedPublish || typeof body !== 'string') {
+    return body;
+  }
+
+  try {
+    const payload = JSON.parse(body) as Record<string, unknown>;
+
+    if (path === '/admin/short-courses/drafts' && payload.course && typeof payload.course === 'object') {
+      return JSON.stringify({
+        ...payload,
+        course: {
+          ...(payload.course as Record<string, unknown>),
+          status: 'draft',
+        },
+      });
+    }
+
+    return JSON.stringify({ ...payload, status: 'draft' });
+  } catch {
+    return body;
+  }
+}
+
 export async function apiFetch<T>(
   path: string,
-  { parseJson = true, headers, ...options }: FetchOptions = {}
+  { parseJson = true, headers, body, ...options }: FetchOptions = {}
 ): Promise<T> {
   const url = buildApiUrl(path);
+  const guardedBody = guardReviewedPublishing(path, body);
   const response = await fetch(url, {
     ...options,
+    body: guardedBody,
     headers: {
       'Content-Type': 'application/json',
       ...(headers || {}),
