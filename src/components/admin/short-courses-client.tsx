@@ -23,6 +23,25 @@ const blankStructure: AdminAcademicStructureResponse = {
   practicalSessions: [],
 };
 
+type LessonCardBlock =
+  | { type: 'explanation'; title: string; body: string }
+  | { type: 'example'; title: string; body: string; code?: string | null }
+  | { type: 'question'; title?: string; question: string; options: string[]; correctAnswer: string; explanation: string }
+  | { type: 'fill_blank'; title?: string; text: string; correctAnswer: string; explanation: string }
+  | { type: 'true_false'; title?: string; statement: string; correctAnswer: boolean; explanation: string }
+  | { type: 'summary'; title?: string; body: string };
+
+type CardLesson = {
+  title: string;
+  summary: string;
+  durationMinutes: number;
+  difficulty?: string;
+  outcomes: string[];
+  blocks: LessonCardBlock[];
+  activities: string[];
+  assessment: string;
+};
+
 export function ShortCoursesClient() {
   const [schools, setSchools] = useState<School[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -53,10 +72,12 @@ export function ShortCoursesClient() {
   const derivedModules = aiBlueprint?.modules.length ?? 0;
   const derivedLessons = aiBlueprint?.modules.reduce((sum, module) => sum + module.lessons.length, 0) ?? 0;
   const derivedOutcomes = aiBlueprint?.courseSummary.outcomes.length ?? 0;
+  const derivedCardLessons = aiBlueprint?.modules.every((module) => module.lessons.every((lesson) => Array.isArray((lesson as CardLesson).blocks) && (lesson as CardLesson).blocks.length >= 3)) ?? false;
   const checklist = [
     { label: 'At least 1 module', done: derivedModules > 0 },
     { label: 'At least 1 lesson', done: derivedLessons > 0 },
     { label: 'At least 1 learning outcome', done: derivedOutcomes > 0 },
+    { label: 'Playable lesson cards', done: derivedCardLessons },
   ];
   const canPublish = checklist.every((item) => item.done);
 
@@ -113,7 +134,7 @@ export function ShortCoursesClient() {
           deliveryMode: selectedProgrammeCourse?.deliveryMode,
         }),
         feature: 'admin_short_course_builder',
-        mode: 'professional_course_blueprint',
+        mode: 'general',
         audience: 'short-course learners',
         brandContext: 'UnivAI uses AI-powered learning, human-reviewed academic content and instructor/lecturer supervision.',
       });
@@ -148,6 +169,17 @@ export function ShortCoursesClient() {
         : null;
       const cleanId = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
+      const lessons = aiBlueprint?.modules.flatMap((module, moduleIndex) => module.lessons.map((lesson, lessonIndex) => {
+        const cardLesson = lesson as CardLesson;
+        return {
+          ...lesson,
+          moduleTitle: module.title,
+          moduleIndex,
+          sortOrder: moduleIndex * 100 + lessonIndex,
+          blocks: cardLesson.blocks?.length ? cardLesson.blocks : buildFallbackBlocks(cardLesson),
+        };
+      })) ?? [];
+
       const coursePayload = {
         id: cleanId || `short-course-${Date.now()}`,
         title: form.title,
@@ -169,13 +201,22 @@ export function ShortCoursesClient() {
         level: form.level,
         status: form.status,
         modules: aiBlueprint?.modules.map((module) => ({ title: module.title, description: module.description })) ?? [],
-        lessons: aiBlueprint?.modules.flatMap((module) => module.lessons.map((lesson) => ({ title: lesson.title, summary: lesson.summary }))) ?? [],
+        lessons,
         outcomes: aiBlueprint?.courseSummary.outcomes ?? [],
       };
       if (aiBlueprint) {
         await createShortCourseDraftWithBlueprint({
           course: coursePayload,
-          blueprint: aiBlueprint,
+          blueprint: {
+            ...aiBlueprint,
+            modules: aiBlueprint.modules.map((module) => ({
+              ...module,
+              lessons: module.lessons.map((lesson) => ({
+                ...lesson,
+                blocks: (lesson as CardLesson).blocks?.length ? (lesson as CardLesson).blocks : buildFallbackBlocks(lesson as CardLesson),
+              })),
+            })),
+          } as AiShortCourseBlueprint,
           sourceMode,
           programmeTitle: selectedProgram?.title ?? null,
           programmeCourseTitle: selectedProgrammeCourse?.moduleTitle || selectedProgrammeCourse?.courseTitle || null,
@@ -203,7 +244,7 @@ export function ShortCoursesClient() {
         <p className="text-sm font-medium uppercase tracking-normal text-primary">Short Courses</p>
         <h1 className="text-3xl font-bold">Course catalogue and AI builder</h1>
         <p className="max-w-3xl text-muted-foreground">
-          Create practical short courses, set entry/certificate fees and use AI for draft outlines before human review.
+          Create practical short courses, set entry/certificate fees and use AI to build playable SoloLearn-style lesson cards before human review.
         </p>
       </section>
 
@@ -270,10 +311,10 @@ export function ShortCoursesClient() {
                   rows={5}
                   value={aiPrompt}
                   onChange={(event) => setAiPrompt(event.target.value)}
-                  placeholder="A rough idea is enough. Example: teach nurses data basics, or turn database systems into a beginner short course."
+                  placeholder="A rough idea is enough. Example: create a 19-hour beginner digital marketing course with interactive lessons."
                 />
                 <p className="text-xs text-muted-foreground">
-                  UnivAI will expand vague prompts into a professional course blueprint with outcomes, modules, lessons, quizzes, assessment and certificate criteria.
+                  UnivAI will expand vague prompts into a professional course with modules, playable lesson cards, questions between cards, assessment and certificate criteria.
                 </p>
               </div>
               <Field label="Entry fee"><Input type="number" min={0} value={form.price} onChange={(event) => setForm((value) => ({ ...value, price: event.target.value }))} /></Field>
@@ -289,7 +330,7 @@ export function ShortCoursesClient() {
               <div className="space-y-2 rounded-md border p-3 text-sm sm:col-span-2">
                 <p className="font-medium">Publish checklist</p>
                 {checklist.map((item) => <p key={item.label} className={item.done ? 'text-green-600' : 'text-muted-foreground'}>{item.done ? '✓' : '•'} {item.label}</p>)}
-                {!canPublish && form.status === 'published' ? <p className="text-xs text-destructive">Generate/edit the AI outline so it includes modules, lessons and outcomes before publishing.</p> : null}
+                {!canPublish && form.status === 'published' ? <p className="text-xs text-destructive">Generate/edit the AI outline so it includes playable lessons before publishing.</p> : null}
               </div>
               <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row">
                 <Button type="button" variant="outline" onClick={generateOutline} disabled={aiLoading || !(aiPrompt || form.title || programmeCourseId)}>{aiLoading ? 'Generating...' : 'Generate professional course with AI'}</Button>
@@ -302,7 +343,7 @@ export function ShortCoursesClient() {
                     setAiFailedFallback(true);
                   }}
                 >
-                  AI failed, continue manually
+                  Continue manually
                 </Button>
                 <Button disabled={saving || !form.schoolId || (form.status === 'published' && !canPublish)}>{saving ? 'Saving...' : form.status === 'published' ? 'Create as live' : 'Save draft'}</Button>
               </div>
@@ -319,7 +360,7 @@ export function ShortCoursesClient() {
               {aiOutline || 'AI-generated course outlines appear here. They remain drafts until reviewed.'}
             </p>
             {aiBlueprint ? <pre className="mt-4 overflow-auto rounded border bg-muted p-3 text-xs">{JSON.stringify(aiBlueprint, null, 2)}</pre> : null}
-            {aiFailedFallback ? <p className="mt-3 text-xs text-amber-700">AI failed or output was malformed. Manual scaffold has been prepared so instructors/admin can continue editing.</p> : null}
+            {aiFailedFallback ? <p className="mt-3 text-xs text-amber-700">AI failed or output was malformed. Manual scaffold has playable lesson cards so admin can continue editing.</p> : null}
           </CardContent>
         </Card>
       </div>
@@ -372,10 +413,10 @@ function buildProfessionalShortCoursePrompt(input: {
   deliveryMode?: string;
 }) {
   return `
-You are UnivAI's senior academic course architect and instructional designer.
+You are UnivAI Institute's senior academic course architect and instructional designer.
 
 Task:
-Turn the user's rough or vague idea into a professional, human-review-ready short course blueprint.
+Turn the user's rough or vague idea into a professional, human-review-ready short course that can be published into UnivAI's SoloLearn-style lesson viewer.
 
 User idea:
 ${input.userPrompt}
@@ -397,19 +438,36 @@ This short course is being adapted from a formal UnivAI programme course.
 Adapt it as a standalone short course without weakening academic quality. Do not claim it awards transcript credit unless admin explicitly configures that later.
 ` : ''}
 
-Requirements:
+Course requirements:
 1. Infer the learner audience even if the prompt is vague.
 2. Produce a polished market-ready title.
 3. Write a concise course description.
 4. Define 5-8 measurable learning outcomes.
 5. Create a module-by-module outline with lessons.
-6. Include practical activities and AI-powered study support.
-7. Include quiz ideas, final assessment, pass criteria, and certificate eligibility.
-8. Include prerequisites or "no prior experience required" where appropriate.
+6. Build realistic lesson counts for the requested duration.
+7. Keep the course self-paced by default.
+8. Include practical activities, quizzes, final assessment, pass criteria, and certificate eligibility.
 9. Keep official content human-reviewed and lecturer/instructor supervised.
 10. Avoid hype, fake accreditation claims, and promises of jobs.
 
-Return ONLY valid JSON matching this strict schema:
+Lesson-card rules:
+- No videos for now.
+- Every lesson must include playable blocks.
+- Allowed block types only: explanation, example, question, fill_blank, true_false, summary.
+- AI must decide the number of cards per lesson.
+- Simple lesson: 6-10 cards.
+- Normal lesson: 10-18 cards.
+- Complex lesson: 18-30 cards.
+- If a lesson needs more than 30 cards, split it into multiple lessons.
+- Put questions between teaching cards, not only at the end.
+- Add a checkpoint after every 2-3 explanation/example cards.
+- At least 25% of cards must be interactive question/fill_blank/true_false cards.
+- No more than 3 teaching cards in a row without a question.
+- Each card teaches one idea only.
+
+Return ONLY valid JSON. Do not use markdown. Do not wrap JSON in code fences.
+
+Strict schema:
 {
   "courseSummary": {
     "title": "string",
@@ -417,7 +475,7 @@ Return ONLY valid JSON matching this strict schema:
     "level": "string",
     "description": "string",
     "prerequisites": ["string"],
-    "totalDurationHours": "number",
+    "totalDurationHours": 0,
     "outcomes": ["string"],
     "finalAssessment": "string",
     "certificateCriteria": "string"
@@ -431,15 +489,24 @@ Return ONLY valid JSON matching this strict schema:
     {
       "title": "string",
       "description": "string",
-      "durationMinutes": "number",
+      "durationMinutes": 0,
       "outcomes": ["string"],
       "moduleAssessment": "string",
       "lessons": [
         {
           "title": "string",
           "summary": "string",
-          "durationMinutes": "number",
+          "durationMinutes": 0,
+          "difficulty": "beginner",
           "outcomes": ["string"],
+          "blocks": [
+            { "type": "explanation", "title": "string", "body": "string" },
+            { "type": "example", "title": "string", "body": "string", "code": "optional string" },
+            { "type": "question", "question": "string", "options": ["A", "B", "C", "D"], "correctAnswer": "string", "explanation": "string" },
+            { "type": "fill_blank", "text": "string with ____ blank", "correctAnswer": "string", "explanation": "string" },
+            { "type": "true_false", "statement": "string", "correctAnswer": true, "explanation": "string" },
+            { "type": "summary", "body": "string" }
+          ],
           "activities": ["string"],
           "assessment": "string"
         }
@@ -451,9 +518,10 @@ Return ONLY valid JSON matching this strict schema:
 }
 
 function parseAiShortCourseBlueprint(raw: string): AiShortCourseBlueprint {
+  const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(cleaned);
   } catch {
     throw new Error('AI returned non-JSON output. Use manual fallback or regenerate.');
   }
@@ -464,13 +532,36 @@ function parseAiShortCourseBlueprint(raw: string): AiShortCourseBlueprint {
   if (!candidate.modules.every((module) => module.title && Array.isArray(module.lessons) && module.lessons.length > 0)) {
     throw new Error('AI module/lesson structure is incomplete. Use manual fallback or repair manually.');
   }
+  if (!candidate.modules.every((module) => module.lessons.every((lesson) => Array.isArray((lesson as CardLesson).blocks) && (lesson as CardLesson).blocks.length >= 3))) {
+    throw new Error('AI returned lessons without playable cards. Use manual fallback or regenerate.');
+  }
   return candidate;
 }
 
+function buildFallbackBlocks(lesson: Partial<CardLesson>): LessonCardBlock[] {
+  return [
+    { type: 'explanation', title: 'Core idea', body: lesson.summary || 'This lesson introduces the main idea.' },
+    { type: 'example', title: 'Simple example', body: 'Connect this concept to a practical situation before moving on.' },
+    { type: 'question', question: 'What should you do after learning a new concept?', options: ['Skip practice', 'Connect it to an example', 'Ignore feedback', 'Memorize blindly'], correctAnswer: 'Connect it to an example', explanation: 'Examples help turn a concept into understanding.' },
+    { type: 'summary', body: lesson.assessment || 'You have completed the main idea for this lesson.' },
+  ];
+}
+
 function buildManualScaffold(seed: string, level: string, durationHours: number): AiShortCourseBlueprint {
+  const title = deriveShortCourseTitle(seed) || 'New short course draft';
+  const lesson: CardLesson = {
+    title: 'Lesson 1 (edit)',
+    summary: 'Add lesson summary.',
+    durationMinutes: 45,
+    difficulty: level || 'beginner',
+    outcomes: ['Lesson outcome 1 (edit)'],
+    blocks: buildFallbackBlocks({ summary: 'Add lesson summary.', assessment: 'Lesson check pending.' }),
+    activities: ['Activity 1 (edit)'],
+    assessment: 'Lesson check pending.',
+  };
   return {
     courseSummary: {
-      title: deriveShortCourseTitle(seed) || 'New short course draft',
+      title,
       audience: 'General learners',
       level: level || 'beginner',
       description: 'Manual scaffold created after AI generation failure. Update all fields before publishing.',
@@ -491,14 +582,7 @@ function buildManualScaffold(seed: string, level: string, durationHours: number)
       durationMinutes: Math.max(60, Math.round((durationHours * 60) / 2)),
       outcomes: ['Module outcome 1 (edit)'],
       moduleAssessment: 'Module assessment pending.',
-      lessons: [{
-        title: 'Lesson 1 (edit)',
-        summary: 'Add lesson summary.',
-        durationMinutes: 45,
-        outcomes: ['Lesson outcome 1 (edit)'],
-        activities: ['Activity 1 (edit)'],
-        assessment: 'Lesson check pending.',
-      }],
+      lessons: [lesson as any],
     }],
   };
 }
