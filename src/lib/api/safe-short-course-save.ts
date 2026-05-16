@@ -5,6 +5,16 @@ function forceDraftCourse<T extends Record<string, unknown>>(course: T): T {
   return { ...course, status: 'draft' };
 }
 
+function normalizeDraftPayload(payload: ShortCourseDraftCreatePayload): ShortCourseDraftCreatePayload {
+  const sourceMode = payload.sourceMode === 'manual-studio' ? 'new' : payload.sourceMode;
+
+  return {
+    ...payload,
+    sourceMode,
+    course: forceDraftCourse(payload.course as unknown as Record<string, unknown>),
+  } as ShortCourseDraftCreatePayload;
+}
+
 export async function saveShortCourseDraft(course: CoursePayload): Promise<Course> {
   return apiFetch('/admin/courses', {
     method: 'POST',
@@ -15,9 +25,6 @@ export async function saveShortCourseDraft(course: CoursePayload): Promise<Cours
 export async function saveShortCourseDraftWithBlueprint(payload: ShortCourseDraftCreatePayload): Promise<Course> {
   return apiFetch('/admin/short-courses/drafts', {
     method: 'POST',
-    body: JSON.stringify({
-      ...payload,
-      course: forceDraftCourse(payload.course as unknown as Record<string, unknown>),
-    }),
+    body: JSON.stringify(normalizeDraftPayload(payload)),
   });
 }
