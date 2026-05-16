@@ -90,9 +90,7 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        return response()->json([
-            'user' => $request->session()->get('user'),
-        ]);
+        return response()->json(['user' => $request->session()->get('user')]);
     }
 
     public function logout(Request $request)
@@ -117,10 +115,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        $user->update([
-            'password' => Hash::make($payload['password']),
-        ]);
-
+        $user->update(['password' => Hash::make($payload['password'])]);
         return response()->json(['status' => 'ok']);
     }
 
@@ -241,6 +236,70 @@ class AuthController extends Controller
                 'programId' => 'cs101',
                 'intakeId' => 'cs101-2026-jan',
             ]),
+            'lecturer' => [
+                'id' => 'lecturer-1',
+                'name' => 'Lecturer',
+                'email' => 'lecturer@univai.edu',
+                'role' => 'lecturer',
+                'schoolId' => 'ict',
+                'programId' => null,
+                'intakeId' => null,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
+                'profileCompleted' => true,
+                'profileStarted' => true,
+                'subscriptionStatus' => 'active',
+                'subscriptionTier' => 'staff',
+                'entitlements' => ['lecturer_portal'],
+            ],
+            'employer' => [
+                'id' => 'employer-1',
+                'name' => 'Employer',
+                'email' => 'employer@univai.edu',
+                'role' => 'employer',
+                'schoolId' => null,
+                'programId' => null,
+                'intakeId' => null,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
+                'profileCompleted' => true,
+                'profileStarted' => true,
+                'subscriptionStatus' => 'active',
+                'subscriptionTier' => 'employer',
+                'entitlements' => ['employer_portal'],
+            ],
+            'instructor' => [
+                'id' => 'instructor-1',
+                'name' => 'Instructor',
+                'email' => 'instructor@univai.edu',
+                'role' => 'instructor',
+                'schoolId' => null,
+                'programId' => null,
+                'intakeId' => null,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
+                'profileCompleted' => true,
+                'profileStarted' => true,
+                'subscriptionStatus' => 'active',
+                'subscriptionTier' => 'instructor',
+                'entitlements' => ['instructor_portal', 'instructor_ai'],
+            ],
+            'admin' => [
+                'id' => 'admin-1',
+                'name' => 'Admin',
+                'email' => 'admin@univai.edu',
+                'role' => 'admin',
+                'schoolId' => null,
+                'programId' => null,
+                'intakeId' => null,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
+                'profileCompleted' => true,
+                'profileStarted' => true,
+                'subscriptionStatus' => 'active',
+                'subscriptionTier' => 'staff',
+                'entitlements' => ['admin_academic', 'admin_users', 'admin_finance'],
+            ],
             default => StudentAccess::sessionPayload([
                 'id' => 'student-premium',
                 'name' => 'Premium Student',
