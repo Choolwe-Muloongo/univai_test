@@ -99,6 +99,98 @@ class ShortCourseController extends Controller
         return response()->json(['progress' => $progress, 'completedLessons' => $done]);
     }
 
+    public function practice(Request $request, string $courseId)
+    {
+        $this->studentId($request);
+        $payload = $request->validate([
+            'difficulty' => ['nullable', 'string'],
+            'count' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'questionType' => ['nullable', 'string'],
+            'lessonId' => ['nullable', 'string'],
+            'sections' => ['nullable', 'array'],
+            'sections.*.title' => ['nullable', 'string'],
+            'sections.*.difficulty' => ['nullable', 'string'],
+            'sections.*.questionType' => ['nullable', 'string'],
+            'sections.*.count' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'sections.*.timeMinutes' => ['nullable', 'integer', 'min:1', 'max:240'],
+        ]);
+
+        $sections = $payload['sections'] ?? [[
+            'title' => ucfirst(str_replace('_', ' ', $payload['difficulty'] ?? 'easy')) . ' practice',
+            'difficulty' => $payload['difficulty'] ?? 'easy',
+            'questionType' => $payload['questionType'] ?? null,
+            'count' => $payload['count'] ?? 10,
+            'timeMinutes' => $this->defaultPracticeMinutes($payload['difficulty'] ?? 'easy', $payload['count'] ?? 10),
+        ]];
+
+        $builtSections = collect($sections)->map(function (array $section, int $index) use ($courseId, $payload) {
+            $query = ExamQuestion::where('course_id', $courseId);
+            if (!empty($section['difficulty'])) {
+                $query->where('difficulty', $section['difficulty']);
+            }
+            if (!empty($section['questionType'])) {
+                $query->where('question_type', $section['questionType']);
+            }
+            if (!empty($payload['lessonId'])) {
+                $query->where('lesson_id', $payload['lessonId']);
+            }
+            $count = (int) ($section['count'] ?? 10);
+            $questions = $query->inRandomOrder()->take($count)->get();
+            $timeMinutes = (int) ($section['timeMinutes'] ?? $this->defaultPracticeMinutes($section['difficulty'] ?? 'easy', $count));
+
+            return [
+                'id' => 'section-' . ($index + 1),
+                'title' => $section['title'] ?? ('Section ' . ($index + 1)),
+                'difficulty' => $section['difficulty'] ?? 'mixed',
+                'questionType' => $section['questionType'] ?? 'mixed',
+                'timeMinutes' => $timeMinutes,
+                'questions' => $questions->map(fn (ExamQuestion $question) => $this->questionPayload($question))->values(),
+            ];
+        })->values();
+
+        return response()->json([
+            'courseId' => $courseId,
+            'sections' => $builtSections,
+            'totalQuestions' => $builtSections->sum(fn ($section) => count($section['questions'])),
+            'totalTimeMinutes' => $builtSections->sum('timeMinutes'),
+        ]);
+    }
+
+    public function submitPractice(Request $request, string $courseId)
+    {
+        $this->studentId($request);
+        $payload = $request->validate([
+            'answers' => ['required', 'array'],
+            'answers.*.questionId' => ['required'],
+            'answers.*.answer' => ['nullable', 'string'],
+        ]);
+
+        $questionIds = collect($payload['answers'])->pluck('questionId')->filter()->values();
+        $questions = ExamQuestion::where('course_id', $courseId)->whereIn('id', $questionIds)->get()->keyBy('id');
+        $correct = 0;
+        $results = collect($payload['answers'])->map(function (array $answer) use ($questions, &$correct) {
+            $question = $questions->get($answer['questionId']);
+            $isCorrect = $question && trim((string) ($answer['answer'] ?? '')) === trim((string) $question->answer);
+            if ($isCorrect) {
+                $correct++;
+            }
+            return [
+                'questionId' => $answer['questionId'],
+                'correct' => $isCorrect,
+                'answer' => $question?->answer,
+                'explanation' => $question?->explanation,
+            ];
+        });
+
+        $total = max(1, $results->count());
+        return response()->json([
+            'score' => round(($correct / $total) * 100, 2),
+            'correct' => $correct,
+            'total' => $results->count(),
+            'results' => $results->values(),
+        ]);
+    }
+
     public function exam(Request $request, string $courseId)
     {
         $studentId = $this->studentId($request);
@@ -110,11 +202,7 @@ class ShortCourseController extends Controller
             'requiredQuestions' => 25,
             'availableQuestions' => $questions->count(),
             'ready' => $questions->count() >= 25,
-            'questions' => $questions->map(fn ($question) => [
-                'id' => $question->id,
-                'question' => $question->question,
-                'options' => $question->options ?? [],
-            ])->values(),
+            'questions' => $questions->map(fn (ExamQuestion $question) => $this->questionPayload($question, false))->values(),
         ]);
     }
 
@@ -230,5 +318,37 @@ class ShortCourseController extends Controller
                 'summary' => $lesson->summary ?? null,
             ])->values(),
         ];
+    }
+
+    private function questionPayload(ExamQuestion $question, bool $includeAnswer = false): array
+    {
+        $payload = [
+            'id' => $question->id,
+            'question' => $question->question,
+            'questionType' => $question->question_type ?? 'mcq',
+            'options' => $question->options ?? [],
+            'difficulty' => $question->difficulty ?? 'easy',
+            'timeSeconds' => $question->time_seconds ?? 60,
+            'lessonId' => $question->lesson_id,
+            'tags' => $question->tags ?? [],
+        ];
+
+        if ($includeAnswer) {
+            $payload['answer'] = $question->answer;
+            $payload['explanation'] = $question->explanation;
+        }
+
+        return $payload;
+    }
+
+    private function defaultPracticeMinutes(string $difficulty, int $count): int
+    {
+        $seconds = match ($difficulty) {
+            'medium' => 60,
+            'hard' => 90,
+            'very_hard' => 120,
+            default => 45,
+        };
+        return max(1, (int) ceil(($seconds * $count) / 60));
     }
 }
