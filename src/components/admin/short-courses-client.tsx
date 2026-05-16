@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Textarea } from '@/components/ui/textarea';
-import { createCourse, createShortCourseDraftWithBlueprint, generateAi, getAdminAcademicStructure, getCourses, getPrograms, getSchools } from '@/lib/api';
-import type { AdminAcademicStructureResponse, AiShortCourseBlueprint, Course, Program, School } from '@/lib/api/types';
+import { createCourse, createShortCourseDraftWithBlueprint, generateAi, getAdminAcademicStructure, getCourses, getLessonsByCourse, getPrograms, getSchools } from '@/lib/api';
+import type { CourseBuilderBlueprint, CourseBuilderLesson, CourseBuilderModule, CourseBuilderSelection, LessonCardBlock } from '@/lib/api/course-builder-types';
+import type { AdminAcademicStructureResponse, Course, Lesson, Program, School } from '@/lib/api/types';
 
 const blankStructure: AdminAcademicStructureResponse = {
   departments: [],
@@ -24,32 +25,14 @@ const blankStructure: AdminAcademicStructureResponse = {
   practicalSessions: [],
 };
 
-type LessonCardBlock =
-  | { type: 'explanation'; title: string; body: string }
-  | { type: 'example'; title: string; body: string; code?: string | null }
-  | { type: 'question'; title?: string; question: string; options: string[]; correctAnswer: string; explanation: string }
-  | { type: 'fill_blank'; title?: string; text: string; correctAnswer: string; explanation: string }
-  | { type: 'true_false'; title?: string; statement: string; correctAnswer: boolean; explanation: string }
-  | { type: 'summary'; title?: string; body: string };
-
-type CardLesson = {
-  title: string;
-  summary: string;
-  durationMinutes: number;
-  difficulty?: string;
-  outcomes: string[];
-  blocks: LessonCardBlock[];
-  subLessons?: CardLesson[];
-  activities: string[];
-  assessment: string;
-};
-
-type CardModule = AiShortCourseBlueprint['modules'][number] & { lessons: CardLesson[] };
-type EditableBlueprint = AiShortCourseBlueprint & { modules: CardModule[] };
-type Selection = { moduleIndex: number; lessonIndex: number; subLessonIndex?: number | null; cardIndex: number };
-
 const interactiveTypes = new Set(['question', 'fill_blank', 'true_false']);
 const teachingTypes = new Set(['explanation', 'example', 'summary']);
+
+type AiRevision = {
+  scope: 'course' | 'module' | 'lesson' | 'card';
+  payload: unknown;
+  raw: string;
+};
 
 export function ShortCoursesClient() {
   const [schools, setSchools] = useState<School[]>([]);
@@ -60,15 +43,18 @@ export function ShortCoursesClient() {
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiEditing, setAiEditing] = useState(false);
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  const [loadingCourseId, setLoadingCourseId] = useState<string | null>(null);
+  const [pendingRevision, setPendingRevision] = useState<AiRevision | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aiOutline, setAiOutline] = useState('');
-  const [aiBlueprint, setAiBlueprint] = useState<EditableBlueprint | null>(null);
+  const [aiBlueprint, setAiBlueprint] = useState<CourseBuilderBlueprint | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiActionPrompt, setAiActionPrompt] = useState('');
   const [aiFailedFallback, setAiFailedFallback] = useState(false);
   const [sourceMode, setSourceMode] = useState<'new' | 'programme-course'>('new');
   const [programmeCourseId, setProgrammeCourseId] = useState('');
-  const [selection, setSelection] = useState<Selection>({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
+  const [selection, setSelection] = useState<CourseBuilderSelection>({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
   const [showPreview, setShowPreview] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -139,6 +125,7 @@ export function ShortCoursesClient() {
     if (!seed) return;
     setAiLoading(true);
     setError(null);
+    setPendingRevision(null);
     try {
       const response = await generateAi({
         prompt: buildProfessionalShortCoursePrompt({
@@ -161,10 +148,11 @@ export function ShortCoursesClient() {
       });
       const generated = response as Record<string, unknown>;
       const output = String(generated.text || generated.output || generated.content || JSON.stringify(response));
-      const parsedBlueprint = normalizeBlueprint(parseAiShortCourseBlueprint(output));
+      const parsedBlueprint = normalizeBlueprint(parseCourseBuilderBlueprint(output));
       setAiOutline(output);
       setAiBlueprint(parsedBlueprint);
       setAiFailedFallback(false);
+      setEditingCourseId(null);
       setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
       setForm((value) => ({
         ...value,
@@ -185,15 +173,49 @@ export function ShortCoursesClient() {
     const blueprint = normalizeBlueprint(buildManualScaffold(seed, form.level, Number(form.durationHours) || 8));
     setAiBlueprint(blueprint);
     setAiFailedFallback(false);
+    setPendingRevision(null);
+    setEditingCourseId(null);
     setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
     setForm((value) => ({ ...value, title: value.title || blueprint.courseSummary.title, description: value.description || blueprint.courseSummary.description }));
   }
 
-  function updateBlueprint(updater: (draft: EditableBlueprint) => EditableBlueprint) {
+  async function loadExistingCourse(course: Course) {
+    setLoadingCourseId(course.id);
+    setError(null);
+    setPendingRevision(null);
+    try {
+      const lessons = await getLessonsByCourse(course.id);
+      const blueprint = blueprintFromExistingCourse(course, lessons);
+      setAiBlueprint(blueprint);
+      setEditingCourseId(course.id);
+      setAiFailedFallback(false);
+      setAiOutline('');
+      setForm((value) => ({
+        ...value,
+        title: course.title,
+        description: course.description,
+        schoolId: course.schoolId || value.schoolId,
+        price: String(course.price ?? 0),
+        currency: course.currency || 'ZMW',
+        certificateFee: String(course.certificateFee ?? 0),
+        certificateCurrency: course.certificateCurrency || 'ZMW',
+        durationHours: String(course.durationHours ?? 8),
+        level: course.level || 'beginner',
+        status: (course.status === 'published' ? 'published' : 'draft'),
+      }));
+      setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load existing course lessons.');
+    } finally {
+      setLoadingCourseId(null);
+    }
+  }
+
+  function updateBlueprint(updater: (draft: CourseBuilderBlueprint) => CourseBuilderBlueprint) {
     setAiBlueprint((current) => current ? normalizeBlueprint(updater(structuredClone(current))) : current);
   }
 
-  function updateSelectedLesson(patch: Partial<CardLesson>) {
+  function updateSelectedLesson(patch: Partial<CourseBuilderLesson>) {
     updateBlueprint((draft) => {
       const lesson = getDraftSelectedLesson(draft, selection);
       if (lesson) Object.assign(lesson, patch);
@@ -299,7 +321,7 @@ export function ShortCoursesClient() {
       });
       const raw = String((response as Record<string, unknown>).text || '');
       const parsed = JSON.parse(cleanJson(raw));
-      applyAiRevision(scope, parsed);
+      setPendingRevision({ scope, payload: parsed, raw });
       setAiActionPrompt('');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'AI revision failed. Try a smaller change or edit manually.');
@@ -308,13 +330,23 @@ export function ShortCoursesClient() {
     }
   }
 
+  function acceptAiRevision() {
+    if (!pendingRevision) return;
+    applyAiRevision(pendingRevision.scope, pendingRevision.payload);
+    setPendingRevision(null);
+  }
+
+  function rejectAiRevision() {
+    setPendingRevision(null);
+  }
+
   function applyAiRevision(scope: 'course' | 'module' | 'lesson' | 'card', payload: unknown) {
     updateBlueprint((draft) => {
-      if (scope === 'course') return normalizeBlueprint(payload as EditableBlueprint);
-      if (scope === 'module') draft.modules[selection.moduleIndex] = normalizeModule(payload as CardModule, selection.moduleIndex);
+      if (scope === 'course') return normalizeBlueprint(payload as CourseBuilderBlueprint);
+      if (scope === 'module') draft.modules[selection.moduleIndex] = normalizeModule(payload as CourseBuilderModule, selection.moduleIndex);
       if (scope === 'lesson') {
         const current = getDraftSelectedLesson(draft, selection);
-        if (current) Object.assign(current, normalizeLesson(payload as CardLesson));
+        if (current) Object.assign(current, normalizeLesson(payload as CourseBuilderLesson));
       }
       if (scope === 'card') {
         const lesson = getDraftSelectedLesson(draft, selection);
@@ -329,7 +361,7 @@ export function ShortCoursesClient() {
     setSaving(true);
     setError(null);
     try {
-      const cleanId = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const cleanId = editingCourseId || form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `short-course-${Date.now()}`;
       const normalized = aiBlueprint ? normalizeBlueprint(aiBlueprint) : null;
       const lessons = normalized?.modules.flatMap((module, moduleIndex) => module.lessons.flatMap((lesson, lessonIndex) => {
         const parent = {
@@ -351,7 +383,7 @@ export function ShortCoursesClient() {
       })) ?? [];
 
       const coursePayload = {
-        id: cleanId || `short-course-${Date.now()}`,
+        id: cleanId,
         title: form.title,
         description: buildShortCourseDescription({
           description: form.description,
@@ -376,20 +408,22 @@ export function ShortCoursesClient() {
       };
       if (normalized) {
         await createShortCourseDraftWithBlueprint({
-          course: coursePayload,
-          blueprint: normalized as AiShortCourseBlueprint,
+          course: coursePayload as any,
+          blueprint: normalized as any,
           sourceMode,
           programmeTitle: selectedProgram?.title ?? null,
           programmeCourseTitle: selectedProgrammeCourse?.moduleTitle || selectedProgrammeCourse?.courseTitle || null,
         });
       } else {
-        await createCourse(coursePayload);
+        await createCourse(coursePayload as any);
       }
       await refresh();
       setForm((value) => ({ ...value, title: '', description: '' }));
       setAiOutline('');
       setAiBlueprint(null);
       setAiFailedFallback(false);
+      setEditingCourseId(null);
+      setPendingRevision(null);
       setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to create short course.');
@@ -414,7 +448,7 @@ export function ShortCoursesClient() {
 
       <form className="space-y-6" onSubmit={save}>
         <Card>
-          <CardHeader><CardTitle>Course setup</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{editingCourseId ? `Editing ${editingCourseId}` : 'Course setup'}</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Field label="Creation mode">
               <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={sourceMode} onChange={(event) => setSourceMode(event.target.value as 'new' | 'programme-course')}>
@@ -514,7 +548,7 @@ export function ShortCoursesClient() {
                     <Button type="button" variant="secondary" onClick={() => setShowPreview((value) => !value)}>{showPreview ? 'Hide preview' : 'Preview as student'}</Button>
                   </div>
                   {interactionStats ? <p className="text-xs text-muted-foreground">Interaction guide: {interactionStats.interactive} interactive cards / {interactionStats.teaching} teaching cards. 25% is guidance, not a hard rule; add enough checks for clarity.</p> : null}
-                  {showPreview ? <div className="rounded-xl border p-3"><LessonPlayer lesson={{ id: 'preview', title: selectedLesson.title, content: selectedLesson.summary, learningObjects: [{ id: 'preview-object', type: 'content', title: selectedLesson.title, payload: { blocks: selectedLesson.blocks } as any, version: 1, isCurrent: true, isReusable: false, reviewStatus: 'draft', publicationStatus: 'draft' }] as any }} courseId="preview" courseTitle={form.title || 'Course preview'} onComplete={() => undefined} /></div> : null}
+                  {showPreview ? <div className="rounded-xl border p-3"><LessonPlayer lesson={{ id: 'preview', title: selectedLesson.title, content: selectedLesson.summary, learningObjects: [{ id: 'preview-object', type: 'content', title: selectedLesson.title, payload: { blocks: selectedLesson.blocks }, version: 1, isCurrent: true, isReusable: false, reviewStatus: 'draft', publicationStatus: 'draft' }] }} courseTitle={form.title || 'Course preview'} onComplete={() => undefined} /></div> : null}
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
                       {(['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'] as LessonCardBlock['type'][]).map((type) => <Button key={type} type="button" size="sm" variant="outline" onClick={() => addCard(type)}>Add {type}</Button>)}
@@ -550,9 +584,20 @@ export function ShortCoursesClient() {
                 <Button type="button" variant="outline" disabled={!selectedLesson || aiEditing} onClick={() => askAiToImprove('lesson')}>Improve lesson/sub-lesson</Button>
                 <Button type="button" variant="outline" disabled={!selectedCard || aiEditing} onClick={() => askAiToImprove('card')}>Improve selected card</Button>
               </div>
+              {pendingRevision ? (
+                <div className="space-y-3 rounded-md border border-primary/40 bg-primary/5 p-3 text-xs">
+                  <p className="font-medium text-foreground">AI proposed {pendingRevision.scope} change</p>
+                  <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-background p-2">{pendingRevision.raw}</pre>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={acceptAiRevision}>Accept</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={rejectAiRevision}>Reject</Button>
+                  </div>
+                </div>
+              ) : null}
               <div className="rounded-md border p-3 text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">AI interaction rule</p>
                 <p>Interactive cards are recommended around 25% or more of the teaching-card count when useful. The AI may use more or fewer depending on difficulty, topic complexity and learner level.</p>
+                <p className="mt-2">Sub-lessons are a builder experience for launch. On save they are flattened into normal lessons so the existing lesson viewer and progress engine work safely.</p>
               </div>
               <Field label="Status">
                 <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value as 'draft' | 'published' }))}>
@@ -568,13 +613,14 @@ export function ShortCoursesClient() {
       </form>
 
       <Card>
-        <CardHeader><CardTitle>Published Catalogue Data</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Existing short courses</CardTitle></CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {courses.length ? courses.map((course) => (
             <div key={course.id} className="rounded-lg border p-4">
               <p className="font-semibold">{course.title}</p>
               <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
               <p className="mt-3 text-sm text-muted-foreground">{course.pricingType === 'free' ? 'Free' : `${course.currency || 'ZMW'} ${course.price ?? 0}`}</p>
+              <Button type="button" className="mt-3" size="sm" variant="outline" disabled={loadingCourseId === course.id} onClick={() => loadExistingCourse(course)}>{loadingCourseId === course.id ? 'Loading...' : 'Edit in builder'}</Button>
             </div>
           )) : <p className="text-sm text-muted-foreground">No short courses yet.</p>}
         </CardContent>
@@ -639,25 +685,27 @@ function buildAiRevisionPrompt(scope: string, instruction: string, target: unkno
   return `You are improving one ${scope} inside the UnivAI Admin Course Builder Studio. Return ONLY valid JSON for the same ${scope}. No markdown. Preserve valid structure. No videos. Make the requested change only unless improvement requires small related edits. Interactive cards are recommended around 25% or more of teaching cards when useful, but not mandatory. Instruction: ${instruction}\n\nCurrent ${scope}:\n${JSON.stringify(target, null, 2)}`;
 }
 
-function parseAiShortCourseBlueprint(raw: string): AiShortCourseBlueprint {
-  const parsed = JSON.parse(cleanJson(raw)) as AiShortCourseBlueprint;
+function parseCourseBuilderBlueprint(raw: string): CourseBuilderBlueprint {
+  const parsed = JSON.parse(cleanJson(raw)) as CourseBuilderBlueprint;
   if (!parsed?.courseSummary?.title || !Array.isArray(parsed?.modules) || !parsed.modules.length) throw new Error('AI returned malformed course structure. Use manual fallback or regenerate.');
   if (!parsed.modules.every((module) => module.title && Array.isArray(module.lessons) && module.lessons.length > 0)) throw new Error('AI module/lesson structure is incomplete. Use manual fallback or repair manually.');
   return parsed;
 }
 
 function cleanJson(raw: string) { return raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim(); }
-function hasPlayableCards(lesson: CardLesson) { return Array.isArray(lesson.blocks) && lesson.blocks.length >= 1; }
+function hasPlayableCards(lesson: CourseBuilderLesson) { return Array.isArray(lesson.blocks) && lesson.blocks.length >= 1; }
 function countInteraction(blocks: LessonCardBlock[]) { return { teaching: blocks.filter((block) => teachingTypes.has(block.type)).length, interactive: blocks.filter((block) => interactiveTypes.has(block.type)).length }; }
 function defaultAiAction(scope: string) { return scope === 'card' ? 'Improve this card and make it clearer.' : `Improve this ${scope}, add useful examples and enough checkpoint questions where helpful.`; }
-function getDraftSelectedLesson(draft: EditableBlueprint, selection: Selection): CardLesson | null { const parent = draft.modules[selection.moduleIndex]?.lessons[selection.lessonIndex]; return selection.subLessonIndex != null ? parent?.subLessons?.[selection.subLessonIndex] ?? null : parent ?? null; }
-function normalizeBlueprint(blueprint: AiShortCourseBlueprint): EditableBlueprint { return { ...blueprint, modules: (blueprint.modules ?? []).map(normalizeModule) } as EditableBlueprint; }
-function normalizeModule(module: CardModule, index = 0): CardModule { return { title: module.title || `Module ${index + 1}`, description: module.description || 'Describe this module.', durationMinutes: module.durationMinutes || 60, outcomes: module.outcomes ?? [], moduleAssessment: module.moduleAssessment || 'Module check.', lessons: (module.lessons ?? []).map(normalizeLesson) }; }
-function normalizeLesson(lesson: CardLesson): CardLesson { return { title: lesson.title || 'Untitled lesson', summary: lesson.summary || 'Add lesson summary.', durationMinutes: lesson.durationMinutes || 30, difficulty: lesson.difficulty || 'beginner', outcomes: lesson.outcomes ?? [], blocks: (lesson.blocks?.length ? lesson.blocks : buildFallbackBlocks(lesson)).map(normalizeCard), subLessons: (lesson.subLessons ?? []).map(normalizeLesson), activities: lesson.activities ?? [], assessment: lesson.assessment || 'Lesson check.' }; }
+function getDraftSelectedLesson(draft: CourseBuilderBlueprint, selection: CourseBuilderSelection): CourseBuilderLesson | null { const parent = draft.modules[selection.moduleIndex]?.lessons[selection.lessonIndex]; return selection.subLessonIndex != null ? parent?.subLessons?.[selection.subLessonIndex] ?? null : parent ?? null; }
+function normalizeBlueprint(blueprint: CourseBuilderBlueprint): CourseBuilderBlueprint { return { ...blueprint, modules: (blueprint.modules ?? []).map(normalizeModule) }; }
+function normalizeModule(module: CourseBuilderModule, index = 0): CourseBuilderModule { return { title: module.title || `Module ${index + 1}`, description: module.description || 'Describe this module.', durationMinutes: module.durationMinutes || 60, outcomes: module.outcomes ?? [], moduleAssessment: module.moduleAssessment || 'Module check.', lessons: (module.lessons ?? []).map(normalizeLesson) }; }
+function normalizeLesson(lesson: CourseBuilderLesson): CourseBuilderLesson { return { title: lesson.title || 'Untitled lesson', summary: lesson.summary || 'Add lesson summary.', durationMinutes: lesson.durationMinutes || 30, difficulty: lesson.difficulty || 'beginner', outcomes: lesson.outcomes ?? [], blocks: (lesson.blocks?.length ? lesson.blocks : buildFallbackBlocks(lesson)).map(normalizeCard), subLessons: (lesson.subLessons ?? []).map(normalizeLesson), activities: lesson.activities ?? [], assessment: lesson.assessment || 'Lesson check.' }; }
 function normalizeCard(card: LessonCardBlock): LessonCardBlock { return newCard(card.type, card); }
-function newLesson(title = 'New lesson'): CardLesson { return { title, summary: 'Add lesson summary.', durationMinutes: 30, difficulty: 'beginner', outcomes: ['Lesson outcome'], blocks: buildFallbackBlocks({ summary: 'Add lesson summary.' }), activities: ['Practice activity'], assessment: 'Lesson checkpoint.' }; }
+function newLesson(title = 'New lesson'): CourseBuilderLesson { return { title, summary: 'Add lesson summary.', durationMinutes: 30, difficulty: 'beginner', outcomes: ['Lesson outcome'], blocks: buildFallbackBlocks({ summary: 'Add lesson summary.' }), activities: ['Practice activity'], assessment: 'Lesson checkpoint.' }; }
 function newCard(type: LessonCardBlock['type'], seed: Partial<LessonCardBlock> = {}): LessonCardBlock { if (type === 'question') return { type, question: (seed as any).question || 'What is the best answer?', options: (seed as any).options || ['A', 'B', 'C', 'D'], correctAnswer: (seed as any).correctAnswer || 'A', explanation: (seed as any).explanation || 'Explain why this is correct.' }; if (type === 'fill_blank') return { type, text: (seed as any).text || 'Fill the blank: ____', correctAnswer: (seed as any).correctAnswer || 'answer', explanation: (seed as any).explanation || 'Explain the answer.' }; if (type === 'true_false') return { type, statement: (seed as any).statement || 'This statement is true.', correctAnswer: Boolean((seed as any).correctAnswer ?? true), explanation: (seed as any).explanation || 'Explain why.' }; if (type === 'example') return { type, title: (seed as any).title || 'Example', body: (seed as any).body || 'Add a practical example.', code: (seed as any).code || '' }; if (type === 'summary') return { type, title: (seed as any).title || 'Summary', body: (seed as any).body || 'Summarize the lesson.' }; return { type: 'explanation', title: (seed as any).title || 'Core idea', body: (seed as any).body || 'Explain one idea clearly.' }; }
-function flattenLessonBlocks(lesson: CardLesson): LessonCardBlock[] { return lesson.blocks?.length ? lesson.blocks : buildFallbackBlocks(lesson); }
-function buildFallbackBlocks(lesson: Partial<CardLesson>): LessonCardBlock[] { return [{ type: 'explanation', title: 'Core idea', body: lesson.summary || 'This lesson introduces the main idea.' }, { type: 'example', title: 'Simple example', body: 'Connect this concept to a practical situation before moving on.' }, { type: 'question', question: 'What should you do after learning a new concept?', options: ['Skip practice', 'Connect it to an example', 'Ignore feedback', 'Memorize blindly'], correctAnswer: 'Connect it to an example', explanation: 'Examples help turn a concept into understanding.' }, { type: 'summary', body: lesson.assessment || 'You have completed the main idea for this lesson.' }]; }
-function buildManualScaffold(seed: string, level: string, durationHours: number): AiShortCourseBlueprint { const title = deriveShortCourseTitle(seed) || 'New short course draft'; return { courseSummary: { title, audience: 'General learners', level: level || 'beginner', description: 'Manual scaffold. Update all fields before publishing.', prerequisites: ['No prior experience required'], totalDurationHours: durationHours, outcomes: ['Outcome 1 (edit)', 'Outcome 2 (edit)'], finalAssessment: 'Final assessment pending.', certificateCriteria: 'Certificate criteria pending review.' }, assessments: { quizzes: ['Quiz 1 (edit)'], practicalWork: ['Practical activity 1 (edit)'], instructorReviewChecklist: ['Review module outcomes', 'Review lesson quality'] }, modules: [{ title: 'Module 1 (edit)', description: 'Describe module intent.', durationMinutes: Math.max(60, Math.round((durationHours * 60) / 2)), outcomes: ['Module outcome 1 (edit)'], moduleAssessment: 'Module assessment pending.', lessons: [newLesson('Lesson 1 (edit)') as any] }] }; }
+function flattenLessonBlocks(lesson: CourseBuilderLesson): LessonCardBlock[] { return lesson.blocks?.length ? lesson.blocks : buildFallbackBlocks(lesson); }
+function buildFallbackBlocks(lesson: Partial<CourseBuilderLesson>): LessonCardBlock[] { return [{ type: 'explanation', title: 'Core idea', body: lesson.summary || 'This lesson introduces the main idea.' }, { type: 'example', title: 'Simple example', body: 'Connect this concept to a practical situation before moving on.' }, { type: 'question', question: 'What should you do after learning a new concept?', options: ['Skip practice', 'Connect it to an example', 'Ignore feedback', 'Memorize blindly'], correctAnswer: 'Connect it to an example', explanation: 'Examples help turn a concept into understanding.' }, { type: 'summary', body: lesson.assessment || 'You have completed the main idea for this lesson.' }]; }
+function buildManualScaffold(seed: string, level: string, durationHours: number): CourseBuilderBlueprint { const title = deriveShortCourseTitle(seed) || 'New short course draft'; return { courseSummary: { title, audience: 'General learners', level: level || 'beginner', description: 'Manual scaffold. Update all fields before publishing.', prerequisites: ['No prior experience required'], totalDurationHours: durationHours, outcomes: ['Outcome 1 (edit)', 'Outcome 2 (edit)'], finalAssessment: 'Final assessment pending.', certificateCriteria: 'Certificate criteria pending review.' }, assessments: { quizzes: ['Quiz 1 (edit)'], practicalWork: ['Practical activity 1 (edit)'], instructorReviewChecklist: ['Review module outcomes', 'Review lesson quality'] }, modules: [{ title: 'Module 1 (edit)', description: 'Describe module intent.', durationMinutes: Math.max(60, Math.round((durationHours * 60) / 2)), outcomes: ['Module outcome 1 (edit)'], moduleAssessment: 'Module assessment pending.', lessons: [newLesson('Lesson 1 (edit)')] }] }; }
 function buildShortCourseDescription(input: { description: string; aiOutline: string; sourceMode: 'new' | 'programme-course'; programmeTitle?: string | null; programmeCourseTitle?: string | null }) { const sourceNote = input.sourceMode === 'programme-course' ? `\n\nThis short course is adapted from ${input.programmeCourseTitle || 'a formal programme course'}${input.programmeTitle ? ` in ${input.programmeTitle}` : ''}. It is offered as a standalone short course and does not automatically award programme transcript credit.` : ''; const reviewNote = '\n\nUnivAI academic note: AI-generated course content is a draft and must be human-reviewed before publishing.'; return `${input.description || input.aiOutline.slice(0, 900)}${sourceNote}${reviewNote}`; }
+function blueprintFromExistingCourse(course: Course, lessons: Lesson[]): CourseBuilderBlueprint { return normalizeBlueprint({ courseSummary: { title: course.title, audience: 'Existing learners', level: course.level || 'beginner', description: course.description, prerequisites: ['Review existing course requirements'], totalDurationHours: Number(course.durationHours ?? 0), outcomes: course.outcomes ?? ['Review and add outcomes'], finalAssessment: 'Review final assessment.', certificateCriteria: 'Review certificate criteria.' }, assessments: { quizzes: [], practicalWork: [], instructorReviewChecklist: ['Review imported course content', 'Confirm every lesson has playable cards'] }, modules: [{ title: 'Existing course content', description: 'Imported lessons from the saved course.', durationMinutes: 0, outcomes: course.outcomes ?? [], moduleAssessment: 'Review module assessment.', lessons: lessons.map((lesson, index) => lessonFromApiLesson(lesson, index)) }] }); }
+function lessonFromApiLesson(lesson: Lesson, index: number): CourseBuilderLesson { const objectBlocks = lesson.learningObjects?.flatMap((object) => Array.isArray(object.payload?.blocks) ? object.payload.blocks as LessonCardBlock[] : []) ?? []; return normalizeLesson({ title: lesson.title || `Lesson ${index + 1}`, summary: lesson.content || lesson.exercise || 'Imported lesson.', durationMinutes: 30, difficulty: 'beginner', outcomes: [], blocks: objectBlocks.length ? objectBlocks : buildFallbackBlocks({ summary: lesson.content || 'Imported lesson.' }), activities: [], assessment: lesson.exercise || 'Review lesson assessment.' }); }
