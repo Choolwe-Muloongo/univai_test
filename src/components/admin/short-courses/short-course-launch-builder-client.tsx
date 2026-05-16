@@ -25,7 +25,23 @@ type FormState = {
   level: string;
 };
 
-const allowedCardTypes = new Set(['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary']);
+type AnyCard = Record<string, any>;
+
+const allowedCardTypes = new Set([
+  'explanation',
+  'example',
+  'equation',
+  'graph',
+  'table',
+  'number_line',
+  'matrix',
+  'formula_sheet',
+  'geometry',
+  'question',
+  'fill_blank',
+  'true_false',
+  'summary',
+]);
 const textDocumentExtensions = ['.txt', '.md', '.markdown', '.csv', '.json', '.html', '.htm', '.xml'];
 
 export function ShortCourseLaunchBuilderClient() {
@@ -345,12 +361,54 @@ function normalizeLesson(lesson: CourseBuilderLesson, index = 0): CourseBuilderL
 }
 
 function normalizeCard(card: LessonCardBlock): LessonCardBlock {
-  if (card.type === 'question') return { type: 'question', question: (card as any).question || 'Question?', options: (card as any).options?.length ? (card as any).options : ['A', 'B', 'C', 'D'], correctAnswer: (card as any).correctAnswer || 'A', explanation: (card as any).explanation || 'Explanation.' };
-  if (card.type === 'fill_blank') return { type: 'fill_blank', text: (card as any).text || 'Fill in ____', correctAnswer: (card as any).correctAnswer || 'answer', explanation: (card as any).explanation || 'Explanation.' };
-  if (card.type === 'true_false') return { type: 'true_false', statement: (card as any).statement || 'This is true.', correctAnswer: Boolean((card as any).correctAnswer ?? true), explanation: (card as any).explanation || 'Explanation.' };
-  if (card.type === 'example') return { type: 'example', title: (card as any).title || 'Example', body: (card as any).body || 'Example body.', code: (card as any).code || '' };
-  if (card.type === 'summary') return { type: 'summary', title: (card as any).title || 'Summary', body: (card as any).body || 'Summary.' };
-  return { type: 'explanation', title: (card as any).title || 'Core idea', body: (card as any).body || 'Explanation.' };
+  const raw = card as AnyCard;
+  const type = normalizeCardType(raw.type);
+
+  if (type === 'question') return { type: 'question', title: raw.title, question: raw.question || 'Question?', visual: normalizeVisual(raw.visual), options: raw.options?.length ? raw.options : ['A', 'B', 'C', 'D'], correctAnswer: raw.correctAnswer || 'A', explanation: raw.explanation || 'Explanation.' } as any;
+  if (type === 'fill_blank') return { type: 'fill_blank', title: raw.title, text: raw.text || 'Fill in ____', visual: normalizeVisual(raw.visual), correctAnswer: raw.correctAnswer || 'answer', explanation: raw.explanation || 'Explanation.' } as any;
+  if (type === 'true_false') return { type: 'true_false', title: raw.title, statement: raw.statement || 'This is true.', visual: normalizeVisual(raw.visual), correctAnswer: Boolean(raw.correctAnswer ?? true), explanation: raw.explanation || 'Explanation.' } as any;
+  if (type === 'example') return { type: 'example', title: raw.title || 'Example', body: raw.body || 'Example body.', code: raw.code || '' } as any;
+  if (type === 'equation') return { type: 'equation', title: raw.title || 'Equation', body: raw.body || '', equation: raw.equation || raw.formula || 'x^2', explanation: raw.explanation || '' } as any;
+  if (type === 'graph') return normalizeVisual({ ...raw, type: 'graph' }) as any;
+  if (type === 'table') return normalizeVisual({ ...raw, type: 'table' }) as any;
+  if (type === 'number_line') return normalizeVisual({ ...raw, type: 'number_line' }) as any;
+  if (type === 'matrix') return normalizeVisual({ ...raw, type: 'matrix' }) as any;
+  if (type === 'formula_sheet') return normalizeVisual({ ...raw, type: 'formula_sheet' }) as any;
+  if (type === 'geometry') return normalizeVisual({ ...raw, type: 'geometry' }) as any;
+  if (type === 'summary') return { type: 'summary', title: raw.title || 'Summary', body: raw.body || 'Summary.' } as any;
+  return { type: 'explanation', title: raw.title || 'Core idea', body: raw.body || 'Explanation.', steps: normalizeSteps(raw.steps) } as any;
+}
+
+function normalizeCardType(type: unknown) {
+  const value = String(type || 'explanation');
+  if (['visual_question', 'graph_question', 'geometry_question', 'table_question', 'number_line_question', 'mcq', 'checkpoint', 'multiple_choice'].includes(value)) return 'question';
+  if (value === 'fill-in-the-blank') return 'fill_blank';
+  if (value === 'truefalse') return 'true_false';
+  if (value === 'chart' || value === 'plot') return 'graph';
+  if (value === 'formula') return 'equation';
+  return value;
+}
+
+function normalizeVisual(visual: unknown): AnyCard | undefined {
+  if (!visual || typeof visual !== 'object') return undefined;
+  const raw = visual as AnyCard;
+  const type = normalizeCardType(raw.type);
+  if (type === 'equation') return { type: 'equation', title: raw.title || 'Equation', body: raw.body || '', equation: raw.equation || raw.formula || 'x^2', explanation: raw.explanation || '' };
+  if (type === 'graph') return { type: 'graph', title: raw.title || 'Graph', description: raw.description || '', graphType: raw.graphType || 'function', xLabel: raw.xLabel || 'x', yLabel: raw.yLabel || 'y', xMin: Number(raw.xMin ?? -10), xMax: Number(raw.xMax ?? 10), yMin: Number(raw.yMin ?? -10), yMax: Number(raw.yMax ?? 10), functions: Array.isArray(raw.functions) ? raw.functions : [], data: Array.isArray(raw.data) ? raw.data : [] };
+  if (type === 'table') return { type: 'table', title: raw.title || 'Table', description: raw.description || '', columns: Array.isArray(raw.columns) ? raw.columns : [], rows: Array.isArray(raw.rows) ? raw.rows : [] };
+  if (type === 'number_line') return { type: 'number_line', title: raw.title || 'Number line', description: raw.description || '', min: Number(raw.min ?? -10), max: Number(raw.max ?? 10), step: Number(raw.step ?? 1), points: Array.isArray(raw.points) ? raw.points : [], intervals: Array.isArray(raw.intervals) ? raw.intervals : [] };
+  if (type === 'matrix') return { type: 'matrix', title: raw.title || 'Matrix', description: raw.description || '', matrix: Array.isArray(raw.matrix) ? raw.matrix : [[1, 0], [0, 1]] };
+  if (type === 'formula_sheet') return { type: 'formula_sheet', title: raw.title || 'Formula sheet', formulas: Array.isArray(raw.formulas) ? raw.formulas : [] };
+  if (type === 'geometry') return { type: 'geometry', title: raw.title || 'Diagram', description: raw.description || '', shape: raw.shape || 'triangle', labels: raw.labels || {}, values: raw.values || {} };
+  return undefined;
+}
+
+function normalizeSteps(steps: unknown) {
+  if (!Array.isArray(steps)) return undefined;
+  return steps.map((step, index) => {
+    const raw = typeof step === 'object' && step ? step as AnyCard : {};
+    return { title: raw.title || `Step ${index + 1}`, explanation: raw.explanation || raw.body || '', visual: normalizeVisual(raw.visual) };
+  });
 }
 
 function validateBlueprint(blueprint: CourseBuilderBlueprint | null) {
@@ -362,7 +420,7 @@ function validateBlueprint(blueprint: CourseBuilderBlueprint | null) {
   if (blueprint && !lessons.length) issues.push('At least one lesson is required.');
   for (const lesson of lessons) {
     if (!lesson.blocks?.length) issues.push(`${lesson.title} needs playable cards.`);
-    for (const card of lesson.blocks ?? []) if (!allowedCardTypes.has(card.type)) issues.push(`${lesson.title} has unsupported card type ${card.type}.`);
+    for (const card of lesson.blocks ?? []) if (!allowedCardTypes.has(normalizeCardType((card as AnyCard).type))) issues.push(`${lesson.title} has unsupported card type ${(card as AnyCard).type}.`);
   }
   return { ready: issues.length === 0, issues };
 }
@@ -415,10 +473,17 @@ Duration hours: ${form.durationHours}${sourceSection}
 
 Rules:
 - Build modules and lessons with SoloLearn-style cards.
-- Allowed card types: explanation, example, question, fill_blank, true_false, summary.
+- Allowed card types: explanation, example, equation, graph, table, number_line, matrix, formula_sheet, geometry, question, fill_blank, true_false, summary.
 - AI decides card count based on difficulty and topic size.
 - Add questions between teaching cards.
-- If math is involved, include clear formulas, worked examples, fractions, roots, exponents and symbols where helpful.
+- If math, physics, statistics, engineering, accounting, economics, or graph-based reasoning is involved, generate visual teaching cards where helpful.
+- Questions may include a "visual" object containing one visual card, such as graph, geometry, table, number_line, equation, matrix, or formula_sheet.
+- Explanation cards may include a "steps" array. Each step can include title, explanation, and visual.
+- Use step-by-step explanation cards for plotting graphs, solving equations, geometry construction, statistics interpretation, and matrix operations.
+- For graph plotting lessons, show a progression such as table of values -> plotted points -> final graph.
+- For graph cards use: {"type":"graph","graphType":"function" | "line" | "bar" | "scatter" | "pie","xMin":-10,"xMax":10,"yMin":-10,"yMax":10,"functions":[{"expression":"x^2","label":"y = x^2"}],"data":[{"x":0,"y":0}]}.
+- For visual questions use: {"type":"question","question":"Which point lies on the graph?","visual":{"type":"graph","graphType":"function","functions":[{"expression":"x^2","label":"y = x^2"}]},"options":["(1,2)","(2,4)","(3,6)","(4,8)"],"correctAnswer":"(2,4)","explanation":"When x = 2, y = 4."}.
+- For step-by-step explanations use: {"type":"explanation","title":"How to plot y = x + 1","body":"We will plot the graph step by step.","steps":[{"title":"Step 1","explanation":"Create a table of values.","visual":{"type":"table","columns":["x","y"],"rows":[[0,1],[1,2],[2,3]]}},{"title":"Step 2","explanation":"Plot the points.","visual":{"type":"graph","graphType":"scatter","data":[{"x":0,"y":1},{"x":1,"y":2},{"x":2,"y":3}]}}]}.
 - Avoid fake accreditation, job guarantees, fees, official dates, or unsupported claims.
 - Return only JSON shaped as: {"courseSummary":{"title":"","audience":"","level":"","description":"","prerequisites":[],"totalDurationHours":0,"outcomes":[],"finalAssessment":"","certificateCriteria":""},"assessments":{"quizzes":[],"practicalWork":[],"instructorReviewChecklist":[]},"modules":[{"title":"","description":"","durationMinutes":0,"outcomes":[],"moduleAssessment":"","lessons":[{"title":"","summary":"","durationMinutes":0,"difficulty":"","outcomes":[],"blocks":[],"subLessons":[],"activities":[],"assessment":""}]}]}`;
 }
