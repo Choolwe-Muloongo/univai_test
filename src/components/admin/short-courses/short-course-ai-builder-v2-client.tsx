@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { createShortCourseDraftWithBlueprint, generateAi, getCourses, getLessonsByCourse, getSchools } from '@/lib/api';
 import type { CourseBuilderBlueprint } from '@/lib/api/course-builder-types';
 import type { Course, School } from '@/lib/api/types';
-import { extractDocumentText } from '@/lib/document-text-extractor';
+import { extractDocumentText, type DocumentExtractionProgress } from '@/lib/document-text-extractor';
 
 type SourceDoc = { name: string; mode: string; text: string; warning?: string };
 type FormState = { title: string; description: string; schoolId: string; durationHours: string; level: string; price: string; currency: string; certificateFee: string; certificateCurrency: string };
@@ -24,6 +24,7 @@ export function ShortCourseAiBuilderV2Client() {
   const [existingLessonCount, setExistingLessonCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState<DocumentExtractionProgress | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -88,11 +89,11 @@ export function ShortCourseAiBuilderV2Client() {
   async function readDocuments(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     if (!files.length) return;
-    setReading(true); setError(null); setMessage(null);
+    setReading(true); setError(null); setMessage(null); setExtractionProgress(null);
     try {
       const extracted: SourceDoc[] = [];
       for (const file of files) {
-        const result = await extractDocumentText(file);
+        const result = await extractDocumentText(file, { onProgress: setExtractionProgress });
         extracted.push({ name: file.name, mode: result.mode, text: result.text.slice(0, 60000), warning: result.warning });
       }
       setDocuments((current) => [...current, ...extracted]);
@@ -101,6 +102,7 @@ export function ShortCourseAiBuilderV2Client() {
       setError(cause instanceof Error ? cause.message : 'Unable to read documents.');
     } finally {
       setReading(false);
+      setExtractionProgress(null);
       event.target.value = '';
     }
   }
@@ -175,6 +177,7 @@ export function ShortCourseAiBuilderV2Client() {
     <div className="space-y-6">
       {error ? <PageError message={error} /> : null}
       {message ? <div className="rounded-xl border bg-muted/40 p-4 text-sm">{message}</div> : null}
+      {extractionProgress ? <div className="rounded-xl border bg-primary/5 p-4 text-sm"><div className="mb-2 flex items-center justify-between gap-3"><span>{extractionProgress.message}</span><span className="font-medium">{extractionProgress.percent ?? 0}%</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.max(1, extractionProgress.percent ?? 1)}%` }} /></div>{extractionProgress.currentPage && extractionProgress.totalPages ? <p className="mt-2 text-xs text-muted-foreground">Page {extractionProgress.currentPage} of {extractionProgress.totalPages}</p> : null}</div> : null}
       <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <Card>
           <CardHeader><CardTitle>{selectedCourseId ? 'Edit existing course with AI' : 'Build with AI'}</CardTitle></CardHeader>
@@ -190,8 +193,8 @@ export function ShortCourseAiBuilderV2Client() {
               <Textarea rows={8} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Example: Rebuild this existing course using uploaded Unit 1 to Unit 6 documents. Create complete modules, lessons, card-based content, quizzes, maths/tables where needed, and practice questions by difficulty." />
             </Field>
             <Field label="Upload one or many source documents">
-              <Input type="file" multiple accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.xml,.pdf,.docx" onChange={readDocuments} disabled={reading} />
-              <p className="text-xs text-muted-foreground">Upload one full document or several unit documents. Extracted text is combined and sent with the single prompt.</p>
+              <Input type="file" multiple accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.xml,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={readDocuments} disabled={reading} />
+              <p className="text-xs text-muted-foreground">Upload one full document or several unit documents. OCR runs for scanned PDFs/images and may take time on large files.</p>
             </Field>
             {documents.length ? <div className="space-y-2 rounded-xl border p-3 text-sm"><p className="font-medium">Loaded documents</p>{documents.map((doc, index) => <div key={`${doc.name}-${index}`} className="rounded-lg bg-muted/40 p-2"><p>{index + 1}. {doc.name}</p>{doc.warning ? <p className="text-xs text-amber-600">{doc.warning}</p> : null}</div>)}<Button type="button" variant="ghost" size="sm" onClick={() => setDocuments([])}>Clear documents</Button></div> : null}
             <div className="grid gap-3 sm:grid-cols-2">
