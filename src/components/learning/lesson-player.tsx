@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Sparkles, XCircle } from 'lucide-react';
 
 import { MathText } from '@/components/learning/math-text';
+import { MathVisualBlock } from '@/components/learning/math-visual-blocks';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,20 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import type { LessonWithCourseId } from '@/lib/api/types';
 
-type LessonBlockType = 'explanation' | 'example' | 'question' | 'fill_blank' | 'true_false' | 'summary';
+type LessonBlockType =
+  | 'explanation'
+  | 'example'
+  | 'equation'
+  | 'graph'
+  | 'table'
+  | 'number_line'
+  | 'matrix'
+  | 'formula_sheet'
+  | 'geometry'
+  | 'question'
+  | 'fill_blank'
+  | 'true_false'
+  | 'summary';
 
 type LessonBlock = {
   type: LessonBlockType | string;
@@ -26,6 +40,7 @@ type LessonBlock = {
   explanation?: string;
   text?: string;
   statement?: string;
+  [key: string]: unknown;
 };
 
 type PlayableLesson = Partial<LessonWithCourseId> & {
@@ -49,8 +64,9 @@ type AnswerState = {
   message: string;
 };
 
-const teachingTypes = new Set(['explanation', 'example']);
+const teachingTypes = new Set(['explanation', 'example', 'equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry']);
 const interactiveTypes = new Set(['question', 'fill_blank', 'true_false']);
+const supportedTypes = ['explanation', 'example', 'equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'question', 'fill_blank', 'true_false', 'summary'];
 
 export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, completed = false, completeLabel = 'Complete lesson' }: LessonPlayerProps) {
   const blocks = useMemo(() => normalizeLessonBlocks(lesson), [lesson]);
@@ -159,11 +175,7 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
             </div>
           ) : null}
 
-          {block.type === 'fill_blank' ? (
-            <div className="space-y-3">
-              <Input value={textAnswer} disabled={Boolean(answered)} onChange={(event) => setTextAnswer(event.target.value)} placeholder="Type your answer..." />
-            </div>
-          ) : null}
+          {block.type === 'fill_blank' ? <Input value={textAnswer} disabled={Boolean(answered)} onChange={(event) => setTextAnswer(event.target.value)} placeholder="Type your answer..." /> : null}
 
           {block.type === 'true_false' ? (
             <div className="grid grid-cols-2 gap-3">
@@ -217,6 +229,10 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
 }
 
 function BlockContent({ block }: { block: LessonBlock }) {
+  if (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'].includes(block.type)) {
+    return <MathVisualBlock block={block} />;
+  }
+
   if (block.type === 'example') {
     return (
       <div className="space-y-4">
@@ -225,7 +241,6 @@ function BlockContent({ block }: { block: LessonBlock }) {
       </div>
     );
   }
-
   if (block.type === 'question') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.question} /></p>;
   if (block.type === 'fill_blank') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.text} /></p>;
   if (block.type === 'true_false') return <p className="text-base leading-7 text-muted-foreground"><MathText text={block.statement} /></p>;
@@ -245,26 +260,16 @@ function normalizeLessonBlocks(lesson: PlayableLesson): LessonBlock[] {
     .filter(Boolean) as LessonBlock[] | undefined;
 
   if (fromLearningObjects?.length) return sanitizeBlocks(fromLearningObjects);
-
   const parsedContent = readBlocksFromUnknown(parseMaybeJson(lesson.content));
   if (parsedContent.length) return sanitizeBlocks(parsedContent);
 
   const fallback: LessonBlock[] = [];
   const plainContent = stripHtml(lesson.content ?? lesson.summary ?? 'This lesson is being prepared.');
   fallback.push({ type: 'explanation', title: 'Core idea', body: plainContent });
-
   const quizQuestions = lesson.quiz?.questions ?? [];
   quizQuestions.slice(0, 4).forEach((question, idx) => {
-    fallback.push({
-      type: 'question',
-      question: question.question,
-      options: question.options,
-      correctAnswer: question.answer ?? question.options[0] ?? '',
-      explanation: 'Review the lesson card and compare the options carefully.',
-      title: `Quick check ${idx + 1}`,
-    });
+    fallback.push({ type: 'question', question: question.question, options: question.options, correctAnswer: question.answer ?? question.options[0] ?? '', explanation: 'Review the lesson card and compare the options carefully.', title: `Quick check ${idx + 1}` });
   });
-
   fallback.push({ type: 'summary', body: 'Great work. You have reached the end of this lesson. Review any missed questions before moving on.' });
   return sanitizeBlocks(fallback);
 }
@@ -273,9 +278,7 @@ function readBlocksFromUnknown(value: unknown): LessonBlock[] {
   if (!value || typeof value !== 'object') return [];
   const record = value as Record<string, unknown>;
   if (Array.isArray(record.blocks)) return record.blocks as LessonBlock[];
-  if (record.lesson && typeof record.lesson === 'object' && Array.isArray((record.lesson as Record<string, unknown>).blocks)) {
-    return (record.lesson as Record<string, unknown>).blocks as LessonBlock[];
-  }
+  if (record.lesson && typeof record.lesson === 'object' && Array.isArray((record.lesson as Record<string, unknown>).blocks)) return (record.lesson as Record<string, unknown>).blocks as LessonBlock[];
   return [];
 }
 
@@ -284,22 +287,15 @@ function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
     .filter((block) => block && typeof block === 'object')
     .map((block) => ({ ...block, type: normalizeBlockType(block.type) }))
     .map((block) => coerceIncompleteInteractiveBlock(block))
-    .filter((block) => ['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'].includes(block.type));
-
+    .filter((block) => supportedTypes.includes(block.type));
   if (!cleaned.length) return [{ type: 'summary', body: 'This lesson is being prepared.' }];
   return cleaned;
 }
 
 function coerceIncompleteInteractiveBlock(block: LessonBlock): LessonBlock {
-  if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) {
-    return { type: 'explanation', title: block.title ?? 'Checkpoint note', body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.' };
-  }
-  if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) {
-    return { type: 'explanation', title: block.title ?? 'Practice note', body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.' };
-  }
-  if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) {
-    return { type: 'explanation', title: block.title ?? 'True/false note', body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.' };
-  }
+  if (block.type === 'question' && (!block.options?.length || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Checkpoint note', body: block.question ?? block.body ?? 'This checkpoint needs review before it can be answered.' };
+  if (block.type === 'fill_blank' && (!block.text || !block.correctAnswer)) return { type: 'explanation', title: block.title ?? 'Practice note', body: block.text ?? block.body ?? 'This fill-in-the-blank card needs review before it can be answered.' };
+  if (block.type === 'true_false' && (!block.statement || typeof block.correctAnswer === 'undefined')) return { type: 'explanation', title: block.title ?? 'True/false note', body: block.statement ?? block.body ?? 'This true-or-false card needs review before it can be answered.' };
   return block;
 }
 
@@ -308,15 +304,16 @@ function normalizeBlockType(type: string): LessonBlockType {
   if (type === 'fill-in-the-blank') return 'fill_blank';
   if (type === 'truefalse') return 'true_false';
   if (type === 'content' || type === 'read') return 'explanation';
-  if (['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'].includes(type)) return type as LessonBlockType;
+  if (type === 'chart' || type === 'plot') return 'graph';
+  if (type === 'formula') return 'equation';
+  if (supportedTypes.includes(type)) return type as LessonBlockType;
   return 'explanation';
 }
 
 function evaluateAnswer(block: LessonBlock, rawAnswer: string): AnswerState | null {
   if (!interactiveTypes.has(block.type)) return null;
   const expected = block.type === 'true_false' ? String(block.correctAnswer ?? block.answer) : String(block.correctAnswer ?? block.answer ?? '');
-  const actual = rawAnswer;
-  const isCorrect = normalizeAnswer(actual) === normalizeAnswer(expected);
+  const isCorrect = normalizeAnswer(rawAnswer) === normalizeAnswer(expected);
   return { isCorrect, message: block.explanation || (isCorrect ? 'Nice. You understood this card.' : 'Review the card and try to spot the key idea.') };
 }
 
@@ -325,12 +322,19 @@ function titleForBlock(block: LessonBlock) {
   if (block.type === 'question') return 'Quick check';
   if (block.type === 'fill_blank') return 'Fill in the blank';
   if (block.type === 'true_false') return 'True or false';
+  if (block.type === 'equation') return 'Equation';
+  if (block.type === 'graph') return 'Graph';
+  if (block.type === 'table') return 'Table';
+  if (block.type === 'number_line') return 'Number line';
+  if (block.type === 'matrix') return 'Matrix';
+  if (block.type === 'formula_sheet') return 'Formula sheet';
+  if (block.type === 'geometry') return 'Diagram';
   if (block.type === 'summary') return 'Lesson summary';
   return 'Lesson card';
 }
 
 function labelForBlock(type: string) {
-  if (teachingTypes.has(type)) return type;
+  if (teachingTypes.has(type)) return type.replace('_', ' ');
   if (type === 'fill_blank') return 'fill blank';
   if (type === 'true_false') return 'true/false';
   if (type === 'question') return 'checkpoint';
