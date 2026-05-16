@@ -139,7 +139,12 @@ class AdminCatalogController extends Controller
 
         return DB::transaction(function () use ($payload) {
             $course = $this->persistCourse($payload);
-            $this->syncCourseLessons($course, $payload['lessons'] ?? [], $payload['status'] ?? 'draft');
+            $this->syncCourseLessons(
+                $course,
+                $payload['lessons'] ?? [],
+                $payload['status'] ?? 'draft',
+                (bool) ($payload['replaceExistingContent'] ?? false)
+            );
             $this->forgetCourseCaches($course->id);
 
             return $this->mapCourse($course->fresh('lessons'));
@@ -160,6 +165,7 @@ class AdminCatalogController extends Controller
         $blueprint = $payload['blueprint'];
         $courseSummary = $blueprint['courseSummary'] ?? [];
         $lessons = $this->lessonsFromBlueprint($blueprint);
+        $replaceExistingContent = !empty($coursePayload['id']) && Course::where('id', $coursePayload['id'])->exists();
 
         $request->replace(array_merge($coursePayload, [
             'title' => $coursePayload['title'] ?? $courseSummary['title'] ?? 'New short course',
@@ -169,6 +175,7 @@ class AdminCatalogController extends Controller
             'modules' => $blueprint['modules'] ?? [],
             'lessons' => $lessons,
             'outcomes' => $coursePayload['outcomes'] ?? $courseSummary['outcomes'] ?? [],
+            'replaceExistingContent' => $replaceExistingContent,
         ]));
 
         return $this->createCourse($request);
@@ -229,6 +236,7 @@ class AdminCatalogController extends Controller
             'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'imageId' => ['nullable', 'string'],
             'status' => ['nullable', 'in:draft,published'],
+            'replaceExistingContent' => ['nullable', 'boolean'],
             'modules' => ['nullable', 'array'],
             'modules.*.title' => ['required_with:modules', 'string'],
             'lessons' => ['nullable', 'array'],
@@ -249,7 +257,7 @@ class AdminCatalogController extends Controller
         $lessonCount = count($payload['lessons'] ?? []);
         $outcomeCount = count($payload['outcomes'] ?? []);
 
-        if (!empty($payload['id'])) {
+        if (!empty($payload['id']) && empty($payload['replaceExistingContent'])) {
             $existing = Course::withCount('lessons')->find($payload['id']);
             if ($existing) {
                 $lessonCount = max($lessonCount, (int) $existing->lessons_count);
@@ -315,8 +323,12 @@ class AdminCatalogController extends Controller
         return $lessons;
     }
 
-    private function syncCourseLessons(Course $course, array $lessons, string $status): void
+    private function syncCourseLessons(Course $course, array $lessons, string $status, bool $replaceExistingContent = false): void
     {
+        if ($replaceExistingContent) {
+            $course->lessons()->detach();
+        }
+
         foreach (array_values($lessons) as $index => $lessonPayload) {
             $lessonTitle = trim((string) ($lessonPayload['title'] ?? 'Lesson ' . ($index + 1)));
             if ($lessonTitle === '') {
