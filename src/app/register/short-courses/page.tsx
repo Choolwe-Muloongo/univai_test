@@ -20,10 +20,17 @@ export default function ShortCourseRegisterPage() {
   );
 }
 
+function safeNext(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '/short-courses';
+  }
+  return value;
+}
+
 function ShortCourseRegisterContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next') || '/short-courses';
+  const next = safeNext(params.get('next'));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +48,8 @@ function ShortCourseRegisterContent() {
         return;
       }
       await registerAccount({ name, email, password, role: 'free-student' });
-      router.push(next);
+      router.replace(next);
+      router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to create your short-course account.');
     } finally {
@@ -52,10 +60,16 @@ function ShortCourseRegisterContent() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-5xl space-y-6">
-        <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold text-primary">
-          <Logo className="size-8" />
-          <span>UnivAI</span>
-        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold text-primary">
+            <Logo className="size-8" />
+            <span>UnivAI</span>
+          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline"><Link href="/short-courses">Browse short courses</Link></Button>
+            <Button asChild variant="ghost"><Link href="/login">Log in</Link></Button>
+          </div>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <Card className="rounded-3xl border-primary/20 bg-primary/5">
@@ -65,6 +79,11 @@ function ShortCourseRegisterContent() {
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <p>You can browse courses, enrol, learn with card-based lessons, practise with quizzes, and earn certificates after passing assessments.</p>
+              <div className="rounded-2xl border bg-background p-4">
+                <p className="font-medium text-foreground">Already browsing?</p>
+                <p className="mt-1">You can go back to the short-course catalogue anytime. Creating an account only unlocks enrolment and progress tracking.</p>
+                <Button asChild variant="outline" className="mt-3"><Link href="/short-courses">Go to short courses</Link></Button>
+              </div>
               <div className="rounded-2xl border bg-background p-4">
                 <p className="font-medium text-foreground">Need a degree or diploma?</p>
                 <p className="mt-1">Use formal programme registration when admissions are open.</p>
@@ -85,9 +104,9 @@ function ShortCourseRegisterContent() {
                 <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></div>
                 <div className="space-y-2"><Label>Password</Label><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div>
                 <div className="space-y-2"><Label>Country</Label><Input value={country} onChange={(event) => setCountry(event.target.value)} /></div>
-                <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Creating account...' : 'Create short-course account'}</Button>
+                <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Creating account...' : 'Create account and continue'}</Button>
               </form>
-              <p className="mt-4 text-center text-sm text-muted-foreground">Already have an account? <Link className="text-primary" href="/login">Log in</Link></p>
+              <p className="mt-4 text-center text-sm text-muted-foreground">Already have an account? <Link className="text-primary" href={`/login?next=${encodeURIComponent(next)}`}>Log in and continue</Link></p>
             </CardContent>
           </Card>
         </div>
