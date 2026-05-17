@@ -539,7 +539,7 @@ export default function RegisterPage() {
                       <p className="text-xs text-destructive">{fieldErrors.programId[0]}</p>
                     ) : null}
                     <p className="text-xs text-muted-foreground">
-                      Looking for short courses? <Link href="/courses" className="text-primary hover:underline">Browse short courses</Link> and enrol directly from the course page.
+                      Looking for short courses? <Link href="/short-courses" className="text-primary hover:underline">Browse short courses</Link> and enrol directly from the course page.
                     </p>
                   </div>
                 </div>
