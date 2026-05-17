@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Lock, Rocket } from 'lucide-react';
+import { BookOpen, Lock, Rocket } from 'lucide-react';
 
-import { LessonPlayer } from '@/components/learning/lesson-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,7 +21,7 @@ function CourseSkeleton() {
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div className="space-y-8 lg:col-span-2">
         <Card><CardContent><Skeleton className="aspect-video w-full" /></CardContent></Card>
-        <Skeleton className="h-96 w-full rounded-3xl" />
+        <Skeleton className="h-72 w-full rounded-3xl" />
       </div>
       <div className="lg:col-span-1"><Skeleton className="h-64 w-full rounded-3xl" /></div>
     </div>
@@ -38,7 +37,6 @@ export default function CourseDetailPage() {
   const [courseLessons, setCourseLessons] = useState<Lesson[]>([]);
   const [meeting, setMeeting] = useState<CourseMeeting | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeLessonIndex, setActiveLessonIndex] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,10 +58,9 @@ export default function CourseDetailPage() {
   }, [id, session]);
 
   const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
-  const activeLesson = courseLessons[activeLessonIndex] ?? courseLessons[0] ?? null;
   const isFreemium = userRole === 'freemium-student';
   const introductoryLessonCount = 2;
-  const locked = isFreemium && activeLessonIndex >= introductoryLessonCount;
+  const firstUnlockedLesson = courseLessons.find((_, index) => !(isFreemium && index >= introductoryLessonCount));
 
   if (loading) return <CourseSkeleton />;
   if (!course) notFound();
@@ -79,7 +76,7 @@ export default function CourseDetailPage() {
               <div className="absolute bottom-6 left-6 right-6 text-white">
                 <p className="text-sm font-semibold uppercase text-white/75">Short course</p>
                 <h1 className="text-3xl font-extrabold tracking-tight">{course.title}</h1>
-                <p className="mt-1 text-white/90">Interactive lessons powered by the same card player used in the builder preview.</p>
+                <p className="mt-1 max-w-2xl text-white/90">{course.description}</p>
               </div>
             </div>
           </CardContent>
@@ -87,37 +84,35 @@ export default function CourseDetailPage() {
 
         <section className="space-y-5">
           <div>
-            <h2 className="text-3xl font-bold">Lesson Content</h2>
-            <p className="text-muted-foreground">SoloLearn-style cards, questions, sub-lessons, math text, and math visuals from the builder.</p>
+            <h2 className="text-3xl font-bold">Course Lessons</h2>
+            <p className="text-muted-foreground">Choose a lesson to open the focused learning room.</p>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {courseLessons.map((lesson, index) => (
-              <button
-                key={lesson.id}
-                type="button"
-                onClick={() => setActiveLessonIndex(index)}
-                className={`min-w-[210px] rounded-3xl border p-4 text-left transition ${index === activeLessonIndex ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'bg-card hover:border-primary/60'} ${isFreemium && index >= introductoryLessonCount ? 'border-dashed opacity-70' : ''}`}
-              >
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Lesson {index + 1}</p>
-                <p className="mt-1 font-bold">{lesson.title}</p>
-                {isFreemium && index >= introductoryLessonCount ? <p className="mt-1 text-xs text-muted-foreground">Locked</p> : <p className="mt-1 text-xs text-muted-foreground">Tap to study</p>}
-              </button>
-            ))}
+          <div className="space-y-3">
+            {courseLessons.length ? courseLessons.map((lesson, index) => {
+              const locked = isFreemium && index >= introductoryLessonCount;
+              return (
+                <Card key={lesson.id} className={`rounded-3xl transition ${locked ? 'border-dashed bg-muted/30' : 'hover:border-primary/50 hover:shadow-sm'}`}>
+                  <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-4">
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 font-bold text-primary">{String(index + 1).padStart(2, '0')}</div>
+                      <div>
+                        <h3 className="font-bold">{lesson.title}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{lesson.content ? 'Interactive cards, math visuals, and checkpoints.' : 'Card lesson prepared from the course builder.'}</p>
+                      </div>
+                    </div>
+                    {locked ? (
+                      <Button variant="outline" disabled className="gap-2"><Lock className="size-4" /> Locked</Button>
+                    ) : (
+                      <Button asChild className="gap-2"><Link href={`/student/courses/${course.id}/lessons/${lesson.id}`}><BookOpen className="size-4" /> Study lesson</Link></Button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            }) : (
+              <div className="rounded-3xl border p-10 text-center text-muted-foreground">No lessons have been published yet.</div>
+            )}
           </div>
-
-          {locked ? (
-            <LockedLesson />
-          ) : activeLesson ? (
-            <LessonPlayer
-              lesson={activeLesson as any}
-              courseTitle={course.title}
-              backHref="/student/courses"
-              completeLabel="Mark lesson complete"
-            />
-          ) : (
-            <div className="rounded-3xl border p-10 text-center text-muted-foreground">No lessons have been published yet.</div>
-          )}
         </section>
       </div>
 
@@ -125,25 +120,15 @@ export default function CourseDetailPage() {
         <Card className="sticky top-24 rounded-3xl border-primary/20 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Rocket className="size-5" /> Course Actions</CardTitle>
-            <CardDescription>Finish the cards, then attempt the final assessment.</CardDescription>
+            <CardDescription>Start learning or attempt the final assessment when ready.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button size="lg" className="w-full" asChild><Link href={`/student/courses/${course.id}/exam`}>Start Final Exam</Link></Button>
+            {firstUnlockedLesson ? <Button size="lg" className="w-full" asChild><Link href={`/student/courses/${course.id}/lessons/${firstUnlockedLesson.id}`}>Start first lesson</Link></Button> : null}
+            <Button size="lg" variant="outline" className="w-full" asChild><Link href={`/student/courses/${course.id}/exam`}>Start Final Exam</Link></Button>
             {meeting?.meetingUrl ? <Button variant="outline" className="w-full" asChild><Link href={meeting.meetingUrl} target="_blank">Join Live Lesson</Link></Button> : null}
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function LockedLesson() {
-  return (
-    <div className="rounded-3xl border border-dashed p-10 text-center">
-      <Lock className="mx-auto mb-4 size-12 text-muted-foreground" />
-      <h3 className="text-xl font-semibold">Content Locked</h3>
-      <p className="mb-4 text-muted-foreground">Upgrade to access this lesson and the full course.</p>
-      <Button asChild><Link href="/student/payments">Upgrade Now</Link></Button>
     </div>
   );
 }
