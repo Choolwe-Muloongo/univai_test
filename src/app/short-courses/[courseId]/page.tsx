@@ -33,6 +33,8 @@ export default function ShortCourseInfoPage() {
   if (error) return <PageError message={error} actionHref="/short-courses" actionLabel="Back to short courses" />;
   if (!course) return <PageError title="Course not found" message="This short course is not available." actionHref="/short-courses" actionLabel="Back to short courses" />;
 
+  const registerHref = `/register/short-courses?next=${encodeURIComponent(`/short-courses/${course.id}`)}`;
+
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
       <section className="rounded-3xl border bg-card p-8 shadow-sm">
@@ -44,9 +46,11 @@ export default function ShortCourseInfoPage() {
         <h1 className="text-4xl font-bold tracking-tight">{course.title}</h1>
         <p className="mt-4 max-w-3xl text-muted-foreground">{course.description}</p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button asChild><Link href={`/student/short-courses/${course.id}`}>Start or continue</Link></Button>
+          <Button asChild><Link href={registerHref}>Register to enroll</Link></Button>
+          <Button variant="outline" asChild><Link href={`/login?next=${encodeURIComponent(`/short-courses/${course.id}`)}`}>Already have an account?</Link></Button>
           <Button variant="outline" asChild><Link href="/short-courses">Browse more</Link></Button>
         </div>
+        <p className="mt-4 text-sm text-muted-foreground">New learners must create a short-course account first. No formal admission documents are required.</p>
       </section>
 
       <Card>
