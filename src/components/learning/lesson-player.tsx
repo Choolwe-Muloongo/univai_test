@@ -31,6 +31,8 @@ type LessonBlock = {
   imageUrl?: string;
   imageAlt?: string;
   imageCaption?: string;
+  sectionTitle?: string;
+  subLessonTitle?: string;
   steps?: Array<{
     title?: string;
     explanation?: string;
@@ -40,6 +42,20 @@ type LessonBlock = {
     imageCaption?: string;
   }>;
   [key: string]: unknown;
+};
+
+type LessonSection = {
+  title?: string;
+  name?: string;
+  description?: string;
+  summary?: string;
+  blocks?: LessonBlock[];
+  cards?: LessonBlock[];
+  lessons?: LessonSection[];
+  subLessons?: LessonSection[];
+  sub_lessons?: LessonSection[];
+  sections?: LessonSection[];
+  topics?: LessonSection[];
 };
 
 type PlayableLesson = Partial<LessonWithCourseId> & {
@@ -144,6 +160,7 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
             <Badge className="rounded-full capitalize" variant={isInteractive ? 'default' : 'secondary'}>
               {labelForBlock(block.type)}
             </Badge>
+            {typeof block.subLessonTitle === 'string' && block.type !== 'sub_lesson' ? <Badge variant="outline" className="rounded-full"><MathText text={block.subLessonTitle} /></Badge> : null}
             {lesson.difficulty ? <Badge variant="outline" className="rounded-full capitalize">{lesson.difficulty}</Badge> : null}
           </div>
           <CardTitle className="text-xl sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
@@ -298,9 +315,43 @@ function normalizeLessonBlocks(lesson: PlayableLesson): LessonBlock[] {
 function readBlocksFromUnknown(value: unknown): LessonBlock[] {
   if (!value || typeof value !== 'object') return [];
   const record = value as Record<string, unknown>;
-  if (Array.isArray(record.blocks)) return record.blocks as LessonBlock[];
-  if (record.lesson && typeof record.lesson === 'object' && Array.isArray((record.lesson as Record<string, unknown>).blocks)) return (record.lesson as Record<string, unknown>).blocks as LessonBlock[];
-  return [];
+  const direct = [
+    ...(Array.isArray(record.blocks) ? record.blocks as LessonBlock[] : []),
+    ...(Array.isArray(record.cards) ? record.cards as LessonBlock[] : []),
+  ];
+  const grouped = [
+    ...sectionsFrom(record.sections),
+    ...sectionsFrom(record.subLessons),
+    ...sectionsFrom(record.sub_lessons),
+    ...sectionsFrom(record.topics),
+    ...sectionsFrom(record.lessons),
+  ];
+  if (record.lesson && typeof record.lesson === 'object') return [...direct, ...readBlocksFromUnknown(record.lesson), ...grouped];
+  return [...direct, ...grouped];
+}
+
+function sectionsFrom(value: unknown): LessonBlock[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((section, index) => blocksFromSection(section as LessonSection, index));
+}
+
+function blocksFromSection(section: LessonSection, index: number): LessonBlock[] {
+  const title = section.title ?? section.name ?? `Sub-lesson ${index + 1}`;
+  const intro: LessonBlock = {
+    type: 'sub_lesson',
+    title,
+    body: section.description ?? section.summary ?? 'Start this sub-lesson.',
+    subLessonTitle: title,
+  };
+  const localBlocks = [...(section.blocks ?? []), ...(section.cards ?? [])].map((block) => ({ ...block, subLessonTitle: title }));
+  const nested = [
+    ...sectionsFrom(section.sections),
+    ...sectionsFrom(section.subLessons),
+    ...sectionsFrom(section.sub_lessons),
+    ...sectionsFrom(section.topics),
+    ...sectionsFrom(section.lessons),
+  ];
+  return [intro, ...localBlocks, ...nested];
 }
 
 function sanitizeBlocks(blocks: LessonBlock[]): LessonBlock[] {
@@ -337,6 +388,7 @@ function evaluateAnswer(block: LessonBlock, rawAnswer: string): AnswerState | nu
 
 function titleForBlock(block: LessonBlock) {
   if (block.title) return block.title;
+  if (block.type === 'sub_lesson') return 'Sub-lesson';
   if (block.type === 'question') return block.visual ? 'Visual question' : 'Quick check';
   if (block.type === 'fill_blank') return block.visual ? 'Visual fill-in' : 'Fill in the blank';
   if (block.type === 'true_false') return block.visual ? 'Visual true or false' : 'True or false';
@@ -352,6 +404,7 @@ function titleForBlock(block: LessonBlock) {
 }
 
 function labelForBlock(type: string) {
+  if (type === 'sub_lesson') return 'sub lesson';
   if (type === 'fill_blank') return 'fill blank';
   if (type === 'true_false') return 'true/false';
   if (type === 'question') return 'checkpoint';
