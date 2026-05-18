@@ -66,7 +66,7 @@ async function extractPdfText(file: File, options: ExtractOptions = {}): Promise
   const emit = (progress: Omit<DocumentExtractionProgress, 'fileName'>) => options.onProgress?.({ ...progress, fileName: file.name });
 
   try {
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjs = await loadPdfJs();
     const buffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({
       data: new Uint8Array(buffer),
@@ -89,7 +89,7 @@ async function extractPdfText(file: File, options: ExtractOptions = {}): Promise
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
       const pageText = content.items
-        .map((item) => ('str' in item ? item.str : ''))
+        .map((item: unknown) => item && typeof item === 'object' && 'str' in item ? String((item as { str?: unknown }).str ?? '') : '')
         .filter(Boolean)
         .join(' ')
         .replace(/\s+/g, ' ')
@@ -135,7 +135,7 @@ async function extractDocxText(file: File, options: ExtractOptions = {}): Promis
   const emit = (progress: Omit<DocumentExtractionProgress, 'fileName'>) => options.onProgress?.({ ...progress, fileName: file.name });
   try {
     emit({ stage: 'reading', percent: 10, message: `Reading DOCX ${file.name}...` });
-    const mammoth = await import('mammoth/mammoth.browser');
+    const mammoth = await loadMammoth();
     const buffer = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer: buffer });
     const messages = result.messages?.map((message) => message.message).filter(Boolean) ?? [];
@@ -177,7 +177,7 @@ async function extractImageText(file: File, options: ExtractOptions = {}): Promi
 }
 
 async function ocrPdfFromFile(file: File, options: ExtractOptions = {}): Promise<string> {
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjs = await loadPdfJs();
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({
     data: new Uint8Array(buffer),
@@ -233,9 +233,9 @@ async function ocrPdf(
 }
 
 async function recognizeImage(source: File | HTMLCanvasElement, onProgress?: (percent: number) => void): Promise<string> {
-  const { createWorker } = await import('tesseract.js');
+  const { createWorker } = await loadTesseract();
   const worker = await createWorker('eng', 1, {
-    logger: (event) => {
+    logger: (event: { status?: string; progress?: number }) => {
       if (event.status === 'recognizing text' && typeof event.progress === 'number') {
         onProgress?.(Math.max(1, Math.min(99, Math.round(event.progress * 100))));
       }
@@ -251,4 +251,16 @@ async function recognizeImage(source: File | HTMLCanvasElement, onProgress?: (pe
 
 function formatError(prefix: string, error: unknown): string {
   return error instanceof Error ? `${prefix}: ${error.message}` : `${prefix}.`;
+}
+
+function loadPdfJs() {
+  return import('pdfjs-dist/legacy/build/pdf.mjs');
+}
+
+function loadMammoth() {
+  return import('mammoth/mammoth.browser');
+}
+
+function loadTesseract() {
+  return import('tesseract.js');
 }

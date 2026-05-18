@@ -114,6 +114,11 @@ export type PracticeAnswer = {
   answer?: string;
 };
 
+export type ExamAnswer = {
+  questionId: string | number;
+  answer?: string;
+};
+
 export type PracticeResult = {
   score: number;
   correct: number;
@@ -146,6 +151,10 @@ export async function getShortCourseProgress(courseId: string): Promise<ShortCou
   return apiFetch(`/students/me/short-courses/${courseId}/progress`);
 }
 
+export async function completeShortCourseLesson(courseId: string, lessonId: string): Promise<{ progress: number; completedLessons: number }> {
+  return apiFetch(`/students/me/short-courses/${courseId}/lessons/${lessonId}/complete`, { method: 'POST' });
+}
+
 export async function getShortCourseExam(courseId: string): Promise<ShortCourseExamPayload> {
   return apiFetch(`/students/me/short-courses/${courseId}/exam`);
 }
@@ -164,7 +173,7 @@ export async function submitShortCoursePractice(courseId: string, answers: Pract
   });
 }
 
-export async function submitShortCourseExam(courseId: string, answers: string[]): Promise<{ score: number; passed: boolean }> {
+export async function submitShortCourseExam(courseId: string, answers: ExamAnswer[]): Promise<{ score: number; passed: boolean }> {
   return apiFetch(`/students/me/short-courses/${courseId}/exam/submit`, {
     method: 'POST',
     body: JSON.stringify({ answers }),
@@ -173,6 +182,10 @@ export async function submitShortCourseExam(courseId: string, answers: string[])
 
 export async function payShortCourseCertificate(courseId: string): Promise<PaymentInitiation> {
   return apiFetch(`/students/me/short-courses/${courseId}/certificate/pay`, { method: 'POST' });
+}
+
+export async function verifyStudentInvoicePayment(invoiceId: string | number): Promise<{ id: number; status: string; message?: string }> {
+  return apiFetch(`/students/me/invoices/${invoiceId}/verify`, { method: 'POST' });
 }
 
 export function getShortCourseCertificateUrl(courseId: string) {

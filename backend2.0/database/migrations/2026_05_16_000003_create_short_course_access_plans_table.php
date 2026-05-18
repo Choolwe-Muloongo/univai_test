@@ -26,10 +26,13 @@ return new class extends Migration
         });
 
         $plans = [
-            ['code' => 'access_only', 'name' => 'Monthly Course Access Extension', 'amount' => 20, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 0, 'hourly_ai_quota' => 0, 'daily_ai_quota' => 0, 'certificate_included' => false, 'sort_order' => 1],
-            ['code' => 'access_ai', 'name' => 'Monthly Course and AI Access', 'amount' => 50, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 40, 'daily_ai_quota' => 240, 'certificate_included' => false, 'sort_order' => 2],
-            ['code' => 'premium_certificate', 'name' => 'Monthly Premium Course, AI and Certificate', 'amount' => 250, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 100, 'daily_ai_quota' => 600, 'certificate_included' => true, 'sort_order' => 3],
-            ['code' => 'elite_certificate', 'name' => 'Monthly Elite Course, AI and Certificate', 'amount' => 350, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 180, 'daily_ai_quota' => 1000, 'certificate_included' => true, 'sort_order' => 4],
+            ['code' => 'starter_access', 'name' => 'Starter Access', 'amount' => 30, 'currency' => 'ZMW', 'access_hours' => 336, 'ai_hours' => 0, 'hourly_ai_quota' => 0, 'daily_ai_quota' => 0, 'certificate_included' => false, 'sort_order' => 1],
+            ['code' => 'monthly_access', 'name' => 'Monthly Access', 'amount' => 50, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 0, 'hourly_ai_quota' => 0, 'daily_ai_quota' => 0, 'certificate_included' => false, 'sort_order' => 2],
+            ['code' => 'ai_lite', 'name' => 'AI Lite', 'amount' => 75, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 15, 'daily_ai_quota' => 75, 'certificate_included' => false, 'sort_order' => 3],
+            ['code' => 'ai_plus', 'name' => 'AI Plus', 'amount' => 120, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 30, 'daily_ai_quota' => 150, 'certificate_included' => false, 'sort_order' => 4],
+            ['code' => 'ai_scholar', 'name' => 'AI Scholar', 'amount' => 180, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 40, 'daily_ai_quota' => 200, 'certificate_included' => false, 'sort_order' => 5],
+            ['code' => 'certified_premium', 'name' => 'Certified Premium', 'amount' => 250, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 50, 'daily_ai_quota' => 250, 'certificate_included' => true, 'sort_order' => 6],
+            ['code' => 'certified_elite', 'name' => 'Certified Elite', 'amount' => 350, 'currency' => 'ZMW', 'access_hours' => 720, 'ai_hours' => 720, 'hourly_ai_quota' => 80, 'daily_ai_quota' => 400, 'certificate_included' => true, 'sort_order' => 7],
         ];
 
         foreach ($plans as $plan) {

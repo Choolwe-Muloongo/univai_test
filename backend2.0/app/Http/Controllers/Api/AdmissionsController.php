@@ -181,9 +181,9 @@ class AdmissionsController extends Controller
 
         $settings->update([
             'is_open' => $payload['isOpen'],
-            'message' => $payload['message'] ?? $settings->message,
+            'message' => array_key_exists('message', $payload) ? $payload['message'] : $settings->message,
             'lecturer_applications_open' => $payload['lecturerApplicationsOpen'] ?? $settings->lecturer_applications_open,
-            'lecturer_applications_message' => $payload['lecturerApplicationsMessage'] ?? $settings->lecturer_applications_message,
+            'lecturer_applications_message' => array_key_exists('lecturerApplicationsMessage', $payload) ? $payload['lecturerApplicationsMessage'] : $settings->lecturer_applications_message,
             'updated_by' => $updatedBy,
         ]);
 

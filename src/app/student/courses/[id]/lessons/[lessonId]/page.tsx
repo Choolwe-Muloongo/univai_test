@@ -3,29 +3,48 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
-import { getCourseById, getLessonById } from '@/lib/api';
-import type { Course, LessonWithCourseId } from '@/lib/api/types';
+import { getCourseById, getLessonById, getLessonsByCourse } from '@/lib/api';
+import { completeShortCourseLesson, getShortCourseProgress } from '@/lib/api/short-courses';
+import type { Course, Lesson, LessonWithCourseId } from '@/lib/api/types';
 
 export default function FocusedLessonPage() {
   const params = useParams<{ id: string; lessonId: string }>();
   const [course, setCourse] = useState<Course | null>(null);
   const [lesson, setLesson] = useState<LessonWithCourseId | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    Promise.all([getCourseById(params.id), getLessonById(params.lessonId)])
-      .then(([courseData, lessonData]) => {
+    Promise.all([
+      getCourseById(params.id),
+      getLessonById(params.lessonId),
+      getLessonsByCourse(params.id).catch(() => []),
+      getShortCourseProgress(params.id).catch(() => null),
+    ])
+      .then(([courseData, lessonData, lessonList, progress]) => {
         if (!mounted) return;
+        if (!progress?.entryFeePaid || isExpired(progress.accessExpiresAt)) {
+          setError('Active course access is required before starting lessons.');
+          return;
+        }
+        if (lessonData?.courseId && String(lessonData.courseId) !== String(params.id)) {
+          setError('This lesson does not belong to the selected short course.');
+          return;
+        }
         setCourse(courseData);
         setLesson(lessonData);
+        setLessons(lessonList);
+        setCompleted(Boolean(progress?.completedLessons?.map(String).includes(String(params.lessonId))));
       })
       .catch((cause) => {
         if (!mounted) return;
@@ -43,24 +62,55 @@ export default function FocusedLessonPage() {
   if (error) return <main className="min-h-screen bg-background px-4 py-6"><PageError message={error} actionHref={`/student/courses/${params.id}`} actionLabel="Back to course" /></main>;
   if (!course || !lesson) return <main className="min-h-screen bg-background px-4 py-6"><PageError title="Lesson unavailable" message="This lesson could not be opened." actionHref={`/student/courses/${params.id}`} actionLabel="Back to course" /></main>;
 
+  const currentIndex = lessons.findIndex((item) => String(item.id) === String(params.lessonId));
+  const nextLesson = currentIndex >= 0 ? lessons[currentIndex + 1] : null;
+
+  async function markComplete() {
+    setCompleteError(null);
+    try {
+      await completeShortCourseLesson(params.id, params.lessonId);
+      setCompleted(true);
+    } catch (cause) {
+      setCompleteError(studentFriendlyError(cause));
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background px-4 py-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-4 flex items-center justify-between">
-          <Button variant="ghost" size="sm" asChild className="gap-2">
-            <Link href={`/student/courses/${params.id}`}>
-              <ArrowLeft className="size-4" />
-              Course overview
-            </Link>
-          </Button>
-        </div>
         <LessonPlayer
           lesson={lesson as any}
           courseTitle={course.title}
           backHref={`/student/courses/${params.id}`}
+          onComplete={markComplete}
+          completed={completed}
           completeLabel="Mark lesson complete"
         />
+        {completeError ? <div className="mx-auto mt-4 max-w-3xl rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{completeError}</div> : null}
+        {completed ? (
+          <Card className="mx-auto mt-4 max-w-3xl rounded-2xl">
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium">Lesson completed</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button asChild variant="outline"><Link href={`/student/courses/${params.id}/practice`}>Practice This Lesson</Link></Button>
+                {nextLesson ? <Button asChild><Link href={`/student/courses/${params.id}/lessons/${nextLesson.id}`}>Next Lesson</Link></Button> : <Button asChild><Link href={`/student/courses/${params.id}`}>Back to Course</Link></Button>}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </main>
   );
+}
+
+function studentFriendlyError(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : 'Unable to mark this lesson complete.';
+  if (message.includes('402')) return 'Active course access is required. Please enroll or renew access.';
+  return message || 'Unable to mark this lesson complete.';
+}
+
+function isExpired(value?: string | null) {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
 }

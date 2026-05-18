@@ -67,6 +67,7 @@ import type {
   SupportMessage,
   WalletSettings,
   PaymentMethod,
+  PaymentSettings,
   ScholarshipApplication,
   ShortCourseDraftCreatePayload,
   PortfolioItem,
@@ -146,6 +147,8 @@ export type PaymentInitiation = {
   checkoutUrl?: string | null;
   reference?: string;
   status?: string;
+  testMode?: boolean;
+  message?: string;
 };
 
 export async function enrollShortCourse(courseId: string): Promise<PaymentInitiation> {
@@ -855,6 +858,10 @@ export async function payInvoice(invoiceId: number, amount?: number): Promise<Pa
   });
 }
 
+export async function verifyInvoicePayment(invoiceId: number): Promise<{ id: number; status: string; message?: string }> {
+  return apiFetch(`/students/me/invoices/${invoiceId}/verify`, { method: 'POST' });
+}
+
 export async function getPayments(): Promise<Payment[]> {
   return apiFetch('/students/me/payments');
 }
@@ -1136,6 +1143,17 @@ export async function updateAdmissionsSettings(payload: {
   lecturerApplicationsMessage?: string | null;
 }): Promise<AdmissionsSettings> {
   return apiFetch('/admin/admissions/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getPaymentSettings(): Promise<PaymentSettings> {
+  return apiFetch('/admin/payment-settings');
+}
+
+export async function updatePaymentSettings(payload: PaymentSettings): Promise<PaymentSettings> {
+  return apiFetch('/admin/payment-settings', {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });

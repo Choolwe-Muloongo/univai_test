@@ -6,23 +6,31 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getInvoices, payInvoice } from '@/lib/api';
+import { getInvoices, payInvoice, verifyInvoicePayment } from '@/lib/api';
 import type { Invoice } from '@/lib/api/types';
+import { useSearchParams } from 'next/navigation';
 
 export default function StudentInvoicesPage() {
+  const searchParams = useSearchParams();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      const invoice = Number(searchParams.get('invoice'));
+      if (searchParams.get('payment') === 'success' && Number.isFinite(invoice)) {
+        const verification = await verifyInvoicePayment(invoice).catch(() => null);
+        setNotice(verification?.message ?? 'Payment is being confirmed. Refresh if the invoice still shows pending.');
+      }
       const data = await getInvoices();
       setInvoices(data);
       setLoading(false);
     };
     load();
-  }, []);
+  }, [searchParams]);
 
   const handlePay = async (invoiceId: number) => {
     setPayingId(invoiceId);
@@ -59,6 +67,7 @@ export default function StudentInvoicesPage() {
           <CardDescription>Keep track of what is due and what has been paid.</CardDescription>
         </CardHeader>
         <CardContent>
+          {notice ? <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">{notice}</div> : null}
           <Table>
             <TableHeader>
               <TableRow>

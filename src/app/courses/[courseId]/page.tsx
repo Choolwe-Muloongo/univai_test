@@ -60,7 +60,7 @@ export default function PublicShortCoursePage() {
         window.location.href = checkoutUrl;
         return;
       }
-      window.location.href = `/student/short-courses/${course.id}`;
+      window.location.href = `/student/courses/${course.id}`;
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Unable to start enrollment.';
       if (/unauthorized|401|forbidden|403/i.test(message)) {

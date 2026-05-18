@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { getShortCourseCertificateUrl, getShortCourseExam, payShortCourseCertificate, paymentUrl, submitShortCourseExam, type ShortCourseExamPayload } from '@/lib/api/short-courses';
+import { getShortCourseCertificateUrl, getShortCourseExam, payShortCourseCertificate, paymentUrl, submitShortCourseExam, type ExamAnswer, type ShortCourseExamPayload } from '@/lib/api/short-courses';
 
 export default function ShortCourseExamPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -33,7 +33,8 @@ export default function ShortCourseExamPage() {
     setSubmitting(true);
     setError(null);
     try {
-      setResult(await submitShortCourseExam(courseId, answers));
+      const rows: ExamAnswer[] = exam?.questions.map((question, index) => ({ questionId: question.id, answer: answers[index] })) ?? [];
+      setResult(await submitShortCourseExam(courseId, rows));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to submit assessment.');
     } finally {

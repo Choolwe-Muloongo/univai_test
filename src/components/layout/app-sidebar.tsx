@@ -34,6 +34,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { Logo } from '@/components/icons/logo';
+import { useSession } from '@/components/providers/session-provider';
 import {
   SidebarContent,
   SidebarGroup,
@@ -44,6 +45,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import {
+  STUDENT_ENTITLEMENT,
+  hasStudentEntitlement,
+  isStudentRole,
+  roleToStudentAccessTier,
+} from '@/lib/auth/roles';
 
 type NavLink = {
   href: string;
@@ -68,6 +75,28 @@ const studentCoreLinks: NavLink[] = [
   { href: '/student/community', label: 'Community', icon: Users },
   { href: '/student/jobs', label: 'Job Board', icon: Briefcase },
   { href: '/student/research', label: 'Research Hub', icon: FlaskConical },
+  { href: '/student/payments', label: 'Billing', icon: Landmark },
+];
+
+const shortCourseOnlyStudentLinks: NavLink[] = [
+  { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/student/courses', label: 'My Short Courses', icon: BookOpen },
+  { href: '/short-courses', label: 'Browse Short Courses', icon: BookMarked },
+  { href: '/student/courses', label: 'Practice', icon: ClipboardCheck, key: 'student-short-practice' },
+  { href: '/student/certificates', label: 'Certificates', icon: BadgeCheck },
+  { href: '/student/ai', label: 'AI Tutor', icon: Lightbulb },
+  { href: '/admissions/portal', label: 'Apply for Formal Programme', icon: GraduationCap },
+  { href: '/student/payments', label: 'Billing', icon: Landmark },
+];
+
+const formalStudentLinks: NavLink[] = [
+  { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/student/program', label: 'My Program', icon: GraduationCap },
+  { href: '/student/study-plan', label: 'Study Plan', icon: BookOpen },
+  { href: '/student/courses', label: 'Short Courses', icon: BookMarked },
+  { href: '/student/courses', label: 'Practice', icon: ClipboardCheck, key: 'student-formal-practice' },
+  { href: '/student/certificates', label: 'Certificates', icon: BadgeCheck },
+  { href: '/student/ai', label: 'AI Tutor', icon: Lightbulb },
   { href: '/student/payments', label: 'Billing', icon: Landmark },
 ];
 
@@ -305,12 +334,21 @@ function isLinkActive(pathname: string, href: string, activeHref: string | null)
 
 export function AppSidebar({ role }: { role?: string }) {
   const pathname = usePathname();
+  const { session } = useSession();
   const [groups, setGroups] = useState<NavGroup[]>([]);
   const [activeHref, setActiveHref] = useState<string | null>(null);
 
   useEffect(() => {
-    const normalizedRole = normalizeRole(role);
-    const nextGroups = groupedLinks[normalizedRole] || groupedLinks['premium-student'];
+    const normalizedRole = normalizeRole(session?.user?.role ?? role);
+    const tier = roleToStudentAccessTier(normalizedRole);
+    const hasProgrammeAccess = hasStudentEntitlement(
+      STUDENT_ENTITLEMENT.PROGRAMME,
+      session?.user?.entitlements,
+      tier,
+    );
+    const nextGroups = isStudentRole(normalizedRole)
+      ? [{ links: hasProgrammeAccess ? formalStudentLinks : shortCourseOnlyStudentLinks }]
+      : groupedLinks[normalizedRole] || groupedLinks['premium-student'];
     setGroups(nextGroups);
 
     const links = nextGroups.flatMap((group) => group.links);
@@ -320,7 +358,7 @@ export function AppSidebar({ role }: { role?: string }) {
       .sort((a, b) => b.score - a.score);
 
     setActiveHref(ranked[0]?.href ?? null);
-  }, [pathname, role]);
+  }, [pathname, role, session]);
 
   return (
     <>

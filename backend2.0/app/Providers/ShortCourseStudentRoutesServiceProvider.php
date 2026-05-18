@@ -15,6 +15,8 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
             ->prefix('api/students/me/short-courses')
             ->group(function () {
                 Route::get('/', [ShortCourseController::class, 'mine']);
+                Route::get('/bundles', [ShortCourseAccessController::class, 'bundlePlans']);
+                Route::post('/bundles/purchase', [ShortCourseAccessController::class, 'purchaseBundle']);
                 Route::post('/{courseId}/enroll', [ShortCourseController::class, 'enroll']);
                 Route::get('/{courseId}/progress', [ShortCourseController::class, 'progress']);
                 Route::get('/{courseId}/access-plans', [ShortCourseAccessController::class, 'plans']);

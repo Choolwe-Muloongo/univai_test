@@ -16,23 +16,39 @@ class ShortCourseAiQuota
                 ->first();
         }
 
-        $hourlyLimit = (int) ($enrollment?->hourly_ai_quota ?? 20);
-        $dailyLimit = (int) ($enrollment?->daily_ai_quota ?? 120);
+        $hourlyLimit = (int) ($enrollment?->hourly_ai_quota ?? 0);
+        $dailyLimit = (int) ($enrollment?->daily_ai_quota ?? 0);
 
         if ($enrollment && method_exists($enrollment, 'hasActiveAiAccess') && !$enrollment->hasActiveAiAccess()) {
-            $hourlyLimit = min($hourlyLimit, 10);
-            $dailyLimit = min($dailyLimit, 40);
+            $hourlyLimit = 0;
+            $dailyLimit = 0;
         }
 
         $hourKey = 'short_course_ai_hour:' . $studentId . ':' . now()->format('YmdH');
         $dayKey = 'short_course_ai_day:' . $studentId . ':' . now()->format('Ymd');
+        $cooldownKey = 'short_course_ai_cooldown:' . $studentId . ':' . ($courseId ?: 'general');
+
+        if (Cache::has($cooldownKey)) {
+            return [
+                'allowed' => false,
+                'cooldownMinutes' => 30,
+                'hourlyLimit' => $hourlyLimit,
+                'dailyLimit' => $dailyLimit,
+                'hourlyUsed' => (int) Cache::get($hourKey, 0),
+                'dailyUsed' => (int) Cache::get($dayKey, 0),
+            ];
+        }
 
         $hourUsed = (int) Cache::get($hourKey, 0);
         $dayUsed = (int) Cache::get($dayKey, 0);
 
-        if ($hourUsed >= $hourlyLimit || $dayUsed >= $dailyLimit) {
+        if ($hourlyLimit <= 0 || $dailyLimit <= 0 || $hourUsed >= $hourlyLimit || $dayUsed >= $dailyLimit) {
+            if ($hourlyLimit > 0 && $hourUsed >= $hourlyLimit && $dayUsed < $dailyLimit) {
+                Cache::put($cooldownKey, true, now()->addMinutes(30));
+            }
             return [
                 'allowed' => false,
+                'cooldownMinutes' => ($hourlyLimit > 0 && $hourUsed >= $hourlyLimit && $dayUsed < $dailyLimit) ? 30 : 0,
                 'hourlyLimit' => $hourlyLimit,
                 'dailyLimit' => $dailyLimit,
                 'hourlyUsed' => $hourUsed,

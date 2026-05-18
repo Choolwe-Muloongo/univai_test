@@ -12,7 +12,7 @@ class LencoPaymentService
     {
         $reference = $invoice->transaction_reference ?: 'univai-' . Str::orderedUuid();
         $callbackUrl = config('app.url') . '/api/payments/lenco/webhook';
-        $returnUrl = rtrim((string) env('FRONTEND_URL', config('app.url')), '/') . '/student/payments/invoices?invoice=' . $invoice->id;
+        $returnUrl = $this->returnUrlFor($invoice);
 
         $payload = [
             'amount' => (float) $invoice->amount,
@@ -25,18 +25,17 @@ class LencoPaymentService
             'returnUrl' => $returnUrl,
         ];
 
-        $secret = env('LENCO_SECRET_KEY');
-        $endpoint = rtrim((string) env('LENCO_BASE_URL', 'https://api.lenco.co/access/v1'), '/') . '/collections';
-
-        if ($secret) {
-            $response = Http::withToken($secret)->acceptJson()->post($endpoint, $payload)->throw()->json();
-            $checkoutUrl = data_get($response, 'data.authorizationUrl')
-                ?? data_get($response, 'data.checkoutUrl')
-                ?? data_get($response, 'authorizationUrl')
-                ?? data_get($response, 'checkout_url');
-        }
-
-        $checkoutUrl ??= rtrim((string) env('LENCO_CHECKOUT_STUB_URL', 'https://pay.lenco.co/checkout'), '/') . '/' . $reference;
+        $frontend = rtrim((string) env('FRONTEND_URL', config('app.url')), '/');
+        $checkoutUrl = $frontend . '/payments/lenco/checkout?' . http_build_query([
+            'invoice' => $invoice->id,
+            'reference' => $reference,
+            'amount' => (string) (float) $invoice->amount,
+            'currency' => strtoupper($invoice->currency ?? 'ZMW'),
+            'email' => $invoice->student?->email,
+            'name' => $invoice->student?->name,
+            'label' => $invoice->title,
+            'returnUrl' => $returnUrl,
+        ]);
 
         $invoice->forceFill([
             'transaction_reference' => $reference,
@@ -61,5 +60,55 @@ class LencoPaymentService
 
         $expected = hash_hmac('sha256', json_encode($payload), $secret);
         return is_string($signature) && hash_equals($expected, $signature);
+    }
+
+    public function verifyCollection(string $reference): array
+    {
+        $secret = env('LENCO_SECRET_KEY');
+        if (!$secret) {
+            return [
+                'verified' => false,
+                'status' => 'unknown',
+                'message' => 'Lenco secret key is not configured.',
+                'payload' => null,
+            ];
+        }
+
+        $endpoint = rtrim((string) env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2'), '/') . '/collections/status/' . rawurlencode($reference);
+        $response = Http::withToken($secret)->acceptJson()->get($endpoint);
+        if (!$response->successful()) {
+            return [
+                'verified' => false,
+                'status' => 'unknown',
+                'message' => 'Payment verification is not available yet.',
+                'payload' => $response->json(),
+            ];
+        }
+
+        $payload = $response->json();
+        $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? 'unknown'));
+
+        return [
+            'verified' => in_array($status, ['successful', 'success', 'paid', 'completed'], true),
+            'status' => $status,
+            'message' => (string) (data_get($payload, 'message') ?? ''),
+            'payload' => $payload,
+        ];
+    }
+
+    private function returnUrlFor(Invoice $invoice): string
+    {
+        $frontend = rtrim((string) env('FRONTEND_URL', config('app.url')), '/');
+        $metadata = $invoice->metadata ?? [];
+
+        if (in_array($invoice->type, ['short_course_entry', 'short_course_access_plan', 'certificate_fee'], true) && isset($metadata['short_course_id'])) {
+            return $frontend . '/student/courses/' . $metadata['short_course_id'] . '?payment=success&invoice=' . $invoice->id;
+        }
+
+        if ($invoice->type === 'short_course_bundle') {
+            return $frontend . '/student/courses?payment=success&invoice=' . $invoice->id;
+        }
+
+        return $frontend . '/student/payments/invoices?invoice=' . $invoice->id;
     }
 }

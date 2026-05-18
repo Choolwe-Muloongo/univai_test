@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { completeShortCourseLesson, getCourseById, getLessonById } from '@/lib/api';
+import { getShortCourseProgress } from '@/lib/api/short-courses';
 import type { Course, LessonWithCourseId } from '@/lib/api/types';
 
 export default function ShortCourseLessonPage() {
@@ -21,11 +22,20 @@ export default function ShortCourseLessonPage() {
 
     async function load() {
       try {
-        const [nextLesson, nextCourse] = await Promise.all([
+        const [nextLesson, nextCourse, nextProgress] = await Promise.all([
           getLessonById(lessonId),
           getCourseById(courseId).catch(() => null),
+          getShortCourseProgress(courseId),
         ]);
         if (!mounted) return;
+        if (!nextProgress.entryFeePaid || isExpired(nextProgress.accessExpiresAt)) {
+          setError('Active course access is required before starting lessons.');
+          return;
+        }
+        if (nextLesson?.courseId && String(nextLesson.courseId) !== String(courseId)) {
+          setError('This lesson does not belong to the selected short course.');
+          return;
+        }
         setLesson(nextLesson);
         setCourse(nextCourse);
         setError(null);
@@ -71,4 +81,10 @@ export default function ShortCourseLessonPage() {
       completeLabel="Complete lesson"
     />
   );
+}
+
+function isExpired(value?: string | null) {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
 }

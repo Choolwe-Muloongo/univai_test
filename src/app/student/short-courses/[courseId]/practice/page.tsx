@@ -106,7 +106,7 @@ export default function ShortCoursePracticePage() {
               {levels.map((level) => (
                 <button key={level.key} type="button" onClick={() => { setMode('level'); setDifficulty(level.key); void startPractice(level.key); }} className="rounded-2xl border p-5 text-left transition hover:border-primary hover:bg-primary/5">
                   <p className="font-semibold">{level.label}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Up to {level.count} questions · timed challenge</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Up to {level.count} questions - timed challenge</p>
                 </button>
               ))}
             </CardContent>
@@ -128,7 +128,7 @@ export default function ShortCoursePracticePage() {
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Timed practice</CardTitle>
-              <p className="text-sm text-muted-foreground">{questions.length} questions · {payload.totalTimeMinutes} minutes</p>
+              <p className="text-sm text-muted-foreground">{questions.length} questions - {payload.totalTimeMinutes} minutes</p>
             </div>
             <div className="rounded-2xl border px-4 py-2 text-xl font-bold">{prettyTime(secondsLeft)}</div>
           </CardHeader>
@@ -166,7 +166,7 @@ export default function ShortCoursePracticePage() {
                 <p className="text-2xl font-bold">Score: {result.score}%</p>
                 <p className="text-sm text-muted-foreground">{result.correct} correct out of {result.total} questions.</p>
                 <div className="mt-4 space-y-2 text-sm">
-                  {result.results.slice(0, 10).map((row) => <p key={row.questionId}>{row.correct ? '✓' : '•'} Question {row.questionId}: {row.correct ? 'Correct' : `Answer: ${row.answer ?? 'Not set'}`}</p>)}
+                  {result.results.slice(0, 10).map((row) => <p key={row.questionId}>{row.correct ? 'Correct' : 'Review'} question {row.questionId}: {row.correct ? 'Correct' : `Answer: ${row.answer ?? 'Not set'}`}</p>)}
                 </div>
               </div>
             ) : null}

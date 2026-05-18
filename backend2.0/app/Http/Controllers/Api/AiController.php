@@ -50,8 +50,11 @@ class AiController extends Controller
         if ($isShortCourseAi && $studentId && is_numeric($studentId)) {
             $quota = ShortCourseAiQuota::checkAndIncrement((int) $studentId, $courseId ? (string) $courseId : null);
             if (!$quota['allowed']) {
+                $message = ($quota['cooldownMinutes'] ?? 0) > 0
+                    ? 'You have reached your hourly AI study limit. Your AI tutor will be available again in 30 minutes. Use this time to review your notes or attempt the next quiz.'
+                    : 'Your daily AI limit has been reached or AI tutor access is not included in this plan.';
                 return response()->json([
-                    'error' => 'AI quota reached for this short-course account.',
+                    'error' => $message,
                     'quota' => $quota,
                 ], 429);
             }

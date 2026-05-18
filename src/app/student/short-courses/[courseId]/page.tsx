@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -129,14 +130,14 @@ export default function StudentShortCourseDetailPage() {
             <Info label="Access plan" value={progress?.accessPlan ?? 'Not active'} />
             <Info label="Access expires" value={formatDate(progress?.accessExpiresAt)} />
             <Info label="AI plan" value={progress?.aiPlan ?? 'None'} />
-            <Info label="AI quota" value={`${progress?.hourlyAiQuota ?? 0}/hr · ${progress?.dailyAiQuota ?? 0}/day`} />
+            <Info label="AI quota" value={`${progress?.hourlyAiQuota ?? 0}/hr - ${progress?.dailyAiQuota ?? 0}/day`} />
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${progress?.progress ?? 0}%` }} /></div>
           <div className="flex flex-wrap gap-3">
             <Button onClick={start} disabled={busy}>{busy ? 'Working...' : isPaid ? 'Refresh entry access' : entryFee === 'Free' ? 'Start course' : `Activate entry access (${entryFee})`}</Button>
-            {firstLesson ? <Button asChild variant="outline" disabled={!isPaid}><Link href={`/student/short-courses/${courseId}/lesson/${firstLesson.id}`}>Continue lesson</Link></Button> : null}
-            <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/practice`}>Practice arena</Link></Button>
-            <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/exam`}>Final assessment</Link></Button>
+            {firstLesson ? isPaid ? <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/lesson/${firstLesson.id}`}>Continue lesson</Link></Button> : <Button variant="outline" disabled>Continue lesson</Button> : null}
+            {isPaid ? <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/practice`}>Practice arena</Link></Button> : <Button variant="outline" disabled>Practice arena</Button>}
+            {isPaid ? <Button asChild variant="outline"><Link href={`/student/short-courses/${courseId}/exam`}>Final assessment</Link></Button> : <Button variant="outline" disabled>Final assessment</Button>}
             <Button variant="outline" onClick={handleCertificate} disabled={busy || !progress?.completedAt}>Certificate</Button>
           </div>
         </CardContent>
@@ -154,7 +155,7 @@ export default function StudentShortCourseDetailPage() {
               <p className="mt-2 text-2xl font-bold">{formatMoney(plan.amount, plan.currency)}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
               <div className="mt-3 space-y-1 text-sm text-muted-foreground">
                 <p>Course access: {Math.round(plan.accessHours / 24)} days</p>
-                <p>AI quota: {plan.hourlyAiQuota}/hr · {plan.dailyAiQuota}/day</p>
+                <p>AI quota: {plan.hourlyAiQuota}/hr - {plan.dailyAiQuota}/day</p>
                 <p>{plan.certificateIncluded ? 'Certificate included' : 'Certificate not included'}</p>
               </div>
               <Button className="mt-auto w-full" variant={progress?.accessPlan === plan.code ? 'secondary' : 'outline'} onClick={() => activatePlan(plan.code)} disabled={workingPlan === plan.code}>
@@ -171,15 +172,15 @@ export default function StudentShortCourseDetailPage() {
           {lessons.length ? lessons.map((lesson, index) => {
             const done = progress?.completedLessons?.includes(String(lesson.id));
             return (
-              <Link key={lesson.id ?? index} className="block rounded-xl border p-4 transition hover:border-primary" href={`/student/short-courses/${courseId}/lesson/${lesson.id}`}>
+              <CourseLessonRow key={lesson.id ?? index} href={`/student/short-courses/${courseId}/lesson/${lesson.id}`} locked={!isPaid}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium">{index + 1}. {lesson.title}</p>
                     {lesson.summary ? <p className="mt-1 text-sm text-muted-foreground">{lesson.summary}</p> : null}
                   </div>
-                  <span className="text-sm text-muted-foreground">{done ? 'Done' : 'Open'}</span>
+                  <span className="text-sm text-muted-foreground">{!isPaid ? 'Locked' : done ? 'Done' : 'Open'}</span>
                 </div>
-              </Link>
+              </CourseLessonRow>
             );
           }) : <p className="text-sm text-muted-foreground">No lessons are available yet.</p>}
         </CardContent>
@@ -190,6 +191,14 @@ export default function StudentShortCourseDetailPage() {
 
 function Info({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">{label}</p><p className="font-bold">{value}</p></div>;
+}
+
+function CourseLessonRow({ href, locked, children }: { href: string; locked: boolean; children: ReactNode }) {
+  const className = "block rounded-xl border p-4 transition hover:border-primary";
+  if (locked) {
+    return <div className={`${className} opacity-75`}>{children}</div>;
+  }
+  return <Link className={className} href={href}>{children}</Link>;
 }
 
 function formatDate(value?: string | null) {

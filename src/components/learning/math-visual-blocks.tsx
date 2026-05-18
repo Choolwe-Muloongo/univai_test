@@ -4,7 +4,7 @@ import { PlotlyGraph } from '@/components/learning/plotly-graph';
 type AnyBlock = Record<string, any>;
 
 export function MathVisualBlock({ block }: { block: AnyBlock }) {
-  if (block.type === 'equation') return <EquationBlock block={block} />;
+  if (block.type === 'equation' || block.type === 'formula') return <EquationBlock block={block} />;
   if (block.type === 'graph') return <GraphBlock block={block} />;
   if (block.type === 'table') return <TableBlock block={block} />;
   if (block.type === 'number_line') return <NumberLineBlock block={block} />;

@@ -12,12 +12,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { createShortCourseDraftWithBlueprint, getCourses, getSchools } from '@/lib/api';
 import { generateShortCourseContent } from '@/lib/api/short-course-generation';
 import type { Course, School } from '@/lib/api/types';
-import { extractDocumentText, type DocumentExtractionProgress } from '@/lib/document-text-extractor';
+import {
+  LESSON_BLOCK_CATEGORIES,
+  LESSON_BLOCK_TEMPLATE_COUNT,
+  LESSON_BLOCK_TEMPLATES,
+  type BroadCardType,
+  type BroadMathTool,
+  type LessonBlockTemplate,
+} from '@/lib/lesson-block-library';
+import {
+  extractDocumentText,
+  type DocumentExtractionProgress,
+} from '@/lib/document-text-extractor';
 
 type Mode = 'manual' | 'ai';
 type Step = 'setup' | 'lessons' | 'cards' | 'quiz' | 'preview';
-type CardType = 'teach' | 'example' | 'question' | 'summary';
-type MathTool = 'none' | 'equation' | 'graph' | 'table' | 'formula_sheet' | 'number_line';
+type CardType = BroadCardType;
+type MathTool = BroadMathTool;
 type QuestionType = 'mcq' | 'short_answer' | 'true_false' | 'fill_blank';
 type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard';
 
@@ -40,10 +51,33 @@ type ManualCard = {
   type: CardType;
   title: string;
   body: string;
+  originalBlockType?: string;
+  templateId?: string;
+  templateLabel?: string;
+  subjectArea?: string;
+  teachingMove?: string;
+  boardId?: string;
+  keepSourceVisible?: boolean;
+  sourceQuestion?: string;
+  teacherNote?: string;
+  extractedData?: string;
+  graphPointX?: string;
+  graphPointY?: string;
+  graphPointLabel?: string;
+  graphMode?: 'function' | 'point';
+  showGraphLine?: boolean;
+  cumulativeTable?: boolean;
   imageUrl?: string;
   imageAlt?: string;
   imageCaption?: string;
   question?: string;
+  text?: string;
+  statement?: string;
+  prompt?: string;
+  front?: string;
+  back?: string;
+  items?: string;
+  criteria?: string;
   options?: string;
   answer?: string;
   explanation?: string;
@@ -80,6 +114,29 @@ const steps: Array<{ id: Step; label: string; description: string }> = [
   { id: 'preview', label: 'Preview', description: 'Check & save' },
 ];
 
+const cardTypeOptions = [
+  ['teach', 'Teach'],
+  ['example', 'Example'],
+  ['question', 'Question'],
+  ['fill_blank', 'Fill blank'],
+  ['true_false', 'True/False'],
+  ['summary', 'Summary'],
+  ['definition', 'Definition'],
+  ['case_study', 'Case study'],
+  ['scenario', 'Scenario'],
+  ['checklist', 'Checklist'],
+  ['process', 'Process'],
+  ['comparison', 'Comparison'],
+  ['reflection', 'Reflection'],
+  ['flashcard', 'Flashcard'],
+  ['mini_project', 'Mini project'],
+  ['rubric', 'Rubric'],
+  ['timeline', 'Timeline'],
+  ['risk_review', 'Risk review'],
+  ['practice_task', 'Practice task'],
+  ['capstone_prompt', 'Capstone prompt'],
+] as const;
+
 const uid = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `short-course-${Date.now()}`;
 const lines = (value?: string) => (value || '').split('\n').map((item) => item.trim()).filter(Boolean);
@@ -102,6 +159,34 @@ function makeCard(type: CardType = 'teach', index = 1): ManualCard {
     };
   }
 
+  if (type === 'fill_blank') {
+    return {
+      id: uid('card'),
+      type,
+      title: `Fill blank ${index}`,
+      body: '',
+      text: 'Complete this: ____',
+      answer: 'answer',
+      explanation: 'Explain the missing answer.',
+      mathTool: 'none',
+      saved: false,
+    };
+  }
+
+  if (type === 'true_false') {
+    return {
+      id: uid('card'),
+      type,
+      title: `True or false ${index}`,
+      body: '',
+      statement: 'Write a statement learners should judge.',
+      answer: 'true',
+      explanation: 'Explain why the statement is true or false.',
+      mathTool: 'none',
+      saved: false,
+    };
+  }
+
   if (type === 'summary') {
     return { id: uid('card'), type, title: `Summary ${index}`, body: 'Summarize what learners should remember.', mathTool: 'none', saved: false };
   }
@@ -111,6 +196,44 @@ function makeCard(type: CardType = 'teach', index = 1): ManualCard {
   }
 
   return { id: uid('card'), type, title: `Teaching card ${index}`, body: 'Explain one idea clearly.', mathTool: 'none', saved: false };
+}
+
+function makeCardFromTemplate(template: LessonBlockTemplate, index: number): ManualCard {
+  return {
+    ...makeCard(template.type, index),
+    originalBlockType: template.type,
+    templateId: template.id,
+    templateLabel: template.label,
+    subjectArea: template.subjectArea,
+    teachingMove: template.teachingMove,
+    boardId: template.type.startsWith('graph_') || template.type.includes('account') || template.type.includes('trial_balance') ? 'classroom-problem-1' : undefined,
+    keepSourceVisible: template.type.startsWith('graph_') || template.type.includes('account') || template.type.includes('trial_balance') ? true : undefined,
+    title: template.title,
+    body: template.body || '',
+    question: template.question,
+    text: template.text,
+    statement: template.statement,
+    prompt: template.prompt,
+    front: template.front,
+    back: template.back,
+    items: template.items,
+    criteria: template.criteria,
+    options: template.options,
+    answer: template.answer,
+    explanation: template.explanation,
+    mathTool: template.mathTool || 'none',
+    equation: template.equation,
+    expression: template.expression,
+    xMin: template.xMin,
+    xMax: template.xMax,
+    columns: template.columns,
+    rows: template.rows,
+    formulas: template.formulas,
+    min: template.min,
+    max: template.max,
+    points: template.points,
+    saved: false,
+  };
 }
 
 function makeLesson(index: number): ManualLesson {
@@ -219,6 +342,15 @@ export function DedicatedManualCourseBuilderClient() {
       ...lesson,
       saved: false,
       cards: [...lesson.cards, makeCard(type, lesson.cards.length + 1)],
+    } : lesson));
+    setCardIndex(activeLesson.cards.length);
+  }
+
+  function addTemplateCard(template: LessonBlockTemplate) {
+    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: [...lesson.cards, makeCardFromTemplate(template, lesson.cards.length + 1)],
     } : lesson));
     setCardIndex(activeLesson.cards.length);
   }
@@ -372,7 +504,7 @@ export function DedicatedManualCourseBuilderClient() {
 
       {mode === 'manual' && step === 'setup' ? <SetupStep form={form} setForm={setForm} schools={schools} goNext={() => setStep('lessons')} /> : null}
       {mode === 'manual' && step === 'lessons' ? <LessonsStep lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} finish={() => setStep('cards')} /> : null}
-      {mode === 'manual' && step === 'cards' ? <CardsStep form={form} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
+      {mode === 'manual' && step === 'cards' ? <CardsStep form={form} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addTemplateCard={addTemplateCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
       {mode === 'manual' && step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={() => { setQuizBank((current) => [...current, makeQuiz()]); setQuizIndex(quizBank.length); }} finish={() => setStep('preview')} /> : null}
       {mode === 'manual' && step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} courses={courses} saveDraft={saveDraft} saving={saving} /> : null}
     </div>
@@ -387,7 +519,7 @@ function Header({ mode, step, setMode, setStep, saving, saveDraft }: { mode: Mod
           <div>
             <p className="text-sm font-semibold uppercase text-primary">Dedicated manual course studio</p>
             <h2 className="text-2xl font-bold">Create courses visually without JSON.</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Lesson timing and difficulty come from the course setup, not every lesson.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Use {LESSON_BLOCK_TEMPLATE_COUNT} broad block starters, then edit every card before review.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant={mode === 'manual' ? 'default' : 'outline'} onClick={() => setMode('manual')}>Manual builder</Button>
@@ -458,19 +590,71 @@ function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setL
   );
 }
 
-function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; cardIndex: number; setCardIndex: (index: number) => void; activeCard: ManualCard; addCard: (type: CardType) => void; updateCard: (patch: Partial<ManualCard>) => void; finish: () => void }) {
-  const { form, lessons, lessonIndex, setLessonIndex, activeLesson, cardIndex, setCardIndex, activeCard, addCard, updateCard, finish } = props;
+function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; cardIndex: number; setCardIndex: (index: number) => void; activeCard: ManualCard; addCard: (type: CardType) => void; addTemplateCard: (template: LessonBlockTemplate) => void; updateCard: (patch: Partial<ManualCard>) => void; finish: () => void }) {
+  const { form, lessons, lessonIndex, setLessonIndex, activeLesson, cardIndex, setCardIndex, activeCard, addCard, addTemplateCard, updateCard, finish } = props;
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templateCategory, setTemplateCategory] = useState('All');
+  const filteredTemplates = useMemo(() => {
+    const needle = templateSearch.trim().toLowerCase();
+    return LESSON_BLOCK_TEMPLATES.filter((template) => {
+      const categoryMatch = templateCategory === 'All' || template.category === templateCategory;
+      if (!categoryMatch) return false;
+      if (!needle) return true;
+      return `${template.label} ${template.help} ${template.category} ${template.subjectArea} ${template.teachingMove} ${template.type} ${template.title}`.toLowerCase().includes(needle);
+    });
+  }, [templateCategory, templateSearch]);
+  const visibleTemplates = filteredTemplates.slice(0, 120);
+
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
       <Card className="rounded-3xl">
-        <CardHeader><CardTitle>Card editor</CardTitle><CardDescription>Build lesson content cards.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Card editor</CardTitle><CardDescription>Build lesson content with 1,000 cross-field block starters.</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1">{lessons.map((lesson, index) => <Button key={lesson.id} type="button" size="sm" variant={index === lessonIndex ? 'default' : 'outline'} onClick={() => { setLessonIndex(index); setCardIndex(0); }}>{lesson.title}</Button>)}</div>
-          <div className="grid gap-2 sm:grid-cols-4"><Button variant="outline" onClick={() => addCard('teach')}>+ Teach</Button><Button variant="outline" onClick={() => addCard('example')}>+ Example</Button><Button variant="outline" onClick={() => addCard('question')}>+ Question</Button><Button variant="outline" onClick={() => addCard('summary')}>+ Summary</Button></div>
+          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+            <Button variant="outline" onClick={() => addCard('teach')}>+ Teach</Button>
+            <Button variant="outline" onClick={() => addCard('example')}>+ Example</Button>
+            <Button variant="outline" onClick={() => addCard('question')}>+ Question</Button>
+            <Button variant="outline" onClick={() => addCard('fill_blank')}>+ Blank</Button>
+            <Button variant="outline" onClick={() => addCard('true_false')}>+ True/False</Button>
+            <Button variant="outline" onClick={() => addCard('summary')}>+ Summary</Button>
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <div>
+              <p className="font-semibold">Broad block library</p>
+              <p className="text-sm text-muted-foreground">{LESSON_BLOCK_TEMPLATE_COUNT} registry blocks and starters across teaching, questions, math, finance, code, business, science, media, projects and certificates.</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+              <Input value={templateSearch} onChange={(event) => setTemplateSearch(event.target.value)} placeholder="Search blocks, fields, skills..." />
+              <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
+                {LESSON_BLOCK_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </div>
+            <div className="grid max-h-80 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+              {visibleTemplates.map((template) => (
+                <button key={template.id} type="button" onClick={() => addTemplateCard(template)} className="rounded-xl border p-3 text-left text-xs transition hover:border-primary hover:bg-primary/5">
+                  <span className="block font-semibold">{template.label}</span>
+                  <span className="mt-1 block text-muted-foreground">{template.help}</span>
+                  <span className="mt-2 flex flex-wrap gap-1">
+                    <span className="inline-flex rounded-full bg-muted px-2 py-1 text-[11px] capitalize text-muted-foreground">{template.type.replace(/_/g, ' ')}</span>
+                    {template.difficulty ? <span className="inline-flex rounded-full bg-muted px-2 py-1 text-[11px] capitalize text-muted-foreground">{template.difficulty}</span> : null}
+                    {template.assessmentMode ? <span className="inline-flex rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground">{template.assessmentMode}</span> : null}
+                    {template.certificateCapable ? <span className="inline-flex rounded-full bg-primary/10 px-2 py-1 text-[11px] text-primary">certificate-capable</span> : null}
+                  </span>
+                  {template.bestUsedFor ? <span className="mt-2 block text-[11px] text-muted-foreground">Best used for: {template.bestUsedFor}</span> : null}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Showing {visibleTemplates.length} of {filteredTemplates.length} matching block starters. Search by field, skill or teaching move to narrow the list.</p>
+          </div>
+
           <div className="flex gap-2 overflow-x-auto pb-1">{activeLesson.cards.map((card, index) => <button key={card.id} type="button" onClick={() => setCardIndex(index)} className={`min-w-[120px] rounded-2xl border p-3 text-left text-xs ${index === cardIndex ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'}`}><p className="font-semibold">Card {index + 1}</p><p className="text-muted-foreground">{card.type}</p></button>)}</div>
-          <Field label="Card type"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeCard.type} onChange={(event) => updateCard({ type: event.target.value as CardType })}><option value="teach">Teach</option><option value="example">Example</option><option value="question">Question</option><option value="summary">Summary</option></select></Field>
+          <Field label="Card type"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeCard.type} onChange={(event) => updateCard({ type: event.target.value as CardType })}>{!cardTypeOptions.some(([value]) => value === activeCard.type) ? <option value={activeCard.type}>{activeCard.type.replace(/_/g, ' ')}</option> : null}{cardTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
           <Field label="Card title"><Input value={activeCard.title} onChange={(event) => updateCard({ title: event.target.value })} /></Field>
+          {activeCard.templateLabel ? <p className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Started from {activeCard.templateLabel}</p> : null}
           <CardFields card={activeCard} updateCard={updateCard} />
+          <ClassroomThreadFields card={activeCard} updateCard={updateCard} />
           <MathFields card={activeCard} updateCard={updateCard} />
           <Button type="button" onClick={finish}>Finish cards</Button>
         </CardContent>
@@ -484,11 +668,112 @@ function CardFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
   if (card.type === 'question') {
     return <><Field label="Question"><Textarea rows={3} value={card.question || ''} onChange={(event) => updateCard({ question: event.target.value })} /></Field><Field label="Options, one per line"><Textarea rows={4} value={card.options || ''} onChange={(event) => updateCard({ options: event.target.value })} /></Field><Field label="Correct answer"><Input value={card.answer || ''} onChange={(event) => updateCard({ answer: event.target.value })} /></Field><Field label="Explanation"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field><ImageFields card={card} updateCard={updateCard} /></>;
   }
-  return <><Field label="Card text"><Textarea rows={5} value={card.body} onChange={(event) => updateCard({ body: event.target.value })} /></Field><ImageFields card={card} updateCard={updateCard} /></>;
+  if (card.type === 'fill_blank') {
+    return <><Field label="Fill-in text"><Textarea rows={3} value={card.text || ''} onChange={(event) => updateCard({ text: event.target.value })} placeholder="Complete this: ____" /></Field><Field label="Correct answer"><Input value={card.answer || ''} onChange={(event) => updateCard({ answer: event.target.value })} /></Field><Field label="Explanation"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field><ImageFields card={card} updateCard={updateCard} /></>;
+  }
+  if (card.type === 'true_false') {
+    return <><Field label="Statement"><Textarea rows={3} value={card.statement || ''} onChange={(event) => updateCard({ statement: event.target.value })} /></Field><Field label="Correct answer"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={(card.answer || 'true').toLowerCase()} onChange={(event) => updateCard({ answer: event.target.value })}><option value="true">True</option><option value="false">False</option></select></Field><Field label="Explanation"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field><ImageFields card={card} updateCard={updateCard} /></>;
+  }
+  return (
+    <>
+      <Field label="Card text"><Textarea rows={5} value={card.body} onChange={(event) => updateCard({ body: event.target.value })} /></Field>
+      {card.type === 'flashcard' ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Front"><Textarea rows={3} value={card.front || ''} onChange={(event) => updateCard({ front: event.target.value })} /></Field>
+          <Field label="Back"><Textarea rows={3} value={card.back || ''} onChange={(event) => updateCard({ back: event.target.value })} /></Field>
+        </div>
+      ) : null}
+      <Field label="Learner prompt"><Textarea rows={3} value={card.prompt || ''} onChange={(event) => updateCard({ prompt: event.target.value })} /></Field>
+      <Field label="List items, steps or glossary lines"><Textarea rows={4} value={card.items || ''} onChange={(event) => updateCard({ items: event.target.value })} /></Field>
+      <Field label="Quality criteria"><Textarea rows={3} value={card.criteria || ''} onChange={(event) => updateCard({ criteria: event.target.value })} /></Field>
+      <ImageFields card={card} updateCard={updateCard} />
+    </>
+  );
 }
 
 function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
-  return <div className="space-y-3 rounded-2xl border p-4"><div><p className="font-semibold">Math / visual inside this card</p><p className="text-sm text-muted-foreground">Attach an equation, graph, table, formula sheet or number line.</p></div><Field label="Math tool"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={card.mathTool} onChange={(event) => updateCard({ mathTool: event.target.value as MathTool })}><option value="none">No math visual</option><option value="equation">Equation</option><option value="graph">Graph</option><option value="table">Table</option><option value="formula_sheet">Formula sheet</option><option value="number_line">Number line</option></select></Field>{card.mathTool === 'equation' ? <Field label="Equation"><Input value={card.equation || ''} onChange={(event) => updateCard({ equation: event.target.value })} placeholder="x^2 + y^2 = r^2" /></Field> : null}{card.mathTool === 'graph' ? <div className="grid gap-3 md:grid-cols-3"><Field label="Function"><Input value={card.expression || ''} onChange={(event) => updateCard({ expression: event.target.value })} placeholder="x^2" /></Field><Field label="X min"><Input type="number" value={card.xMin || '-10'} onChange={(event) => updateCard({ xMin: event.target.value })} /></Field><Field label="X max"><Input type="number" value={card.xMax || '10'} onChange={(event) => updateCard({ xMax: event.target.value })} /></Field></div> : null}{card.mathTool === 'table' ? <><Field label="Columns, comma separated"><Input value={card.columns || ''} onChange={(event) => updateCard({ columns: event.target.value })} placeholder="x, y" /></Field><Field label="Rows, one row per line"><Textarea rows={4} value={card.rows || ''} onChange={(event) => updateCard({ rows: event.target.value })} placeholder="-2, 4\n-1, 1\n0, 0" /></Field></> : null}{card.mathTool === 'formula_sheet' ? <Field label="Formulas: name | formula | description"><Textarea rows={5} value={card.formulas || ''} onChange={(event) => updateCard({ formulas: event.target.value })} /></Field> : null}{card.mathTool === 'number_line' ? <div className="grid gap-3 md:grid-cols-3"><Field label="Min"><Input value={card.min || '-5'} onChange={(event) => updateCard({ min: event.target.value })} /></Field><Field label="Max"><Input value={card.max || '5'} onChange={(event) => updateCard({ max: event.target.value })} /></Field><Field label="Points"><Input value={card.points || '0'} onChange={(event) => updateCard({ points: event.target.value })} placeholder="-2, 0, 3" /></Field></div> : null}</div>;
+  return (
+    <div className="space-y-3 rounded-2xl border p-4">
+      <div>
+        <p className="font-semibold">Math / visual inside this card</p>
+        <p className="text-sm text-muted-foreground">Attach an equation, graph, table, formula sheet or number line.</p>
+      </div>
+      <Field label="Math tool">
+        <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={card.mathTool} onChange={(event) => updateCard({ mathTool: event.target.value as MathTool })}>
+          <option value="none">No math visual</option>
+          <option value="equation">Equation</option>
+          <option value="graph">Graph</option>
+          <option value="table">Table</option>
+          <option value="formula_sheet">Formula sheet</option>
+          <option value="number_line">Number line</option>
+        </select>
+      </Field>
+      {card.mathTool === 'equation' ? <Field label="Equation"><Input value={card.equation || ''} onChange={(event) => updateCard({ equation: event.target.value })} placeholder="x^2 + y^2 = r^2" /></Field> : null}
+      {card.mathTool === 'graph' ? (
+        <div className="space-y-3">
+          <Field label="Graph mode">
+            <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={card.graphMode || 'function'} onChange={(event) => updateCard({ graphMode: event.target.value as 'function' | 'point' })}>
+              <option value="function">Draw function/curve</option>
+              <option value="point">Plot one point for this classroom step</option>
+            </select>
+          </Field>
+          {(card.graphMode || 'function') === 'function' ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              <Field label="Function"><Input value={card.expression || ''} onChange={(event) => updateCard({ expression: event.target.value })} placeholder="x^2" /></Field>
+              <Field label="X min"><Input type="number" value={card.xMin || '-10'} onChange={(event) => updateCard({ xMin: event.target.value })} /></Field>
+              <Field label="X max"><Input type="number" value={card.xMax || '10'} onChange={(event) => updateCard({ xMax: event.target.value })} /></Field>
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-3">
+              <Field label="Point x"><Input value={card.graphPointX || ''} onChange={(event) => updateCard({ graphPointX: event.target.value })} placeholder="-2" /></Field>
+              <Field label="Point y"><Input value={card.graphPointY || ''} onChange={(event) => updateCard({ graphPointY: event.target.value })} placeholder="4" /></Field>
+              <Field label="Point label"><Input value={card.graphPointLabel || ''} onChange={(event) => updateCard({ graphPointLabel: event.target.value })} placeholder="(-2, 4)" /></Field>
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(card.showGraphLine)} onChange={(event) => updateCard({ showGraphLine: event.target.checked })} /> Connect plotted points on this step</label>
+          <div className="grid gap-3 md:grid-cols-4">
+            <Field label="X min"><Input type="number" value={card.xMin || '-10'} onChange={(event) => updateCard({ xMin: event.target.value })} /></Field>
+            <Field label="X max"><Input type="number" value={card.xMax || '10'} onChange={(event) => updateCard({ xMax: event.target.value })} /></Field>
+            <Field label="Y min"><Input type="number" value={card.min || '-10'} onChange={(event) => updateCard({ min: event.target.value })} /></Field>
+            <Field label="Y max"><Input type="number" value={card.max || '10'} onChange={(event) => updateCard({ max: event.target.value })} /></Field>
+          </div>
+        </div>
+      ) : null}
+      {card.mathTool === 'table' ? (
+        <>
+          <Field label="Columns, comma separated"><Input value={card.columns || ''} onChange={(event) => updateCard({ columns: event.target.value })} placeholder="Account, Debit, Credit, Reason" /></Field>
+          <Field label="Rows, one row per line"><Textarea rows={4} value={card.rows || ''} onChange={(event) => updateCard({ rows: event.target.value })} placeholder={'Cash, 1000, , Asset increased\nCapital, , 1000, Owner invested'} /></Field>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(card.cumulativeTable)} onChange={(event) => updateCard({ cumulativeTable: event.target.checked })} /> Keep adding rows from earlier cards in this classroom thread</label>
+        </>
+      ) : null}
+      {card.mathTool === 'formula_sheet' ? <Field label="Formulas: name | formula | description"><Textarea rows={5} value={card.formulas || ''} onChange={(event) => updateCard({ formulas: event.target.value })} /></Field> : null}
+      {card.mathTool === 'number_line' ? (
+        <div className="grid gap-3 md:grid-cols-3">
+          <Field label="Min"><Input value={card.min || '-5'} onChange={(event) => updateCard({ min: event.target.value })} /></Field>
+          <Field label="Max"><Input value={card.max || '5'} onChange={(event) => updateCard({ max: event.target.value })} /></Field>
+          <Field label="Points"><Input value={card.points || '0'} onChange={(event) => updateCard({ points: event.target.value })} placeholder="-2, 0, 3" /></Field>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ClassroomThreadFields({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
+  return (
+    <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+      <div>
+        <p className="font-semibold">Classroom teaching thread</p>
+        <p className="text-sm text-muted-foreground">Use the same thread ID across cards when one long question, graph, trial balance, physics problem, or case should stay visible while you explain it step by step.</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Thread ID"><Input value={card.boardId || ''} onChange={(event) => updateCard({ boardId: event.target.value })} placeholder="sets-question-1 or trial-balance-1" /></Field>
+        <label className="flex items-center gap-2 pt-8 text-sm"><input type="checkbox" checked={card.keepSourceVisible !== false} onChange={(event) => updateCard({ keepSourceVisible: event.target.checked })} /> Keep original question visible</label>
+      </div>
+      <Field label="Original long question / source problem"><Textarea rows={5} value={card.sourceQuestion || ''} onChange={(event) => updateCard({ sourceQuestion: event.target.value })} placeholder="Paste the full accounting, graphing, physics or business question here. Later cards with the same Thread ID will keep showing it." /></Field>
+      <Field label="Data collected from the question, one per line"><Textarea rows={3} value={card.extractedData || ''} onChange={(event) => updateCard({ extractedData: event.target.value })} placeholder="u = 0 m/s\nv = 12 m/s\ntime = 4 s" /></Field>
+      <Field label="Teacher reasoning for this step"><Textarea rows={3} value={card.teacherNote || ''} onChange={(event) => updateCard({ teacherNote: event.target.value })} placeholder="Explain why this value, account, formula, or graph point belongs here." /></Field>
+    </div>
+  );
 }
 
 function ImageFields({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
@@ -530,19 +815,48 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function cardFromBlock(block: any, index: number): ManualCard {
-  const type: CardType = block.type === 'question' ? 'question' : block.type === 'example' ? 'example' : block.type === 'summary' ? 'summary' : 'teach';
+  const type: CardType = block.type === 'explanation' ? 'teach' : block.type || 'teach';
   const card = makeCard(type, index);
+  const visual = block.visual || (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'].includes(block.type) ? block : null);
   return {
     ...card,
     title: block.title || card.title,
     body: block.body || card.body,
+    templateId: block.templateId,
+    templateLabel: block.templateLabel,
+    subjectArea: block.subjectArea,
+    teachingMove: block.teachingMove,
+    boardId: block.boardId,
+    keepSourceVisible: block.keepSourceVisible,
+    sourceQuestion: block.sourceQuestion,
+    teacherNote: block.teacherNote,
+    extractedData: Array.isArray(block.extractedData) ? block.extractedData.join('\n') : typeof block.extractedData === 'string' ? block.extractedData : undefined,
+    graphPointX: block.graphPointX != null ? String(block.graphPointX) : undefined,
+    graphPointY: block.graphPointY != null ? String(block.graphPointY) : undefined,
+    graphPointLabel: typeof block.graphPointLabel === 'string' ? block.graphPointLabel : undefined,
+    graphMode: block.graphPointX != null || block.graphPointY != null ? 'point' : 'function',
+    showGraphLine: Boolean(block.showGraphLine),
+    cumulativeTable: Boolean(block.cumulativeTable),
     question: block.question || card.question,
+    text: block.text || card.text,
+    statement: block.statement || card.statement,
+    prompt: block.prompt || card.prompt,
+    front: block.front || card.front,
+    back: block.back || card.back,
+    items: Array.isArray(block.items) ? block.items.join('\n') : card.items,
+    criteria: Array.isArray(block.criteria) ? block.criteria.join('\n') : card.criteria,
     options: Array.isArray(block.options) ? block.options.join('\n') : card.options,
-    answer: String(block.correctAnswer || block.answer || card.answer || ''),
+    answer: String(block.correctAnswer ?? block.answer ?? card.answer ?? ''),
     explanation: block.explanation || card.explanation,
-    mathTool: block.visual?.type || 'none',
-    equation: block.visual?.equation,
-    expression: block.visual?.functions?.[0]?.expression,
+    mathTool: visual?.type || 'none',
+    equation: visual?.equation,
+    expression: visual?.functions?.[0]?.expression,
+    columns: Array.isArray(visual?.columns) ? visual.columns.join(', ') : card.columns,
+    rows: Array.isArray(visual?.rows) ? visual.rows.map((row: any) => Array.isArray(row) ? row.join(', ') : String(row)).join('\n') : card.rows,
+    formulas: Array.isArray(visual?.formulas) ? visual.formulas.map((formula: any) => [formula.name, formula.formula, formula.description].filter(Boolean).join(' | ')).join('\n') : card.formulas,
+    min: visual?.min != null ? String(visual.min) : card.min,
+    max: visual?.max != null ? String(visual.max) : card.max,
+    points: Array.isArray(visual?.points) ? visual.points.map((point: any) => typeof point === 'object' ? point.value : point).join(', ') : card.points,
   };
 }
 
@@ -550,6 +864,26 @@ function blockFromCard(card: ManualCard): any {
   const shared = {
     title: card.title,
     body: card.body,
+    templateId: card.templateId,
+    templateLabel: card.templateLabel,
+    subjectArea: card.subjectArea,
+    teachingMove: card.teachingMove,
+    boardId: card.boardId,
+    keepSourceVisible: card.keepSourceVisible,
+    sourceQuestion: card.sourceQuestion,
+    teacherNote: card.teacherNote,
+    extractedData: lines(card.extractedData),
+    graphPointX: card.graphPointX,
+    graphPointY: card.graphPointY,
+    graphPointLabel: card.graphPointLabel,
+    graphMode: card.graphMode,
+    showGraphLine: card.showGraphLine,
+    cumulativeTable: card.cumulativeTable,
+    prompt: card.prompt,
+    front: card.front,
+    back: card.back,
+    items: lines(card.items),
+    criteria: lines(card.criteria),
     imageUrl: card.imageUrl,
     imageAlt: card.imageAlt,
     imageCaption: card.imageCaption,
@@ -567,13 +901,48 @@ function blockFromCard(card: ManualCard): any {
     };
   }
 
+  if (card.type === 'fill_blank') {
+    return {
+      ...shared,
+      type: 'fill_blank',
+      text: card.text || card.body,
+      correctAnswer: card.answer,
+      explanation: card.explanation,
+    };
+  }
+
+  if (card.type === 'true_false') {
+    return {
+      ...shared,
+      type: 'true_false',
+      statement: card.statement || card.body,
+      correctAnswer: parseBooleanAnswer(card.answer),
+      explanation: card.explanation,
+    };
+  }
+
   if (card.type === 'summary') return { ...shared, type: 'summary' };
   if (card.type === 'example') return { ...shared, type: 'example' };
-  return { ...shared, type: 'explanation' };
+  return { ...shared, type: card.type === 'teach' ? 'explanation' : card.type };
+}
+
+function parseBooleanAnswer(value?: string) {
+  return String(value || '').trim().toLowerCase() !== 'false';
 }
 
 function mathVisual(card: ManualCard) {
   if (card.mathTool === 'equation') return { type: 'equation', equation: card.equation || '' };
+  if (card.mathTool === 'graph' && card.graphMode === 'point') {
+    return {
+      type: 'graph',
+      graphType: card.showGraphLine ? 'line' : 'scatter',
+      data: pointFromCard(card),
+      xMin: Number(card.xMin || -10),
+      xMax: Number(card.xMax || 10),
+      yMin: Number(card.min || -10),
+      yMax: Number(card.max || 10),
+    };
+  }
   if (card.mathTool === 'graph') return { type: 'graph', graphType: 'function', functions: [{ expression: card.expression || 'x', label: card.expression || 'f(x)' }], xMin: Number(card.xMin || -10), xMax: Number(card.xMax || 10) };
   if (card.mathTool === 'table') return { type: 'table', columns: comma(card.columns), rows: tableRows(card.rows) };
   if (card.mathTool === 'formula_sheet') {
@@ -587,6 +956,13 @@ function mathVisual(card: ManualCard) {
   }
   if (card.mathTool === 'number_line') return { type: 'number_line', min: Number(card.min || -5), max: Number(card.max || 5), points: comma(card.points).map(Number).filter(Number.isFinite) };
   return undefined;
+}
+
+function pointFromCard(card: ManualCard) {
+  const x = Number(card.graphPointX);
+  const y = Number(card.graphPointY);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
+  return [{ x, y, label: card.graphPointLabel || `(${x}, ${y})` }];
 }
 
 function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: QuizQuestion[]): any {
@@ -609,7 +985,7 @@ function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: Qui
     assessments: {
       quizzes: quizBank.map((q) => `${q.difficulty.toUpperCase()} | ${q.type} | ${q.timeSeconds}s | ${q.question} | Answer: ${q.answer} | ${q.explanation}`),
       practicalWork: [],
-      instructorReviewChecklist: ['Check lesson accuracy.', 'Check math inside cards.', 'Check quiz answers.', 'Check images and captions.'],
+      instructorReviewChecklist: ['Check lesson accuracy.', 'Check block-template fit for the subject.', 'Check math inside cards.', 'Check quiz answers.', 'Check images and captions.'],
     },
     modules: [
       {
@@ -675,5 +1051,5 @@ function cleanJson(raw: string) {
 }
 
 function aiPromptFor(seed: string, form: CourseForm, sourceText: string, names: string[]) {
-  return `Create a short course in strict JSON only. Prompt: ${seed}\nTitle: ${form.title || 'Suggest title'}\nLevel: ${form.level}\nHours: ${form.durationHours}\nDocuments: ${names.join(', ') || 'none'}\n${sourceText ? `Source text:\n${sourceText}` : ''}\nMath should be inside card.visual. Return courseSummary, assessments, modules, lessons, blocks.`;
+  return `Create a broad, launch-ready short course in strict JSON only. Prompt: ${seed}\nTitle: ${form.title || 'Suggest title'}\nLevel: ${form.level}\nHours: ${form.durationHours}\nDocuments: ${names.join(', ') || 'none'}\n${sourceText ? `Source text:\n${sourceText}` : ''}\nUse self-paced lesson cards suitable for any field: explanation, example, question, fill_blank, true_false and summary. Add practical scenarios, case-style examples, common mistakes, definitions, process steps and checkpoint questions. Use card metadata when helpful: templateLabel, subjectArea and teachingMove. Math, charts, tables, formulas and number lines should be inside card.visual. Return courseSummary, assessments, modules, lessons and blocks.`;
 }

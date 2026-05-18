@@ -377,20 +377,24 @@ class AdminCatalogController extends Controller
 
     private function normalizeLessonBlocks(array $blocks, array $lessonPayload): array
     {
-        $allowed = ['explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary'];
+        $visualTypes = ['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'];
         $clean = collect($blocks)
-            ->filter(fn ($block) => is_array($block) && in_array($block['type'] ?? '', $allowed, true))
-            ->map(function (array $block) use ($lessonPayload) {
-                $type = $block['type'];
+            ->filter(fn ($block) => is_array($block))
+            ->map(function (array $block) use ($lessonPayload, $visualTypes) {
+                $type = $this->normalizeBlockType($block['type'] ?? 'explanation');
                 $shared = $this->sharedBlockFields($block);
 
+                if (in_array($type, $visualTypes, true)) {
+                    return $this->normalizeVisualBlock($type, $block, $shared);
+                }
                 if ($type === 'question') {
+                    $options = $this->normalizeStringList($block['options'] ?? null, ['I understand', 'I need review']);
                     return array_merge($shared, [
                         'type' => 'question',
                         'title' => $block['title'] ?? 'Quick check',
                         'question' => $block['question'] ?? $block['body'] ?? 'Choose the best answer.',
-                        'options' => array_values($block['options'] ?? ['I understand', 'I need review']),
-                        'correctAnswer' => $block['correctAnswer'] ?? $block['answer'] ?? ($block['options'][0] ?? 'I understand'),
+                        'options' => $options,
+                        'correctAnswer' => $block['correctAnswer'] ?? $block['answer'] ?? ($options[0] ?? 'I understand'),
                         'explanation' => $block['explanation'] ?? 'Review the previous card and compare each option carefully.',
                     ]);
                 }
@@ -408,7 +412,7 @@ class AdminCatalogController extends Controller
                         'type' => 'true_false',
                         'title' => $block['title'] ?? 'True or false',
                         'statement' => $block['statement'] ?? $block['body'] ?? 'This statement needs review.',
-                        'correctAnswer' => (bool) ($block['correctAnswer'] ?? $block['answer'] ?? true),
+                        'correctAnswer' => $this->normalizeBooleanAnswer($block['correctAnswer'] ?? $block['answer'] ?? true),
                         'explanation' => $block['explanation'] ?? 'Use the lesson concept to judge this statement.',
                     ]);
                 }
@@ -440,12 +444,75 @@ class AdminCatalogController extends Controller
         ];
     }
 
+    private function normalizeVisualBlock(string $type, array $block, array $shared): array
+    {
+        $visual = collect($block)
+            ->except(['visual', 'imageUrl', 'imageAlt', 'imageCaption', 'templateId', 'templateLabel', 'subjectArea', 'teachingMove'])
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->all();
+
+        return array_merge($shared, $visual, [
+            'type' => $type,
+            'title' => $block['title'] ?? ucfirst(str_replace('_', ' ', $type)),
+        ]);
+    }
+
     private function sharedBlockFields(array $block): array
     {
         return collect($block)
-            ->only(['visual', 'imageUrl', 'imageAlt', 'imageCaption'])
+            ->except(['type'])
             ->filter(fn ($value) => $value !== null && $value !== '')
             ->all();
+    }
+
+    private function normalizeBlockType(mixed $type): string
+    {
+        $normalized = Str::snake(trim((string) $type)) ?: 'explanation';
+
+        return match ($normalized) {
+            'teach', 'content', 'read' => 'explanation',
+            'multiple_choice', 'mcq', 'checkpoint', 'visual_question', 'graph_question', 'geometry_question', 'table_question', 'number_line_question' => 'question',
+            'fill_in_the_blank', 'fill-in-the-blank' => 'fill_blank',
+            'truefalse', 'true_or_false' => 'true_false',
+            'chart', 'plot' => 'graph',
+            default => $normalized,
+        };
+    }
+
+    private function normalizeStringList(mixed $value, array $fallback): array
+    {
+        if (is_string($value)) {
+            $value = preg_split('/\r\n|\r|\n|,/', $value) ?: [];
+        }
+
+        if (is_array($value)) {
+            $items = array_values(array_filter(array_map(function ($item) {
+                if (is_scalar($item)) {
+                    return trim((string) $item);
+                }
+
+                return '';
+            }, $value), fn ($item) => $item !== ''));
+
+            if ($items) {
+                return $items;
+            }
+        }
+
+        return $fallback;
+    }
+
+    private function normalizeBooleanAnswer(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return !in_array(strtolower(trim($value)), ['false', '0', 'no', 'incorrect'], true);
+        }
+
+        return (bool) $value;
     }
 
     private function uniqueLessonId(string $courseId, string $title, int $index): string

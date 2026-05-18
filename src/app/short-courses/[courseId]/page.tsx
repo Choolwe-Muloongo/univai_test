@@ -32,6 +32,9 @@ export default function ShortCourseInfoPage() {
   if (loading) return <PageLoading message="Loading short course..." />;
   if (error) return <PageError message={error} actionHref="/short-courses" actionLabel="Back to short courses" />;
   if (!course) return <PageError title="Course not found" message="This short course is not available." actionHref="/short-courses" actionLabel="Back to short courses" />;
+  if (!['published', 'active'].includes(String(course.status ?? '').toLowerCase())) {
+    return <PageError title="Course unavailable" message="This short course is not open for enrollment yet." actionHref="/short-courses" actionLabel="Back to short courses" />;
+  }
 
   const registerHref = `/register/short-courses?next=${encodeURIComponent(`/short-courses/${course.id}`)}`;
 

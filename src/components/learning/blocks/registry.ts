@@ -1,0 +1,154 @@
+import { accountingBlockDefinitions } from './accounting';
+import { aiDataBlockDefinitions } from './ai-data';
+import { businessBlockDefinitions } from './business';
+import { certificateBlockDefinitions } from './certificate';
+import { codingBlockDefinitions } from './coding';
+import { cybersecurityBlockDefinitions } from './cybersecurity';
+import { dragDropBlockDefinitions } from './drag-drop';
+import { gamificationBlockDefinitions } from './gamification';
+import { graphingBlockDefinitions } from './graphing';
+import { mathBlockDefinitions } from './math';
+import { mediaBlockDefinitions } from './media';
+import { projectBlockDefinitions } from './projects';
+import { questionBlockDefinitions } from './questions';
+import { scienceBlockDefinitions } from './science';
+import { simulationBlockDefinitions } from './simulations';
+import { spreadsheetBlockDefinitions } from './spreadsheet';
+import { teachingBlockDefinitions } from './teaching';
+import { vocationalBlockDefinitions } from './vocational';
+import { webBlockDefinitions } from './web';
+import { writingBlockDefinitions } from './writing';
+import type { LearningBlockCategory, LearningBlockDefinition, LearningBlockPayload } from './schemas';
+
+const rawDefinitions = [
+  ...teachingBlockDefinitions,
+  ...questionBlockDefinitions,
+  ...mathBlockDefinitions,
+  ...graphingBlockDefinitions,
+  ...accountingBlockDefinitions,
+  ...spreadsheetBlockDefinitions,
+  ...codingBlockDefinitions,
+  ...webBlockDefinitions,
+  ...businessBlockDefinitions,
+  ...scienceBlockDefinitions,
+  ...cybersecurityBlockDefinitions,
+  ...aiDataBlockDefinitions,
+  ...mediaBlockDefinitions,
+  ...dragDropBlockDefinitions,
+  ...projectBlockDefinitions,
+  ...gamificationBlockDefinitions,
+  ...certificateBlockDefinitions,
+  ...simulationBlockDefinitions,
+  ...writingBlockDefinitions,
+  ...vocationalBlockDefinitions,
+];
+
+export const blockDefinitions: LearningBlockDefinition[] = uniqueByType(rawDefinitions);
+
+export const blockRegistry = new Map<string, LearningBlockDefinition>(
+  blockDefinitions.map((definition) => [definition.type, definition]),
+);
+
+export const registeredBlockTypes = blockDefinitions.map((definition) => definition.type);
+export const registeredBlockTypeSet = new Set(registeredBlockTypes);
+export const learningBlockRegistryCount = registeredBlockTypes.length;
+
+export const blockCategories = Array.from(new Set(blockDefinitions.map((definition) => definition.category))).sort();
+
+export function getBlockDefinition(type?: string | null) {
+  if (!type) return undefined;
+  return blockRegistry.get(normalizeBlockType(type));
+}
+
+export function createDefaultBlock(type: string, patch: Partial<LearningBlockPayload> = {}): LearningBlockPayload {
+  const definition = getBlockDefinition(type);
+  if (!definition) {
+    return {
+      type: normalizeBlockType(type),
+      title: titleCase(type),
+      body: 'Add learner-facing content for this block.',
+      ...patch,
+    };
+  }
+  return { ...definition.defaultPayload, ...patch, type: definition.type };
+}
+
+export function validateLearningBlock(payload: LearningBlockPayload) {
+  const definition = getBlockDefinition(payload.type);
+  if (!definition) {
+    return {
+      valid: true,
+      issues: payload.type ? [] : ['Block type is required.'],
+    };
+  }
+  return definition.validate(payload);
+}
+
+export function validateLearningBlocks(blocks: LearningBlockPayload[]) {
+  return blocks.map((block, index) => ({ index, type: block.type, ...validateLearningBlock(block) }));
+}
+
+export function blocksByCategory(category?: LearningBlockCategory | 'All') {
+  if (!category || category === 'All') return blockDefinitions;
+  return blockDefinitions.filter((definition) => definition.category === category);
+}
+
+export function searchBlocks(query: string, category?: LearningBlockCategory | 'All') {
+  const needle = query.trim().toLowerCase();
+  return blocksByCategory(category).filter((definition) => {
+    if (!needle) return true;
+    return `${definition.type} ${definition.label} ${definition.category} ${definition.family} ${definition.description} ${definition.bestUsedFor?.join(' ') ?? ''}`
+      .toLowerCase()
+      .includes(needle);
+  });
+}
+
+export function recommendedBlocksForCourseType(courseType?: string | null) {
+  const normalized = (courseType ?? '').toLowerCase();
+  const categories: LearningBlockCategory[] = [];
+  if (normalized.includes('programming') || normalized.includes('coding')) categories.push('coding');
+  if (normalized.includes('web')) categories.push('web', 'coding');
+  if (normalized.includes('accounting') || normalized.includes('finance')) categories.push('accounting', 'spreadsheet', 'business');
+  if (normalized.includes('math') || normalized.includes('science')) categories.push('classroom_board', 'math', 'graphing', 'science');
+  if (normalized.includes('business') || normalized.includes('entrepreneur')) categories.push('business', 'spreadsheet');
+  if (normalized.includes('exam')) categories.push('questions', 'certificate');
+  if (normalized.includes('project')) categories.push('projects', 'certificate');
+  if (normalized.includes('vocational') || normalized.includes('practical')) categories.push('vocational', 'simulations');
+
+  const selected = categories.length ? blockDefinitions.filter((definition) => categories.includes(definition.category)) : blockDefinitions;
+  return selected.slice(0, 36);
+}
+
+export function normalizeBlockType(type: string) {
+  const normalized = type.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'teach' || normalized === 'content' || normalized === 'read') return 'explanation';
+  if (['multiple_choice', 'mcq', 'checkpoint', 'visual_question', 'graph_question', 'geometry_question', 'table_question', 'number_line_question'].includes(normalized)) return 'question';
+  if (normalized === 'fill_in_the_blank') return 'fill_blank';
+  if (normalized === 'truefalse' || normalized === 'true_or_false') return 'true_false';
+  if (normalized === 'chart' || normalized === 'plot') return 'graph';
+  return normalized || 'explanation';
+}
+
+function uniqueByType(definitions: LearningBlockDefinition[]) {
+  const seen = new Set<string>();
+  const result: LearningBlockDefinition[] = [];
+  definitions.forEach((definition) => {
+    if (seen.has(definition.type)) return;
+    seen.add(definition.type);
+    result.push(definition);
+  });
+  return result;
+}
+
+function titleCase(value: string) {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export type {
+  BlockEditorProps,
+  BlockRendererProps,
+  BlockRuntimeState,
+  BlockValidationResult,
+  LearningBlockDefinition,
+  LearningBlockPayload,
+} from './schemas';

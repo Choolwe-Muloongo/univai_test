@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ElementType } from "react";
 import Link from "next/link";
 import {
   GraduationCap,
@@ -10,6 +10,10 @@ import {
   CalendarCheck,
   ClipboardList,
   Timer,
+  BadgeCheck,
+  CreditCard,
+  Sparkles,
+  Lightbulb,
 } from "lucide-react";
 
 import {
@@ -47,6 +51,7 @@ import type {
 } from "@/lib/api/types";
 import { useSession } from "@/components/providers/session-provider";
 import { deliveryModeLabel } from "@/lib/delivery-modes";
+import { getMyShortCourses, type ShortCourseEnrollmentSummary } from "@/lib/api/short-courses";
 
 export default function DashboardPage() {
   const { session } = useSession();
@@ -60,6 +65,7 @@ export default function DashboardPage() {
   >([]);
   const [wallet, setWallet] = useState<StudentDashboardWallet | null>(null);
   const [entitlements, setEntitlements] = useState<string[] | null>(null);
+  const [shortCourses, setShortCourses] = useState<ShortCourseEnrollmentSummary[]>([]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -84,8 +90,16 @@ export default function DashboardPage() {
       const hasProgrammeAccess = hasStudentEntitlement(
         STUDENT_ENTITLEMENT.PROGRAMME,
         activeEntitlements,
-        null,
+        roleToStudentAccessTier(resolvedRole),
       );
+
+      try {
+        setShortCourses(await getMyShortCourses());
+      } catch (error) {
+        console.error("Failed to load short courses", error);
+        setShortCourses([]);
+      }
+
       if (!hasProgrammeAccess) {
         setLoading(false);
         return;
@@ -141,51 +155,109 @@ export default function DashboardPage() {
   const hasProgrammeAccess = hasStudentEntitlement(
     STUDENT_ENTITLEMENT.PROGRAMME,
     entitlements ?? session?.user?.entitlements,
-    null,
+    accessTier,
   );
   const tierLabel = STUDENT_ACCESS_TIER_LABELS[accessTier];
   const enrollmentConfirmed = enrollment?.status === "active" && Boolean(enrollment.confirmedAt);
 
   if (!hasProgrammeAccess) {
+    const activeCourse = shortCourses.find((item) => item.course) ?? null;
     return (
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
           <PageHeader
             title={`Welcome to UnivAI ${tierLabel}`}
-            description="Free learning includes short-course previews only. Upgrade when you need certificates, premium tools, or formal programme enrolment."
+            description="Continue building your skills with UnivAI short courses. Learn today, earn certificates, and move into a formal programme when you are ready."
           />
-          <Card>
+          {activeCourse?.course ? (
+            <Card className="rounded-3xl border-primary/20 shadow-sm">
+              <CardHeader>
+                <CardTitle>Continue Learning</CardTitle>
+                <CardDescription>Pick up from your active short course.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xl font-semibold">{activeCourse.course.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{activeCourse.course.description}</p>
+                  </div>
+                  <Button asChild className="w-full sm:w-auto">
+                    <Link href={`/student/courses/${activeCourse.course.id}`}>Continue Course</Link>
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Progress</span>
+                    <span>{activeCourse.progress}%</span>
+                  </div>
+                  <Progress value={activeCourse.progress} className="h-3" />
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-1">Access: {activeCourse.entryFeePaid ? 'Active' : 'Pending payment'}</span>
+                  <span className="rounded-full bg-muted px-2 py-1">Certificate: {certificateStatus(activeCourse)}</span>
+                  <span className="rounded-full bg-muted px-2 py-1">Lessons: {activeCourse.completedAt ? 'Completed' : 'In progress'}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="rounded-3xl border-dashed">
+              <CardContent className="space-y-4 p-8 text-center">
+                <BookOpen className="mx-auto h-10 w-10 text-primary" />
+                <div>
+                  <CardTitle>You have not joined any short course yet.</CardTitle>
+                  <CardDescription className="mt-2">Start with a focused course, then continue into practice, exams, and certificates.</CardDescription>
+                </div>
+                <Button asChild><Link href="/student/courses">Browse Short Courses</Link></Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <DashboardActionCard icon={BookOpen} title="My Short Courses" description="Open enrolled courses and track progress." href="/student/courses" />
+            <DashboardActionCard icon={Sparkles} title="Practice Zone" description="Train with short-course questions by difficulty." href={activeCourse?.course ? `/student/courses/${activeCourse.course.id}/practice` : '/student/courses'} />
+            <DashboardActionCard icon={BadgeCheck} title="Certificates" description="Check locked, ready, and issued certificates." href="/student/certificates" />
+          </div>
+
+          <Card className="rounded-3xl">
             <CardHeader>
-              <CardTitle>Short-course access active</CardTitle>
+              <CardTitle>Ready to become a formal UnivAI student?</CardTitle>
               <CardDescription>
-                Continue exploring free lessons without cashback, premium tools,
-                or programme-only records.
+                Your short-course account can become a formal programme account. Apply for a diploma, degree, or full academic pathway when you are ready.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center gap-4">
+            <CardContent className="flex items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <BookOpen className="h-6 w-6 text-primary" />
+                <GraduationCap className="h-6 w-6 text-primary" />
               </div>
               <p className="text-sm text-muted-foreground">
-                Certificate downloads, premium AI features, grades, assignments,
-                attendance, and enrolment resources unlock only on the matching
-                paid tier.
+                Keep your short-course skills and move into a formal programme when you want a full academic pathway.
               </p>
             </CardContent>
             <CardFooter className="flex flex-wrap gap-2">
               <Button asChild>
-                <Link href="/student/courses">
-                  Browse Short Courses <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
+                <Link href="/admissions/portal">Apply for Formal Programme</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/student/payments">Compare Access Tiers</Link>
+                <Link href="/programs">Explore Programmes</Link>
               </Button>
             </CardFooter>
           </Card>
         </div>
-        <div className="lg:col-span-1 space-y-6">
-          <QuickLinks />
+          <div className="lg:col-span-1 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Learning access</CardTitle>
+                <CardDescription>Short-course tools available now.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <InfoRow icon={BookOpen} label="Browse Short Courses" href="/short-courses" />
+                <InfoRow icon={CreditCard} label="Billing / Access" href="/student/payments" />
+                <InfoRow icon={Lightbulb} label="AI Tutor" href="/student/ai" />
+              </CardContent>
+            </Card>
+            <QuickLinks />
+          </div>
         </div>
       </div>
     );
@@ -325,6 +397,31 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Boost your programme with short courses</CardTitle>
+              <CardDescription>
+                Take extra skill-based courses alongside your formal programme.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {shortCourses.find((item) => item.course)?.course ? (
+                <p className="text-sm text-muted-foreground">
+                  Continue {shortCourses.find((item) => item.course)?.course?.title} or browse more skill courses.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Add focused certificates, coding labs, business skills, finance practice, or professional topics to your formal study path.
+                </p>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/student/courses">Browse Short Courses</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Next Actions</CardTitle>
               <CardDescription>
                 Complete these to keep your pace on track.
@@ -427,4 +524,37 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+function DashboardActionCard({ icon: Icon, title, description, href }: { icon: ElementType; title: string; description: string; href: string }) {
+  return (
+    <Card className="rounded-2xl">
+      <CardContent className="space-y-3 p-5">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+        <Button asChild variant="outline" className="w-full"><Link href={href}>Open</Link></Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InfoRow({ icon: Icon, label, href }: { icon: ElementType; label: string; href: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 rounded-xl border p-3 transition hover:border-primary">
+      <Icon className="h-4 w-4 text-primary" />
+      <span>{label}</span>
+    </Link>
+  );
+}
+
+function certificateStatus(item: ShortCourseEnrollmentSummary) {
+  if (item.certificateIssuedAt) return 'Issued';
+  if (Number(item.examScore ?? 0) >= 50 && (item.certificateFeePaid || item.course?.certificateFee === 0)) return 'Ready';
+  if (Number(item.examScore ?? 0) >= 50) return 'Payment required';
+  return 'Locked';
 }

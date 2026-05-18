@@ -1,134 +1,493 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { notFound } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { BookOpen, Lock, Rocket } from 'lucide-react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  BookOpen,
+  CheckCircle2,
+  FileCheck2,
+  Lock,
+  Sparkles,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { type Course, type Lesson } from '@/lib/api/types';
-import { getCourseById, getCourseMeeting, getLessonsByCourse } from '@/lib/api';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useSession } from '@/components/providers/session-provider';
-import type { CourseMeeting } from '@/lib/api/types';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { getLessonsByCourse } from '@/lib/api';
+import type { Lesson } from '@/lib/api/types';
+import { getShortCourseAccessPlans, purchaseShortCourseAccessPlan, type ShortCourseAccessPlan } from '@/lib/api/short-course-access';
+import {
+  enrollShortCourse,
+  formatMoney,
+  getPublicShortCourse,
+  getShortCourseCertificateUrl,
+  getShortCourseProgress,
+  payShortCourseCertificate,
+  paymentUrl,
+  verifyStudentInvoicePayment,
+  type PublicShortCourse,
+  type ShortCourseProgress,
+} from '@/lib/api/short-courses';
 
-function CourseSkeleton() {
+type LessonNode = {
+  id: string;
+  title: string;
+  summary?: string | null;
+  subLessons: Array<{ id: string; title: string; summary?: string | null }>;
+};
+
+export default function CourseHubPage() {
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const courseId = params.id;
+  const [course, setCourse] = useState<PublicShortCourse | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [progress, setProgress] = useState<ShortCourseProgress | null>(null);
+  const [plans, setPlans] = useState<ShortCourseAccessPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function refresh() {
+    const invoice = searchParams.get('invoice');
+    if (searchParams.get('payment') === 'success' && invoice) {
+      const verification = await verifyStudentInvoicePayment(invoice).catch(() => null);
+      if (verification?.status === 'paid') {
+        setNotice(verification.message ?? 'Payment confirmed and access activated.');
+      } else {
+        setNotice('Payment is being confirmed. If access does not update immediately, refresh this page in a moment.');
+      }
+    }
+    const [courseData, lessonData, progressData, planData] = await Promise.all([
+      getPublicShortCourse(courseId),
+      getLessonsByCourse(courseId).catch(() => []),
+      getShortCourseProgress(courseId).catch(() => null),
+      getShortCourseAccessPlans(courseId).catch(() => []),
+    ]);
+    setCourse(courseData);
+    setLessons(lessonData);
+    setProgress(progressData);
+    setPlans(planData);
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    refresh()
+      .catch((cause) => { if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load this course.'); })
+      .finally(() => {
+        if (mounted) {
+          if (searchParams.get('payment') === 'success' && !searchParams.get('invoice')) setNotice('Payment completed. Your course access is being refreshed.');
+          setLoading(false);
+        }
+      });
+    return () => { mounted = false; };
+  }, [courseId, searchParams]);
+
+  const lessonNodes = useMemo(() => lessons.map(toLessonNode), [lessons]);
+  const completedLessonIds = new Set(progress?.completedLessons?.map(String) ?? []);
+  const totalLessons = lessonNodes.length;
+  const completedLessons = lessonNodes.filter((lesson) => completedLessonIds.has(String(lesson.id))).length;
+  const nextLesson = lessonNodes.find((lesson) => !completedLessonIds.has(String(lesson.id))) ?? lessonNodes[0];
+  const allLessonsComplete = totalLessons > 0 && completedLessons >= totalLessons;
+  const access = accessState(progress);
+  const hasActiveAccess = access === 'Active';
+  const certificate = certificateState(progress);
+
+  async function startEntryAccess() {
+    setBusy('entry');
+    setNotice(null);
+    setError(null);
+    try {
+      const response = await enrollShortCourse(courseId);
+      const checkout = paymentUrl(response);
+      if (checkout) {
+        window.location.href = checkout;
+        return;
+      }
+      setNotice(response.testMode ? 'Testing mode: course access is active.' : 'Course access is active.');
+      await refresh();
+    } catch (cause) {
+      setError(studentFriendlyError(cause));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function activatePlan(planCode: string) {
+    setBusy(planCode);
+    setNotice(null);
+    setError(null);
+    try {
+      const response = await purchaseShortCourseAccessPlan(courseId, planCode);
+      const checkout = paymentUrl(response);
+      if (checkout) {
+        window.location.href = checkout;
+        return;
+      }
+      setNotice(response.testMode ? 'Testing mode: access plan activated.' : 'Access plan activated.');
+      await refresh();
+    } catch (cause) {
+      setError(studentFriendlyError(cause));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function openCertificate() {
+    setBusy('certificate');
+    setError(null);
+    try {
+      if (certificate === 'Payment Required') {
+        const response = await payShortCourseCertificate(courseId);
+        const checkout = paymentUrl(response);
+        if (checkout) {
+          window.location.href = checkout;
+          return;
+        }
+      }
+      window.location.href = getShortCourseCertificateUrl(courseId);
+    } catch (cause) {
+      setError(studentFriendlyError(cause));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (loading) return <PageLoading message="Opening course hub..." />;
+  if (error) return <PageError message={error} actionHref="/student/courses" actionLabel="Back to short courses" />;
+  if (!course) return <PageError title="Course not found" message="This short course is unavailable." actionHref="/student/courses" actionLabel="Back to short courses" />;
+
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="space-y-8 lg:col-span-2">
-        <Card><CardContent><Skeleton className="aspect-video w-full" /></CardContent></Card>
-        <Skeleton className="h-72 w-full rounded-3xl" />
+    <div className="space-y-6">
+      <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-[1fr_280px] lg:items-center">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Course hub</p>
+            <h1 className="text-3xl font-bold tracking-tight">{course.title}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{course.description}</p>
+          </div>
+          <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
+            <div className="flex justify-between text-sm"><span>Overall progress</span><strong>{progress?.progress ?? 0}%</strong></div>
+            <Progress value={progress?.progress ?? 0} className="h-3" />
+            {nextLesson && hasActiveAccess ? (
+              <Button asChild className="w-full">
+                <Link href={`/student/courses/${course.id}/lessons/${nextLesson.id}`}>Continue Course <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              </Button>
+            ) : <Button disabled className="w-full">{nextLesson ? 'Activate access to continue' : 'No lessons yet'}</Button>}
+          </div>
+        </div>
+        {notice ? <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">{notice}</div> : null}
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <div className="space-y-6">
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Lessons and Sub-lessons</CardTitle>
+              <CardDescription>The course map shows the path. Open a lesson to study in the focused classroom.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {lessonNodes.length ? lessonNodes.map((lesson, index) => {
+                const done = completedLessonIds.has(String(lesson.id));
+                const subCount = Math.max(lesson.subLessons.length, 1);
+                return (
+                  <div key={lesson.id} className="rounded-2xl border p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary">{index + 1}</div>
+                        <div>
+                          <h3 className="font-semibold">Lesson {index + 1}: {lesson.title}</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">{lesson.summary || `${subCount} sub-lesson/card${subCount === 1 ? '' : 's'}`}</p>
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span className="rounded-full bg-muted px-2 py-1">{subCount} sub-lessons/cards</span>
+                            <span className="rounded-full bg-muted px-2 py-1">{done ? subCount : 0} of {subCount} completed</span>
+                            <span className="rounded-full bg-muted px-2 py-1">{done ? 'Completed' : progress?.completedLessons?.length ? 'In progress' : 'Not started'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {hasActiveAccess ? (
+                        <Button asChild variant={done ? 'outline' : 'default'} className="w-full sm:w-auto">
+                          <Link href={`/student/courses/${course.id}/lessons/${lesson.id}`}>{done ? 'Review' : nextLesson?.id === lesson.id ? 'Continue' : 'Study'}</Link>
+                        </Button>
+                      ) : <Button disabled className="w-full sm:w-auto">Locked</Button>}
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      {(lesson.subLessons.length ? lesson.subLessons : [{ id: lesson.id, title: lesson.title, summary: lesson.summary }]).map((sub, subIndex) => (
+                        <div key={`${lesson.id}-${sub.id}-${subIndex}`} className="flex flex-col gap-2 rounded-xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{index + 1}.{subIndex + 1} {sub.title}</p>
+                            {sub.summary ? <p className="mt-1 text-xs text-muted-foreground">{sub.summary}</p> : null}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{done ? 'Completed' : 'Ready'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }) : <EmptyMessage icon={BookOpen} title="This course has no published lessons yet." />}
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <ActionPanel
+              icon={Sparkles}
+              title="Practice Zone"
+              description="Train with Easy, Medium, Hard, or Mixed practice. Practice is available after enrollment."
+              actions={hasActiveAccess ? <Button asChild className="w-full"><Link href={`/student/courses/${course.id}/practice`}>Start Practice</Link></Button> : <Button disabled className="w-full">Activate access first</Button>}
+            />
+            <ActionPanel
+              icon={FileCheck2}
+              title="Project Builder"
+              description="Apply what you learned by building something inside UnivAI."
+              note="No required project is configured yet."
+              actions={<Button disabled variant="outline" className="w-full">Project not required</Button>}
+            />
+          </div>
+
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Final Exam</CardTitle>
+              <CardDescription>Complete required learning first, then take the final assessment.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!allLessonsComplete ? (
+                <div className="rounded-2xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  <Lock className="mb-2 h-5 w-5" />
+                  Complete all required lessons before taking the final exam.
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                  <CheckCircle2 className="mb-2 h-5 w-5 text-primary" />
+                  Final Exam Ready
+                </div>
+              )}
+              {allLessonsComplete && hasActiveAccess ? (
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href={`/student/courses/${course.id}/exam`}>Start Final Exam</Link>
+                </Button>
+              ) : (
+                <Button disabled className="w-full sm:w-auto">Start Final Exam</Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <aside className="space-y-6">
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Your Access</CardTitle>
+              <CardDescription>Course access, AI access, and certificate inclusion.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <Info label="Status" value={access} />
+              <Info label="Plan" value={planLabel(progress?.accessPlan ?? (progress?.entryFeePaid ? 'entry' : null))} />
+              <Info label="Access expiry" value={formatDate(progress?.accessExpiresAt)} />
+              <Info label="AI access expiry" value={formatDate(progress?.aiAccessExpiresAt)} />
+              <Info label="AI quota" value={`${progress?.hourlyAiQuota ?? 0}/hr, ${progress?.dailyAiQuota ?? 0}/day`} />
+              <Info label="Certificate included" value={progress?.certificateIncluded ? 'Yes' : 'No'} />
+              <Button onClick={startEntryAccess} disabled={busy === 'entry'} className="w-full">
+                {busy === 'entry' ? 'Working...' : progress?.entryFeePaid ? 'Renew / Refresh Access' : Number(course.price ?? 0) <= 0 ? 'Enroll Free' : 'Enroll / Pay'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Certificate</CardTitle>
+              <CardDescription>Certificates unlock after the required learning path and exam.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3 rounded-2xl border p-4">
+                <BadgeCheck className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-semibold">{certificate}</p>
+                  <p className="text-sm text-muted-foreground">{certificateHelp(certificate)}</p>
+                </div>
+              </div>
+              <Button onClick={openCertificate} disabled={!['Payment Required', 'Ready', 'Issued'].includes(certificate) || busy === 'certificate'} className="w-full">
+                {certificate === 'Payment Required' ? 'Pay Certificate Fee' : certificate === 'Issued' ? 'Download Certificate' : 'Open Certificate'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Upgrade Access / Plans</CardTitle>
+              <CardDescription>Choose course access, AI support, or certificate-inclusive plans.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {plans.length ? plans.map((plan) => (
+                <div key={plan.code} className="rounded-2xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{planLabel(plan.code)}</p>
+                      <p className="text-sm text-muted-foreground">{plan.name}</p>
+                    </div>
+                    <p className="font-bold">{formatMoney(plan.amount, plan.currency)}</p>
+                  </div>
+                  <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
+                    <span>Access: {Math.round(plan.accessHours / 24)} days</span>
+                    <span>AI: {plan.aiHours ? `${Math.round(plan.aiHours / 24)} days` : 'Not included'}</span>
+                    <span>AI quota: {plan.hourlyAiQuota}/hr, {plan.dailyAiQuota}/day</span>
+                    <span>{plan.certificateIncluded ? 'Certificate included' : 'Certificate fee separate'}</span>
+                    <span>{planPurpose(plan.code)}</span>
+                  </div>
+                  <Button className="mt-3 w-full" variant={progress?.accessPlan === plan.code ? 'secondary' : 'outline'} onClick={() => activatePlan(plan.code)} disabled={busy === plan.code}>
+                    {busy === plan.code ? 'Working...' : progress?.accessPlan === plan.code ? 'Active Plan' : 'Choose Plan'}
+                  </Button>
+                </div>
+              )) : <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">No access plans are available yet.</p>}
+            </CardContent>
+          </Card>
+        </aside>
       </div>
-      <div className="lg:col-span-1"><Skeleton className="h-64 w-full rounded-3xl" /></div>
     </div>
   );
 }
 
-export default function CourseDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const { session } = useSession();
+function toLessonNode(lesson: Lesson): LessonNode {
+  const extracted = lesson.learningObjects?.flatMap((object) => {
+    const payload = object.payload ?? parseMaybeJson(object.body);
+    return extractSubLessons(payload);
+  }) ?? [];
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    summary: lesson.content ? stripHtml(lesson.content).slice(0, 180) : null,
+    subLessons: extracted.length ? extracted : [],
+  };
+}
 
-  const [course, setCourse] = useState<Course | null>(null);
-  const [courseLessons, setCourseLessons] = useState<Lesson[]>([]);
-  const [meeting, setMeeting] = useState<CourseMeeting | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadCourse = async () => {
-      setUserRole(session?.user?.role ?? null);
-      if (!id) return;
-      setLoading(true);
-      const [foundCourse, foundLessons, meetingInfo] = await Promise.all([
-        getCourseById(id),
-        getLessonsByCourse(id),
-        getCourseMeeting(id),
-      ]);
-      setCourse(foundCourse);
-      setCourseLessons(foundLessons);
-      setMeeting(meetingInfo);
-      setLoading(false);
+function extractSubLessons(value: unknown): LessonNode['subLessons'] {
+  if (!value || typeof value !== 'object') return [];
+  const record = value as Record<string, unknown>;
+  const groups = [record.subLessons, record.sub_lessons, record.sections, record.topics, record.lessons]
+    .filter(Array.isArray)
+    .flat() as Record<string, unknown>[];
+  if (groups.length) {
+    return groups.map((item, index) => ({
+      id: String(item.id ?? `sub-${index + 1}`),
+      title: String(item.title ?? item.name ?? `Sub-lesson ${index + 1}`),
+      summary: typeof item.summary === 'string' ? item.summary : typeof item.description === 'string' ? item.description : null,
+    }));
+  }
+  const blocks = [...(Array.isArray(record.blocks) ? record.blocks : []), ...(Array.isArray(record.cards) ? record.cards : [])];
+  return blocks.slice(0, 6).map((block, index) => {
+    const row = block as Record<string, unknown>;
+    return {
+      id: String(row.id ?? `card-${index + 1}`),
+      title: String(row.title ?? row.templateLabel ?? `Card ${index + 1}`),
+      summary: typeof row.body === 'string' ? row.body.slice(0, 120) : null,
     };
-    loadCourse();
-  }, [id, session]);
+  });
+}
 
-  const placeholder = PlaceHolderImages.find((p) => p.id === course?.imageId);
-  const isFreemium = userRole === 'freemium-student';
-  const introductoryLessonCount = 2;
-  const firstUnlockedLesson = courseLessons.find((_, index) => !(isFreemium && index >= introductoryLessonCount));
-
-  if (loading) return <CourseSkeleton />;
-  if (!course) notFound();
-
+function ActionPanel({ icon: Icon, title, description, note, actions }: { icon: LucideIcon; title: string; description: string; note?: string; actions: ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="space-y-8 lg:col-span-2">
-        <Card className="overflow-hidden rounded-3xl border-primary/20 shadow-sm">
-          <CardContent className="p-0">
-            <div className="relative flex aspect-[16/7] items-center justify-center bg-muted">
-              <Image src={placeholder?.imageUrl || `https://picsum.photos/seed/${course.id}/1200/500`} alt={course.title} fill className="object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/5" />
-              <div className="absolute bottom-6 left-6 right-6 text-white">
-                <p className="text-sm font-semibold uppercase text-white/75">Short course</p>
-                <h1 className="text-3xl font-extrabold tracking-tight">{course.title}</h1>
-                <p className="mt-1 max-w-2xl text-white/90">{course.description}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <section className="space-y-5">
-          <div>
-            <h2 className="text-3xl font-bold">Course Lessons</h2>
-            <p className="text-muted-foreground">Choose a lesson to open the focused learning room.</p>
-          </div>
-
-          <div className="space-y-3">
-            {courseLessons.length ? courseLessons.map((lesson, index) => {
-              const locked = isFreemium && index >= introductoryLessonCount;
-              return (
-                <Card key={lesson.id} className={`rounded-3xl transition ${locked ? 'border-dashed bg-muted/30' : 'hover:border-primary/50 hover:shadow-sm'}`}>
-                  <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex gap-4">
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 font-bold text-primary">{String(index + 1).padStart(2, '0')}</div>
-                      <div>
-                        <h3 className="font-bold">{lesson.title}</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">{lesson.content ? 'Interactive cards, math visuals, and checkpoints.' : 'Card lesson prepared from the course builder.'}</p>
-                      </div>
-                    </div>
-                    {locked ? (
-                      <Button variant="outline" disabled className="gap-2"><Lock className="size-4" /> Locked</Button>
-                    ) : (
-                      <Button asChild className="gap-2"><Link href={`/student/courses/${course.id}/lessons/${lesson.id}`}><BookOpen className="size-4" /> Study lesson</Link></Button>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            }) : (
-              <div className="rounded-3xl border p-10 text-center text-muted-foreground">No lessons have been published yet.</div>
-            )}
-          </div>
-        </section>
-      </div>
-
-      <div className="lg:col-span-1">
-        <Card className="sticky top-24 rounded-3xl border-primary/20 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Rocket className="size-5" /> Course Actions</CardTitle>
-            <CardDescription>Start learning or attempt the final assessment when ready.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {firstUnlockedLesson ? <Button size="lg" className="w-full" asChild><Link href={`/student/courses/${course.id}/lessons/${firstUnlockedLesson.id}`}>Start first lesson</Link></Button> : null}
-            <Button size="lg" variant="outline" className="w-full" asChild><Link href={`/student/courses/${course.id}/exam`}>Start Final Exam</Link></Button>
-            {meeting?.meetingUrl ? <Button variant="outline" className="w-full" asChild><Link href={meeting.meetingUrl} target="_blank">Join Live Lesson</Link></Button> : null}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <Card className="rounded-3xl">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Icon className="h-5 w-5 text-primary" /> {title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {note ? <p className="rounded-xl bg-muted/40 p-3 text-sm text-muted-foreground">{note}</p> : null}
+        {actions}
+      </CardContent>
+    </Card>
   );
+}
+
+function EmptyMessage({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
+  return <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground"><Icon className="mx-auto mb-3 h-8 w-8 text-primary" />{title}</div>;
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return <div className="flex items-center justify-between gap-3 rounded-xl border p-3"><span className="text-muted-foreground">{label}</span><strong className="text-right">{value}</strong></div>;
+}
+
+function accessState(progress?: ShortCourseProgress | null) {
+  if (!progress?.entryFeePaid) return 'Pending Payment';
+  if (progress.accessExpiresAt && new Date(progress.accessExpiresAt).getTime() < Date.now()) return 'Expired';
+  return 'Active';
+}
+
+function certificateState(progress?: ShortCourseProgress | null) {
+  if (!progress?.entryFeePaid) return 'Locked';
+  if (!progress.completedAt && Number(progress.examScore ?? 0) < 50) return progress.progress >= 100 ? 'Exam Required' : 'Lessons Required';
+  if (!progress.certificateFeePaid && !progress.certificateIncluded) return 'Payment Required';
+  if (progress.certificateIssuedAt) return 'Issued';
+  return 'Ready';
+}
+
+function certificateHelp(state: string) {
+  switch (state) {
+    case 'Lessons Required': return 'Complete all required lessons first.';
+    case 'Exam Required': return 'Pass the final exam to unlock the certificate.';
+    case 'Payment Required': return 'Pay the certificate fee or choose a certificate-inclusive access plan.';
+    case 'Ready': return 'Your certificate is ready to download.';
+    case 'Issued': return 'Your certificate has already been issued.';
+    default: return 'Finish the required learning path to unlock this certificate.';
+  }
+}
+
+function planLabel(plan?: string | null) {
+  const labels: Record<string, string> = {
+    free_access: 'Free Course Access',
+    entry: 'Starter Access',
+    starter_access: 'Starter Access',
+    access_only: 'Monthly Access',
+    monthly_access: 'Monthly Access',
+    access_ai: 'AI Plus',
+    ai_lite: 'AI Lite',
+    ai_plus: 'AI Plus',
+    ai_scholar: 'AI Scholar',
+    premium_certificate: 'Certified Premium',
+    certified_premium: 'Certified Premium',
+    elite_certificate: 'Certified Elite',
+    certified_elite: 'Certified Elite',
+  };
+  return plan ? labels[plan] ?? plan.replace(/_/g, ' ') : 'Not active';
+}
+
+function planPurpose(plan?: string | null) {
+  const notes: Record<string, string> = {
+    starter_access: 'K30 survival plan: two weeks of course access, no certificate.',
+    monthly_access: 'Best low-cost access plan for learners who do not need AI.',
+    ai_lite: 'Affordable AI study help with short/medium answers.',
+    ai_plus: 'Daily AI support for serious learning and practice.',
+    ai_scholar: 'Advanced AI study support without certificate inclusion.',
+    certified_premium: 'Certificate included after passing, with strong AI support.',
+    certified_elite: 'Maximum AI support, certificate inclusion, and project support.',
+  };
+  return plan ? notes[plan] ?? 'Per-course access plan.' : 'Per-course access plan.';
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not set';
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function parseMaybeJson(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+  try { return JSON.parse(trimmed); } catch { return null; }
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function studentFriendlyError(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : 'Unable to complete this action.';
+  if (message.includes('402')) return 'Active course access is required. Please enroll or renew access.';
+  return message || 'Unable to complete this action.';
 }

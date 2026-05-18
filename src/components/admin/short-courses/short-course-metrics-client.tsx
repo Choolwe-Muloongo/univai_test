@@ -92,13 +92,13 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
                 {enrollments.length ? enrollments.map((enrollment) => (
                   <tr key={enrollment.id} className="border-t">
                     <td className="py-3 font-medium">{enrollment.studentName}</td>
-                    <td>{enrollment.studentEmail ?? '—'}</td>
+                    <td>{enrollment.studentEmail ?? '-'}</td>
                     <td>{enrollment.courseTitle}</td>
                     <td>{enrollment.status}</td>
                     <td>{enrollment.progress}%</td>
-                    <td>{enrollment.examScore ?? '—'}</td>
+                    <td>{enrollment.examScore ?? '-'}</td>
                     <td>{enrollment.certificateIssuedAt ? 'Issued' : enrollment.certificateFeePaid ? 'Paid' : 'Pending'}</td>
-                    <td>{enrollment.updatedAt ? new Date(enrollment.updatedAt).toLocaleDateString() : '—'}</td>
+                    <td>{enrollment.updatedAt ? new Date(enrollment.updatedAt).toLocaleDateString() : '-'}</td>
                   </tr>
                 )) : (
                   <tr><td className="py-6 text-muted-foreground" colSpan={8}>No short-course learners yet.</td></tr>
@@ -134,9 +134,9 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
                   <td>{enrollment.status}</td>
                   <td>{enrollment.entryFeePaid ? 'Paid' : 'Pending'}</td>
                   <td>{enrollment.progress}%</td>
-                  <td>{enrollment.examScore ?? '—'}</td>
+                  <td>{enrollment.examScore ?? '-'}</td>
                   <td>{enrollment.certificateFeePaid ? 'Paid' : 'Pending'}</td>
-                  <td>{enrollment.completedAt ? new Date(enrollment.completedAt).toLocaleDateString() : '—'}</td>
+                  <td>{enrollment.completedAt ? new Date(enrollment.completedAt).toLocaleDateString() : '-'}</td>
                 </tr>
               )) : (
                 <tr><td className="py-6 text-muted-foreground" colSpan={8}>No enrolments yet. Enrolments will appear here as soon as learners join short courses.</td></tr>

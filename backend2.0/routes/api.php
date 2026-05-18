@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\LecturerExamQuestionsController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\PaymentMethodsController;
+use App\Http\Controllers\Api\PaymentSettingsController;
 use App\Http\Controllers\Api\ScholarshipController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ReportsController;
@@ -172,6 +173,7 @@ Route::middleware('api')->group(function () {
         Route::get('/students/me/intakes', [IntakesController::class, 'availableForStudent']);
         Route::get('/students/me/invoices', [BillingController::class, 'invoices']);
         Route::post('/students/me/invoices/{invoice}/pay', [BillingController::class, 'pay']);
+        Route::post('/students/me/invoices/{invoice}/verify', [BillingController::class, 'verify']);
         Route::get('/students/me/payments', [BillingController::class, 'payments']);
         Route::get('/students/me/grades', [GradesController::class, 'studentGrades']);
         Route::get('/students/me/assignments', [StudentAssignmentsController::class, 'index']);
@@ -297,6 +299,8 @@ Route::middleware('api')->group(function () {
 
     Route::prefix('admin')->middleware(['session.auth', 'access:admin.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
+        Route::get('/payment-settings', [PaymentSettingsController::class, 'show']);
+        Route::patch('/payment-settings', [PaymentSettingsController::class, 'update']);
         Route::get('/intakes', [IntakesController::class, 'index']);
         Route::post('/intakes', [IntakesController::class, 'store']);
         Route::patch('/programs/{program}/delivery-modes', [ProgramsController::class, 'updateDeliveryModes']);

@@ -50,7 +50,7 @@ export default function StudentShortCoursesPage() {
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <span className="rounded-full bg-muted px-2 py-1">{item.status}</span>
                   <span className="rounded-full bg-muted px-2 py-1">{item.entryFeePaid ? 'Access active' : 'Access pending'}</span>
-                  <span className="rounded-full bg-muted px-2 py-1">Score: {item.examScore ?? '—'}</span>
+                  <span className="rounded-full bg-muted px-2 py-1">Score: {item.examScore ?? '-'}</span>
                 </div>
                 <Button asChild className="w-full"><Link href={`/student/short-courses/${item.course.id}`}>Open course</Link></Button>
               </CardContent>

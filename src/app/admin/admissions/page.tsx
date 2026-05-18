@@ -135,6 +135,25 @@ export default function AdmissionsDashboardPage() {
     }
   };
 
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const updated = await updateAdmissionsSettings({
+        isOpen: admissionsOpen,
+        message: admissionsMessage || null,
+        lecturerApplicationsOpen,
+        lecturerApplicationsMessage: lecturerApplicationsMessage || null,
+      });
+      setAdmissionsOpen(updated.isOpen);
+      setAdmissionsMessage(updated.message ?? '');
+      setLecturerApplicationsOpen(updated.lecturerApplicationsOpen ?? false);
+      setLecturerApplicationsMessage(updated.lecturerApplicationsMessage ?? '');
+      pushHistory('settings', `admissions ${updated.isOpen ? 'opened' : 'closed'}; lecturer applications ${updated.lecturerApplicationsOpen ? 'opened' : 'closed'}`);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     return applications.filter((app) => {
       const lifecycle = recordStates[app.id] ?? 'active';
@@ -177,6 +196,10 @@ export default function AdmissionsDashboardPage() {
             {!lecturerApplicationsOpen && (
               <Textarea value={lecturerApplicationsMessage} onChange={(event) => setLecturerApplicationsMessage(event.target.value)} placeholder="Lecturer application closure message." className="mt-3 min-h-24" />
             )}
+          </div>
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <span>Closing admissions blocks new formal-student applications at the API level. Short-course students can still learn.</span>
+            <Button type="button" onClick={handleSaveSettings} disabled={savingSettings}>{savingSettings ? 'Saving...' : 'Save admissions settings'}</Button>
           </div>
         </CardContent>
       </Card>

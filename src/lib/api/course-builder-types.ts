@@ -13,6 +13,10 @@ export type CardImageFields = {
   imageUrl?: string;
   imageAlt?: string;
   imageCaption?: string;
+  templateId?: string;
+  templateLabel?: string;
+  subjectArea?: string;
+  teachingMove?: string;
 };
 
 export type VisualBlockType =

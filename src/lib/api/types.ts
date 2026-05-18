@@ -516,6 +516,11 @@ export type AdmissionsSettings = {
   lecturerApplicationsMessage?: string | null;
 };
 
+export type PaymentSettings = {
+  lencoCollectionsEnabled: boolean;
+  testModeMessage?: string | null;
+};
+
 export type AcademicPolicy = {
   id: number;
   name: string;

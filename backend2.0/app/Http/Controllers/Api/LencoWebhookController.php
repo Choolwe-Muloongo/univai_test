@@ -3,16 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Enrollment;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Models\ShortCourseEnrollment;
 use App\Services\LencoPaymentService;
+use App\Support\Payments\PaidInvoiceUnlocker;
 use Illuminate\Http\Request;
 
 class LencoWebhookController extends Controller
 {
-    public function __invoke(Request $request, LencoPaymentService $lenco)
+    public function __invoke(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
     {
         $payload = $request->all();
         $signature = $request->header('X-Lenco-Signature') ?? $request->header('X-Signature');
@@ -53,7 +52,7 @@ class LencoWebhookController extends Controller
                 ]
             );
 
-            $this->unlockPaidInvoice($invoice);
+            $unlocker->unlock($invoice);
         } elseif (in_array($status, ['failed', 'cancelled', 'canceled'], true)) {
             $invoice->forceFill(['status' => 'failed'])->save();
         }
@@ -61,29 +60,4 @@ class LencoWebhookController extends Controller
         return response()->json(['received' => true]);
     }
 
-    private function unlockPaidInvoice(Invoice $invoice): void
-    {
-        $metadata = $invoice->metadata ?? [];
-
-        if ($invoice->type === 'short_course_entry' && isset($metadata['short_course_id'])) {
-            ShortCourseEnrollment::query()->updateOrCreate(
-                ['student_id' => $invoice->student_id, 'short_course_id' => $metadata['short_course_id']],
-                ['entry_fee_paid' => true, 'status' => 'active']
-            );
-        }
-
-        if ($invoice->type === 'certificate_fee' && isset($metadata['short_course_id'])) {
-            ShortCourseEnrollment::query()->updateOrCreate(
-                ['student_id' => $invoice->student_id, 'short_course_id' => $metadata['short_course_id']],
-                ['certificate_fee_paid' => true, 'status' => 'certificate_paid']
-            );
-        }
-
-        if ($invoice->type === 'tuition_fee') {
-            Enrollment::query()
-                ->where('user_id', $invoice->student_id)
-                ->when($invoice->intake_id, fn ($query) => $query->where('intake_id', $invoice->intake_id))
-                ->update(['status' => 'active', 'enrolled_at' => now(), 'confirmed_at' => now()]);
-        }
-    }
 }
