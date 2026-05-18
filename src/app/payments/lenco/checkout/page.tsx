@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Script from 'next/script';
 import { useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { CreditCard, Loader2, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,27 @@ const lencoScript =
     ? 'https://pay.sandbox.lenco.co/js/v1/inline.js'
     : 'https://pay.lenco.co/js/v1/inline.js';
 
-export default function LencoCheckoutPage() {
+function LencoCheckoutFallback() {
+  return (
+    <main className="min-h-screen bg-muted/30 px-4 py-8">
+      <div className="mx-auto flex min-h-[70vh] max-w-xl items-center">
+        <Card className="w-full">
+          <CardHeader className="space-y-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+            <div>
+              <CardTitle>Preparing Checkout</CardTitle>
+              <CardDescription>Loading your secure Lenco payment details.</CardDescription>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+    </main>
+  );
+}
+
+function LencoCheckoutClient() {
   const searchParams = useSearchParams();
   const [scriptReady, setScriptReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,7 +66,14 @@ export default function LencoCheckoutPage() {
 
   const [firstName, ...restName] = checkout.name.trim().split(/\s+/).filter(Boolean);
   const lastName = restName.join(' ');
-  const canPay = publicKey && scriptReady && checkout.reference && checkout.amount > 0 && checkout.email && Number.isFinite(checkout.invoice);
+  const canPay = Boolean(
+    publicKey &&
+      scriptReady &&
+      checkout.reference &&
+      checkout.amount > 0 &&
+      checkout.email &&
+      Number.isFinite(checkout.invoice),
+  );
 
   async function verifyAndReturn() {
     const result = await verifyInvoicePayment(checkout.invoice);
@@ -146,5 +173,13 @@ export default function LencoCheckoutPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+export default function LencoCheckoutPage() {
+  return (
+    <Suspense fallback={<LencoCheckoutFallback />}>
+      <LencoCheckoutClient />
+    </Suspense>
   );
 }
