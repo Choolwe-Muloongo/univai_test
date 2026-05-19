@@ -192,6 +192,71 @@
   }
 }
 
+@layer utilities {
+  /*
+   * Manual course builder responsive repair.
+   * The builder already lives beside the admin course map. Its original cards step
+   * added Blocks + Canvas + Preview as another three-column grid, creating four
+   * visible columns on desktop and a crushed editor. These selectors target the
+   * unique Tailwind arbitrary grid used by CardsStep and progressively relax it.
+   */
+  div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"],
+  div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > *,
+  div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > * {
+    min-width: 0 !important;
+  }
+
+  div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :first-child,
+  div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :first-child {
+    position: static !important;
+    align-self: auto !important;
+  }
+
+  div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :last-child,
+  div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :last-child {
+    position: static !important;
+    align-self: auto !important;
+  }
+
+  div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] article,
+  div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] article {
+    min-width: 0 !important;
+  }
+
+  @media (min-width: 1024px) {
+    div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :first-child > div:last-child,
+    div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :first-child > div:last-child {
+      display: grid !important;
+      grid-template-columns: minmax(240px, 320px) minmax(220px, 1fr) minmax(260px, 1.2fr) !important;
+      gap: 1rem !important;
+      align-items: start !important;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"],
+    div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] {
+      grid-template-columns: minmax(0, 1fr) 420px !important;
+    }
+
+    div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :first-child,
+    div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :first-child {
+      grid-column: 1 / -1 !important;
+    }
+
+    div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :last-child,
+    div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :last-child {
+      position: sticky !important;
+      top: 1rem !important;
+      align-self: start !important;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .elevate-3d,
   .elevate-3d:hover {
