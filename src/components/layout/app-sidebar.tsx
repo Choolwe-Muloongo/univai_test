@@ -174,6 +174,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/admin/short-courses', label: 'Overview', icon: LayoutDashboard },
         { href: '/admin/short-courses/catalogue', label: 'Course Catalogue', icon: BookOpen },
         { href: '/admin/short-courses/builder', label: 'AI Course Builder', icon: Sparkles },
+        { href: '/admin/short-courses/manual', label: 'Manual Builder', icon: BookMarked },
         { href: '/admin/short-courses/review', label: 'Review & Publish', icon: BadgeCheck },
         { href: '/admin/short-courses/enrolments', label: 'Enrolments', icon: Users },
         { href: '/admin/short-courses/pricing', label: 'Pricing', icon: CreditCard },

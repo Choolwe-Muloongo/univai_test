@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\ShortCourseEnrollment;
 use App\Support\Pricing\ShortCourseAccessPlans;
+use App\Support\Payments\PaymentReceiptMailer;
 use Illuminate\Support\Str;
 
 class PaidInvoiceUnlocker
@@ -46,6 +47,9 @@ class PaidInvoiceUnlocker
         );
 
         $this->unlock($invoice);
+        app(PaymentReceiptMailer::class)->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $reference)->first(), [
+            'channel' => 'test-mode',
+        ]);
 
         return $invoice->fresh() ?? $invoice;
     }

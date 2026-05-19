@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\ShortCourseEnrollment;
 use App\Services\LencoPaymentService;
 use App\Support\Payments\PaidInvoiceUnlocker;
+use App\Support\Payments\PaymentReceiptMailer;
 use App\Support\Payments\PaymentSettings;
 use App\Support\Pricing\ShortCourseAccessPlans;
 use Illuminate\Http\Request;
@@ -26,7 +28,7 @@ class ShortCourseAccessController extends Controller
         return response()->json(array_values(ShortCourseAccessPlans::bundlePlans('ZMW')));
     }
 
-    public function purchase(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
+    public function purchase(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
     {
         $payload = $request->validate(['plan' => ['required', 'string']]);
         $studentId = $this->studentId($request);
@@ -59,6 +61,9 @@ class ShortCourseAccessController extends Controller
         if (!PaymentSettings::lencoCollectionsEnabled()) {
             $settings = PaymentSettings::current();
             $paidInvoice = $unlocker->markPaidForTesting($invoice, $settings->test_mode_message ?: 'Payment confirmed in test mode.');
+            $receiptMailer->sendForInvoice($paidInvoice->fresh() ?? $paidInvoice, Payment::where('transaction_reference', $paidInvoice->transaction_reference)->first(), [
+                'channel' => 'test-mode',
+            ]);
 
             return response()->json([
                 'status' => 'active',
@@ -93,7 +98,7 @@ class ShortCourseAccessController extends Controller
         ]);
     }
 
-    public function purchaseBundle(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
+    public function purchaseBundle(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
     {
         $payload = $request->validate([
             'bundle' => ['required', 'string'],
@@ -149,6 +154,9 @@ class ShortCourseAccessController extends Controller
         if (!PaymentSettings::lencoCollectionsEnabled()) {
             $settings = PaymentSettings::current();
             $paidInvoice = $unlocker->markPaidForTesting($invoice, $settings->test_mode_message ?: 'Payment confirmed in test mode.');
+            $receiptMailer->sendForInvoice($paidInvoice->fresh() ?? $paidInvoice, Payment::where('transaction_reference', $paidInvoice->transaction_reference)->first(), [
+                'channel' => 'test-mode',
+            ]);
 
             return response()->json([
                 'status' => 'active',

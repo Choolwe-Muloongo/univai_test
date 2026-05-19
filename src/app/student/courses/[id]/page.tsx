@@ -33,6 +33,7 @@ import {
   type PublicShortCourse,
   type ShortCourseProgress,
 } from '@/lib/api/short-courses';
+import { accessLabel, formatExpiryDate, isExpiringSoon, planLabel as shortCoursePlanLabel, timeRemainingLabel } from '@/lib/short-course-ui';
 
 type LessonNode = {
   id: string;
@@ -98,6 +99,12 @@ export default function CourseHubPage() {
   const access = accessState(progress);
   const hasActiveAccess = access === 'Active';
   const certificate = certificateState(progress);
+  const accessPlan = shortCoursePlanLabel(progress?.accessPlan ?? (progress?.entryFeePaid ? 'starter_access' : null));
+  const accessExpiry = progress?.accessExpiresAt ? formatExpiryDate(progress.accessExpiresAt) : 'No expiry set';
+  const accessTimeLeft = timeRemainingLabel(progress?.accessExpiresAt);
+  const aiExpiry = progress?.aiAccessExpiresAt ? formatExpiryDate(progress.aiAccessExpiresAt) : 'No AI expiry';
+  const aiTimeLeft = timeRemainingLabel(progress?.aiAccessExpiresAt);
+  const accessWarning = isExpiringSoon(progress?.accessExpiresAt, 5);
 
   async function startEntryAccess() {
     setBusy('entry');
@@ -175,6 +182,11 @@ export default function CourseHubPage() {
           <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
             <div className="flex justify-between text-sm"><span>Overall progress</span><strong>{progress?.progress ?? 0}%</strong></div>
             <Progress value={progress?.progress ?? 0} className="h-3" />
+            <div className="grid gap-2 text-xs text-muted-foreground">
+              <Info label="Access" value={access} />
+              <Info label="Plan" value={accessPlan} />
+              <Info label="Time left" value={accessTimeLeft} />
+            </div>
             {nextLesson && hasActiveAccess ? (
               <Button asChild className="w-full">
                 <Link href={`/student/courses/${course.id}/lessons/${nextLesson.id}`}>Continue Course <ArrowRight className="ml-2 h-4 w-4" /></Link>
@@ -285,12 +297,13 @@ export default function CourseHubPage() {
               <CardDescription>Course access, AI access, and certificate inclusion.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <Info label="Status" value={access} />
-              <Info label="Plan" value={planLabel(progress?.accessPlan ?? (progress?.entryFeePaid ? 'entry' : null))} />
-              <Info label="Access expiry" value={formatDate(progress?.accessExpiresAt)} />
-              <Info label="AI access expiry" value={formatDate(progress?.aiAccessExpiresAt)} />
+              <Info label="Status" value={accessLabel(progress)} />
+              <Info label="Plan" value={accessPlan} />
+              <Info label="Access expiry" value={`${accessExpiry} · ${accessTimeLeft}`} />
+              <Info label="AI access expiry" value={`${aiExpiry} · ${aiTimeLeft}`} />
               <Info label="AI quota" value={`${progress?.hourlyAiQuota ?? 0}/hr, ${progress?.dailyAiQuota ?? 0}/day`} />
               <Info label="Certificate included" value={progress?.certificateIncluded ? 'Yes' : 'No'} />
+              {accessWarning ? <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">This access is close to expiry. Renew it before the course locks.</div> : null}
               <Button onClick={startEntryAccess} disabled={busy === 'entry'} className="w-full">
                 {busy === 'entry' ? 'Working...' : progress?.entryFeePaid ? 'Renew / Refresh Access' : Number(course.price ?? 0) <= 0 ? 'Enroll Free' : 'Enroll / Pay'}
               </Button>
@@ -466,13 +479,6 @@ function planPurpose(plan?: string | null) {
     certified_elite: 'Maximum AI support, certificate inclusion, and project support.',
   };
   return plan ? notes[plan] ?? 'Per-course access plan.' : 'Per-course access plan.';
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return 'Not set';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not set';
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function parseMaybeJson(value?: string | null) {

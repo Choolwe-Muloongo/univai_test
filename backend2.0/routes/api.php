@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
 use App\Http\Controllers\Api\ShortCourseController;
+use App\Http\Controllers\Api\ShortCourseManualGuideController;
 use App\Http\Controllers\Api\LencoWebhookController;
 use App\Http\Controllers\Api\ExamClinicController;
 use App\Http\Controllers\Api\AdminUsersController;
@@ -387,5 +388,6 @@ Route::middleware('api')->group(function () {
         Route::get('/reports/finance', [ReportsController::class, 'finance']);
         Route::get('/system-health', [SystemHealthController::class, 'status']);
         Route::post('/system-health/diagnostics', [SystemHealthController::class, 'diagnostics']);
+        Route::get('/short-courses/manual-guide', [ShortCourseManualGuideController::class, 'download'])->middleware('access:admin.academic');
     });
 });

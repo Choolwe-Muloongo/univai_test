@@ -31,7 +31,7 @@ return [
     'lenco' => [
         'secret_key' => env('LENCO_SECRET_KEY'),
         'webhook_secret' => env('LENCO_WEBHOOK_SECRET'),
-        'base_url' => env('LENCO_BASE_URL', 'https://api.lenco.co/access/v1'),
+        'base_url' => env('LENCO_BASE_URL_V2', env('LENCO_BASE_URL', 'https://api.lenco.co/access/v2')),
         'checkout_stub_url' => env('LENCO_CHECKOUT_STUB_URL', 'https://pay.lenco.co/checkout'),
         'allow_stub_checkout' => env('LENCO_ALLOW_STUB_CHECKOUT', false),
     ],

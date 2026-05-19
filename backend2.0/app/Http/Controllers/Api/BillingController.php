@@ -10,6 +10,7 @@ use App\Services\LencoPaymentService;
 use App\Support\AuditLogger;
 use App\Support\DeliveryModes;
 use App\Support\Payments\PaidInvoiceUnlocker;
+use App\Support\Payments\PaymentReceiptMailer;
 use App\Support\Payments\PaymentSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -112,7 +113,7 @@ class BillingController extends Controller
         ]);
     }
 
-    public function verify(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
+    public function verify(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
@@ -123,6 +124,9 @@ class BillingController extends Controller
 
         if ($invoice->status === 'paid') {
             $unlocker->unlock($invoice);
+            $receiptMailer->sendForInvoice($invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
+                'channel' => 'already-paid',
+            ]);
             return response()->json([
                 'id' => $invoice->id,
                 'status' => 'paid',
@@ -136,10 +140,44 @@ class BillingController extends Controller
 
         $verification = $lenco->verifyCollection($invoice->transaction_reference);
         if (!$verification['verified']) {
+            $payload = $verification['payload'] ?? [];
+            $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? $verification['status'] ?? 'unknown'));
             return response()->json([
                 'id' => $invoice->id,
-                'status' => $verification['status'],
+                'status' => $status,
                 'message' => $verification['message'] ?: 'Payment has not been confirmed yet.',
+            ], 202);
+        }
+
+        $payload = $verification['payload'] ?? [];
+        $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? 'unknown'));
+        $reference = (string) (data_get($payload, 'data.reference') ?? data_get($payload, 'reference') ?? '');
+        $amount = (float) (data_get($payload, 'data.amount') ?? data_get($payload, 'amount') ?? 0);
+        $fee = (float) (data_get($payload, 'data.fee') ?? data_get($payload, 'fee') ?? 0);
+        $currency = strtoupper((string) (data_get($payload, 'data.currency') ?? data_get($payload, 'currency') ?? $invoice->currency ?? 'ZMW'));
+        $settlementStatus = strtolower((string) (data_get($payload, 'data.settlementStatus') ?? data_get($payload, 'settlementStatus') ?? ''));
+        $amountSettled = (float) (data_get($payload, 'data.settlement.amountSettled') ?? data_get($payload, 'settlement.amountSettled') ?? 0);
+
+        if ($reference !== $invoice->transaction_reference) {
+            return response()->json(['message' => 'Payment reference mismatch.'], 422);
+        }
+
+        if (abs($amount - (float) $invoice->amount) > 0.01) {
+            return response()->json(['message' => 'Payment amount mismatch.'], 422);
+        }
+
+        if ($currency !== strtoupper($invoice->currency ?? 'ZMW')) {
+            return response()->json(['message' => 'Payment currency mismatch.'], 422);
+        }
+
+        if (!in_array($status, ['successful', 'success', 'paid', 'completed'], true)) {
+            return response()->json([
+                'id' => $invoice->id,
+                'status' => $status,
+                'message' => 'Payment is not successful yet.',
+                'settlementStatus' => $settlementStatus,
+                'amountSettled' => $amountSettled,
+                'fee' => $fee,
             ], 202);
         }
 
@@ -165,6 +203,9 @@ class BillingController extends Controller
         );
 
         $unlocker->unlock($invoice);
+        $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
+            'channel' => 'lenco-verify',
+        ]);
 
         return response()->json([
             'id' => $invoice->id,

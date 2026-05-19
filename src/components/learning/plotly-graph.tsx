@@ -13,10 +13,12 @@ type PlotlyGraphProps = {
 
 export function PlotlyGraph({ block }: PlotlyGraphProps) {
   const graphType = String(block.graphType || 'function');
-  const xMin = Number(block.xMin ?? -10);
-  const xMax = Number(block.xMax ?? 10);
-  const yMin = Number(block.yMin ?? -10);
-  const yMax = Number(block.yMax ?? 10);
+  const hasXRange = isFiniteNumber(block.xMin) && isFiniteNumber(block.xMax);
+  const hasYRange = isFiniteNumber(block.yMin) && isFiniteNumber(block.yMax);
+  const xMin = hasXRange ? Number(block.xMin) : -10;
+  const xMax = hasXRange ? Number(block.xMax) : 10;
+  const yMin = hasYRange ? Number(block.yMin) : -10;
+  const yMax = hasYRange ? Number(block.yMax) : 10;
   const data = buildPlotData(block, graphType, xMin, xMax);
 
   return (
@@ -31,13 +33,15 @@ export function PlotlyGraph({ block }: PlotlyGraphProps) {
           plot_bgcolor: 'transparent',
           xaxis: {
             title: String(block.xLabel || 'x'),
-            range: graphType === 'pie' ? undefined : [xMin, xMax],
+            range: graphType !== 'pie' && hasXRange ? [xMin, xMax] : undefined,
+            autorange: graphType !== 'pie' && !hasXRange ? true : undefined,
             zeroline: true,
             gridcolor: 'rgba(148, 163, 184, 0.25)',
           },
           yaxis: {
             title: String(block.yLabel || 'y'),
-            range: graphType === 'pie' || graphType === 'bar' ? undefined : [yMin, yMax],
+            range: graphType !== 'pie' && graphType !== 'bar' && hasYRange ? [yMin, yMax] : undefined,
+            autorange: graphType !== 'pie' && graphType !== 'bar' && !hasYRange ? true : undefined,
             zeroline: true,
             gridcolor: 'rgba(148, 163, 184, 0.25)',
           },
@@ -50,6 +54,11 @@ export function PlotlyGraph({ block }: PlotlyGraphProps) {
       />
     </div>
   );
+}
+
+function isFiniteNumber(value: unknown) {
+  if (value === null || typeof value === 'undefined' || value === '') return false;
+  return Number.isFinite(Number(value));
 }
 
 function buildPlotData(block: AnyBlock, graphType: string, xMin: number, xMax: number): Data[] {

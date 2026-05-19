@@ -53,7 +53,7 @@ class LencoPaymentService
 
     public function verifyWebhook(array $payload, ?string $signature): bool
     {
-        $secret = env('LENCO_WEBHOOK_SECRET', env('LENCO_SECRET_KEY'));
+        $secret = config('services.lenco.webhook_secret', env('LENCO_WEBHOOK_SECRET', env('LENCO_SECRET_KEY')));
         if (!$secret) {
             return true;
         }
@@ -64,7 +64,7 @@ class LencoPaymentService
 
     public function verifyCollection(string $reference): array
     {
-        $secret = env('LENCO_SECRET_KEY');
+        $secret = config('services.lenco.secret_key', env('LENCO_SECRET_KEY'));
         if (!$secret) {
             return [
                 'verified' => false,
@@ -74,7 +74,7 @@ class LencoPaymentService
             ];
         }
 
-        $endpoint = rtrim((string) env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2'), '/') . '/collections/status/' . rawurlencode($reference);
+        $endpoint = rtrim((string) config('services.lenco.base_url', env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2')), '/') . '/collections/status/' . rawurlencode($reference);
         $response = Http::withToken($secret)->acceptJson()->get($endpoint);
         if (!$response->successful()) {
             return [

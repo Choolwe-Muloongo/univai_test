@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { getShortCourseInsights, type ShortCourseInsights } from '@/lib/api/academic';
 
@@ -35,10 +35,32 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
   if (!insights) return <PageError message="Short-course insights are unavailable." />;
 
   const { summary, courses, enrollments } = insights;
+  const launchWarnings = [
+    summary.publishedCourses === 0 ? 'No published short courses yet.' : null,
+    summary.entryFeesPaid === 0 ? 'No short-course payments have been confirmed yet.' : null,
+    summary.certificateReady === 0 ? 'No learners are certificate-ready yet.' : null,
+  ].filter(Boolean) as string[];
 
   if (mode === 'pricing') {
     return (
       <div className="space-y-4">
+        <Card className="rounded-3xl border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Launch readiness</CardTitle>
+            <CardDescription>What needs attention before short courses are ready for learners.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>{summary.publishedCourses} published courses · {summary.freeCourses} free courses · {summary.paidCourses} paid courses</p>
+            <p>{summary.entryFeesPaid} entry fees paid · {summary.certificateFeesPaid} certificate fees paid · {summary.certificateReady} certificate-ready learners</p>
+            {launchWarnings.length ? (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-amber-900">
+                {launchWarnings.map((warning) => <p key={warning}>{warning}</p>)}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">Short-course delivery looks ready for learners.</div>
+            )}
+          </CardContent>
+        </Card>
         <div className="grid gap-4 md:grid-cols-4">
           <Stat title="Paid courses" value={summary.paidCourses} />
           <Stat title="Free courses" value={summary.freeCourses} />
@@ -75,6 +97,17 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
   if (mode === 'learners') {
     return (
       <div className="space-y-4">
+        <Card className="rounded-3xl border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Launch readiness</CardTitle>
+            <CardDescription>Track whether learners can actually move through the short-course flow.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>{summary.enrollments} total enrolments · {summary.activeEnrollments} active · {summary.completedEnrollments} completed</p>
+            <p>{summary.certificateReady} certificate-ready learners · {summary.entryFeesPaid} entry fees paid</p>
+            {launchWarnings.length ? <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-amber-900">{launchWarnings.map((warning) => <p key={warning}>{warning}</p>)}</div> : <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">Learner flow is active and measurable.</div>}
+          </CardContent>
+        </Card>
         <div className="grid gap-4 md:grid-cols-4">
           <Stat title="Learners" value={summary.enrollments} />
           <Stat title="Active" value={summary.activeEnrollments} />
@@ -113,6 +146,17 @@ export function ShortCourseMetricsClient({ mode }: { mode: ViewMode }) {
 
   return (
     <div className="space-y-4">
+      <Card className="rounded-3xl border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle>Launch readiness</CardTitle>
+          <CardDescription>Watch the short-course payment funnel while enrolments grow.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p>{summary.enrollments} enrolments · {summary.entryFeesPaid} entry fees paid · {summary.certificateFeesPaid} certificate fees paid</p>
+          <p>{summary.publishedCourses} published courses · {summary.draftCourses} drafts</p>
+          {launchWarnings.length ? <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-amber-900">{launchWarnings.map((warning) => <p key={warning}>{warning}</p>)}</div> : <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">Enrolment and payment flow is active.</div>}
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-4">
         <Stat title="Enrolments" value={summary.enrollments} />
         <Stat title="Entry fees paid" value={summary.entryFeesPaid} />

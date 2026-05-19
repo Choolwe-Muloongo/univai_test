@@ -38,7 +38,7 @@ export default function StudentCertificatesPage() {
   }
 
   if (loading) return <PageLoading message="Loading certificates..." />;
-  if (error) return <PageError message={error} actionHref="/student/short-courses" actionLabel="Back to short courses" />;
+  if (error) return <PageError message={error} actionHref="/student/courses" actionLabel="Back to short courses" />;
 
   const completed = items.filter((item) => item.completedAt && item.course);
 
@@ -57,7 +57,7 @@ export default function StudentCertificatesPage() {
               <CardHeader><CardTitle>{item.course.title}</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="rounded-full bg-muted px-2 py-1">Score: {item.examScore ?? '—'}</span>
+                  <span className="rounded-full bg-muted px-2 py-1">Score: {item.examScore ?? '-'}</span>
                   <span className="rounded-full bg-muted px-2 py-1">{item.certificateIssuedAt ? 'Issued' : 'Ready'}</span>
                 </div>
                 <Button onClick={() => openCertificate(item.course!.id)} disabled={workingId === item.course.id}>
@@ -71,7 +71,7 @@ export default function StudentCertificatesPage() {
         <Card>
           <CardContent className="space-y-4 p-8 text-center">
             <p className="text-muted-foreground">No completed short-course certificates yet.</p>
-            <Button asChild><Link href="/student/short-courses">Continue learning</Link></Button>
+            <Button asChild><Link href="/student/courses">Continue learning</Link></Button>
           </CardContent>
         </Card>
       )}

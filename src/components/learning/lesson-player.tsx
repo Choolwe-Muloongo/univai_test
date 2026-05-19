@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Sparkles, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Sparkles, XCircle } from 'lucide-react';
 
 import { MathText } from '@/components/learning/math-text';
 import { MathVisualBlock } from '@/components/learning/math-visual-blocks';
@@ -160,7 +160,7 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-3xl flex-col gap-5 px-2 py-2 sm:px-0">
+    <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-6xl flex-col gap-5 px-2 py-2 sm:px-0">
       <div className="flex items-center justify-between gap-3">
         {backHref ? (
           <Button variant="ghost" size="sm" asChild className="gap-2 px-2">
@@ -187,15 +187,14 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
         </div>
       </div>
 
-      <Card className="flex min-h-[390px] flex-1 flex-col rounded-3xl border-primary/10 shadow-sm">
+      <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <Card className="flex min-h-[390px] min-w-0 flex-1 flex-col rounded-2xl border-primary/10 shadow-sm sm:rounded-3xl">
         <CardHeader className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <Badge className="rounded-full capitalize" variant={isInteractive ? 'default' : 'secondary'}>
               {labelForBlock(block)}
             </Badge>
-            {typeof block.subLessonTitle === 'string' && block.type !== 'sub_lesson' ? <Badge variant="outline" className="rounded-full"><MathText text={block.subLessonTitle} /></Badge> : null}
-            {typeof block.subjectArea === 'string' ? <Badge variant="outline" className="rounded-full"><MathText text={block.subjectArea} /></Badge> : null}
-            {lesson.difficulty ? <Badge variant="outline" className="rounded-full capitalize">{lesson.difficulty}</Badge> : null}
+            {typeof block.subLessonTitle === 'string' && block.type !== 'sub_lesson' ? <Badge variant="outline" className="max-w-[220px] truncate rounded-full"><MathText text={block.subLessonTitle} /></Badge> : null}
           </div>
           <CardTitle className="text-xl sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
         </CardHeader>
@@ -248,7 +247,7 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
           ) : null}
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-between">
+        <CardFooter className="sticky bottom-0 z-10 flex flex-col gap-3 border-t bg-background/95 pt-4 backdrop-blur sm:static sm:flex-row sm:justify-between">
           <Button variant="outline" onClick={goPrevious} disabled={index === 0} className="w-full gap-2 sm:w-auto">
             <ChevronLeft className="h-4 w-4" />
             Previous
@@ -269,6 +268,8 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
           )}
         </CardFooter>
       </Card>
+      <SideContextPanel block={block} lessonDifficulty={lesson.difficulty} />
+      </div>
     </div>
   );
 }
@@ -277,21 +278,21 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
   const text = block.type === 'question' ? block.question : block.type === 'fill_blank' ? block.text : block.type === 'true_false' ? block.statement : block.body;
   const items = toTextArray(block.items);
   const criteria = toTextArray(block.criteria);
-  const context = <ClassroomThreadContext block={block} />;
+  const context = <ClassroomThreadContext block={block} compact={false} />;
 
   const registryDefinition = getBlockDefinition(block.type);
   if (registryDefinition && shouldUseBlockEngineRenderer(block)) {
     const Renderer = registryDefinition.StudentRenderer;
-    return <div className="space-y-4">{context}<Renderer payload={block as LearningBlockPayload} definition={registryDefinition} state={{ revealed }} /></div>;
+    return <div className="space-y-4"><Renderer payload={block as LearningBlockPayload} definition={registryDefinition} state={{ revealed }} />{context}</div>;
   }
 
   if (visualBlockTypes.has(block.type)) {
-    return <div className="space-y-4">{context}<CardImage block={block} /><MathVisualBlock block={block} /></div>;
+    return <div className="space-y-4"><CardImage block={block} /><MathVisualBlock block={block} />{context}</div>;
   }
 
   return (
     <div className="space-y-4">
-      {context}
+      <div className="space-y-4">
       <CardImage block={block} />
       {block.term || block.definition ? (
         <div className="rounded-2xl border bg-muted/20 p-4">
@@ -307,6 +308,7 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
           <p className="mt-2 text-sm leading-6 text-muted-foreground"><MathText text={block.prompt} /></p>
         </div>
       ) : null}
+      </div>
       {revealTypes.has(block.type) || block.front || block.back ? (
         <div className="space-y-3 rounded-2xl border p-4">
           {block.front ? <p className="text-base font-semibold"><MathText text={block.front} /></p> : null}
@@ -320,36 +322,44 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
         </div>
       ) : null}
       {items.length ? (
-        <ul className="grid gap-2">
-          {items.map((item, itemIndex) => (
-            <li key={`${item}-${itemIndex}`} className="rounded-xl border bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-              <MathText text={item} />
-            </li>
-          ))}
-        </ul>
+        <GuidedSection title={block.type === 'summary' ? 'Key takeaways' : 'Supporting points'}>
+          <ul className="grid gap-2">
+            {items.map((item, itemIndex) => (
+              <li key={`${item}-${itemIndex}`} className="rounded-xl border bg-background p-3 text-sm leading-6 text-muted-foreground">
+                <MathText text={item} />
+              </li>
+            ))}
+          </ul>
+        </GuidedSection>
       ) : null}
       {Array.isArray(block.pairs) && block.pairs.length ? (
-        <div className="grid gap-2">
+        <GuidedSection title="Pairs">
+          <div className="grid gap-2">
           {block.pairs.map((pair, pairIndex) => (
             <div key={`${pair.left ?? pairIndex}-${pairIndex}`} className="grid gap-2 rounded-xl border p-3 text-sm sm:grid-cols-2">
               <span className="font-medium"><MathText text={pair.left || `Item ${pairIndex + 1}`} /></span>
               <span className="text-muted-foreground"><MathText text={pair.right || 'Add matching value'} /></span>
             </div>
           ))}
-        </div>
+          </div>
+        </GuidedSection>
       ) : null}
       {criteria.length ? (
-        <div className="rounded-2xl border p-4">
-          <p className="text-sm font-semibold">Quality criteria</p>
+        criteria.length > 5 ? <ExpandableSection title={`Quality criteria (${criteria.length})`}>
           <ul className="mt-3 grid gap-2 text-sm text-muted-foreground">
             {criteria.map((criterion, criterionIndex) => <li key={`${criterion}-${criterionIndex}`}><MathText text={`- ${criterion}`} /></li>)}
           </ul>
-        </div>
+        </ExpandableSection> : <GuidedSection title="Quality criteria">
+          <ul className="grid gap-2 text-sm text-muted-foreground">
+            {criteria.map((criterion, criterionIndex) => <li key={`${criterion}-${criterionIndex}`}><MathText text={`- ${criterion}`} /></li>)}
+          </ul>
+        </GuidedSection>
       ) : null}
       {block.code ? <pre className="overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{block.code}</code></pre> : null}
       {block.visual ? <VisualFrame visual={block.visual} /> : null}
       {Array.isArray(block.steps) && block.steps.length > 0 ? (
-        <div className="space-y-4">
+        <GuidedSection title="Worked steps">
+          <div className="space-y-4">
           {block.steps.map((step, stepIndex) => (
             <div key={`${step.title ?? 'step'}-${stepIndex}`} className="space-y-3 rounded-2xl border bg-muted/10 p-4">
               <p className="font-semibold"><MathText text={step.title || `Step ${stepIndex + 1}`} /></p>
@@ -358,23 +368,54 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
               {step.visual ? <VisualFrame visual={step.visual} /> : null}
             </div>
           ))}
-        </div>
+          </div>
+        </GuidedSection>
       ) : null}
+      {context}
     </div>
   );
 }
 
-function ClassroomThreadContext({ block }: { block: LessonBlock }) {
+function GuidedSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl border bg-muted/10 p-4">
+      <p className="mb-3 text-sm font-semibold">{title}</p>
+      {children}
+    </section>
+  );
+}
+
+function ExpandableSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="rounded-2xl border bg-muted/10 p-4">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
+        {title}
+        <ChevronDown className="size-4 text-muted-foreground" />
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
+
+function ClassroomThreadContext({ block, compact = false }: { block: LessonBlock; compact?: boolean }) {
   const extracted = toTextArray(block.extractedData);
   const trail = Array.isArray(block.threadTrail) ? block.threadTrail : [];
   if (!block.sourceQuestion && !block.teacherNote && !extracted.length && trail.length <= 1) return null;
+  const sourceQuestion = typeof block.sourceQuestion === 'string' ? block.sourceQuestion : '';
+  const sourceIsLong = sourceQuestion.length > 360;
   return (
-    <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+    <div className={compact ? 'space-y-3' : 'space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4'}>
       {block.sourceQuestion ? (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Original classroom question</p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground"><MathText text={block.sourceQuestion} /></p>
-        </div>
+        sourceIsLong || compact ? (
+          <ExpandableSection title="Original classroom question">
+            <p className="whitespace-pre-wrap text-sm leading-6 text-foreground"><MathText text={block.sourceQuestion} /></p>
+          </ExpandableSection>
+        ) : (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Original classroom question</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground"><MathText text={block.sourceQuestion} /></p>
+          </div>
+        )
       ) : null}
       {extracted.length ? (
         <div>
@@ -395,8 +436,7 @@ function ClassroomThreadContext({ block }: { block: LessonBlock }) {
         </div>
       ) : null}
       {trail.length > 1 ? (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Board progress so far</p>
+        <ExpandableSection title="Board progress so far">
           <div className="mt-2 grid gap-2">
             {trail.map((step, stepIndex) => (
               <div key={`${step.title}-${stepIndex}`} className="rounded-xl border bg-background/70 p-3 text-sm">
@@ -409,9 +449,28 @@ function ClassroomThreadContext({ block }: { block: LessonBlock }) {
               </div>
             ))}
           </div>
-        </div>
+        </ExpandableSection>
       ) : null}
     </div>
+  );
+}
+
+function SideContextPanel({ block, lessonDifficulty }: { block: LessonBlock; lessonDifficulty?: string | null }) {
+  const hasContext = Boolean(block.sourceQuestion || block.teacherNote || toTextArray(block.extractedData).length || (Array.isArray(block.threadTrail) && block.threadTrail.length > 1) || block.subjectArea || lessonDifficulty);
+  if (!hasContext) return null;
+  return (
+    <aside className="hidden min-w-0 space-y-3 xl:block">
+      <div className="sticky top-4 rounded-2xl border bg-background/95 p-4 shadow-sm">
+        <p className="text-sm font-semibold">Card context</p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          {typeof block.subjectArea === 'string' ? <Badge variant="outline" className="rounded-full"><MathText text={block.subjectArea} /></Badge> : null}
+          {lessonDifficulty ? <Badge variant="outline" className="rounded-full capitalize">{lessonDifficulty}</Badge> : null}
+        </div>
+        <div className="mt-4">
+          <ClassroomThreadContext block={block} compact />
+        </div>
+      </div>
+    </aside>
   );
 }
 

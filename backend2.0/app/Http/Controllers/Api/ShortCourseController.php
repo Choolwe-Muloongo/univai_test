@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\ExamQuestion;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\ShortCourseEnrollment;
 use App\Models\ShortCourseLessonProgress;
 use App\Services\LencoPaymentService;
@@ -419,7 +420,7 @@ class ShortCourseController extends Controller
                 'amount' => $fee['amount'],
                 'currency' => $fee['currency'],
                 'status' => 'pending',
-                'metadata' => ['short_course_id' => $course->id] + $metadata,
+                'metadata' => ['short_course_id' => $course->id, 'short_course_title' => $course->title] + $metadata,
                 'due_date' => now()->addDays(7),
             ]
         );

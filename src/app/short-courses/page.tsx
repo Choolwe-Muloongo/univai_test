@@ -41,7 +41,7 @@ export default function PublicShortCoursesPage() {
         <p className="mt-4 max-w-2xl text-muted-foreground">Browse self-paced courses, enrol quickly, learn through interactive cards, and earn a certificate after completion.</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild><a href="#courses">Browse courses</a></Button>
-          <Button variant="outline" asChild><Link href="/student/short-courses">My short courses</Link></Button>
+          <Button variant="outline" asChild><Link href="/student/courses">My short courses</Link></Button>
         </div>
       </section>
 
@@ -78,15 +78,21 @@ export default function PublicShortCoursesPage() {
                   <p className="line-clamp-4 text-sm text-muted-foreground">{course.description}</p>
                   <div className="mt-auto flex gap-2">
                     <Button asChild className="flex-1"><Link href={`/short-courses/${course.id}`}>View course</Link></Button>
-                    <Button asChild variant="outline"><Link href={`/student/short-courses/${course.id}`}>Continue</Link></Button>
+                    <Button asChild variant="outline"><Link href={`/student/courses/${course.id}`}>Continue</Link></Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <Card>
-            <CardContent className="p-8 text-sm text-muted-foreground">No matching short courses are available yet.</CardContent>
+          <Card className="rounded-2xl border-dashed">
+            <CardContent className="space-y-3 p-8 text-center">
+              <p className="font-medium">{courses.length ? 'No courses match those filters.' : 'No published short courses are available yet.'}</p>
+              <p className="text-sm text-muted-foreground">
+                {courses.length ? 'Clear the search or choose another level.' : 'When an admin publishes a course, it will appear here automatically.'}
+              </p>
+              {courses.length ? <Button variant="outline" onClick={() => { setQuery(''); setLevel('all'); }}>Clear filters</Button> : null}
+            </CardContent>
           </Card>
         )}
       </section>

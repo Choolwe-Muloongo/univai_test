@@ -1,342 +1,292 @@
-// src/app/(app)/payments/page.tsx
 'use client';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Check, Star, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { useSession } from '@/components/providers/session-provider';
+
 import Link from 'next/link';
-import { getInvoices } from '@/lib/api';
-import { STUDENT_ACCESS_TIER, roleToStudentAccessTier } from '@/lib/auth/roles';
+import { useEffect, useMemo, useState, type ElementType } from 'react';
+import { BadgeCheck, BookOpen, CreditCard, ExternalLink, ReceiptText, ShieldCheck } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { useSession } from '@/components/providers/session-provider';
+import { getInvoices, payInvoice, verifyInvoicePayment } from '@/lib/api';
+import { getMyShortCourses, paymentUrl, type ShortCourseEnrollmentSummary } from '@/lib/api/short-courses';
 import type { Invoice } from '@/lib/api/types';
-
-const freeFeatures = [
-  { text: "Access to introductory modules of all courses", included: true },
-  { text: "Read-only access to community discussions", included: true },
-  { text: "No cashback or AFTACOIN rewards", included: false },
-  { text: "Verified certificates", included: false },
-  { text: "Premium and programme-only resources", included: false },
-];
-
-const certificateFeatures = [
-  { text: "Everything in Free Learning", included: true },
-  { text: "Exam attempts for short courses", included: true },
-  { text: "Verified certificate downloads", included: true },
-  { text: "No premium membership tools or programme records", included: false },
-];
-
-const premiumFeatures = [
-  { text: "Unlimited access to all course content", included: true },
-  { text: "Full access to AI Tutor and Study Planner", included: true },
-  { text: "Verified Certificate upon completion", included: true },
-  { text: "Full community access (posting, messaging)", included: true },
-  { text: "Full access to Career & Job Hub", included: true },
-  { text: "Eligible for AFTACOIN rewards", included: true },
-];
-
-const programmeFeatures = [
-  { text: "Everything in Premium Membership", included: true },
-  { text: "Formal programme enrolment and modules", included: true },
-  { text: "Grades, assignments, attendance, and timetable", included: true },
-  {
-    text: "Programme support, route changes, and graduation clearance",
-    included: true,
-  },
-];
+import { STUDENT_ACCESS_TIER, roleToStudentAccessTier } from '@/lib/auth/roles';
+import { accessLabel, formatExpiryDate, invoiceCategory, invoiceFriendlyStatus, isExpiringSoon, planLabel, timeRemainingLabel } from '@/lib/short-course-ui';
 
 export default function PaymentsPage() {
-  const router = useRouter();
   const { session } = useSession();
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [showAllTotals, setShowAllTotals] = useState(false);
+  const [shortCourses, setShortCourses] = useState<ShortCourseEnrollmentSummary[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setUserRole(session?.user?.role ?? null);
   }, [session]);
 
   useEffect(() => {
-    const loadInvoices = async () => {
-      const data = await getInvoices();
-      setInvoices(data);
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [myShortCourses, invoiceData] = await Promise.all([
+          getMyShortCourses().catch(() => []),
+          getInvoices().catch(() => []),
+        ]);
+        setShortCourses(myShortCourses);
+        setInvoices(invoiceData);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Unable to load billing information.');
+      } finally {
+        setLoading(false);
+      }
     };
-    loadInvoices();
+    load();
   }, []);
 
-  const feeTotals = useMemo(() => {
-    const toNumber = (value: string) => Number.parseFloat(value || "0") || 0;
-    const schoolMatch = /tuition|school fee|school fees/i;
-    const schoolTotal = invoices
-      .filter((invoice) => schoolMatch.test(invoice.title))
-      .reduce((sum, invoice) => sum + toNumber(invoice.amount), 0);
-    const otherTotal = invoices
-      .filter((invoice) => !schoolMatch.test(invoice.title))
-      .reduce((sum, invoice) => sum + toNumber(invoice.amount), 0);
-    const format = (value: number) => `$${value.toFixed(2)}`;
-    const base = [
-      {
-        label: "School Fees Total",
-        amount: format(schoolTotal),
-        note: "Tuition and core modules",
-      },
-      {
-        label: "Other Fees Total",
-        amount: format(otherTotal),
-        note: "Labs, exams, and services",
-      },
-    ];
-    const detailed = invoices.map((invoice) => ({
-      label: invoice.title,
-      amount: format(toNumber(invoice.amount)),
-      note: invoice.status,
-    }));
-    return showAllTotals ? [...base, ...detailed] : base;
-  }, [invoices, showAllTotals]);
-
-  const handleUpgrade = (accessTier: string) => {
-    router.push(
-      `/student/checkout?accessTier=${encodeURIComponent(accessTier)}`,
-    );
-  };
-
   const accessTier = roleToStudentAccessTier(userRole);
-  const isFreeLearning = accessTier === STUDENT_ACCESS_TIER.FREE_LEARNING;
+  const isProgrammeStudent = accessTier !== STUDENT_ACCESS_TIER.FREE_LEARNING;
+  const activeCourses = shortCourses.filter((item) => item.course);
+  const shortCourseInvoices = invoices.filter((invoice) => invoice.type?.includes('short_course') || /short course|certificate/i.test(invoice.title));
+  const pendingShortCourseInvoices = shortCourseInvoices.filter((invoice) => invoice.status !== 'paid');
+  const paidShortCourseInvoices = shortCourseInvoices.filter((invoice) => invoice.status === 'paid');
+
+  const billingTotals = useMemo(() => {
+    const toNumber = (value: string) => Number.parseFloat(value || '0') || 0;
+    const paid = invoices.filter((invoice) => invoice.status === 'paid').reduce((sum, invoice) => sum + toNumber(invoice.amount), 0);
+    const pending = invoices.filter((invoice) => invoice.status !== 'paid').reduce((sum, invoice) => sum + toNumber(invoice.amount), 0);
+    return { paid, pending };
+  }, [invoices]);
+
+  async function handlePay(invoiceId: number) {
+    setPayingId(invoiceId);
+    setError(null);
+    setNotice(null);
+    try {
+      const payment = await payInvoice(invoiceId);
+      const url = paymentUrl(payment);
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      setNotice('Payment confirmed. Refreshing your billing status.');
+      const refreshed = await getInvoices();
+      setInvoices(refreshed);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to pay this invoice.');
+    } finally {
+      setPayingId(null);
+    }
+  }
+
+  async function refreshVerification() {
+    const invoice = Number(new URLSearchParams(window.location.search).get('invoice'));
+    if (!Number.isFinite(invoice)) return;
+    const verification = await verifyInvoicePayment(invoice).catch(() => null);
+    setNotice(verification?.message ?? 'Payment is being confirmed. Refresh if the invoice still shows pending.');
+    const refreshed = await getInvoices();
+    setInvoices(refreshed);
+  }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success' && params.get('invoice')) {
+      void refreshVerification();
+    }
+  }, []);
+
+  if (loading) return <PageLoading message="Loading billing..." />;
+  if (error) return <PageError message={error} actionHref="/short-courses" actionLabel="Browse short courses" />;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Choose Your Plan</h1>
-        <p className="text-muted-foreground">
-          Start your learning journey with a plan that fits your needs.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="md:col-span-4">
-          <CardHeader>
-            <CardTitle>Billing Shortcuts</CardTitle>
-            <CardDescription>
-              Quick access to invoices, payment methods, and aid.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-4">
-            <Button variant="outline" asChild>
-              <Link href="/student/payments/invoices">Invoices</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/student/payments/history">Payment History</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/student/payments/methods">Payment Methods</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/student/payments/aid">Scholarships & Aid</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <section className="rounded-3xl border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <CardTitle>Fee Totals</CardTitle>
-            <CardDescription>
-              Track what is included in your overall costs.
-            </CardDescription>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Billing</p>
+            <h1 className="text-3xl font-bold tracking-tight">Short-course access and payments</h1>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              See what you have active, when access ends, and which payments are still pending.
+            </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setShowAllTotals((prev) => !prev)}
-          >
-            {showAllTotals ? "View Less" : "View More"}
-          </Button>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          {(showAllTotals ? feeTotals : feeTotals.slice(0, 2)).map((item) => (
-            <div key={item.label} className="rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">{item.label}</p>
-                <p className="text-lg font-bold">{item.amount}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline"><Link href="/student/courses">Open my short courses</Link></Button>
+            <Button asChild><Link href="/short-courses">Browse short courses</Link></Button>
+          </div>
+        </div>
+        {notice ? <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">{notice}</div> : null}
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold">Current access</h2>
+            <p className="text-sm text-muted-foreground">Your plan, expiry date, and AI access live here.</p>
+          </div>
+          <div className="flex gap-3 text-sm text-muted-foreground">
+            <span className="rounded-full bg-muted px-3 py-1">Paid invoices: {paidShortCourseInvoices.length}</span>
+            <span className="rounded-full bg-muted px-3 py-1">Pending: {pendingShortCourseInvoices.length}</span>
+          </div>
+        </div>
+
+        {activeCourses.length ? (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {activeCourses.map((item) => {
+                const course = item.course!;
+                return (
+              <Card key={item.id} className="flex h-full min-w-0 flex-col rounded-2xl">
+                <CardHeader>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-1">{accessLabel(item)}</span>
+                    <span className="rounded-full bg-muted px-2 py-1">{planLabel(item.accessPlan ?? (item.entryFeePaid ? 'starter_access' : null))}</span>
+                  </div>
+                  <CardTitle className="text-xl">{course.title}</CardTitle>
+                  <CardDescription className="line-clamp-3">{course.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-3 text-sm">
+                  <BillingLine label="Access left" value={timeRemainingLabel(item.accessExpiresAt)} />
+                  <BillingLine label="Access ends" value={formatExpiryDate(item.accessExpiresAt)} />
+                  <BillingLine label="AI access" value={item.aiAccessExpiresAt ? `${timeRemainingLabel(item.aiAccessExpiresAt)} · ${formatExpiryDate(item.aiAccessExpiresAt)}` : 'Not included'} />
+                  <BillingLine label="Certificate" value={item.certificateIncluded ? 'Included' : item.certificateFeePaid ? 'Paid' : 'Separate fee'} />
+                  {isExpiringSoon(item.accessExpiresAt) ? (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                      This access is close to expiry. Renew it from the course hub before it locks.
+                    </div>
+                  ) : null}
+                </CardContent>
+                <CardFooter className="flex flex-col gap-2 sm:flex-row">
+                  <Button asChild variant="outline" className="w-full"><Link href={`/student/courses/${course.id}`}>Open course hub</Link></Button>
+                  <Button asChild className="w-full"><Link href="/short-courses">Renew / buy plan</Link></Button>
+                </CardFooter>
+              </Card>
+                );
+              })}
+          </div>
+        ) : (
+          <Card className="rounded-3xl border-dashed">
+            <CardContent className="space-y-3 p-8 text-center">
+              <BookOpen className="mx-auto h-10 w-10 text-primary" />
+              <div>
+                <CardTitle>No short-course access yet</CardTitle>
+                <CardDescription className="mt-2">Choose a short course and buy access when you are ready.</CardDescription>
               </div>
-              <p className="text-xs text-muted-foreground">{item.note}</p>
-            </div>
-          ))}
-          {invoices.length === 0 && (
-            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              No invoices found yet. Once billing is generated, totals will
-              appear here.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button asChild><Link href="/short-courses">Browse courses</Link></Button>
+                <Button asChild variant="outline"><Link href="/register/short-courses">Create an account</Link></Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </section>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4 items-start">
-        {/* Free Learning Plan */}
-        <Card className="border-2">
+      <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle className="text-2xl">Free Learning</CardTitle>
-            <CardDescription>
-              Short-course previews without cashback or paid resources.
-            </CardDescription>
+            <CardTitle>Pending short-course invoices</CardTitle>
+            <CardDescription>Payments that still need confirmation or checkout.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <p className="text-4xl font-bold">Free</p>
-            <ul className="space-y-3">
-              {freeFeatures.map((feature, index) => (
-                <li
-                  key={index}
-                  className={`flex items-center gap-3 ${!feature.included && "text-muted-foreground"}`}
-                >
-                  {feature.included ? (
-                    <Check className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <X className="h-5 w-5" />
-                  )}
-                  <span>{feature.text}</span>
-                </li>
-              ))}
-            </ul>
+          <CardContent className="space-y-3">
+            {pendingShortCourseInvoices.length ? pendingShortCourseInvoices.map((invoice) => (
+              <div key={invoice.id} className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-1">{invoiceCategory(invoice)}</span>
+                    <span className="rounded-full bg-muted px-2 py-1">{invoiceFriendlyStatus(invoice.status)}</span>
+                  </div>
+                  <p className="font-semibold">{invoice.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {invoice.currency ?? 'ZMW'} {invoice.amount} {invoice.dueDate ? `· due ${invoice.dueDate}` : ''}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button asChild variant="outline">
+                    <Link href={`/student/payments/invoices?invoice=${invoice.id}`}>Open</Link>
+                  </Button>
+                  <Button onClick={() => handlePay(invoice.id)} disabled={payingId === invoice.id}>
+                    {payingId === invoice.id ? 'Working...' : 'Pay now'}
+                  </Button>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
+                No pending short-course invoices.
+              </div>
+            )}
           </CardContent>
-          <CardFooter>
-            <Button
-              variant="outline"
-              className="w-full"
-              size="lg"
-              disabled={!isFreeLearning}
-            >
-              {isFreeLearning ? "You are on this Plan" : "Free Learning"}
-            </Button>
-          </CardFooter>
         </Card>
 
-        {/* Certificate Plan */}
-        <Card className="border-2">
-          <CardHeader>
-            <CardTitle className="text-2xl">Paid Certificates</CardTitle>
-            <CardDescription>
-              Add verified credentials to free short-course learning.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <span className="text-4xl font-bold">$49</span>
-              <span className="text-muted-foreground"> / course</span>
-            </div>
-            <ul className="space-y-3">
-              {certificateFeatures.map((feature, index) => (
-                <li
-                  key={index}
-                  className={`flex items-center gap-3 ${!feature.included && "text-muted-foreground"}`}
-                >
-                  {feature.included ? (
-                    <Check className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <X className="h-5 w-5" />
-                  )}
-                  <span>{feature.text}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-          <CardFooter>
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={() => handleUpgrade(STUDENT_ACCESS_TIER.CERTIFICATE)}
-              disabled={accessTier === STUDENT_ACCESS_TIER.CERTIFICATE}
-            >
-              {accessTier === STUDENT_ACCESS_TIER.CERTIFICATE
-                ? "Current Certificate Tier"
-                : "Buy Certificate Access"}
-            </Button>
-          </CardFooter>
-        </Card>
+        <div className="space-y-6">
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Billing summary</CardTitle>
+              <CardDescription>Total invoices and payment status.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <SummaryLine label="Invoices total" value={`${invoices.length}`} />
+              <SummaryLine label="Paid total" value={formatMoneyDisplay(billingTotals.paid)} />
+              <SummaryLine label="Pending total" value={formatMoneyDisplay(billingTotals.pending)} />
+              <SummaryLine label="Programme account" value={isProgrammeStudent ? 'Available' : 'Short-course only'} />
+            </CardContent>
+          </Card>
 
-        {/* Premium Plan */}
-        <Card className="border-2 border-primary shadow-lg shadow-primary/20 relative">
-          <div className="absolute top-0 right-4 -translate-y-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2">
-            <Star className="w-4 h-4" />
-            Best Value
-          </div>
-          <CardHeader>
-            <CardTitle className="text-2xl">Premium</CardTitle>
-            <CardDescription>
-              Unlock your full potential with complete access.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <span className="text-4xl font-bold">$250</span>
-              <span className="text-muted-foreground"> / year</span>
-            </div>
-            <ul className="space-y-3">
-              {premiumFeatures.map((feature, index) => (
-                <li key={index} className="flex items-center gap-3">
-                  <Check className="h-5 w-5 text-green-500" />
-                  <span>{feature.text}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-primary">
-              <Star className="h-5 w-5 flex-shrink-0" />
-              <p>
-                <span className="font-semibold">Earn a Reward:</span> 40% of
-                your fee ($100) will be rewarded to your wallet as AFTACOIN upon
-                program completion.
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={() => handleUpgrade(STUDENT_ACCESS_TIER.PREMIUM)}
-              disabled={accessTier === STUDENT_ACCESS_TIER.PREMIUM}
-            >
-              {accessTier === STUDENT_ACCESS_TIER.PREMIUM
-                ? "Current Premium Tier"
-                : "Upgrade to Premium"}
-            </Button>
-          </CardFooter>
-        </Card>
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Quick links</CardTitle>
+              <CardDescription>Common actions for short-course learners.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <QuickLink icon={ReceiptText} label="Invoice history" href="/student/payments/invoices" />
+              <QuickLink icon={CreditCard} label="Payment history" href="/student/payments/history" />
+              <QuickLink icon={ShieldCheck} label="Scholarships & aid" href="/student/payments/aid" />
+              <QuickLink icon={BadgeCheck} label="Certificates" href="/student/certificates" />
+              <QuickLink icon={ExternalLink} label="Browse public catalogue" href="/short-courses" />
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
-        {/* Programme Plan */}
-        <Card className="border-2">
+      {isProgrammeStudent ? (
+        <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle className="text-2xl">Formal Programme</CardTitle>
-            <CardDescription>
-              Enroll in an accredited programme with full academic records.
-            </CardDescription>
+            <CardTitle>Programme billing</CardTitle>
+            <CardDescription>Formal programme learners still have access to the wider billing tools.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <span className="text-4xl font-bold">Tuition</span>
-              <span className="text-muted-foreground"> / intake</span>
-            </div>
-            <ul className="space-y-3">
-              {programmeFeatures.map((feature, index) => (
-                <li key={index} className="flex items-center gap-3">
-                  <Check className="h-5 w-5 text-green-500" />
-                  <span>{feature.text}</span>
-                </li>
-              ))}
-            </ul>
+          <CardContent className="text-sm text-muted-foreground">
+            Use the invoice pages for tuition and programme fees. The short-course area above is the main launch surface.
           </CardContent>
-          <CardFooter>
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={() => handleUpgrade(STUDENT_ACCESS_TIER.PROGRAMME)}
-              disabled={accessTier === STUDENT_ACCESS_TIER.PROGRAMME}
-            >
-              {accessTier === STUDENT_ACCESS_TIER.PROGRAMME
-                ? "Current Programme Tier"
-                : "Enroll in a Programme"}
-            </Button>
-          </CardFooter>
         </Card>
-      </div>
+      ) : null}
+    </main>
+  );
+}
+
+function BillingLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-xl border bg-muted/20 p-3">
+      <span className="text-muted-foreground">{label}</span>
+      <strong className="text-right">{value}</strong>
     </div>
   );
+}
+
+function SummaryLine({ label, value }: { label: string; value: string }) {
+  return <div className="flex items-center justify-between gap-3 rounded-xl border p-3"><span className="text-muted-foreground">{label}</span><strong>{value}</strong></div>;
+}
+
+function QuickLink({ icon: Icon, label, href }: { icon: ElementType; label: string; href: string }) {
+  return (
+    <Button asChild variant="outline" className="w-full justify-start">
+      <Link href={href} className="justify-start">
+        <Icon className="mr-2 h-4 w-4" />
+        {label}
+      </Link>
+    </Button>
+  );
+}
+
+function formatMoneyDisplay(value: number) {
+  return `ZMW ${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }

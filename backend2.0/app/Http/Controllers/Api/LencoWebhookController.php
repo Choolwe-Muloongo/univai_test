@@ -7,11 +7,12 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\LencoPaymentService;
 use App\Support\Payments\PaidInvoiceUnlocker;
+use App\Support\Payments\PaymentReceiptMailer;
 use Illuminate\Http\Request;
 
 class LencoWebhookController extends Controller
 {
-    public function __invoke(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
+    public function __invoke(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
     {
         $payload = $request->all();
         $signature = $request->header('X-Lenco-Signature') ?? $request->header('X-Signature');
@@ -30,7 +31,28 @@ class LencoWebhookController extends Controller
             return response()->json(['message' => 'Invoice not found'], 404);
         }
 
+        if ($invoice->status === 'paid') {
+            $receiptMailer->sendForInvoice($invoice, Payment::where('transaction_reference', $reference)->first(), [
+                'channel' => 'already-paid-webhook',
+            ]);
+
+            return response()->json(['received' => true, 'status' => 'already_paid']);
+        }
+
+        $amount = (float) (data_get($payload, 'data.amount') ?? data_get($payload, 'amount') ?? 0);
+        $currency = strtoupper((string) (data_get($payload, 'data.currency') ?? data_get($payload, 'currency') ?? $invoice->currency ?? 'ZMW'));
+
         if (in_array($status, ['successful', 'success', 'paid', 'completed'], true)) {
+            if ($reference !== $invoice->transaction_reference) {
+                return response()->json(['message' => 'Payment reference mismatch.'], 422);
+            }
+            if (abs($amount - (float) $invoice->amount) > 0.01) {
+                return response()->json(['message' => 'Payment amount mismatch.'], 422);
+            }
+            if ($currency !== strtoupper($invoice->currency ?? 'ZMW')) {
+                return response()->json(['message' => 'Payment currency mismatch.'], 422);
+            }
+
             $invoice->forceFill([
                 'paid_amount' => $invoice->amount,
                 'status' => 'paid',
@@ -53,6 +75,9 @@ class LencoWebhookController extends Controller
             );
 
             $unlocker->unlock($invoice);
+            $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $reference)->first(), [
+                'channel' => 'lenco-webhook',
+            ]);
         } elseif (in_array($status, ['failed', 'cancelled', 'canceled'], true)) {
             $invoice->forceFill(['status' => 'failed'])->save();
         }

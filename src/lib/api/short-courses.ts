@@ -20,6 +20,8 @@ export type PublicShortCourse = {
   durationHours?: number | null;
   level?: string | null;
   status?: string | null;
+  publicationStatus?: string | null;
+  publication_status?: string | null;
   modules?: Array<{ title: string; description?: string | null }>;
   lessons?: PublicShortCourseLesson[];
   outcomes?: string[];
@@ -56,6 +58,10 @@ export type ShortCourseEnrollmentSummary = {
   accessExpiresAt?: string | null;
   accessPlan?: string | null;
   aiPlan?: string | null;
+  aiAccessExpiresAt?: string | null;
+  hourlyAiQuota?: number | null;
+  dailyAiQuota?: number | null;
+  certificateIncluded?: boolean | null;
 };
 
 export type PaymentInitiation = {
@@ -126,9 +132,19 @@ export type PracticeResult = {
   results: Array<{ questionId: string | number; correct: boolean; answer?: string | null; explanation?: string | null }>;
 };
 
+const PUBLIC_SHORT_COURSE_STATUSES = new Set(['published', 'active', 'open', 'approved', 'live']);
+
+function normalizedPublicationStatus(course: PublicShortCourse) {
+  return String(course.status ?? course.publicationStatus ?? course.publication_status ?? '').trim().toLowerCase();
+}
+
+export function isPublicShortCourse(course: PublicShortCourse) {
+  return PUBLIC_SHORT_COURSE_STATUSES.has(normalizedPublicationStatus(course));
+}
+
 export async function getPublicShortCourses(): Promise<PublicShortCourse[]> {
   const courses = await apiFetch<PublicShortCourse[]>('/courses');
-  return courses.filter((course) => course.status === 'published' || course.status === 'active');
+  return courses.filter(isPublicShortCourse);
 }
 
 export async function getPublicShortCourse(courseId: string): Promise<PublicShortCourse | null> {

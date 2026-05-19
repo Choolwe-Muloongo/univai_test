@@ -52,6 +52,7 @@ import type {
 import { useSession } from "@/components/providers/session-provider";
 import { deliveryModeLabel } from "@/lib/delivery-modes";
 import { getMyShortCourses, type ShortCourseEnrollmentSummary } from "@/lib/api/short-courses";
+import { accessLabel, formatExpiryDate, isExpiringSoon, planLabel, timeRemainingLabel } from "@/lib/short-course-ui";
 
 export default function DashboardPage() {
   const { session } = useSession();
@@ -186,6 +187,18 @@ export default function DashboardPage() {
                     <Link href={`/student/courses/${activeCourse.course.id}`}>Continue Course</Link>
                   </Button>
                 </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border bg-muted/20 p-3 text-sm">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Access</p>
+                    <p className="mt-1 font-semibold">{accessLabel(activeCourse)}</p>
+                    <p className="text-xs text-muted-foreground">{activeCourse.entryFeePaid ? `Expires ${formatExpiryDate(activeCourse.accessExpiresAt)} · ${timeRemainingLabel(activeCourse.accessExpiresAt)}` : 'Renew to activate access.'}</p>
+                  </div>
+                  <div className="rounded-xl border bg-muted/20 p-3 text-sm">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Plan</p>
+                    <p className="mt-1 font-semibold">{planLabel(activeCourse.accessPlan ?? (activeCourse.entryFeePaid ? 'starter_access' : null))}</p>
+                    <p className="text-xs text-muted-foreground">{activeCourse.aiAccessExpiresAt ? `AI expires ${formatExpiryDate(activeCourse.aiAccessExpiresAt)}` : 'No AI access on this plan.'}</p>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Progress</span>
@@ -198,6 +211,11 @@ export default function DashboardPage() {
                   <span className="rounded-full bg-muted px-2 py-1">Certificate: {certificateStatus(activeCourse)}</span>
                   <span className="rounded-full bg-muted px-2 py-1">Lessons: {activeCourse.completedAt ? 'Completed' : 'In progress'}</span>
                 </div>
+                {isExpiringSoon(activeCourse.accessExpiresAt) ? (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    This course access is close to expiry. Open the course hub to renew before it locks.
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ) : (
@@ -208,7 +226,10 @@ export default function DashboardPage() {
                   <CardTitle>You have not joined any short course yet.</CardTitle>
                   <CardDescription className="mt-2">Start with a focused course, then continue into practice, exams, and certificates.</CardDescription>
                 </div>
-                <Button asChild><Link href="/student/courses">Browse Short Courses</Link></Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button asChild><Link href="/student/courses">Browse Short Courses</Link></Button>
+                  <Button asChild variant="outline"><Link href="/student/payments">View Billing</Link></Button>
+                </div>
               </CardContent>
             </Card>
           )}

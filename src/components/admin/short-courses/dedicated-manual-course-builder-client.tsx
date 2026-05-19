@@ -1,6 +1,31 @@
 'use client';
 
-import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, DragEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  Edit3,
+  Eye,
+  FileText,
+  GripVertical,
+  Image as ImageIcon,
+  Layers3,
+  LibraryBig,
+  ListChecks,
+  Monitor,
+  Plus,
+  RotateCcw,
+  RotateCw,
+  Save,
+  Scissors,
+  Sparkles,
+  Smartphone,
+  Trash2,
+  Wand2,
+} from 'lucide-react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { Button } from '@/components/ui/button';
@@ -9,7 +34,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Textarea } from '@/components/ui/textarea';
-import { createShortCourseDraftWithBlueprint, getCourses, getSchools } from '@/lib/api';
+import { getCourses, getSchools } from '@/lib/api';
+import { saveShortCourseDraftWithBlueprint } from '@/lib/api/safe-short-course-save';
 import { generateShortCourseContent } from '@/lib/api/short-course-generation';
 import type { Course, School } from '@/lib/api/types';
 import {
@@ -27,6 +53,7 @@ import {
 
 type Mode = 'manual' | 'ai';
 type Step = 'setup' | 'lessons' | 'cards' | 'quiz' | 'preview';
+type PreviewMode = 'desktop' | 'mobile' | 'outline' | 'quiz';
 type CardType = BroadCardType;
 type MathTool = BroadMathTool;
 type QuestionType = 'mcq' | 'short_answer' | 'true_false' | 'fill_blank';
@@ -49,6 +76,7 @@ type ManualLesson = { id: string; title: string; summary: string; outcomes: stri
 type ManualCard = {
   id: string;
   type: CardType;
+  workflowTemplate?: CardWorkflowTemplateId;
   title: string;
   body: string;
   originalBlockType?: string;
@@ -106,13 +134,59 @@ type QuizQuestion = {
   explanation: string;
 };
 
+type BuilderStats = {
+  lessons: number;
+  cards: number;
+  quizQuestions: number;
+  hours: number;
+};
+
+type BuilderSnapshot = {
+  form: CourseForm;
+  lessons: ManualLesson[];
+  quizBank: QuizQuestion[];
+};
+
+type ReadinessItem = {
+  label: string;
+  done: boolean;
+  detail?: string;
+};
+
+type LearnerLoad = {
+  level: 'short' | 'medium' | 'heavy';
+  score: number;
+  percent: number;
+  hint: string;
+};
+
+type CardWorkflowTemplateId = 'teach' | 'example' | 'checkpoint' | 'visual' | 'flashcard' | 'practice_task' | 'case_scenario' | 'summary';
+
+type CardWorkflowTemplate = {
+  id: CardWorkflowTemplateId;
+  label: string;
+  type: CardType;
+  help: string;
+  focus: string;
+  seed: Partial<ManualCard>;
+};
+
+type CardSequence = {
+  id: string;
+  label: string;
+  help: string;
+  templates: CardWorkflowTemplateId[];
+};
+
 const steps: Array<{ id: Step; label: string; description: string }> = [
-  { id: 'setup', label: 'Setup', description: 'Course data' },
-  { id: 'lessons', label: 'Lessons', description: 'Plan lessons' },
-  { id: 'cards', label: 'Cards', description: 'Build content' },
-  { id: 'quiz', label: 'Quiz bank', description: 'Practice' },
-  { id: 'preview', label: 'Preview', description: 'Check & save' },
+  { id: 'setup', label: 'Course outline', description: 'Basics' },
+  { id: 'lessons', label: 'Lesson plan', description: 'Chapters' },
+  { id: 'cards', label: 'Lesson builder', description: 'Cards' },
+  { id: 'quiz', label: 'Assessments', description: 'Questions' },
+  { id: 'preview', label: 'Review', description: 'Check & save' },
 ];
+
+const AUTOSAVE_KEY = 'univai.manual-builder.autosave.v2';
 
 const cardTypeOptions = [
   ['teach', 'Teach'],
@@ -136,6 +210,24 @@ const cardTypeOptions = [
   ['practice_task', 'Practice task'],
   ['capstone_prompt', 'Capstone prompt'],
 ] as const;
+
+const CARD_WORKFLOW_TEMPLATES: CardWorkflowTemplate[] = [
+  { id: 'teach', label: 'Teach', type: 'teach', help: 'Explain one concept clearly.', focus: 'Core idea', seed: { title: 'Core idea', body: 'Explain one idea clearly.' } },
+  { id: 'example', label: 'Example', type: 'example', help: 'Show one applied example.', focus: 'Worked example', seed: { title: 'Example', body: 'Show one practical example.' } },
+  { id: 'checkpoint', label: 'Checkpoint', type: 'question', help: 'Ask one auto-marked check.', focus: 'Learner decision', seed: { title: 'Quick check', question: 'Write one focused question here.', options: 'Option A\nOption B\nOption C\nOption D', answer: 'Option A', explanation: 'Explain why this answer is correct.' } },
+  { id: 'visual', label: 'Visual', type: 'teach', help: 'Anchor the card around an image, chart, equation, or table.', focus: 'Visual explanation', seed: { title: 'Visual focus', body: 'Explain what learners should notice in this visual.', mathTool: 'graph', expression: 'x' } },
+  { id: 'flashcard', label: 'Flashcard', type: 'flashcard', help: 'Create a reveal card for a term or rule.', focus: 'Recall', seed: { title: 'Flashcard', front: 'Term or prompt', back: 'Answer or explanation', body: '' } },
+  { id: 'practice_task', label: 'Practice Task', type: 'practice_task', help: 'Give one applied task with success criteria.', focus: 'Practice', seed: { title: 'Practice task', prompt: 'Describe the task learners should complete.', criteria: 'Clear attempt\nUses the lesson idea\nChecks the result', body: '' } },
+  { id: 'case_scenario', label: 'Case/Scenario', type: 'scenario', help: 'Frame one decision or workplace situation.', focus: 'Applied context', seed: { title: 'Scenario', body: 'Describe the case or situation.', prompt: 'What should the learner decide or explain?', criteria: 'Uses evidence from the case\nExplains the decision' } },
+  { id: 'summary', label: 'Summary', type: 'summary', help: 'Close with the key takeaways.', focus: 'Wrap-up', seed: { title: 'Summary', body: 'Summarize what learners should remember.' } },
+];
+
+const CARD_SEQUENCES: CardSequence[] = [
+  { id: 'core-loop', label: 'Teach loop', help: 'Teach, example, checkpoint, summary.', templates: ['teach', 'example', 'checkpoint', 'summary'] },
+  { id: 'practice-loop', label: 'Practice loop', help: 'Teach, practice task, checkpoint.', templates: ['teach', 'practice_task', 'checkpoint'] },
+  { id: 'case-loop', label: 'Case loop', help: 'Scenario, example, checkpoint, summary.', templates: ['case_scenario', 'example', 'checkpoint', 'summary'] },
+  { id: 'visual-loop', label: 'Visual loop', help: 'Visual, example, checkpoint.', templates: ['visual', 'example', 'checkpoint'] },
+];
 
 const uid = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `short-course-${Date.now()}`;
@@ -198,9 +290,24 @@ function makeCard(type: CardType = 'teach', index = 1): ManualCard {
   return { id: uid('card'), type, title: `Teaching card ${index}`, body: 'Explain one idea clearly.', mathTool: 'none', saved: false };
 }
 
+function makeCardFromWorkflowTemplate(template: CardWorkflowTemplate, index: number): ManualCard {
+  return {
+    ...makeCard(template.type, index),
+    ...template.seed,
+    id: uid('card'),
+    type: template.type,
+    workflowTemplate: template.id,
+    templateLabel: template.label,
+    teachingMove: template.focus,
+    mathTool: template.seed.mathTool || 'none',
+    saved: false,
+  };
+}
+
 function makeCardFromTemplate(template: LessonBlockTemplate, index: number): ManualCard {
   return {
     ...makeCard(template.type, index),
+    workflowTemplate: workflowTemplateForType(template.type),
     originalBlockType: template.type,
     templateId: template.id,
     templateLabel: template.label,
@@ -234,6 +341,17 @@ function makeCardFromTemplate(template: LessonBlockTemplate, index: number): Man
     points: template.points,
     saved: false,
   };
+}
+
+function workflowTemplateForType(type: string): CardWorkflowTemplateId {
+  if (type === 'example') return 'example';
+  if (type === 'question' || type === 'fill_blank' || type === 'true_false') return 'checkpoint';
+  if (type === 'flashcard') return 'flashcard';
+  if (type === 'practice_task' || type === 'mini_project' || type === 'capstone_prompt') return 'practice_task';
+  if (type === 'case_study' || type === 'scenario') return 'case_scenario';
+  if (type === 'summary') return 'summary';
+  if (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'].includes(type)) return 'visual';
+  return 'teach';
 }
 
 function makeLesson(index: number): ManualLesson {
@@ -280,6 +398,10 @@ export function DedicatedManualCourseBuilderClient() {
   const [quizIndex, setQuizIndex] = useState(0);
   const [lessons, setLessons] = useState<ManualLesson[]>([makeLesson(1)]);
   const [quizBank, setQuizBank] = useState<QuizQuestion[]>([makeQuiz()]);
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const undoStack = useRef<BuilderSnapshot[]>([]);
+  const redoStack = useRef<BuilderSnapshot[]>([]);
+  const autosaveReady = useRef(false);
   const [form, setForm] = useState<CourseForm>({
     title: '',
     description: '',
@@ -292,6 +414,23 @@ export function DedicatedManualCourseBuilderClient() {
   });
 
   useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(AUTOSAVE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<BuilderSnapshot>;
+        if (parsed.form) setForm((current) => ({ ...current, ...parsed.form }));
+        if (Array.isArray(parsed.lessons) && parsed.lessons.length) setLessons(parsed.lessons);
+        if (Array.isArray(parsed.quizBank) && parsed.quizBank.length) setQuizBank(parsed.quizBank);
+        setMessage('Recovered a local draft from this browser.');
+      }
+    } catch {
+      // Local draft recovery should never block the builder.
+    } finally {
+      autosaveReady.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
 
     Promise.all([getSchools(), getCourses()])
@@ -299,7 +438,7 @@ export function DedicatedManualCourseBuilderClient() {
         if (!mounted) return;
         setSchools(schoolData);
         setCourses(courseData);
-        if (schoolData[0]) setForm((value) => ({ ...value, schoolId: schoolData[0].id }));
+        if (schoolData[0]) setForm((value) => ({ ...value, schoolId: value.schoolId || schoolData[0].id }));
       })
       .catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load builder data.'))
       .finally(() => setLoading(false));
@@ -309,6 +448,14 @@ export function DedicatedManualCourseBuilderClient() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!autosaveReady.current) return;
+    const handle = window.setTimeout(() => {
+      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ form, lessons, quizBank }));
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [form, lessons, quizBank]);
+
   const activeLesson = lessons[lessonIndex] ?? lessons[0];
   const activeCard = activeLesson.cards[cardIndex] ?? activeLesson.cards[0];
   const activeQuiz = quizBank[quizIndex] ?? quizBank[0];
@@ -317,19 +464,111 @@ export function DedicatedManualCourseBuilderClient() {
     [documents]
   );
   const blueprint = useMemo(() => buildBlueprint(form, lessons, quizBank), [form, lessons, quizBank]);
+  const stats = useMemo(() => ({
+    lessons: lessons.length,
+    cards: lessons.reduce((count, lesson) => count + lesson.cards.length, 0),
+    quizQuestions: quizBank.length,
+    hours: toPositiveInt(form.durationHours, 1),
+  }), [form.durationHours, lessons, quizBank]);
+
+  const readiness = useMemo(() => courseReadiness(form, lessons, quizBank), [form, lessons, quizBank]);
+  const canUndo = historyVersion >= 0 && undoStack.current.length > 0;
+  const canRedo = historyVersion >= 0 && redoStack.current.length > 0;
+
+  function currentSnapshot(): BuilderSnapshot {
+    return {
+      form: structuredClone(form),
+      lessons: structuredClone(lessons),
+      quizBank: structuredClone(quizBank),
+    };
+  }
+
+  function recordHistory() {
+    undoStack.current = [...undoStack.current.slice(-24), currentSnapshot()];
+    redoStack.current = [];
+    setHistoryVersion((value) => value + 1);
+  }
+
+  function restoreSnapshot(snapshot: BuilderSnapshot) {
+    setForm(snapshot.form);
+    setLessons(snapshot.lessons);
+    setQuizBank(snapshot.quizBank);
+    setLessonIndex(0);
+    setCardIndex(0);
+    setQuizIndex(0);
+  }
+
+  function undoChange() {
+    const previous = undoStack.current.pop();
+    if (!previous) return;
+    redoStack.current.push(currentSnapshot());
+    restoreSnapshot(previous);
+    setHistoryVersion((value) => value + 1);
+  }
+
+  function redoChange() {
+    const next = redoStack.current.pop();
+    if (!next) return;
+    undoStack.current.push(currentSnapshot());
+    restoreSnapshot(next);
+    setHistoryVersion((value) => value + 1);
+  }
 
   function updateLesson(patch: Partial<ManualLesson>) {
+    recordHistory();
     setLessons((current) => current.map((lesson, index) => (index === lessonIndex ? { ...lesson, ...patch, saved: false } : lesson)));
   }
 
+  function updateForm(patch: Partial<CourseForm>) {
+    recordHistory();
+    setForm((current) => ({ ...current, ...patch }));
+  }
+
   function addLesson() {
+    recordHistory();
     const lesson = makeLesson(lessons.length + 1);
     setLessons((current) => [...current, lesson]);
     setLessonIndex(lessons.length);
     setCardIndex(0);
   }
 
+  function duplicateLesson(index: number) {
+    const lesson = lessons[index];
+    if (!lesson) return;
+    recordHistory();
+    const copy: ManualLesson = {
+      ...structuredClone(lesson),
+      id: uid('lesson'),
+      title: `${lesson.title || 'Lesson'} copy`,
+      cards: lesson.cards.map((card) => ({ ...card, id: uid('card'), saved: false })),
+      saved: false,
+    };
+    setLessons((current) => insertAt(current, index + 1, copy));
+    setLessonIndex(index + 1);
+    setCardIndex(0);
+  }
+
+  function reorderLesson(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    recordHistory();
+    setLessons((current) => moveItem(current, fromIndex, toIndex));
+    setLessonIndex(toIndex);
+    setCardIndex(0);
+  }
+
+  function addLessonTemplate() {
+    recordHistory();
+    const index = lessons.length + 1;
+    const lesson = makeLesson(index);
+    lesson.title = `Lesson ${index}: New topic`;
+    lesson.cards = cardsFromSequence(CARD_SEQUENCES[0], lesson.title, 1);
+    setLessons((current) => [...current, lesson]);
+    setLessonIndex(lessons.length);
+    setCardIndex(0);
+  }
+
   function updateCard(patch: Partial<ManualCard>) {
+    recordHistory();
     setLessons((current) => current.map((lesson, index) => index !== lessonIndex ? lesson : {
       ...lesson,
       saved: false,
@@ -338,25 +577,144 @@ export function DedicatedManualCourseBuilderClient() {
   }
 
   function addCard(type: CardType) {
+    recordHistory();
+    const workflow = workflowTemplateForType(type);
     setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
       ...lesson,
       saved: false,
-      cards: [...lesson.cards, makeCard(type, lesson.cards.length + 1)],
+      cards: [...lesson.cards, { ...makeCard(type, lesson.cards.length + 1), workflowTemplate: workflow }],
     } : lesson));
     setCardIndex(activeLesson.cards.length);
+  }
+
+  function addWorkflowCard(template: CardWorkflowTemplate) {
+    insertWorkflowCard(template, activeLesson.cards.length);
+  }
+
+  function insertWorkflowCard(template: CardWorkflowTemplate, targetIndex: number) {
+    recordHistory();
+    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: insertAt(lesson.cards, clampIndex(targetIndex, lesson.cards.length), makeCardFromWorkflowTemplate(template, lesson.cards.length + 1)),
+    } : lesson));
+    setCardIndex(clampIndex(targetIndex, activeLesson.cards.length));
   }
 
   function addTemplateCard(template: LessonBlockTemplate) {
+    insertTemplateCard(template, activeLesson.cards.length);
+  }
+
+  function insertTemplateCard(template: LessonBlockTemplate, targetIndex: number) {
+    recordHistory();
     setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
       ...lesson,
       saved: false,
-      cards: [...lesson.cards, makeCardFromTemplate(template, lesson.cards.length + 1)],
+      cards: insertAt(lesson.cards, clampIndex(targetIndex, lesson.cards.length), makeCardFromTemplate(template, lesson.cards.length + 1)),
     } : lesson));
-    setCardIndex(activeLesson.cards.length);
+    setCardIndex(clampIndex(targetIndex, activeLesson.cards.length));
+  }
+
+  function insertCards(cards: ManualCard[], targetIndex: number) {
+    if (!cards.length) return;
+    recordHistory();
+    const safeIndex = clampIndex(targetIndex, activeLesson.cards.length);
+    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: [...lesson.cards.slice(0, safeIndex), ...cards, ...lesson.cards.slice(safeIndex)],
+    } : lesson));
+    setCardIndex(safeIndex);
+  }
+
+  function replaceCard(index: number, card: ManualCard) {
+    recordHistory();
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: lesson.cards.map((item, cardIdx) => cardIdx === index ? card : item),
+    } : lesson));
+    setCardIndex(index);
+  }
+
+  function replaceCardWithCards(index: number, cards: ManualCard[]) {
+    if (!cards.length) return;
+    recordHistory();
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: [...lesson.cards.slice(0, index), ...cards, ...lesson.cards.slice(index + 1)],
+    } : lesson));
+    setCardIndex(index);
+  }
+
+  function reorderCard(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    recordHistory();
+    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: moveItem(lesson.cards, fromIndex, toIndex),
+    } : lesson));
+    setCardIndex(toIndex);
+  }
+
+  function duplicateCard(index: number) {
+    const source = activeLesson.cards[index];
+    if (!source) return;
+    recordHistory();
+    const copy = { ...source, id: uid('card'), title: `${source.title || 'Card'} copy`, saved: false };
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: insertAt(lesson.cards, index + 1, copy),
+    } : lesson));
+    setCardIndex(index + 1);
+  }
+
+  function removeCard(index: number) {
+    if (activeLesson.cards.length <= 1) return;
+    recordHistory();
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      cards: lesson.cards.filter((_, cardIdx) => cardIdx !== index),
+    } : lesson));
+    setCardIndex(Math.max(0, Math.min(index, activeLesson.cards.length - 2)));
   }
 
   function updateQuiz(patch: Partial<QuizQuestion>) {
+    recordHistory();
     setQuizBank((current) => current.map((quiz, index) => (index === quizIndex ? { ...quiz, ...patch } : quiz)));
+  }
+
+  function addQuiz() {
+    recordHistory();
+    setQuizBank((current) => [...current, makeQuiz()]);
+    setQuizIndex(quizBank.length);
+  }
+
+  function duplicateQuiz(index: number) {
+    const source = quizBank[index];
+    if (!source) return;
+    recordHistory();
+    setQuizBank((current) => insertAt(current, index + 1, { ...source, id: uid('quiz'), question: `${source.question} copy` }));
+    setQuizIndex(index + 1);
+  }
+
+  function reorderQuiz(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    recordHistory();
+    setQuizBank((current) => moveItem(current, fromIndex, toIndex));
+    setQuizIndex(toIndex);
+  }
+
+  function bulkAddQuiz(raw: string) {
+    const questions = quizFromBulkText(raw);
+    if (!questions.length) return;
+    recordHistory();
+    setQuizBank((current) => [...current, ...questions]);
+    setQuizIndex(quizBank.length);
   }
 
   async function readDocuments(event: ChangeEvent<HTMLInputElement>) {
@@ -445,19 +803,19 @@ export function DedicatedManualCourseBuilderClient() {
     setMessage(null);
 
     try {
-      await createShortCourseDraftWithBlueprint({
+      await saveShortCourseDraftWithBlueprint({
         course: {
           id: slugify(form.title),
           title: form.title,
-          description: form.description,
+          description: form.description || blueprint.courseSummary.description,
           schoolId: form.schoolId,
           imageId: 'short-course',
-          pricingType: Number(form.entryFee) > 0 ? 'paid' : 'free',
-          price: Number(form.entryFee || 0),
+          pricingType: toMoney(form.entryFee) > 0 ? 'paid' : 'free',
+          price: toMoney(form.entryFee),
           currency: form.currency || 'ZMW',
-          certificateFee: Number(form.certificateFee || 0),
+          certificateFee: toMoney(form.certificateFee),
           certificateCurrency: form.currency || 'ZMW',
-          durationHours: Number(form.durationHours || 1),
+          durationHours: toPositiveInt(form.durationHours, 1),
           level: form.level,
           status: 'draft',
           modules: blueprint.modules.map((module: any) => ({ title: module.title, description: module.description })),
@@ -474,7 +832,7 @@ export function DedicatedManualCourseBuilderClient() {
       setStep('preview');
       setMessage('Draft saved. Open Review & Publish to approve it.');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to save draft.');
+      setError(requestErrorMessage(cause, 'Unable to save draft.'));
     } finally {
       setSaving(false);
     }
@@ -484,7 +842,7 @@ export function DedicatedManualCourseBuilderClient() {
 
   return (
     <div className="space-y-6">
-      <Header mode={mode} step={step} setMode={setMode} setStep={setStep} saving={saving} saveDraft={saveDraft} />
+      <Header mode={mode} step={step} setMode={setMode} setStep={setStep} saving={saving} saveDraft={saveDraft} stats={stats} canUndo={canUndo} canRedo={canRedo} undo={undoChange} redo={redoChange} />
       {error ? <PageError message={error} /> : null}
       {message ? <div className="rounded-2xl border bg-muted/40 p-4 text-sm">{message}</div> : null}
       {progress ? <ProgressNotice progress={progress} /> : null}
@@ -502,36 +860,59 @@ export function DedicatedManualCourseBuilderClient() {
         />
       ) : null}
 
-      {mode === 'manual' && step === 'setup' ? <SetupStep form={form} setForm={setForm} schools={schools} goNext={() => setStep('lessons')} /> : null}
-      {mode === 'manual' && step === 'lessons' ? <LessonsStep lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} finish={() => setStep('cards')} /> : null}
-      {mode === 'manual' && step === 'cards' ? <CardsStep form={form} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addTemplateCard={addTemplateCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
-      {mode === 'manual' && step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={() => { setQuizBank((current) => [...current, makeQuiz()]); setQuizIndex(quizBank.length); }} finish={() => setStep('preview')} /> : null}
-      {mode === 'manual' && step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} courses={courses} saveDraft={saveDraft} saving={saving} /> : null}
+      {mode === 'manual' ? (
+        <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+          <StudioNavigator step={step} setStep={setStep} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} setCardIndex={setCardIndex} readiness={readiness} quizCount={quizBank.length} />
+          <div className="min-w-0">
+            {step === 'setup' ? <SetupStep form={form} updateForm={updateForm} schools={schools} goNext={() => setStep('lessons')} /> : null}
+            {step === 'lessons' ? <LessonsStep lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
+            {step === 'cards' ? <CardsStep form={form} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addWorkflowCard={addWorkflowCard} insertWorkflowCard={insertWorkflowCard} addTemplateCard={addTemplateCard} insertTemplateCard={insertTemplateCard} insertCards={insertCards} replaceCard={replaceCard} replaceCardWithCards={replaceCardWithCards} reorderCard={reorderCard} duplicateCard={duplicateCard} removeCard={removeCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
+            {step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={addQuiz} duplicateQuiz={duplicateQuiz} reorderQuiz={reorderQuiz} bulkAddQuiz={bulkAddQuiz} finish={() => setStep('preview')} /> : null}
+            {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={lessons} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} /> : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function Header({ mode, step, setMode, setStep, saving, saveDraft }: { mode: Mode; step: Step; setMode: (mode: Mode) => void; setStep: (step: Step) => void; saving: boolean; saveDraft: () => void }) {
+function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUndo, canRedo, undo, redo }: { mode: Mode; step: Step; setMode: (mode: Mode) => void; setStep: (step: Step) => void; saving: boolean; saveDraft: () => void; stats: BuilderStats; canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void }) {
+  const activeStepIndex = Math.max(0, steps.findIndex((item) => item.id === step));
   return (
-    <Card className="rounded-3xl border-primary/20 shadow-sm">
-      <CardContent className="space-y-5 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase text-primary">Dedicated manual course studio</p>
-            <h2 className="text-2xl font-bold">Create courses visually without JSON.</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Use {LESSON_BLOCK_TEMPLATE_COUNT} broad block starters, then edit every card before review.</p>
+    <Card className="rounded-2xl border-primary/20 shadow-sm">
+      <CardContent className="space-y-5 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold uppercase text-primary">Manual course studio</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-bold">Build, preview, and save a short-course draft</h2>
+              <span className="rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">{LESSON_BLOCK_TEMPLATE_COUNT} block starters</span>
+            </div>
+            <p className="max-w-3xl text-sm text-muted-foreground">Course setup, lesson planning, card building, quiz writing, and final preview stay in one guided workspace. Save always creates a draft for review.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant={mode === 'manual' ? 'default' : 'outline'} onClick={() => setMode('manual')}>Manual builder</Button>
-            <Button type="button" variant={mode === 'ai' ? 'default' : 'outline'} onClick={() => setMode('ai')}>AI helper</Button>
-            <Button type="button" disabled={saving} onClick={saveDraft}>{saving ? 'Saving...' : 'Save draft'}</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border bg-background p-1">
+              <Button type="button" size="sm" variant={mode === 'manual' ? 'default' : 'ghost'} onClick={() => setMode('manual')}><BookOpen className="mr-2 size-4" />Manual</Button>
+              <Button type="button" size="sm" variant={mode === 'ai' ? 'default' : 'ghost'} onClick={() => setMode('ai')}><Sparkles className="mr-2 size-4" />AI helper</Button>
+            </div>
+            <div className="inline-flex rounded-lg border bg-background p-1">
+              <Button type="button" size="sm" variant="ghost" disabled={!canUndo} onClick={undo}><RotateCcw className="mr-2 size-4" />Undo</Button>
+              <Button type="button" size="sm" variant="ghost" disabled={!canRedo} onClick={redo}><RotateCw className="mr-2 size-4" />Redo</Button>
+            </div>
+            <Button type="button" disabled={saving} onClick={saveDraft}><Save className="mr-2 size-4" />{saving ? 'Saving...' : 'Save draft'}</Button>
           </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat icon={Layers3} label="Lessons" value={stats.lessons} />
+          <Stat icon={LibraryBig} label="Cards" value={stats.cards} />
+          <Stat icon={ListChecks} label="Quiz questions" value={stats.quizQuestions} />
+          <Stat icon={FileText} label="Hours" value={stats.hours} />
         </div>
         {mode === 'manual' ? (
           <div className="grid gap-2 md:grid-cols-5">
             {steps.map((item, index) => (
-              <button key={item.id} type="button" onClick={() => setStep(item.id)} className={`rounded-2xl border p-3 text-left transition ${step === item.id ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/50'}`}>
-                <p className="text-sm font-semibold">{index + 1}. {item.label}</p>
+              <button key={item.id} type="button" onClick={() => setStep(item.id)} className={`rounded-xl border p-3 text-left transition ${step === item.id ? 'border-primary bg-primary/10 text-primary' : index < activeStepIndex ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'hover:border-primary/50'}`}>
+                <p className="flex items-center gap-2 text-sm font-semibold">{index < activeStepIndex ? <CheckCircle2 className="size-4" /> : <span className="inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs">{index + 1}</span>}{item.label}</p>
                 <p className="text-xs text-muted-foreground">{item.description}</p>
               </button>
             ))}
@@ -542,58 +923,174 @@ function Header({ mode, step, setMode, setStep, saving, saveDraft }: { mode: Mod
   );
 }
 
-function SetupStep({ form, setForm, schools, goNext }: { form: CourseForm; setForm: React.Dispatch<React.SetStateAction<CourseForm>>; schools: School[]; goNext: () => void }) {
+function Stat({ icon: Icon, label, value }: { icon: typeof Layers3; label: string; value: number }) {
   return (
-    <Card className="rounded-3xl">
-      <CardHeader>
-        <CardTitle>Course setup</CardTitle>
-        <CardDescription>Set duration and difficulty once here. Lessons inherit it automatically.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <Field label="Course title"><Input value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} /></Field>
-        <Field label="Course description"><Textarea rows={4} value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} /></Field>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="School / Faculty"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.schoolId} onChange={(event) => setForm((value) => ({ ...value, schoolId: event.target.value }))}>{schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></Field>
-          <Field label="Course difficulty"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.level} onChange={(event) => setForm((value) => ({ ...value, level: event.target.value }))}><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></Field>
-          <Field label="Total course hours"><Input type="number" min={1} value={form.durationHours} onChange={(event) => setForm((value) => ({ ...value, durationHours: event.target.value }))} /></Field>
-          <Field label="Entry fee"><Input type="number" min={0} value={form.entryFee} onChange={(event) => setForm((value) => ({ ...value, entryFee: event.target.value }))} /></Field>
-          <Field label="Currency"><Input value={form.currency} onChange={(event) => setForm((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} /></Field>
-          <Field label="Certificate fee"><Input type="number" min={0} value={form.certificateFee} onChange={(event) => setForm((value) => ({ ...value, certificateFee: event.target.value }))} /></Field>
-        </div>
-        <Button type="button" onClick={goNext}>Continue to lessons</Button>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-3 rounded-xl border bg-muted/25 px-3 py-2">
+      <Icon className="size-4 text-primary" />
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm font-semibold">{value}</p>
+      </div>
+    </div>
   );
 }
 
-function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; finish: () => void }) {
-  const { lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, finish } = props;
+function StudioNavigator(props: { step: Step; setStep: (step: Step) => void; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; setCardIndex: (index: number) => void; readiness: ReadinessItem[]; quizCount: number }) {
+  const { step, setStep, lessons, lessonIndex, setLessonIndex, setCardIndex, readiness, quizCount } = props;
+  const readyCount = readiness.filter((item) => item.done).length;
   return (
-    <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
-      <Card className="rounded-3xl">
-        <CardHeader><CardTitle>Lessons</CardTitle><CardDescription>Plan lesson names and outcomes.</CardDescription></CardHeader>
+    <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Course map</CardTitle>
+          <CardDescription>Move through the course in plain steps.</CardDescription>
+        </CardHeader>
         <CardContent className="space-y-2">
-          {lessons.map((lesson, index) => <button key={lesson.id} type="button" onClick={() => setLessonIndex(index)} className={`w-full rounded-2xl border p-3 text-left text-sm ${index === lessonIndex ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/50'}`}><p className="font-semibold">{lesson.title}</p><p className="text-xs text-muted-foreground">{lesson.cards.length} cards</p></button>)}
-          <Button type="button" variant="outline" className="w-full" onClick={addLesson}>+ Add new lesson</Button>
+          {steps.map((item) => (
+            <button key={item.id} type="button" onClick={() => setStep(item.id)} className={`w-full rounded-xl border p-3 text-left text-sm transition ${step === item.id ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/50'}`}>
+              <span className="font-semibold">{item.label}</span>
+              <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
+            </button>
+          ))}
         </CardContent>
       </Card>
-      <Card className="rounded-3xl">
-        <CardHeader><CardTitle>Edit lesson</CardTitle></CardHeader>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Lessons</CardTitle>
+          <CardDescription>{lessons.length} lesson{lessons.length === 1 ? '' : 's'} in this course.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {lessons.map((lesson, index) => {
+            const heavyCount = lesson.cards.filter((card) => learnerLoadForCard(card).level === 'heavy').length;
+            return (
+              <button key={lesson.id} type="button" onClick={() => { setLessonIndex(index); setCardIndex(0); setStep('cards'); }} className={`w-full rounded-xl border p-3 text-left text-sm transition ${index === lessonIndex ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/50'}`}>
+                <span className="font-semibold">{lesson.title || `Lesson ${index + 1}`}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{lesson.cards.length} cards{heavyCount ? ` | ${heavyCount} heavy` : ''}</span>
+              </button>
+            );
+          })}
+          <button type="button" onClick={() => setStep('quiz')} className={`w-full rounded-xl border p-3 text-left text-sm transition ${step === 'quiz' ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/50'}`}>
+            <span className="font-semibold">Question bank</span>
+            <span className="mt-1 block text-xs text-muted-foreground">{quizCount} question{quizCount === 1 ? '' : 's'}</span>
+          </button>
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Ready to save</CardTitle>
+          <CardDescription>{readyCount} of {readiness.length} checks complete.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {readiness.map((item) => (
+            <div key={item.label} className="flex gap-2 rounded-xl border bg-background p-2 text-xs">
+              {item.done ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" /> : <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />}
+              <div>
+                <p className="font-medium">{item.label}</p>
+                {item.detail ? <p className="mt-0.5 text-muted-foreground">{item.detail}</p> : null}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </aside>
+  );
+}
+
+function SetupStep({ form, updateForm, schools, goNext }: { form: CourseForm; updateForm: (patch: Partial<CourseForm>) => void; schools: School[]; goNext: () => void }) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Course basics</CardTitle>
+          <CardDescription>Name the course, choose its faculty, and define the learning level.</CardDescription>
+        </CardHeader>
         <CardContent className="space-y-5">
-          <Field label="Lesson title"><Input value={activeLesson.title} onChange={(event) => updateLesson({ title: event.target.value })} /></Field>
-          <Field label="Lesson summary"><Textarea rows={4} value={activeLesson.summary} onChange={(event) => updateLesson({ summary: event.target.value })} /></Field>
-          <Field label="Learning outcomes, one per line"><Textarea rows={4} value={activeLesson.outcomes.join('\n')} onChange={(event) => updateLesson({ outcomes: lines(event.target.value) })} /></Field>
-          <Button type="button" onClick={finish}>Finish lessons & build cards</Button>
+          <Field label="Course title"><Input value={form.title} onChange={(event) => updateForm({ title: event.target.value })} placeholder="Example: Introduction to Business Analytics" /></Field>
+          <Field label="Course description"><Textarea rows={6} value={form.description} onChange={(event) => updateForm({ description: event.target.value })} placeholder="Describe what learners will be able to do by the end of the course." /></Field>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="School / Faculty"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.schoolId} onChange={(event) => updateForm({ schoolId: event.target.value })}>{schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></Field>
+            <Field label="Course difficulty"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.level} onChange={(event) => updateForm({ level: event.target.value })}><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></Field>
+            <Field label="Total course hours"><Input type="number" min={1} step={1} value={form.durationHours} onChange={(event) => updateForm({ durationHours: event.target.value })} /></Field>
+          </div>
+          <Button type="button" onClick={goNext}>Continue to lessons</Button>
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Pricing</CardTitle>
+          <CardDescription>Keep both fees at 0 for a free course. These values can still be reviewed before publishing.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Entry fee"><Input type="number" min={0} value={form.entryFee} onChange={(event) => updateForm({ entryFee: event.target.value })} /></Field>
+            <Field label="Certificate fee"><Input type="number" min={0} value={form.certificateFee} onChange={(event) => updateForm({ certificateFee: event.target.value })} /></Field>
+          </div>
+          <Field label="Currency"><Input value={form.currency} maxLength={3} onChange={(event) => updateForm({ currency: event.target.value.toUpperCase().slice(0, 3) })} /></Field>
+          <div className="rounded-xl border bg-muted/30 p-3 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Save behavior</p>
+            <p className="mt-1">Saving from this builder always creates or updates a draft, then sends it to Review & Publish.</p>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; cardIndex: number; setCardIndex: (index: number) => void; activeCard: ManualCard; addCard: (type: CardType) => void; addTemplateCard: (template: LessonBlockTemplate) => void; updateCard: (patch: Partial<ManualCard>) => void; finish: () => void }) {
-  const { form, lessons, lessonIndex, setLessonIndex, activeLesson, cardIndex, setCardIndex, activeCard, addCard, addTemplateCard, updateCard, finish } = props;
+function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
+  const { lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, reorderLesson, finish } = props;
+  return (
+    <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
+      <Card className="rounded-2xl">
+        <CardHeader><CardTitle>Lessons</CardTitle><CardDescription>Treat lessons like chapters. Keep each one focused.</CardDescription></CardHeader>
+        <CardContent className="space-y-2">
+          {lessons.map((lesson, index) => {
+            const heavy = lesson.cards.filter((card) => learnerLoadForCard(card).level === 'heavy').length;
+            return (
+              <div key={lesson.id} className={`rounded-xl border p-3 text-sm transition ${index === lessonIndex ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/50'}`}>
+                <button type="button" onClick={() => setLessonIndex(index)} className="w-full text-left">
+                  <p className="font-semibold">{lesson.title || `Lesson ${index + 1}`}</p>
+                  <p className="text-xs text-muted-foreground">{lesson.cards.length} cards | {lesson.outcomes.length} outcomes{heavy ? ` | ${heavy} heavy` : ''}</p>
+                </button>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  <Button type="button" size="sm" variant="ghost" disabled={index === 0} onClick={() => reorderLesson(index, index - 1)}>Move up</Button>
+                  <Button type="button" size="sm" variant="ghost" disabled={index === lessons.length - 1} onClick={() => reorderLesson(index, index + 1)}>Move down</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => duplicateLesson(index)}><Copy className="mr-1 size-3" />Copy</Button>
+                </div>
+              </div>
+            );
+          })}
+          <div className="grid gap-2">
+            <Button type="button" variant="outline" className="w-full" onClick={addLesson}><Plus className="mr-2 size-4" />Blank lesson</Button>
+            <Button type="button" className="w-full" onClick={addLessonTemplate}><Sparkles className="mr-2 size-4" />Lesson from template</Button>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Edit lesson {lessonIndex + 1}</CardTitle>
+          <CardDescription>This creates the lesson page learners will move through before the quiz bank.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <Field label="Lesson title"><Input value={activeLesson.title} onChange={(event) => updateLesson({ title: event.target.value })} /></Field>
+          <Field label="Lesson summary"><Textarea rows={4} value={activeLesson.summary} onChange={(event) => updateLesson({ summary: event.target.value })} /></Field>
+          <Field label="Learning outcomes, one per line"><Textarea rows={4} value={activeLesson.outcomes.join('\n')} onChange={(event) => updateLesson({ outcomes: lines(event.target.value) })} /></Field>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={addLesson}>Add another lesson</Button>
+            <Button type="button" onClick={finish}>Build cards</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; cardIndex: number; setCardIndex: (index: number) => void; activeCard: ManualCard; addCard: (type: CardType) => void; addWorkflowCard: (template: CardWorkflowTemplate) => void; insertWorkflowCard: (template: CardWorkflowTemplate, index: number) => void; addTemplateCard: (template: LessonBlockTemplate) => void; insertTemplateCard: (template: LessonBlockTemplate, index: number) => void; insertCards: (cards: ManualCard[], index: number) => void; replaceCard: (index: number, card: ManualCard) => void; replaceCardWithCards: (index: number, cards: ManualCard[]) => void; reorderCard: (fromIndex: number, toIndex: number) => void; duplicateCard: (index: number) => void; removeCard: (index: number) => void; updateCard: (patch: Partial<ManualCard>) => void; finish: () => void }) {
+  const { form, lessons, lessonIndex, setLessonIndex, activeLesson, cardIndex, setCardIndex, activeCard, addWorkflowCard, insertWorkflowCard, addTemplateCard, insertTemplateCard, insertCards, replaceCard, replaceCardWithCards, reorderCard, duplicateCard, removeCard, updateCard, finish } = props;
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateCategory, setTemplateCategory] = useState('All');
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [quickCommand, setQuickCommand] = useState('');
+  const readability = learnerLoadForCard(activeCard);
   const filteredTemplates = useMemo(() => {
     const needle = templateSearch.trim().toLowerCase();
     return LESSON_BLOCK_TEMPLATES.filter((template) => {
@@ -604,99 +1101,391 @@ function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonInd
     });
   }, [templateCategory, templateSearch]);
   const visibleTemplates = filteredTemplates.slice(0, 120);
+  const selectedWorkflow = CARD_WORKFLOW_TEMPLATES.find((template) => template.id === activeCard.workflowTemplate) ?? CARD_WORKFLOW_TEMPLATES.find((template) => template.id === workflowTemplateForType(activeCard.type)) ?? CARD_WORKFLOW_TEMPLATES[0];
+
+  function onTemplateDragStart(event: DragEvent<HTMLElement>, template: CardWorkflowTemplate) {
+    event.dataTransfer.setData('application/x-univai-card-template', template.id);
+    event.dataTransfer.effectAllowed = 'copy';
+  }
+
+  function onLibraryDragStart(event: DragEvent<HTMLElement>, template: LessonBlockTemplate) {
+    event.dataTransfer.setData('application/x-univai-library-template', template.id);
+    event.dataTransfer.effectAllowed = 'copy';
+  }
+
+  function onCardDragStart(event: DragEvent<HTMLElement>, index: number) {
+    event.dataTransfer.setData('application/x-univai-card-index', String(index));
+    event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function onCanvasDrop(event: DragEvent<HTMLElement>, targetIndex: number) {
+    event.preventDefault();
+    setDragOverIndex(null);
+    const workflowId = event.dataTransfer.getData('application/x-univai-card-template') as CardWorkflowTemplateId;
+    const libraryId = event.dataTransfer.getData('application/x-univai-library-template');
+    const cardIndexValue = event.dataTransfer.getData('application/x-univai-card-index');
+    if (workflowId) {
+      const template = CARD_WORKFLOW_TEMPLATES.find((item) => item.id === workflowId);
+      if (template) insertWorkflowCard(template, targetIndex);
+      return;
+    }
+    if (libraryId) {
+      const template = LESSON_BLOCK_TEMPLATES.find((item) => item.id === libraryId);
+      if (template) insertTemplateCard(template, targetIndex);
+      return;
+    }
+    if (cardIndexValue !== '') {
+      const fromIndex = Number(cardIndexValue);
+      if (Number.isFinite(fromIndex)) reorderCard(fromIndex, targetIndex > fromIndex ? targetIndex - 1 : targetIndex);
+    }
+  }
+
+  function runQuickCommand() {
+    const cards = cardsFromQuickCommand(quickCommand, activeLesson.cards.length + 1);
+    if (!cards.length) return;
+    insertCards(cards, activeLesson.cards.length);
+    setQuickCommand('');
+  }
+
+  function insertSequence(sequence: CardSequence) {
+    insertCards(cardsFromSequence(sequence, quickCommand || activeLesson.title, activeLesson.cards.length + 1), activeLesson.cards.length);
+    setQuickCommand('');
+  }
+
+  function transformSelected(templateId: CardWorkflowTemplateId) {
+    replaceCard(cardIndex, transformCard(activeCard, templateId));
+  }
+
+  function splitSelectedCard() {
+    replaceCardWithCards(cardIndex, splitCard(activeCard, cardIndex + 1));
+  }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-      <Card className="rounded-3xl">
-        <CardHeader><CardTitle>Card editor</CardTitle><CardDescription>Build lesson content with 1,000 cross-field block starters.</CardDescription></CardHeader>
+    <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
+      <Card className="rounded-2xl xl:sticky xl:top-4 xl:self-start">
+        <CardHeader>
+          <CardTitle>Blocks</CardTitle>
+          <CardDescription>Drag a block into the lesson canvas or click to append it.</CardDescription>
+        </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2 overflow-x-auto pb-1">{lessons.map((lesson, index) => <Button key={lesson.id} type="button" size="sm" variant={index === lessonIndex ? 'default' : 'outline'} onClick={() => { setLessonIndex(index); setCardIndex(0); }}>{lesson.title}</Button>)}</div>
-          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
-            <Button variant="outline" onClick={() => addCard('teach')}>+ Teach</Button>
-            <Button variant="outline" onClick={() => addCard('example')}>+ Example</Button>
-            <Button variant="outline" onClick={() => addCard('question')}>+ Question</Button>
-            <Button variant="outline" onClick={() => addCard('fill_blank')}>+ Blank</Button>
-            <Button variant="outline" onClick={() => addCard('true_false')}>+ True/False</Button>
-            <Button variant="outline" onClick={() => addCard('summary')}>+ Summary</Button>
+          <div className="rounded-xl border bg-primary/5 p-3">
+            <Label className="text-xs">Quick compose</Label>
+            <Textarea
+              className="mt-2"
+              rows={3}
+              value={quickCommand}
+              onChange={(event) => setQuickCommand(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') runQuickCommand();
+              }}
+              placeholder="teach compound interest with example and checkpoint"
+            />
+            <Button type="button" size="sm" className="mt-2 w-full" onClick={runQuickCommand} disabled={!quickCommand.trim()}>
+              <Wand2 className="mr-2 size-4" />
+              Make cards
+            </Button>
           </div>
-
+          <div className="grid gap-2">
+            <p className="text-xs font-semibold text-muted-foreground">Saved patterns</p>
+            {CARD_SEQUENCES.map((sequence) => (
+              <button key={sequence.id} type="button" onClick={() => insertSequence(sequence)} className="rounded-xl border bg-background p-3 text-left text-xs transition hover:border-primary hover:bg-primary/5">
+                <span className="font-semibold">{sequence.label}</span>
+                <span className="mt-1 block text-muted-foreground">{sequence.help}</span>
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-2">
+            <p className="text-xs font-semibold text-muted-foreground">Single blocks</p>
+            {CARD_WORKFLOW_TEMPLATES.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                draggable
+                onDragStart={(event) => onTemplateDragStart(event, template)}
+                onClick={() => addWorkflowCard(template)}
+                className="group rounded-xl border bg-background p-3 text-left text-xs transition hover:border-primary hover:bg-primary/5"
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">{template.label}</span>
+                  <GripVertical className="size-4 text-muted-foreground opacity-60 group-hover:opacity-100" />
+                </span>
+                <span className="mt-1 block text-muted-foreground">{template.help}</span>
+              </button>
+            ))}
+          </div>
           <div className="space-y-3 border-t pt-4">
-            <div>
-              <p className="font-semibold">Broad block library</p>
-              <p className="text-sm text-muted-foreground">{LESSON_BLOCK_TEMPLATE_COUNT} registry blocks and starters across teaching, questions, math, finance, code, business, science, media, projects and certificates.</p>
-            </div>
-            <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-              <Input value={templateSearch} onChange={(event) => setTemplateSearch(event.target.value)} placeholder="Search blocks, fields, skills..." />
-              <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
-                {LESSON_BLOCK_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-              </select>
-            </div>
-            <div className="grid max-h-80 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+            <Input value={templateSearch} onChange={(event) => setTemplateSearch(event.target.value)} placeholder="Search advanced blocks..." />
+            <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
+              {LESSON_BLOCK_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
               {visibleTemplates.map((template) => (
-                <button key={template.id} type="button" onClick={() => addTemplateCard(template)} className="rounded-xl border p-3 text-left text-xs transition hover:border-primary hover:bg-primary/5">
-                  <span className="block font-semibold">{template.label}</span>
-                  <span className="mt-1 block text-muted-foreground">{template.help}</span>
-                  <span className="mt-2 flex flex-wrap gap-1">
-                    <span className="inline-flex rounded-full bg-muted px-2 py-1 text-[11px] capitalize text-muted-foreground">{template.type.replace(/_/g, ' ')}</span>
-                    {template.difficulty ? <span className="inline-flex rounded-full bg-muted px-2 py-1 text-[11px] capitalize text-muted-foreground">{template.difficulty}</span> : null}
-                    {template.assessmentMode ? <span className="inline-flex rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground">{template.assessmentMode}</span> : null}
-                    {template.certificateCapable ? <span className="inline-flex rounded-full bg-primary/10 px-2 py-1 text-[11px] text-primary">certificate-capable</span> : null}
+                <button
+                  key={template.id}
+                  type="button"
+                  draggable
+                  onDragStart={(event) => onLibraryDragStart(event, template)}
+                  onClick={() => addTemplateCard(template)}
+                  className="w-full rounded-xl border p-3 text-left text-xs transition hover:border-primary hover:bg-primary/5"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{template.label}</span>
+                    <GripVertical className="size-4 text-muted-foreground" />
                   </span>
-                  {template.bestUsedFor ? <span className="mt-2 block text-[11px] text-muted-foreground">Best used for: {template.bestUsedFor}</span> : null}
+                  <span className="mt-1 line-clamp-2 text-muted-foreground">{template.help}</span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Showing {visibleTemplates.length} of {filteredTemplates.length} matching block starters. Search by field, skill or teaching move to narrow the list.</p>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="flex gap-2 overflow-x-auto pb-1">{activeLesson.cards.map((card, index) => <button key={card.id} type="button" onClick={() => setCardIndex(index)} className={`min-w-[120px] rounded-2xl border p-3 text-left text-xs ${index === cardIndex ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'}`}><p className="font-semibold">Card {index + 1}</p><p className="text-muted-foreground">{card.type}</p></button>)}</div>
-          <Field label="Card type"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeCard.type} onChange={(event) => updateCard({ type: event.target.value as CardType })}>{!cardTypeOptions.some(([value]) => value === activeCard.type) ? <option value={activeCard.type}>{activeCard.type.replace(/_/g, ' ')}</option> : null}{cardTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-          <Field label="Card title"><Input value={activeCard.title} onChange={(event) => updateCard({ title: event.target.value })} /></Field>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Lesson canvas</CardTitle>
+          <CardDescription>Drag blocks from the palette, reorder cards, then edit the selected card.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label>Lesson</Label>
+            <div className="flex gap-2 overflow-x-auto pb-1">{lessons.map((lesson, index) => <Button key={lesson.id} type="button" size="sm" variant={index === lessonIndex ? 'default' : 'outline'} onClick={() => { setLessonIndex(index); setCardIndex(0); }}>{lesson.title || `Lesson ${index + 1}`}</Button>)}</div>
+          </div>
+          <div
+            className="space-y-2 rounded-2xl border bg-muted/20 p-3"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => onCanvasDrop(event, activeLesson.cards.length)}
+          >
+            {activeLesson.cards.map((card, index) => {
+              const cardLoad = learnerLoadForCard(card);
+              return (
+                <div key={card.id}>
+                  <div
+                    className={`h-2 rounded-full transition ${dragOverIndex === index ? 'bg-primary/40' : 'bg-transparent'}`}
+                    onDragOver={(event) => { event.preventDefault(); setDragOverIndex(index); }}
+                    onDrop={(event) => onCanvasDrop(event, index)}
+                  />
+                  <article
+                    draggable={index !== cardIndex}
+                    onDragStart={(event) => onCardDragStart(event, index)}
+                    onDragEnd={() => setDragOverIndex(null)}
+                    onClick={() => setCardIndex(index)}
+                    className={`group grid cursor-pointer gap-3 rounded-xl border bg-background p-3 text-left transition hover:border-primary/50 md:grid-cols-[auto_1fr_auto] ${index === cardIndex ? 'border-primary bg-primary/5 shadow-sm' : ''}`}
+                  >
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <GripVertical className="size-5" />
+                      <span className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-xs font-semibold">{index + 1}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium capitalize text-muted-foreground">{(card.workflowTemplate || workflowTemplateForType(card.type)).replace(/_/g, ' ')}</span>
+                        <span className={`rounded-full px-2 py-1 text-[11px] font-medium capitalize ${cardLoad.level === 'heavy' ? 'bg-amber-100 text-amber-800' : cardLoad.level === 'medium' ? 'bg-primary/10 text-primary' : 'bg-emerald-100 text-emerald-800'}`}>{cardLoad.level}</span>
+                      </div>
+                      {index === cardIndex ? (
+                        <InlineCardEditor card={card} updateCard={updateCard} />
+                      ) : (
+                        <>
+                          <p className="mt-2 truncate text-sm font-semibold">{card.title || `Card ${index + 1}`}</p>
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{cardPreviewText(card)}</p>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 self-start">
+                      <Button type="button" size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); duplicateCard(index); }}><Copy className="size-4" /></Button>
+                      <Button type="button" size="sm" variant="ghost" disabled={activeLesson.cards.length <= 1} onClick={(event) => { event.stopPropagation(); removeCard(index); }}><Trash2 className="size-4" /></Button>
+                    </div>
+                  </article>
+                </div>
+              );
+            })}
+            <div
+              className={`rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground transition ${dragOverIndex === activeLesson.cards.length ? 'border-primary bg-primary/5 text-primary' : ''}`}
+              onDragOver={(event) => { event.preventDefault(); setDragOverIndex(activeLesson.cards.length); }}
+              onDragLeave={() => setDragOverIndex(null)}
+              onDrop={(event) => onCanvasDrop(event, activeLesson.cards.length)}
+            >
+              Drop a block here to add it to the end
+            </div>
+          </div>
+          {readability.level === 'heavy' ? (
+            <div className="flex gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <div className="flex-1">
+                <p>This card is heavy. Split it into smaller cards or move source problems, criteria, and notes into the guided advanced sections.</p>
+                <Button type="button" size="sm" variant="outline" className="mt-2 border-amber-300 bg-white" onClick={splitSelectedCard}>
+                  <Scissors className="mr-2 size-4" />
+                  Split heavy card
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          <div className="rounded-2xl border bg-muted/20 p-3">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Selected block</p>
+                <p className="text-xs text-muted-foreground">{selectedWorkflow.label}: {selectedWorkflow.focus}</p>
+              </div>
+              <ReadabilityMeter load={readability} />
+            </div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => transformSelected('teach')}><Edit3 className="mr-2 size-4" />Teach</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => transformSelected('example')}>Make Example</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => transformSelected('checkpoint')}>Make Checkpoint</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => transformSelected('summary')}>Make Summary</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => replaceCard(cardIndex, shortenCard(activeCard))}>Shorten</Button>
+              <Button type="button" size="sm" variant="outline" onClick={splitSelectedCard}><Scissors className="mr-2 size-4" />Split</Button>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {CARD_WORKFLOW_TEMPLATES.map((template) => (
+                <button key={template.id} type="button" onClick={() => updateCard({ ...makeCardFromWorkflowTemplate(template, cardIndex + 1), id: activeCard.id, saved: false })} className={`rounded-xl border p-3 text-left text-xs transition ${activeCard.workflowTemplate === template.id ? 'border-primary bg-primary/10 text-primary' : 'bg-background hover:border-primary/50'}`}>
+                  <span className="block font-semibold">{template.label}</span>
+                  <span className="mt-1 block text-muted-foreground">{template.help}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+            <Field label="Advanced block type"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeCard.type} onChange={(event) => updateCard({ type: event.target.value as CardType, workflowTemplate: workflowTemplateForType(event.target.value) })}>{!cardTypeOptions.some(([value]) => value === activeCard.type) ? <option value={activeCard.type}>{activeCard.type.replace(/_/g, ' ')}</option> : null}{cardTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+            <Field label="Card title"><Input value={activeCard.title} onChange={(event) => updateCard({ title: event.target.value })} /></Field>
+          </div>
           {activeCard.templateLabel ? <p className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Started from {activeCard.templateLabel}</p> : null}
           <CardFields card={activeCard} updateCard={updateCard} />
-          <ClassroomThreadFields card={activeCard} updateCard={updateCard} />
-          <MathFields card={activeCard} updateCard={updateCard} />
+          <AdvancedSection title="Media" icon={ImageIcon} defaultOpen={activeCard.workflowTemplate === 'visual' || Boolean(activeCard.imageUrl)}>
+            <ImageFields card={activeCard} updateCard={updateCard} />
+          </AdvancedSection>
+          <AdvancedSection title="Math / visual" icon={Eye} defaultOpen={activeCard.workflowTemplate === 'visual' || activeCard.mathTool !== 'none'}>
+            <MathFields card={activeCard} updateCard={updateCard} />
+          </AdvancedSection>
+          <AdvancedSection title="Classroom thread" icon={Layers3} defaultOpen={Boolean(activeCard.boardId || activeCard.sourceQuestion)}>
+            <ClassroomThreadFields card={activeCard} updateCard={updateCard} />
+          </AdvancedSection>
+          <AdvancedSection title="Teacher reasoning and metadata" icon={FileText} defaultOpen={Boolean(activeCard.subjectArea || activeCard.teacherNote)}>
+            <MetadataFields card={activeCard} updateCard={updateCard} />
+          </AdvancedSection>
           <Button type="button" onClick={finish}>Finish cards</Button>
         </CardContent>
       </Card>
-      <Card className="rounded-3xl xl:sticky xl:top-4 xl:self-start"><CardHeader><CardTitle>Live student preview</CardTitle></CardHeader><CardContent><LessonPlayer lesson={lessonPreview(activeLesson, form)} courseTitle={form.title || 'Short course'} onComplete={() => undefined} completeLabel="Preview complete" /></CardContent></Card>
+
+      <div className="space-y-6 xl:sticky xl:top-4 xl:self-start">
+        <Card className="rounded-2xl">
+          <CardHeader><CardTitle>Live student preview</CardTitle></CardHeader>
+          <CardContent><LessonPlayer lesson={lessonPreview(activeLesson, form)} courseTitle={form.title || 'Short course'} onComplete={() => undefined} completeLabel="Preview complete" /></CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
 function CardFields({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
   if (card.type === 'question') {
-    return <><Field label="Question"><Textarea rows={3} value={card.question || ''} onChange={(event) => updateCard({ question: event.target.value })} /></Field><Field label="Options, one per line"><Textarea rows={4} value={card.options || ''} onChange={(event) => updateCard({ options: event.target.value })} /></Field><Field label="Correct answer"><Input value={card.answer || ''} onChange={(event) => updateCard({ answer: event.target.value })} /></Field><Field label="Explanation"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field><ImageFields card={card} updateCard={updateCard} /></>;
+    return <><Field label="Question"><Textarea rows={3} value={card.question || ''} onChange={(event) => updateCard({ question: event.target.value })} /></Field><Field label="Options, one per line"><Textarea rows={4} value={card.options || ''} onChange={(event) => updateCard({ options: event.target.value })} /></Field><Field label="Correct answer"><Input value={card.answer || ''} onChange={(event) => updateCard({ answer: event.target.value })} /></Field><Field label="Answer guidance"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field></>;
   }
   if (card.type === 'fill_blank') {
-    return <><Field label="Fill-in text"><Textarea rows={3} value={card.text || ''} onChange={(event) => updateCard({ text: event.target.value })} placeholder="Complete this: ____" /></Field><Field label="Correct answer"><Input value={card.answer || ''} onChange={(event) => updateCard({ answer: event.target.value })} /></Field><Field label="Explanation"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field><ImageFields card={card} updateCard={updateCard} /></>;
+    return <><Field label="Fill-in text"><Textarea rows={3} value={card.text || ''} onChange={(event) => updateCard({ text: event.target.value })} placeholder="Complete this: ____" /></Field><Field label="Correct answer"><Input value={card.answer || ''} onChange={(event) => updateCard({ answer: event.target.value })} /></Field><Field label="Answer guidance"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field></>;
   }
   if (card.type === 'true_false') {
-    return <><Field label="Statement"><Textarea rows={3} value={card.statement || ''} onChange={(event) => updateCard({ statement: event.target.value })} /></Field><Field label="Correct answer"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={(card.answer || 'true').toLowerCase()} onChange={(event) => updateCard({ answer: event.target.value })}><option value="true">True</option><option value="false">False</option></select></Field><Field label="Explanation"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field><ImageFields card={card} updateCard={updateCard} /></>;
+    return <><Field label="Statement"><Textarea rows={3} value={card.statement || ''} onChange={(event) => updateCard({ statement: event.target.value })} /></Field><Field label="Correct answer"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={(card.answer || 'true').toLowerCase()} onChange={(event) => updateCard({ answer: event.target.value })}><option value="true">True</option><option value="false">False</option></select></Field><Field label="Answer guidance"><Textarea rows={3} value={card.explanation || ''} onChange={(event) => updateCard({ explanation: event.target.value })} /></Field></>;
+  }
+  if (card.type === 'flashcard') {
+    return (
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Front"><Textarea rows={4} value={card.front || ''} onChange={(event) => updateCard({ front: event.target.value })} /></Field>
+        <Field label="Back"><Textarea rows={4} value={card.back || ''} onChange={(event) => updateCard({ back: event.target.value })} /></Field>
+      </div>
+    );
+  }
+  if (card.workflowTemplate === 'practice_task' || ['practice_task', 'mini_project', 'capstone_prompt'].includes(card.type)) {
+    return <><Field label="Task prompt"><Textarea rows={4} value={card.prompt || ''} onChange={(event) => updateCard({ prompt: event.target.value })} /></Field><Field label="Success criteria, one per line"><Textarea rows={4} value={card.criteria || ''} onChange={(event) => updateCard({ criteria: event.target.value })} /></Field></>;
+  }
+  if (card.workflowTemplate === 'case_scenario' || ['case_study', 'scenario'].includes(card.type)) {
+    return <><Field label="Scenario context"><Textarea rows={5} value={card.body} onChange={(event) => updateCard({ body: event.target.value })} /></Field><Field label="Guided question"><Textarea rows={3} value={card.prompt || ''} onChange={(event) => updateCard({ prompt: event.target.value })} /></Field><Field label="Decision criteria, one per line"><Textarea rows={3} value={card.criteria || ''} onChange={(event) => updateCard({ criteria: event.target.value })} /></Field></>;
   }
   return (
     <>
-      <Field label="Card text"><Textarea rows={5} value={card.body} onChange={(event) => updateCard({ body: event.target.value })} /></Field>
-      {card.type === 'flashcard' ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="Front"><Textarea rows={3} value={card.front || ''} onChange={(event) => updateCard({ front: event.target.value })} /></Field>
-          <Field label="Back"><Textarea rows={3} value={card.back || ''} onChange={(event) => updateCard({ back: event.target.value })} /></Field>
-        </div>
-      ) : null}
-      <Field label="Learner prompt"><Textarea rows={3} value={card.prompt || ''} onChange={(event) => updateCard({ prompt: event.target.value })} /></Field>
-      <Field label="List items, steps or glossary lines"><Textarea rows={4} value={card.items || ''} onChange={(event) => updateCard({ items: event.target.value })} /></Field>
-      <Field label="Quality criteria"><Textarea rows={3} value={card.criteria || ''} onChange={(event) => updateCard({ criteria: event.target.value })} /></Field>
-      <ImageFields card={card} updateCard={updateCard} />
+      <Field label={card.workflowTemplate === 'summary' ? 'Key takeaways' : card.workflowTemplate === 'example' ? 'Worked example' : 'Core learner text'}><Textarea rows={5} value={card.body} onChange={(event) => updateCard({ body: event.target.value })} /></Field>
+      <Field label="Supporting list, steps, or glossary lines"><Textarea rows={4} value={card.items || ''} onChange={(event) => updateCard({ items: event.target.value })} /></Field>
     </>
+  );
+}
+
+function InlineCardEditor({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
+  const field = primaryTextField(card);
+  return (
+    <div className="mt-2 space-y-2" onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+      <Input value={card.title || ''} onChange={(event) => updateCard({ title: event.target.value })} placeholder="Card title" className="h-9 bg-background font-medium" />
+      <Textarea
+        rows={3}
+        value={String(card[field] || '')}
+        onChange={(event) => updateCard({ [field]: event.target.value } as Partial<ManualCard>)}
+        placeholder="Write learner-facing content..."
+        className="bg-background text-sm"
+      />
+      <p className="text-[11px] text-muted-foreground">Inline edit. Use the detailed fields below for answers, visuals, and advanced settings.</p>
+    </div>
+  );
+}
+
+function primaryTextField(card: ManualCard): keyof ManualCard {
+  if (card.type === 'question') return 'question';
+  if (card.type === 'fill_blank') return 'text';
+  if (card.type === 'true_false') return 'statement';
+  if (card.type === 'flashcard') return 'front';
+  if (card.workflowTemplate === 'practice_task') return 'prompt';
+  return 'body';
+}
+
+function ReadabilityMeter({ load }: { load: LearnerLoad }) {
+  return (
+    <div className="min-w-[160px] rounded-xl border bg-background px-3 py-2 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold">Learner load</span>
+        <span className={`font-semibold capitalize ${load.level === 'heavy' ? 'text-amber-700' : load.level === 'medium' ? 'text-primary' : 'text-emerald-700'}`}>{load.level}</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full ${load.level === 'heavy' ? 'bg-amber-500' : load.level === 'medium' ? 'bg-primary' : 'bg-emerald-500'}`} style={{ width: `${load.percent}%` }} />
+      </div>
+      <p className="mt-1 text-muted-foreground">{load.hint}</p>
+    </div>
+  );
+}
+
+function AdvancedSection({ title, icon: Icon, defaultOpen = false, children }: { title: string; icon: typeof Layers3; defaultOpen?: boolean; children: ReactNode }) {
+  return (
+    <details className="rounded-2xl border bg-background" open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold">
+        <Icon className="size-4 text-primary" />
+        {title}
+      </summary>
+      <div className="border-t p-4">{children}</div>
+    </details>
+  );
+}
+
+function MetadataFields({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
+  return (
+    <div className="space-y-3">
+      <Field label="Learner prompt"><Textarea rows={3} value={card.prompt || ''} onChange={(event) => updateCard({ prompt: event.target.value })} /></Field>
+      <Field label="Quality criteria"><Textarea rows={3} value={card.criteria || ''} onChange={(event) => updateCard({ criteria: event.target.value })} /></Field>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Subject area"><Input value={card.subjectArea || ''} onChange={(event) => updateCard({ subjectArea: event.target.value })} /></Field>
+        <Field label="Teaching move"><Input value={card.teachingMove || ''} onChange={(event) => updateCard({ teachingMove: event.target.value })} /></Field>
+      </div>
+      <Field label="Teacher reasoning"><Textarea rows={3} value={card.teacherNote || ''} onChange={(event) => updateCard({ teacherNote: event.target.value })} /></Field>
+    </div>
   );
 }
 
 function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
   return (
-    <div className="space-y-3 rounded-2xl border p-4">
+    <div className="space-y-4 rounded-2xl border p-4">
       <div>
         <p className="font-semibold">Math / visual inside this card</p>
-        <p className="text-sm text-muted-foreground">Attach an equation, graph, table, formula sheet or number line.</p>
+        <p className="text-sm text-muted-foreground">Pick a visual starter, then adjust only the fields you need. Leave graph bounds blank for automatic axes.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ mathTool: 'equation', equation: card.equation || 'y = mx + c' })}>Equation</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ mathTool: 'graph', graphMode: 'function', expression: card.expression || 'x', xMin: undefined, xMax: undefined, min: undefined, max: undefined })}>Function graph</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ mathTool: 'graph', graphMode: 'point', graphPointX: card.graphPointX || '-5', graphPointY: card.graphPointY || '2', xMin: undefined, xMax: undefined, min: undefined, max: undefined })}>Plot point</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ mathTool: 'table', columns: card.columns || 'Item, Value, Reason', rows: card.rows || 'Example, 1, Explain why' })}>Table</Button>
       </div>
       <Field label="Math tool">
         <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={card.mathTool} onChange={(event) => updateCard({ mathTool: event.target.value as MathTool })}>
@@ -710,7 +1499,7 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
       </Field>
       {card.mathTool === 'equation' ? <Field label="Equation"><Input value={card.equation || ''} onChange={(event) => updateCard({ equation: event.target.value })} placeholder="x^2 + y^2 = r^2" /></Field> : null}
       {card.mathTool === 'graph' ? (
-        <div className="space-y-3">
+        <div className="space-y-4 rounded-xl border bg-muted/20 p-3">
           <Field label="Graph mode">
             <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={card.graphMode || 'function'} onChange={(event) => updateCard({ graphMode: event.target.value as 'function' | 'point' })}>
               <option value="function">Draw function/curve</option>
@@ -718,10 +1507,8 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
             </select>
           </Field>
           {(card.graphMode || 'function') === 'function' ? (
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3">
               <Field label="Function"><Input value={card.expression || ''} onChange={(event) => updateCard({ expression: event.target.value })} placeholder="x^2" /></Field>
-              <Field label="X min"><Input type="number" value={card.xMin || '-10'} onChange={(event) => updateCard({ xMin: event.target.value })} /></Field>
-              <Field label="X max"><Input type="number" value={card.xMax || '10'} onChange={(event) => updateCard({ xMax: event.target.value })} /></Field>
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-3">
@@ -731,11 +1518,20 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
             </div>
           )}
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(card.showGraphLine)} onChange={(event) => updateCard({ showGraphLine: event.target.checked })} /> Connect plotted points on this step</label>
-          <div className="grid gap-3 md:grid-cols-4">
-            <Field label="X min"><Input type="number" value={card.xMin || '-10'} onChange={(event) => updateCard({ xMin: event.target.value })} /></Field>
-            <Field label="X max"><Input type="number" value={card.xMax || '10'} onChange={(event) => updateCard({ xMax: event.target.value })} /></Field>
-            <Field label="Y min"><Input type="number" value={card.min || '-10'} onChange={(event) => updateCard({ min: event.target.value })} /></Field>
-            <Field label="Y max"><Input type="number" value={card.max || '10'} onChange={(event) => updateCard({ max: event.target.value })} /></Field>
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ xMin: undefined, xMax: undefined, min: undefined, max: undefined })}>Auto axes</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ xMin: '-10', xMax: '10', min: '-10', max: '10' })}>Standard</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ xMin: '0', xMax: '10', min: '0', max: '10' })}>Positive</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ xMin: '-100', xMax: '100', min: '-100', max: '100' })}>Wide</Button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <Field label="X min"><Input inputMode="decimal" value={card.xMin || ''} onChange={(event) => updateCard({ xMin: event.target.value })} placeholder="auto or -25" /></Field>
+              <Field label="X max"><Input inputMode="decimal" value={card.xMax || ''} onChange={(event) => updateCard({ xMax: event.target.value })} placeholder="auto or 25" /></Field>
+              <Field label="Y min"><Input inputMode="decimal" value={card.min || ''} onChange={(event) => updateCard({ min: event.target.value })} placeholder="auto or -5" /></Field>
+              <Field label="Y max"><Input inputMode="decimal" value={card.max || ''} onChange={(event) => updateCard({ max: event.target.value })} placeholder="auto or 50" /></Field>
+            </div>
+            <p className="text-xs text-muted-foreground">Blank bounds use automatic scaling. Negative values, decimals, and large ranges are allowed.</p>
           </div>
         </div>
       ) : null}
@@ -749,9 +1545,9 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
       {card.mathTool === 'formula_sheet' ? <Field label="Formulas: name | formula | description"><Textarea rows={5} value={card.formulas || ''} onChange={(event) => updateCard({ formulas: event.target.value })} /></Field> : null}
       {card.mathTool === 'number_line' ? (
         <div className="grid gap-3 md:grid-cols-3">
-          <Field label="Min"><Input value={card.min || '-5'} onChange={(event) => updateCard({ min: event.target.value })} /></Field>
-          <Field label="Max"><Input value={card.max || '5'} onChange={(event) => updateCard({ max: event.target.value })} /></Field>
-          <Field label="Points"><Input value={card.points || '0'} onChange={(event) => updateCard({ points: event.target.value })} placeholder="-2, 0, 3" /></Field>
+          <Field label="Min"><Input inputMode="decimal" value={card.min || ''} onChange={(event) => updateCard({ min: event.target.value })} placeholder="-5" /></Field>
+          <Field label="Max"><Input inputMode="decimal" value={card.max || ''} onChange={(event) => updateCard({ max: event.target.value })} placeholder="5" /></Field>
+          <Field label="Points"><Input value={card.points || ''} onChange={(event) => updateCard({ points: event.target.value })} placeholder="-2, 0, 3" /></Field>
         </div>
       ) : null}
     </div>
@@ -759,11 +1555,18 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
 }
 
 function ClassroomThreadFields({ card, updateCard }: { card: ManualCard; updateCard: (patch: Partial<ManualCard>) => void }) {
+  const makeThreadId = (kind: string) => `${kind}-${Date.now().toString(36).slice(-5)}`;
   return (
-    <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+    <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
       <div>
         <p className="font-semibold">Classroom teaching thread</p>
-        <p className="text-sm text-muted-foreground">Use the same thread ID across cards when one long question, graph, trial balance, physics problem, or case should stay visible while you explain it step by step.</p>
+        <p className="text-sm text-muted-foreground">Use a thread when several cards explain the same long problem, graph, accounting question, or case step by step.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ boardId: card.boardId || makeThreadId('graph'), keepSourceVisible: true, mathTool: card.mathTool === 'none' ? 'graph' : card.mathTool, graphMode: card.graphMode || 'point' })}>Graph problem</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ boardId: card.boardId || makeThreadId('accounting'), keepSourceVisible: true, mathTool: card.mathTool === 'none' ? 'table' : card.mathTool, columns: card.columns || 'Account, Debit, Credit, Reason' })}>Accounting board</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ boardId: card.boardId || makeThreadId('case'), keepSourceVisible: true, workflowTemplate: 'case_scenario' })}>Case thread</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => updateCard({ boardId: '', sourceQuestion: '', extractedData: '', teacherNote: '', keepSourceVisible: undefined })}>Clear thread</Button>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Thread ID"><Input value={card.boardId || ''} onChange={(event) => updateCard({ boardId: event.target.value })} placeholder="sets-question-1 or trial-balance-1" /></Field>
@@ -788,17 +1591,108 @@ function ImageFields({ card, updateCard }: { card: ManualCard; updateCard: (patc
   return <div className="space-y-3 rounded-2xl border p-4"><p className="text-sm font-semibold">Optional image for this card</p><Input type="file" accept="image/*" onChange={readImage} />{card.imageUrl ? <img src={card.imageUrl} alt={card.imageAlt || 'Card image'} className="max-h-48 rounded-xl border object-contain" /> : null}<Field label="Image description"><Input value={card.imageAlt || ''} onChange={(event) => updateCard({ imageAlt: event.target.value })} /></Field><Field label="Caption"><Input value={card.imageCaption || ''} onChange={(event) => updateCard({ imageCaption: event.target.value })} /></Field></div>;
 }
 
-function QuizStep(props: { quizBank: QuizQuestion[]; quizIndex: number; setQuizIndex: (index: number) => void; activeQuiz: QuizQuestion; updateQuiz: (patch: Partial<QuizQuestion>) => void; addQuiz: () => void; finish: () => void }) {
-  const { quizBank, quizIndex, setQuizIndex, activeQuiz, updateQuiz, addQuiz, finish } = props;
-  return <div className="grid gap-6 lg:grid-cols-[320px_1fr]"><Card className="rounded-3xl"><CardHeader><CardTitle>Quiz bank</CardTitle><CardDescription>Questions for practice and exam generation.</CardDescription></CardHeader><CardContent className="space-y-2">{quizBank.map((quiz, index) => <button key={quiz.id} onClick={() => setQuizIndex(index)} className={`w-full rounded-2xl border p-3 text-left text-sm ${index === quizIndex ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'}`}><p className="font-semibold">Question {index + 1}</p><p className="text-xs text-muted-foreground">{quiz.difficulty} · {quiz.type} · {quiz.timeSeconds}s</p></button>)}<Button variant="outline" className="w-full" onClick={addQuiz}>+ Add question</Button></CardContent></Card><Card className="rounded-3xl"><CardHeader><CardTitle>Edit quiz question</CardTitle></CardHeader><CardContent className="space-y-4"><Field label="Question"><Textarea rows={4} value={activeQuiz.question} onChange={(event) => updateQuiz({ question: event.target.value })} /></Field><div className="grid gap-3 md:grid-cols-3"><Field label="Type"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeQuiz.type} onChange={(event) => updateQuiz({ type: event.target.value as QuestionType })}><option value="mcq">MCQ</option><option value="short_answer">Short answer</option><option value="true_false">True/False</option><option value="fill_blank">Fill blank</option></select></Field><Field label="Difficulty"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeQuiz.difficulty} onChange={(event) => updateQuiz({ difficulty: event.target.value as Difficulty })}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="very_hard">Very hard</option></select></Field><Field label="Time seconds"><Input value={activeQuiz.timeSeconds} onChange={(event) => updateQuiz({ timeSeconds: event.target.value })} /></Field></div>{activeQuiz.type === 'mcq' ? <Field label="Options, one per line"><Textarea rows={4} value={activeQuiz.options} onChange={(event) => updateQuiz({ options: event.target.value })} /></Field> : null}<Field label="Answer"><Input value={activeQuiz.answer} onChange={(event) => updateQuiz({ answer: event.target.value })} /></Field><Field label="Explanation"><Textarea rows={3} value={activeQuiz.explanation} onChange={(event) => updateQuiz({ explanation: event.target.value })} /></Field><div className="grid gap-2 sm:grid-cols-2"><Button onClick={addQuiz}>Save & add another</Button><Button variant="secondary" onClick={finish}>Finish quiz bank</Button></div></CardContent></Card></div>;
+function QuizStep(props: { quizBank: QuizQuestion[]; quizIndex: number; setQuizIndex: (index: number) => void; activeQuiz: QuizQuestion; updateQuiz: (patch: Partial<QuizQuestion>) => void; addQuiz: () => void; duplicateQuiz: (index: number) => void; reorderQuiz: (fromIndex: number, toIndex: number) => void; bulkAddQuiz: (raw: string) => void; finish: () => void }) {
+  const { quizBank, quizIndex, setQuizIndex, activeQuiz, updateQuiz, addQuiz, duplicateQuiz, reorderQuiz, bulkAddQuiz, finish } = props;
+  const [bulkText, setBulkText] = useState('');
+  const distribution = difficultyDistribution(quizBank);
+  const missingAnswers = quizBank.filter((quiz) => !quiz.question.trim() || !quiz.answer.trim() || (quiz.type === 'mcq' && lines(quiz.options).length < 2)).length;
+  return (
+    <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Assessments</CardTitle>
+          <CardDescription>Build questions learners can practice with.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="rounded-xl border bg-muted/20 p-3 text-xs">
+            <p className="font-semibold">Difficulty mix</p>
+            <div className="mt-2 grid grid-cols-4 gap-1">
+              {(['easy', 'medium', 'hard', 'very_hard'] as Difficulty[]).map((difficulty) => <div key={difficulty} className="rounded-lg bg-background p-2 text-center"><p className="font-semibold">{distribution[difficulty]}</p><p className="capitalize text-muted-foreground">{difficulty.replace('_', ' ')}</p></div>)}
+            </div>
+            {missingAnswers ? <p className="mt-2 text-amber-700">{missingAnswers} question{missingAnswers === 1 ? '' : 's'} need answers or options.</p> : null}
+          </div>
+          {quizBank.map((quiz, index) => (
+            <div key={quiz.id} className={`rounded-xl border p-3 text-sm transition ${index === quizIndex ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'}`}>
+              <button type="button" onClick={() => setQuizIndex(index)} className="w-full text-left"><p className="font-semibold">Question {index + 1}</p><p className="text-xs text-muted-foreground">{quiz.difficulty} | {quiz.type} | {quiz.timeSeconds}s</p></button>
+              <div className="mt-2 flex flex-wrap gap-1">
+                <Button type="button" size="sm" variant="ghost" disabled={index === 0} onClick={() => reorderQuiz(index, index - 1)}>Up</Button>
+                <Button type="button" size="sm" variant="ghost" disabled={index === quizBank.length - 1} onClick={() => reorderQuiz(index, index + 1)}>Down</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => duplicateQuiz(index)}><Copy className="mr-1 size-3" />Copy</Button>
+              </div>
+            </div>
+          ))}
+          <Button variant="outline" className="w-full" onClick={addQuiz}><Plus className="mr-2 size-4" />Add question</Button>
+          <details className="rounded-xl border p-3">
+            <summary className="cursor-pointer text-sm font-semibold">Bulk paste questions</summary>
+            <Textarea className="mt-3" rows={6} value={bulkText} onChange={(event) => setBulkText(event.target.value)} placeholder={'Question text | Option A; Option B; Option C | Correct answer | Explanation\nAnother question | True; False | True | Why it is true'} />
+            <Button type="button" size="sm" className="mt-2 w-full" disabled={!bulkText.trim()} onClick={() => { bulkAddQuiz(bulkText); setBulkText(''); }}>Add pasted questions</Button>
+          </details>
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Edit question {quizIndex + 1}</CardTitle>
+          <CardDescription>These questions become the pool used for practice and assessment.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Field label="Question"><Textarea rows={4} value={activeQuiz.question} onChange={(event) => updateQuiz({ question: event.target.value })} /></Field>
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="Type"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeQuiz.type} onChange={(event) => updateQuiz({ type: event.target.value as QuestionType })}><option value="mcq">MCQ</option><option value="short_answer">Short answer</option><option value="true_false">True/False</option><option value="fill_blank">Fill blank</option></select></Field>
+            <Field label="Difficulty"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={activeQuiz.difficulty} onChange={(event) => updateQuiz({ difficulty: event.target.value as Difficulty })}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="very_hard">Very hard</option></select></Field>
+            <Field label="Time seconds"><Input type="number" min={15} step={5} value={activeQuiz.timeSeconds} onChange={(event) => updateQuiz({ timeSeconds: event.target.value })} /></Field>
+          </div>
+          {activeQuiz.type === 'mcq' ? <Field label="Options, one per line"><Textarea rows={4} value={activeQuiz.options} onChange={(event) => updateQuiz({ options: event.target.value })} /></Field> : null}
+          <Field label="Answer"><Input value={activeQuiz.answer} onChange={(event) => updateQuiz({ answer: event.target.value })} /></Field>
+          <Field label="Explanation"><Textarea rows={3} value={activeQuiz.explanation} onChange={(event) => updateQuiz({ explanation: event.target.value })} /></Field>
+          <div className="grid gap-2 sm:grid-cols-2"><Button onClick={addQuiz}>Add another question</Button><Button variant="secondary" onClick={finish}>Preview course</Button></div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function AiPanel(props: { aiPrompt: string; setAiPrompt: (value: string) => void; documents: SourceDoc[]; readDocuments: (event: ChangeEvent<HTMLInputElement>) => void; reading: boolean; generating: boolean; generateWithAi: () => void; clearDocuments: () => void }) {
   return <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]"><Card className="rounded-3xl border-primary/20 bg-primary/5"><CardHeader><CardTitle>AI helper</CardTitle><CardDescription>AI tools live here only. Generate a draft, then edit it manually.</CardDescription></CardHeader><CardContent className="space-y-4"><Field label="Prompt for AI"><Textarea rows={7} value={props.aiPrompt} onChange={(event) => props.setAiPrompt(event.target.value)} /></Field><Field label="Documents for AI"><Input type="file" multiple accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.xml,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={props.readDocuments} disabled={props.reading} /></Field><DocumentList documents={props.documents} onClear={props.clearDocuments} /><Button className="w-full" onClick={props.generateWithAi} disabled={props.generating || props.reading}>{props.generating ? 'Generating...' : 'Generate draft and open manual editor'}</Button></CardContent></Card><Card className="rounded-3xl"><CardHeader><CardTitle>Rule</CardTitle></CardHeader><CardContent className="space-y-3 text-sm text-muted-foreground"><p>AI never publishes directly.</p><p>AI output becomes editable lessons, cards and quiz questions.</p></CardContent></Card></div>;
 }
 
-function PreviewStep({ form, lesson, courses, saveDraft, saving }: { form: CourseForm; lesson: ManualLesson; courses: Course[]; saveDraft: () => void; saving: boolean }) {
-  return <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]"><Card className="rounded-3xl"><CardHeader><CardTitle>Final preview</CardTitle></CardHeader><CardContent><LessonPlayer lesson={lessonPreview(lesson, form)} courseTitle={form.title || 'Short course'} onComplete={() => undefined} completeLabel="Preview complete" /><Button className="mt-4 w-full" onClick={saveDraft} disabled={saving}>{saving ? 'Saving...' : 'Save draft for review'}</Button></CardContent></Card><Card className="rounded-3xl"><CardHeader><CardTitle>Recent courses</CardTitle></CardHeader><CardContent className="space-y-2 text-sm">{courses.slice(0, 8).map((course) => <div key={course.id} className="rounded-xl border p-3"><p className="font-semibold">{course.title}</p><p className="text-muted-foreground">{course.status ?? 'draft'} · {course.level ?? 'beginner'} · {course.durationHours ?? 0}h</p></div>)}</CardContent></Card></div>;
+function PreviewStep({ form, lesson, lessons, quizBank, readiness, courses, saveDraft, saving }: { form: CourseForm; lesson: ManualLesson; lessons: ManualLesson[]; quizBank: QuizQuestion[]; readiness: ReadinessItem[]; courses: Course[]; saveDraft: () => void; saving: boolean }) {
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop');
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Review course</CardTitle>
+          <CardDescription>Check what learners will see before saving the draft.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant={previewMode === 'desktop' ? 'default' : 'outline'} onClick={() => setPreviewMode('desktop')}><Monitor className="mr-2 size-4" />Desktop lesson</Button>
+            <Button type="button" size="sm" variant={previewMode === 'mobile' ? 'default' : 'outline'} onClick={() => setPreviewMode('mobile')}><Smartphone className="mr-2 size-4" />Mobile lesson</Button>
+            <Button type="button" size="sm" variant={previewMode === 'outline' ? 'default' : 'outline'} onClick={() => setPreviewMode('outline')}><BookOpen className="mr-2 size-4" />Lesson list</Button>
+            <Button type="button" size="sm" variant={previewMode === 'quiz' ? 'default' : 'outline'} onClick={() => setPreviewMode('quiz')}><ListChecks className="mr-2 size-4" />Questions</Button>
+          </div>
+          {previewMode === 'desktop' ? <LessonPlayer lesson={lessonPreview(lesson, form)} courseTitle={form.title || 'Short course'} onComplete={() => undefined} completeLabel="Preview complete" /> : null}
+          {previewMode === 'mobile' ? <div className="mx-auto max-w-[390px] rounded-2xl border bg-muted/20 p-2"><LessonPlayer lesson={lessonPreview(lesson, form)} courseTitle={form.title || 'Short course'} onComplete={() => undefined} completeLabel="Preview complete" /></div> : null}
+          {previewMode === 'outline' ? <div className="space-y-2">{lessons.map((item, index) => <div key={item.id} className="rounded-xl border p-3"><p className="font-semibold">{index + 1}. {item.title}</p><p className="text-sm text-muted-foreground">{item.summary}</p><p className="mt-1 text-xs text-muted-foreground">{item.cards.length} cards | {item.outcomes.length} outcomes</p></div>)}</div> : null}
+          {previewMode === 'quiz' ? <div className="space-y-2">{quizBank.map((quiz, index) => <div key={quiz.id} className="rounded-xl border p-3"><p className="font-semibold">{index + 1}. {quiz.question}</p><p className="mt-1 text-xs text-muted-foreground">{quiz.type} | {quiz.difficulty} | Answer: {quiz.answer || 'Missing'}</p></div>)}</div> : null}
+          <Button className="mt-4 w-full" onClick={saveDraft} disabled={saving}><Save className="mr-2 size-4" />{saving ? 'Saving...' : 'Save draft for review'}</Button>
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Publish checklist</CardTitle>
+          <CardDescription>Fix warnings before review when possible.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {readiness.map((item) => <div key={item.label} className="flex gap-2 rounded-xl border p-3"><span>{item.done ? <CheckCircle2 className="size-4 text-emerald-600" /> : <AlertTriangle className="size-4 text-amber-600" />}</span><div><p className="font-medium">{item.label}</p>{item.detail ? <p className="text-xs text-muted-foreground">{item.detail}</p> : null}</div></div>)}
+          <div className="pt-3">
+            <p className="mb-2 font-semibold">Recent courses</p>
+          {courses.slice(0, 8).map((course) => <div key={course.id} className="rounded-xl border p-3"><p className="font-semibold">{course.title}</p><p className="text-muted-foreground">{course.status ?? 'draft'} | {course.level ?? 'beginner'} | {course.durationHours ?? 0}h</p></div>)}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function ProgressNotice({ progress }: { progress: DocumentExtractionProgress }) {
@@ -824,6 +1718,7 @@ function cardFromBlock(block: any, index: number): ManualCard {
     body: block.body || card.body,
     templateId: block.templateId,
     templateLabel: block.templateLabel,
+    workflowTemplate: block.workflowTemplate || workflowTemplateForType(type),
     subjectArea: block.subjectArea,
     teachingMove: block.teachingMove,
     boardId: block.boardId,
@@ -861,69 +1756,132 @@ function cardFromBlock(block: any, index: number): ManualCard {
 }
 
 function blockFromCard(card: ManualCard): any {
+  const normalized = normalizeManualCard(card);
   const shared = {
-    title: card.title,
-    body: card.body,
-    templateId: card.templateId,
-    templateLabel: card.templateLabel,
-    subjectArea: card.subjectArea,
-    teachingMove: card.teachingMove,
-    boardId: card.boardId,
-    keepSourceVisible: card.keepSourceVisible,
-    sourceQuestion: card.sourceQuestion,
-    teacherNote: card.teacherNote,
-    extractedData: lines(card.extractedData),
-    graphPointX: card.graphPointX,
-    graphPointY: card.graphPointY,
-    graphPointLabel: card.graphPointLabel,
-    graphMode: card.graphMode,
-    showGraphLine: card.showGraphLine,
-    cumulativeTable: card.cumulativeTable,
-    prompt: card.prompt,
-    front: card.front,
-    back: card.back,
-    items: lines(card.items),
-    criteria: lines(card.criteria),
-    imageUrl: card.imageUrl,
-    imageAlt: card.imageAlt,
-    imageCaption: card.imageCaption,
-    visual: mathVisual(card),
+    title: normalized.title,
+    body: normalized.body,
+    workflowTemplate: normalized.workflowTemplate,
+    templateId: normalized.templateId,
+    templateLabel: normalized.templateLabel,
+    subjectArea: normalized.subjectArea,
+    teachingMove: normalized.teachingMove,
+    boardId: normalized.boardId,
+    keepSourceVisible: normalized.keepSourceVisible,
+    sourceQuestion: normalized.sourceQuestion,
+    teacherNote: normalized.teacherNote,
+    extractedData: lines(normalized.extractedData),
+    graphPointX: normalized.graphPointX,
+    graphPointY: normalized.graphPointY,
+    graphPointLabel: normalized.graphPointLabel,
+    graphMode: normalized.graphMode,
+    showGraphLine: normalized.showGraphLine,
+    cumulativeTable: normalized.cumulativeTable,
+    prompt: normalized.prompt,
+    front: normalized.front,
+    back: normalized.back,
+    items: lines(normalized.items),
+    criteria: lines(normalized.criteria),
+    imageUrl: normalized.imageUrl,
+    imageAlt: normalized.imageAlt,
+    imageCaption: normalized.imageCaption,
+    visual: mathVisual(normalized),
   };
 
-  if (card.type === 'question') {
-    return {
+  if (normalized.type === 'question') {
+    return compactBlock({
       ...shared,
       type: 'question',
-      question: card.question,
-      options: lines(card.options),
-      correctAnswer: card.answer,
-      explanation: card.explanation,
-    };
+      question: normalized.question,
+      options: lines(normalized.options),
+      correctAnswer: normalized.answer,
+      explanation: normalized.explanation,
+    });
   }
 
-  if (card.type === 'fill_blank') {
-    return {
+  if (normalized.type === 'fill_blank') {
+    return compactBlock({
       ...shared,
       type: 'fill_blank',
-      text: card.text || card.body,
-      correctAnswer: card.answer,
-      explanation: card.explanation,
-    };
+      text: normalized.text || normalized.body,
+      correctAnswer: normalized.answer,
+      explanation: normalized.explanation,
+    });
   }
 
-  if (card.type === 'true_false') {
-    return {
+  if (normalized.type === 'true_false') {
+    return compactBlock({
       ...shared,
       type: 'true_false',
-      statement: card.statement || card.body,
-      correctAnswer: parseBooleanAnswer(card.answer),
-      explanation: card.explanation,
-    };
+      statement: normalized.statement || normalized.body,
+      correctAnswer: parseBooleanAnswer(normalized.answer),
+      explanation: normalized.explanation,
+    });
   }
 
-  if (card.type === 'summary') return { ...shared, type: 'summary' };
-  if (card.type === 'example') return { ...shared, type: 'example' };
-  return { ...shared, type: card.type === 'teach' ? 'explanation' : card.type };
+  if (normalized.type === 'summary') return compactBlock({ ...shared, type: 'summary' });
+  if (normalized.type === 'example') return compactBlock({ ...shared, type: 'example' });
+  return compactBlock({ ...shared, type: normalized.type === 'teach' ? 'explanation' : normalized.type });
+}
+
+function normalizeManualCard(card: ManualCard): ManualCard {
+  const trimValue = (value?: string) => {
+    const trimmed = String(value ?? '').trim();
+    return trimmed ? trimmed : undefined;
+  };
+  return {
+    ...card,
+    workflowTemplate: card.workflowTemplate || workflowTemplateForType(card.type),
+    title: trimValue(card.title) || 'Untitled card',
+    body: trimValue(card.body) || '',
+    templateId: trimValue(card.templateId),
+    templateLabel: trimValue(card.templateLabel),
+    subjectArea: trimValue(card.subjectArea),
+    teachingMove: trimValue(card.teachingMove),
+    boardId: trimValue(card.boardId),
+    sourceQuestion: trimValue(card.sourceQuestion),
+    teacherNote: trimValue(card.teacherNote),
+    extractedData: lines(card.extractedData).join('\n'),
+    graphPointX: trimValue(card.graphPointX),
+    graphPointY: trimValue(card.graphPointY),
+    graphPointLabel: trimValue(card.graphPointLabel),
+    question: trimValue(card.question),
+    text: trimValue(card.text),
+    statement: trimValue(card.statement),
+    prompt: trimValue(card.prompt),
+    front: trimValue(card.front),
+    back: trimValue(card.back),
+    items: lines(card.items).join('\n'),
+    criteria: lines(card.criteria).join('\n'),
+    options: lines(card.options).join('\n'),
+    answer: trimValue(card.answer),
+    explanation: trimValue(card.explanation),
+    imageUrl: trimValue(card.imageUrl),
+    imageAlt: trimValue(card.imageAlt),
+    imageCaption: trimValue(card.imageCaption),
+    equation: trimValue(card.equation),
+    expression: trimValue(card.expression),
+    xMin: numericString(card.xMin),
+    xMax: numericString(card.xMax),
+    columns: comma(card.columns).join(', '),
+    rows: lines(card.rows).join('\n'),
+    formulas: lines(card.formulas).join('\n'),
+    min: numericString(card.min),
+    max: numericString(card.max),
+    points: comma(card.points).join(', '),
+  };
+}
+
+function numericString(value?: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? String(parsed) : undefined;
+}
+
+function compactBlock<T extends Record<string, unknown>>(block: T): T {
+  return Object.fromEntries(Object.entries(block).filter(([, value]) => {
+    if (typeof value === 'undefined' || value === null || value === '') return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    return true;
+  })) as T;
 }
 
 function parseBooleanAnswer(value?: string) {
@@ -933,17 +1891,17 @@ function parseBooleanAnswer(value?: string) {
 function mathVisual(card: ManualCard) {
   if (card.mathTool === 'equation') return { type: 'equation', equation: card.equation || '' };
   if (card.mathTool === 'graph' && card.graphMode === 'point') {
-    return {
+    return compactBlock({
       type: 'graph',
       graphType: card.showGraphLine ? 'line' : 'scatter',
       data: pointFromCard(card),
-      xMin: Number(card.xMin || -10),
-      xMax: Number(card.xMax || 10),
-      yMin: Number(card.min || -10),
-      yMax: Number(card.max || 10),
-    };
+      xMin: optionalNumber(card.xMin),
+      xMax: optionalNumber(card.xMax),
+      yMin: optionalNumber(card.min),
+      yMax: optionalNumber(card.max),
+    });
   }
-  if (card.mathTool === 'graph') return { type: 'graph', graphType: 'function', functions: [{ expression: card.expression || 'x', label: card.expression || 'f(x)' }], xMin: Number(card.xMin || -10), xMax: Number(card.xMax || 10) };
+  if (card.mathTool === 'graph') return compactBlock({ type: 'graph', graphType: 'function', functions: [{ expression: card.expression || 'x', label: card.expression || 'f(x)' }], xMin: optionalNumber(card.xMin), xMax: optionalNumber(card.xMax), yMin: optionalNumber(card.min), yMax: optionalNumber(card.max) });
   if (card.mathTool === 'table') return { type: 'table', columns: comma(card.columns), rows: tableRows(card.rows) };
   if (card.mathTool === 'formula_sheet') {
     return {
@@ -954,8 +1912,14 @@ function mathVisual(card: ManualCard) {
       }),
     };
   }
-  if (card.mathTool === 'number_line') return { type: 'number_line', min: Number(card.min || -5), max: Number(card.max || 5), points: comma(card.points).map(Number).filter(Number.isFinite) };
+  if (card.mathTool === 'number_line') return compactBlock({ type: 'number_line', min: optionalNumber(card.min), max: optionalNumber(card.max), points: comma(card.points).map(Number).filter(Number.isFinite) });
   return undefined;
+}
+
+function optionalNumber(value?: string) {
+  if (typeof value !== 'string' || value.trim() === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function pointFromCard(card: ManualCard) {
@@ -965,8 +1929,218 @@ function pointFromCard(card: ManualCard) {
   return [{ x, y, label: card.graphPointLabel || `(${x}, ${y})` }];
 }
 
+function insertAt<T>(items: T[], index: number, item: T) {
+  return [...items.slice(0, index), item, ...items.slice(index)];
+}
+
+function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
+  if (fromIndex < 0 || fromIndex >= items.length) return items;
+  const next = [...items];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(clampIndex(toIndex, next.length), 0, item);
+  return next;
+}
+
+function clampIndex(index: number, length: number) {
+  if (!Number.isFinite(index)) return length;
+  return Math.max(0, Math.min(index, length));
+}
+
+function cardPreviewText(card: ManualCard) {
+  const text = card.question || card.text || card.statement || card.body || card.prompt || card.front || card.back || card.items || card.criteria || 'Empty card';
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function workflowTemplateById(id: CardWorkflowTemplateId) {
+  return CARD_WORKFLOW_TEMPLATES.find((template) => template.id === id) ?? CARD_WORKFLOW_TEMPLATES[0];
+}
+
+function cardsFromSequence(sequence: CardSequence, seed: string, startIndex: number) {
+  const topic = commandTopic(seed || sequence.label);
+  return sequence.templates.map((templateId, offset) => seedCard(workflowTemplateById(templateId), topic, startIndex + offset));
+}
+
+function cardsFromQuickCommand(command: string, startIndex: number) {
+  const normalized = command.trim().toLowerCase();
+  if (!normalized) return [];
+  const topic = commandTopic(command);
+  const requested: CardWorkflowTemplateId[] = [];
+  if (/\bvisual|image|diagram|chart|graph|table\b/.test(normalized)) requested.push('visual');
+  if (/\bteach|explain|intro|introduce|concept\b/.test(normalized)) requested.push('teach');
+  if (/\bexample|worked|sample\b/.test(normalized)) requested.push('example');
+  if (/\bcase|scenario|situation\b/.test(normalized)) requested.push('case_scenario');
+  if (/\bpractice|task|activity|exercise\b/.test(normalized)) requested.push('practice_task');
+  if (/\bcheckpoint|quiz|question|check|mcq|test\b/.test(normalized)) requested.push('checkpoint');
+  if (/\bflash|recall|term|definition\b/.test(normalized)) requested.push('flashcard');
+  if (/\bsummary|recap|wrap\b/.test(normalized)) requested.push('summary');
+
+  const templateIds = uniqueTemplateIds(requested.length ? requested : ['teach', 'example', 'checkpoint']);
+  return templateIds.map((templateId, offset) => seedCard(workflowTemplateById(templateId), topic, startIndex + offset));
+}
+
+function seedCard(template: CardWorkflowTemplate, topic: string, index: number): ManualCard {
+  const card = makeCardFromWorkflowTemplate(template, index);
+  const titleTopic = titleCase(topic || template.focus);
+  if (template.id === 'teach') return { ...card, title: titleTopic, body: `Explain ${topic || 'this idea'} in one focused learner card.` };
+  if (template.id === 'example') return { ...card, title: `${titleTopic} example`, body: `Show one practical example of ${topic || 'the idea'}.` };
+  if (template.id === 'checkpoint') return { ...card, title: `${titleTopic} checkpoint`, question: `Which option best matches ${topic || 'this lesson idea'}?`, options: `A clear match\nA distracting option\nAn unrelated option\nA common mistake`, answer: 'A clear match', explanation: `The correct option directly uses ${topic || 'the key idea'}.` };
+  if (template.id === 'visual') return { ...card, title: `${titleTopic} visual`, body: `Use this card to explain the visual pattern for ${topic || 'the idea'}.` };
+  if (template.id === 'flashcard') return { ...card, title: `${titleTopic} flashcard`, front: `What is the key idea in ${topic || 'this card'}?`, back: `State the idea clearly, then give one short example.` };
+  if (template.id === 'practice_task') return { ...card, title: `${titleTopic} practice`, prompt: `Apply ${topic || 'the lesson idea'} to a short task.`, criteria: `Uses the key idea\nShows the working\nChecks the answer` };
+  if (template.id === 'case_scenario') return { ...card, title: `${titleTopic} scenario`, body: `A learner faces a realistic situation involving ${topic || 'this idea'}.`, prompt: 'What should they decide, and why?', criteria: 'Uses evidence from the scenario\nExplains the decision' };
+  return { ...card, title: `${titleTopic} summary`, body: `Summarize the most important points about ${topic || 'this lesson'}.` };
+}
+
+function transformCard(card: ManualCard, templateId: CardWorkflowTemplateId): ManualCard {
+  const text = cardPreviewText(card);
+  const transformed = seedCard(workflowTemplateById(templateId), text || card.title, 1);
+  return {
+    ...transformed,
+    id: card.id,
+    title: transformed.title || card.title,
+    imageUrl: card.imageUrl,
+    imageAlt: card.imageAlt,
+    imageCaption: card.imageCaption,
+    mathTool: templateId === 'visual' ? (card.mathTool === 'none' ? 'graph' : card.mathTool) : transformed.mathTool,
+    visual: undefined,
+    saved: false,
+  } as ManualCard;
+}
+
+function shortenCard(card: ManualCard): ManualCard {
+  const field = primaryTextField(card);
+  const current = String(card[field] || '');
+  return {
+    ...card,
+    [field]: shortenText(current),
+    items: lines(card.items).slice(0, 5).join('\n'),
+    criteria: lines(card.criteria).slice(0, 5).join('\n'),
+    saved: false,
+  } as ManualCard;
+}
+
+function splitCard(card: ManualCard, startIndex: number): ManualCard[] {
+  const text = cardPreviewText(card);
+  const chunks = chunkSentences(text, 42);
+  if (chunks.length <= 1) {
+    return [
+      { ...card, saved: false },
+      seedCard(workflowTemplateById('example'), text || card.title, startIndex + 1),
+      seedCard(workflowTemplateById('checkpoint'), text || card.title, startIndex + 2),
+    ];
+  }
+  return chunks.map((chunk, index) => ({
+    ...makeCardFromWorkflowTemplate(workflowTemplateById(index === chunks.length - 1 ? 'summary' : 'teach'), startIndex + index),
+    title: `${card.title || 'Card'} ${index + 1}`,
+    body: chunk,
+    saved: false,
+  }));
+}
+
+function uniqueTemplateIds(values: CardWorkflowTemplateId[]) {
+  const seen = new Set<CardWorkflowTemplateId>();
+  return values.filter((value) => {
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
+}
+
+function commandTopic(value: string) {
+  return value
+    .replace(/\b(teach|explain|intro|introduce|with|and|then|add|make|create|card|cards|example|checkpoint|quiz|question|summary|visual|image|practice|task|case|scenario|flashcard|flash)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'the lesson idea';
+}
+
+function titleCase(value: string) {
+  return value.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+}
+
+function shortenText(value: string) {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 45) return value;
+  return `${words.slice(0, 45).join(' ')}.`;
+}
+
+function chunkSentences(value: string, wordsPerChunk: number) {
+  const sentences = value.match(/[^.!?]+[.!?]*/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [value];
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let count = 0;
+  sentences.forEach((sentence) => {
+    const sentenceWords = sentence.split(/\s+/).filter(Boolean).length;
+    if (current.length && count + sentenceWords > wordsPerChunk) {
+      chunks.push(current.join(' '));
+      current = [];
+      count = 0;
+    }
+    current.push(sentence);
+    count += sentenceWords;
+  });
+  if (current.length) chunks.push(current.join(' '));
+  return chunks.filter((chunk) => chunk.trim().length > 0);
+}
+
+function learnerLoadForCard(card: ManualCard): LearnerLoad {
+  const textFields = [
+    card.title,
+    card.body,
+    card.question,
+    card.text,
+    card.statement,
+    card.prompt,
+    card.front,
+    card.back,
+    card.items,
+    card.criteria,
+    card.options,
+    card.explanation,
+    card.sourceQuestion,
+    card.teacherNote,
+  ].filter(Boolean).join(' ');
+  const wordCount = textFields.trim().split(/\s+/).filter(Boolean).length;
+  const listCount = lines(card.items).length + lines(card.criteria).length + lines(card.options).length + lines(card.extractedData).length;
+  const mediaScore = (card.imageUrl ? 18 : 0) + (card.mathTool && card.mathTool !== 'none' ? 22 : 0) + (card.sourceQuestion && card.sourceQuestion.length > 500 ? 24 : 0);
+  const score = wordCount + listCount * 10 + mediaScore;
+  const level: LearnerLoad['level'] = score > 210 ? 'heavy' : score > 95 ? 'medium' : 'short';
+  return {
+    level,
+    score,
+    percent: Math.min(100, Math.max(8, Math.round((score / 240) * 100))),
+    hint: level === 'heavy' ? 'Split or collapse details.' : level === 'medium' ? 'Readable with guided sections.' : 'Focused card.',
+  };
+}
+
+function toPositiveInt(value: string | number | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.max(1, Math.round(parsed));
+}
+
+function toMoney(value: string | number | undefined) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Number(parsed.toFixed(2));
+}
+
+function requestErrorMessage(cause: unknown, fallback: string) {
+  if (!cause || typeof cause !== 'object') return fallback;
+  const error = cause as Error & { fieldErrors?: Record<string, string[]> };
+  const fieldErrors = error.fieldErrors ?? {};
+  const fieldMessages = Object.entries(fieldErrors)
+    .flatMap(([field, messages]) => messages.map((message) => `${field}: ${message}`))
+    .slice(0, 4);
+
+  if (fieldMessages.length) {
+    return `${error.message || fallback} ${fieldMessages.join(' ')}`;
+  }
+
+  return error.message || fallback;
+}
+
 function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: QuizQuestion[]): any {
-  const totalMinutes = Math.max(5, Number(form.durationHours || 1) * 60);
+  const totalMinutes = Math.max(5, toPositiveInt(form.durationHours, 1) * 60);
   const lessonMinutes = Math.max(5, Math.round(totalMinutes / Math.max(1, lessons.length)));
   const outcomes = lessons.flatMap((lesson) => lesson.outcomes).filter(Boolean).slice(0, 10);
 
@@ -977,7 +2151,7 @@ function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: Qui
       level: form.level,
       description: form.description || 'Manual course draft.',
       prerequisites: [],
-      totalDurationHours: Number(form.durationHours || 1),
+      totalDurationHours: toPositiveInt(form.durationHours, 1),
       outcomes: outcomes.length ? outcomes : ['Understand the key ideas.'],
       finalAssessment: 'Practice exam from quiz bank.',
       certificateCriteria: 'Complete lessons and pass the final assessment.',
@@ -1023,7 +2197,7 @@ function lessonPreview(lesson: ManualLesson, form: CourseForm) {
     id: 'preview',
     title: lesson.title,
     summary: lesson.summary,
-    estimatedMinutes: Math.max(5, Math.round((Number(form.durationHours || 1) * 60) / 4)),
+    estimatedMinutes: Math.max(5, Math.round((toPositiveInt(form.durationHours, 1) * 60) / 4)),
     difficulty: form.level,
     learningObjects: [
       {
@@ -1040,10 +2214,55 @@ function lessonPreview(lesson: ManualLesson, form: CourseForm) {
 function validateCourse(form: CourseForm, lessons: ManualLesson[]) {
   if (!form.title.trim()) return 'Course title is required.';
   if (!form.schoolId) return 'School / Faculty is required.';
+  if ((form.currency || 'ZMW').trim().length !== 3) return 'Currency must be a 3-letter code, for example ZMW.';
   if (!lessons.length) return 'Add at least one lesson.';
   if (lessons.some((lesson) => !lesson.title.trim())) return 'Every lesson needs a title.';
   if (lessons.some((lesson) => !lesson.cards.length)) return 'Every lesson needs cards.';
   return null;
+}
+
+function courseReadiness(form: CourseForm, lessons: ManualLesson[], quizBank: QuizQuestion[]): ReadinessItem[] {
+  const checkpoints = lessons.flatMap((lesson) => lesson.cards).filter((card) => ['question', 'fill_blank', 'true_false'].includes(card.type));
+  const heavyCards = lessons.flatMap((lesson) => lesson.cards).filter((card) => learnerLoadForCard(card).level === 'heavy');
+  const imagesMissingAlt = lessons.flatMap((lesson) => lesson.cards).filter((card) => card.imageUrl && !card.imageAlt?.trim());
+  const incompleteQuestions = quizBank.filter((quiz) => !quiz.question.trim() || !quiz.answer.trim() || (quiz.type === 'mcq' && lines(quiz.options).length < 2));
+  return [
+    { label: 'Course title is set', done: Boolean(form.title.trim()), detail: form.title.trim() ? undefined : 'Add a clear course name.' },
+    { label: 'School is selected', done: Boolean(form.schoolId), detail: form.schoolId ? undefined : 'Choose the school or faculty.' },
+    { label: 'Lessons have cards', done: lessons.length > 0 && lessons.every((lesson) => lesson.cards.length > 0), detail: `${lessons.length} lesson${lessons.length === 1 ? '' : 's'} planned.` },
+    { label: 'Checkpoints have answers', done: checkpoints.every((card) => String(card.answer ?? '').trim()), detail: checkpoints.length ? `${checkpoints.length} checkpoint card${checkpoints.length === 1 ? '' : 's'} found.` : 'Add at least one checkpoint when ready.' },
+    { label: 'Question bank is ready', done: quizBank.length > 0 && incompleteQuestions.length === 0, detail: incompleteQuestions.length ? `${incompleteQuestions.length} question${incompleteQuestions.length === 1 ? '' : 's'} need fixing.` : `${quizBank.length} question${quizBank.length === 1 ? '' : 's'}.` },
+    { label: 'Cards are readable', done: heavyCards.length === 0, detail: heavyCards.length ? `${heavyCards.length} heavy card${heavyCards.length === 1 ? '' : 's'} should be split.` : undefined },
+    { label: 'Images are described', done: imagesMissingAlt.length === 0, detail: imagesMissingAlt.length ? `${imagesMissingAlt.length} image${imagesMissingAlt.length === 1 ? '' : 's'} need descriptions.` : undefined },
+  ];
+}
+
+function difficultyDistribution(quizBank: QuizQuestion[]) {
+  return quizBank.reduce<Record<Difficulty, number>>((totals, quiz) => {
+    totals[quiz.difficulty] += 1;
+    return totals;
+  }, { easy: 0, medium: 0, hard: 0, very_hard: 0 });
+}
+
+function quizFromBulkText(raw: string): QuizQuestion[] {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [question = '', optionText = '', answer = '', explanation = ''] = line.split('|').map((part) => part.trim());
+      const options = optionText.split(';').map((option) => option.trim()).filter(Boolean);
+      return {
+        id: uid('quiz'),
+        type: options.length > 2 ? 'mcq' : 'true_false',
+        difficulty: 'easy',
+        timeSeconds: '60',
+        question: question || 'Review this question.',
+        options: options.length ? options.join('\n') : 'True\nFalse',
+        answer: answer || options[0] || 'True',
+        explanation: explanation || 'Explain the answer.',
+      } as QuizQuestion;
+    });
 }
 
 function cleanJson(raw: string) {

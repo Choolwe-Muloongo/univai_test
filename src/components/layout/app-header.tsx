@@ -61,7 +61,7 @@ const roleRoutes: { [key: string]: { profile?: string; settings?: string } } = {
   admin: { settings: '/admin/settings' },
 };
 
-export function AppHeader({ role }: { role?: string }) {
+export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string; hideSidebarTrigger?: boolean }) {
   const router = useRouter();
   const { session, refresh } = useSession();
   const [user, setUser] = useState({ name: '', email: '', avatar: '' });
@@ -88,9 +88,11 @@ export function AppHeader({ role }: { role?: string }) {
 
   return (
     <header className="glass-nav sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 rounded-2xl border-b px-3 sm:gap-4 sm:px-6 lg:px-8">
-      <div className="md:hidden">
-        <SidebarTrigger />
-      </div>
+      {!hideSidebarTrigger ? (
+        <div className="md:hidden">
+          <SidebarTrigger />
+        </div>
+      ) : null}
       <div className="relative flex-1">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
