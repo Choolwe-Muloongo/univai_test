@@ -73,9 +73,14 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
     const fallback = {
       name: session?.user?.name || 'Student',
       email: session?.user?.email || 'student@univai.edu',
-      avatar: 'https://i.pravatar.cc/80?u=student',
+      avatar: session?.user?.avatar || 'https://i.pravatar.cc/80?u=student',
     };
-    setUser(roleDetails[resolvedRole as keyof typeof roleDetails] || fallback);
+    const roleFallback = roleDetails[resolvedRole as keyof typeof roleDetails] || fallback;
+    setUser({
+      name: session?.user?.name || roleFallback.name,
+      email: session?.user?.email || roleFallback.email,
+      avatar: session?.user?.avatar || roleFallback.avatar,
+    });
   }, [role, session]);
 
   const handleLogout = async () => {

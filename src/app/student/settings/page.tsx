@@ -1,121 +1,245 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+'use client';
+
+import { ChangeEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Camera, Loader2, Save } from 'lucide-react';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { useSession } from '@/components/providers/session-provider';
+import { getAccountProfile, updateAccountProfile } from '@/lib/api';
+
+type ProfileForm = {
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  timezone: string;
+  bio: string;
+  avatar: string;
+};
+
+const emptyForm: ProfileForm = {
+  name: '',
+  email: '',
+  phone: '',
+  country: '',
+  timezone: 'Africa/Lusaka',
+  bio: '',
+  avatar: '',
+};
+
+const timezones = [
+  'Africa/Lusaka',
+  'Africa/Johannesburg',
+  'Africa/Nairobi',
+  'Europe/London',
+  'UTC',
+];
 
 export default function SettingsPage() {
+  const { session, refresh } = useSession();
+  const [form, setForm] = useState<ProfileForm>(emptyForm);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const title = useMemo(() => {
+    const role = session?.user?.role || 'user';
+    if (role.includes('employer')) return 'Company Account Settings';
+    if (role.includes('lecturer')) return 'Lecturer Account Settings';
+    if (role.includes('instructor')) return 'Instructor Account Settings';
+    if (role.includes('admin')) return 'Admin Account Settings';
+    return 'Account Settings';
+  }, [session?.user?.role]);
+
+  useEffect(() => {
+    let mounted = true;
+    getAccountProfile()
+      .then((data) => {
+        if (!mounted) return;
+        setForm({
+          name: data.user?.name || data.profile.displayName || '',
+          email: data.user?.email || '',
+          phone: data.profile.phone || '',
+          country: data.profile.country || '',
+          timezone: data.profile.timezone || 'Africa/Lusaka',
+          bio: data.profile.bio || '',
+          avatar: data.profile.avatar || data.user?.avatar || '',
+        });
+      })
+      .catch((cause) => {
+        if (!mounted) return;
+        setError(cause instanceof Error ? cause.message : 'Unable to load account settings.');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  function update(patch: Partial<ProfileForm>) {
+    setForm((current) => ({ ...current, ...patch }));
+  }
+
+  async function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Choose an image file for your profile photo.');
+      return;
+    }
+    if (file.size > 750_000) {
+      setError('Profile photo must be smaller than 750 KB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => update({ avatar: String(reader.result || '') });
+    reader.onerror = () => setError('Unable to read that image.');
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  }
+
+  async function saveProfile() {
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await updateAccountProfile({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
+        country: form.country.trim() || null,
+        timezone: form.timezone || null,
+        bio: form.bio.trim() || null,
+        avatar: form.avatar || null,
+      });
+      await refresh();
+      setMessage('Profile updated.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save profile.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <PageLoading message="Loading account settings..." />;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your account preferences and notifications.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+        <p className="text-muted-foreground">Update your name, contact details, timezone, and profile photo.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      {error ? <PageError message={error} /> : null}
+      {message ? <div className="rounded-2xl border bg-primary/5 p-4 text-sm">{message}</div> : null}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>Account Details</CardTitle>
-            <CardDescription>Update your profile and contact information.</CardDescription>
+            <CardTitle>Profile Details</CardTitle>
+            <CardDescription>These details appear across your dashboard, profile menu, and learning activity.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" defaultValue="Premium Student" />
+          <CardContent className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Full name">
+                <Input value={form.name} onChange={(event) => update({ name: event.target.value })} />
+              </Field>
+              <Field label="Email address">
+                <Input type="email" value={form.email} onChange={(event) => update({ email: event.target.value })} />
+              </Field>
+              <Field label="Phone">
+                <Input value={form.phone} onChange={(event) => update({ phone: event.target.value })} placeholder="+260..." />
+              </Field>
+              <Field label="Country">
+                <Input value={form.country} onChange={(event) => update({ country: event.target.value })} placeholder="Zambia" />
+              </Field>
+              <Field label="Timezone">
+                <Select value={form.timezone} onValueChange={(value) => update({ timezone: value })}>
+                  <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                  <SelectContent>
+                    {timezones.map((timezone) => <SelectItem key={timezone} value={timezone}>{timezone}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue="student.premium@univai.edu" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" placeholder="+1 (555) 000-0000" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="timezone">Timezone</Label>
-              <Select defaultValue="utc">
-                <SelectTrigger id="timezone">
-                  <SelectValue placeholder="Select a timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="utc">UTC (Default)</SelectItem>
-                  <SelectItem value="est">US Eastern</SelectItem>
-                  <SelectItem value="gmt">GMT</SelectItem>
-                  <SelectItem value="cat">Africa Central</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="language">Language</Label>
-              <Select defaultValue="en">
-                <SelectTrigger id="language">
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="fr">French</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                  <SelectItem value="sw">Swahili</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button className="w-full">Save Changes</Button>
-            </div>
+            <Field label="Bio">
+              <Textarea rows={5} value={form.bio} onChange={(event) => update({ bio: event.target.value })} placeholder="Short professional or learning profile." />
+            </Field>
+            <Button onClick={saveProfile} disabled={saving || !form.name.trim() || !form.email.trim()}>
+              {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
+              {saving ? 'Saving...' : 'Save changes'}
+            </Button>
           </CardContent>
         </Card>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>Choose what you want to hear about.</CardDescription>
+              <CardTitle>Profile Photo</CardTitle>
+              <CardDescription>Use a clear square image under 750 KB.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Academic Updates</p>
-                  <p className="text-sm text-muted-foreground">Grades, announcements, and schedule changes.</p>
+              <div className="flex items-center gap-4">
+                <Avatar className="size-24 border">
+                  <AvatarImage src={form.avatar} alt={form.name || 'Profile photo'} />
+                  <AvatarFallback>{(form.name || form.email || 'U').charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-photo" className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">
+                    <Camera className="mr-2 size-4" />
+                    Change photo
+                  </Label>
+                  <Input id="profile-photo" type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
                 </div>
-                <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Community Activity</p>
-                  <p className="text-sm text-muted-foreground">Replies and mentions in discussions.</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Career Opportunities</p>
-                  <p className="text-sm text-muted-foreground">New jobs and internships.</p>
-                </div>
-                <Switch />
-              </div>
+              <Input value={form.avatar} onChange={(event) => update({ avatar: event.target.value })} placeholder="Or paste an image URL" />
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle>Security</CardTitle>
-              <CardDescription>Update your password regularly.</CardDescription>
+              <CardTitle>Notifications</CardTitle>
+              <CardDescription>Notification delivery is saved with your device preferences.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <Input id="currentPassword" type="password" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <Input id="newPassword" type="password" />
-              </div>
-              <Button className="w-full" variant="outline">Update Password</Button>
+            <CardContent className="space-y-4">
+              <ToggleRow title="Academic updates" description="Grades, announcements, and schedule changes." defaultChecked />
+              <ToggleRow title="Course activity" description="Short-course access, certificates, and payments." defaultChecked />
+              <ToggleRow title="Career opportunities" description="Jobs, internships, and portfolio activity." />
             </CardContent>
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({ title, description, defaultChecked = false }: { title: string; description: string; defaultChecked?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <Switch defaultChecked={defaultChecked} />
     </div>
   );
 }

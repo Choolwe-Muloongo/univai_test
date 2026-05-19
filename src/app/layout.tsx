@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
+import { AffiliateReferralCapture } from '@/components/providers/affiliate-referral-capture';
 import { SessionProvider } from '@/components/providers/session-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 
@@ -9,8 +10,8 @@ export const metadata: Metadata = {
   title: 'UnivAI',
   description: 'AI-powered learning, formal programmes, short courses and protected Class View.',
   icons: {
-    icon: '/images/brand/univai-logo-mark-transparent.png',
-    apple: '/images/brand/univai-logo-mark-transparent.png',
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
   },
 };
 
@@ -28,6 +29,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <AffiliateReferralCapture />
           <SessionProvider>{children}</SessionProvider>
         </ThemeProvider>
       </body>

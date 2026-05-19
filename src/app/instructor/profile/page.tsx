@@ -1,12 +1,3 @@
-import { PlatformPage } from '@/components/platform/platform-page';
+import SettingsPage from '@/app/student/settings/page';
 
-export default function InstructorProfilePage() {
-  return (
-    <PlatformPage
-      eyebrow="Verification"
-      title="Instructor profile and credentials"
-      description="Maintain instructor expertise, qualifications, documents and marketplace verification status."
-      items={['Expertise', 'Bio', 'Qualifications', 'Portfolio', 'Documents', 'Verification status']}
-    />
-  );
-}
+export default SettingsPage;

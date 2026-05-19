@@ -55,7 +55,7 @@ class LencoPaymentService
     {
         $secret = config('services.lenco.webhook_secret', env('LENCO_WEBHOOK_SECRET', env('LENCO_SECRET_KEY')));
         if (!$secret) {
-            return true;
+            return false;
         }
 
         $expected = hash_hmac('sha256', json_encode($payload), $secret);
@@ -81,6 +81,75 @@ class LencoPaymentService
                 'verified' => false,
                 'status' => 'unknown',
                 'message' => 'Payment verification is not available yet.',
+                'payload' => $response->json(),
+            ];
+        }
+
+        $payload = $response->json();
+        $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? 'unknown'));
+
+        return [
+            'verified' => in_array($status, ['successful', 'success', 'paid', 'completed'], true),
+            'status' => $status,
+            'message' => (string) (data_get($payload, 'message') ?? ''),
+            'payload' => $payload,
+        ];
+    }
+
+    public function initiateMobileMoneyTransfer(array $payload): array
+    {
+        $secret = config('services.lenco.secret_key', env('LENCO_SECRET_KEY'));
+        if (!$secret) {
+            return [
+                'successful' => false,
+                'status' => 'unknown',
+                'message' => 'Lenco secret key is not configured.',
+                'payload' => null,
+            ];
+        }
+
+        $endpoint = rtrim((string) config('services.lenco.base_url', env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2')), '/') . '/transfers/mobile-money';
+        $response = Http::withToken($secret)->acceptJson()->post($endpoint, $payload);
+        if (!$response->successful()) {
+            return [
+                'successful' => false,
+                'status' => 'failed',
+                'message' => 'Lenco transfer could not be started.',
+                'payload' => $response->json(),
+            ];
+        }
+
+        $json = $response->json();
+        $status = strtolower((string) (data_get($json, 'data.status') ?? data_get($json, 'status') ?? 'unknown'));
+
+        return [
+            'successful' => in_array($status, ['successful', 'success', 'paid', 'completed'], true),
+            'status' => $status,
+            'message' => (string) (data_get($json, 'message') ?? ''),
+            'reference' => (string) (data_get($json, 'data.reference') ?? data_get($json, 'reference') ?? ''),
+            'payload' => $json,
+        ];
+    }
+
+    public function verifyTransfer(string $reference): array
+    {
+        $secret = config('services.lenco.secret_key', env('LENCO_SECRET_KEY'));
+        if (!$secret) {
+            return [
+                'verified' => false,
+                'status' => 'unknown',
+                'message' => 'Lenco secret key is not configured.',
+                'payload' => null,
+            ];
+        }
+
+        $endpoint = rtrim((string) config('services.lenco.base_url', env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2')), '/') . '/transfers/status/' . rawurlencode($reference);
+        $response = Http::withToken($secret)->acceptJson()->get($endpoint);
+        if (!$response->successful()) {
+            return [
+                'verified' => false,
+                'status' => 'unknown',
+                'message' => 'Payout verification is not available yet.',
                 'payload' => $response->json(),
             ];
         }

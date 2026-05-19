@@ -1,5 +1,6 @@
-'use client';
+"use client";
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { Data } from 'plotly.js';
 
@@ -12,6 +13,7 @@ type PlotlyGraphProps = {
 };
 
 export function PlotlyGraph({ block }: PlotlyGraphProps) {
+  const [viewKey, setViewKey] = useState(0);
   const graphType = String(block.graphType || 'function');
   const hasXRange = isFiniteNumber(block.xMin) && isFiniteNumber(block.xMax);
   const hasYRange = isFiniteNumber(block.yMin) && isFiniteNumber(block.yMax);
@@ -23,7 +25,18 @@ export function PlotlyGraph({ block }: PlotlyGraphProps) {
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-background">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        <span>Drag to pan, use the toolbar to zoom, and reset if you zoom too far.</span>
+        <button
+          type="button"
+          onClick={() => setViewKey((value) => value + 1)}
+          className="rounded-full border bg-background px-3 py-1 font-medium text-foreground transition hover:border-primary/40"
+        >
+          Reset view
+        </button>
+      </div>
       <Plot
+        key={viewKey}
         data={data}
         layout={{
           autosize: true,
@@ -48,7 +61,14 @@ export function PlotlyGraph({ block }: PlotlyGraphProps) {
           showlegend: true,
           legend: { orientation: 'h', y: -0.22 },
         }}
-        config={{ responsive: true, displayModeBar: false }}
+        config={{
+          responsive: true,
+          displayModeBar: true,
+          displaylogo: false,
+          scrollZoom: false,
+          doubleClick: 'reset',
+          modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+        }}
         style={{ width: '100%' }}
         useResizeHandler
       />

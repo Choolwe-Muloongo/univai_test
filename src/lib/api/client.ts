@@ -69,6 +69,17 @@ function mapValidationArray(candidate: unknown[]): Record<string, string[]> {
 
 type FetchOptions = RequestInit & { parseJson?: boolean };
 
+const AFFILIATE_CODE_KEYS = ['univai.affiliate.code', 'univai.referral.code'];
+
+function storedAffiliateCode(): string | null {
+  if (typeof window === 'undefined') return null;
+  for (const key of AFFILIATE_CODE_KEYS) {
+    const value = window.localStorage.getItem(key);
+    if (value && value.trim()) return value.trim();
+  }
+  return null;
+}
+
 export function buildApiUrl(path: string) {
   if (/^https?:\/\//i.test(path)) {
     return path;
@@ -126,7 +137,7 @@ function apiErrorMessage(status: number, details: unknown): string {
   const file = typeof payload.file === 'string' ? payload.file : null;
   const line = typeof payload.line === 'number' || typeof payload.line === 'string' ? String(payload.line) : null;
   const location = file && line ? ` (${file}:${line})` : '';
-  return exception ? `${message} — ${exception}${location}` : message;
+  return exception ? `${message} - ${exception}${location}` : message;
 }
 
 export async function apiFetch<T>(
@@ -135,11 +146,13 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const url = buildApiUrl(path);
   const guardedBody = guardReviewedPublishing(path, body);
+  const affiliateCode = storedAffiliateCode();
   const response = await fetch(url, {
     ...options,
     body: guardedBody,
     headers: {
       'Content-Type': 'application/json',
+      ...(affiliateCode ? { 'X-Univai-Referral-Code': affiliateCode } : {}),
       ...(headers || {}),
     },
     credentials: 'include',

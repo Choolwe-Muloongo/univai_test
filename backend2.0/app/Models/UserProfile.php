@@ -13,6 +13,7 @@ class UserProfile extends Model
         'phone',
         'country',
         'timezone',
+        'avatar',
         'bio',
         'completion_percent',
         'completed_at',

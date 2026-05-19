@@ -22,9 +22,11 @@ class ProgramController extends Controller
         $intakeId = $user['intakeId'] ?? null;
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
 
-        $program = $programId
-            ? Program::with(['modules', 'school'])->find($programId)
-            : Program::with(['modules', 'school'])->first();
+        if (!$programId) {
+            return response()->json(['message' => 'Programme access is required.'], 404);
+        }
+
+        $program = Program::with(['modules.lessons', 'school'])->find($programId);
 
         if (!$program) {
             return response()->json(null, 404);
@@ -102,12 +104,12 @@ class ProgramController extends Controller
     public function modules(Request $request)
     {
         $user = $request->session()->get('user');
-        $programId = $user['programId'] ?? Program::query()->value('id');
+        $programId = $user['programId'] ?? null;
         $intakeId = $user['intakeId'] ?? null;
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
 
         if (!$programId) {
-            return [];
+            return response()->json(['message' => 'Programme access is required.'], 404);
         }
 
         $selectedMode = DeliveryModes::HYBRID;
@@ -126,6 +128,7 @@ class ProgramController extends Controller
         }
 
         $query = ProgramModule::query()
+            ->with('lessons')
             ->where('program_id', $programId);
         if ($curriculumVersionId) {
             $query->where('curriculum_version_id', $curriculumVersionId);
@@ -231,6 +234,13 @@ class ProgramController extends Controller
             'supportedDeliveryModes' => DeliveryModes::normalizeMany($module->supported_delivery_modes),
             'isCore' => (bool) $module->is_core,
             'track' => $module->track,
+            'lessons' => $module->lessons->map(fn ($lesson) => [
+                'id' => $lesson->id,
+                'title' => $lesson->title,
+                'summary' => $lesson->summary,
+                'content' => $lesson->content,
+                'videoUrl' => $lesson->video_url,
+            ])->values(),
         ];
     }
 }

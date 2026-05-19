@@ -163,6 +163,7 @@ export default function DashboardPage() {
 
   if (!hasProgrammeAccess) {
     const activeCourse = shortCourses.find((item) => item.course) ?? null;
+    const completedCourse = shortCourses.find((item) => item.course && (item.completedAt || item.status === 'completed' || Number(item.progress ?? 0) >= 100)) ?? null;
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -184,7 +185,7 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm text-muted-foreground">{activeCourse.course.description}</p>
                   </div>
                   <Button asChild className="w-full sm:w-auto">
-                    <Link href={`/student/courses/${activeCourse.course.id}`}>Continue Course</Link>
+                    <Link href={`/student/courses/${activeCourse.course.id}`}>{completedCourse && completedCourse.id === activeCourse.id ? 'Review Course' : 'Continue Course'}</Link>
                   </Button>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -233,6 +234,25 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           )}
+
+          {completedCourse?.course ? (
+            <Card className="rounded-3xl border-emerald-200 bg-emerald-50/40 shadow-sm">
+              <CardHeader>
+                <CardTitle>Completed short course</CardTitle>
+                <CardDescription>Your finished course stays available for review.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-xl font-semibold">{completedCourse.course.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{completedCourse.course.description}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild className="w-full sm:w-auto"><Link href={`/student/courses/${completedCourse.course.id}`}>Review course</Link></Button>
+                  <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/short-courses">Start new course</Link></Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <DashboardActionCard icon={BookOpen} title="My Short Courses" description="Open enrolled courses and track progress." href="/student/courses" />

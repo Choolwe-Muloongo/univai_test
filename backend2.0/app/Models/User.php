@@ -31,6 +31,7 @@ class User extends Authenticatable
         'account_state',
         'verification_status',
         'profile_completed_at',
+        'referred_by_affiliate_code',
     ];
 
     /**
@@ -97,6 +98,11 @@ class User extends Authenticatable
     public function stateTransitions(): HasMany
     {
         return $this->hasMany(UserStateTransition::class);
+    }
+
+    public function affiliate(): HasOne
+    {
+        return $this->hasOne(Affiliate::class);
     }
 
 }

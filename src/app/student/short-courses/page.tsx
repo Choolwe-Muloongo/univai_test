@@ -35,6 +35,8 @@ export default function StudentShortCoursesPage() {
 
   const enrolledIds = useMemo(() => new Set(enrollments.map((item) => item.course?.id).filter(Boolean)), [enrollments]);
   const availableCourses = useMemo(() => courses.filter((course) => !enrolledIds.has(course.id)), [courses, enrolledIds]);
+  const activeEnrollments = useMemo(() => enrollments.filter((item) => item.course && !isCompletedEnrollment(item)), [enrollments]);
+  const completedEnrollments = useMemo(() => enrollments.filter((item) => item.course && isCompletedEnrollment(item)), [enrollments]);
   const filteredAvailable = useMemo(() => {
     const search = query.trim().toLowerCase();
     if (!search) return availableCourses;
@@ -51,8 +53,8 @@ export default function StudentShortCoursesPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">Short courses</p>
             <h1 className="text-3xl font-bold tracking-tight">Learn, practice, and earn certificates</h1>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Continue courses you joined, or choose a published course below to start.
+          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              Continue active courses, review completed ones, or choose a published course below to start.
             </p>
           </div>
           <Button asChild className="w-full sm:w-auto"><Link href="/student/courses">Open full course hub</Link></Button>
@@ -65,9 +67,9 @@ export default function StudentShortCoursesPage() {
           <p className="text-sm text-muted-foreground">Your joined courses appear here.</p>
         </div>
 
-        {enrollments.length ? (
+        {activeEnrollments.length ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {enrollments.map((item) => item.course ? <EnrolledCourseCard key={item.id} item={item} /> : null)}
+            {activeEnrollments.map((item) => <EnrolledCourseCard key={item.id} item={item} />)}
           </div>
         ) : (
           <Card className="rounded-3xl border-dashed">
@@ -81,6 +83,18 @@ export default function StudentShortCoursesPage() {
           </Card>
         )}
       </section>
+
+      {completedEnrollments.length ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-2xl font-semibold">Completed courses</h2>
+            <p className="text-sm text-muted-foreground">Finished courses stay in your archive so you can review them later.</p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {completedEnrollments.map((item) => <CompletedCourseCard key={item.id} item={item} />)}
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -147,6 +161,35 @@ function EnrolledCourseCard({ item }: { item: ShortCourseEnrollmentSummary }) {
       </CardFooter>
     </Card>
   );
+}
+
+function CompletedCourseCard({ item }: { item: ShortCourseEnrollmentSummary }) {
+  const course = item.course!;
+
+  return (
+    <Card className="flex h-full flex-col rounded-2xl border-emerald-200 bg-emerald-50/40">
+      <CardHeader>
+        <CardTitle className="text-xl">{course.title}</CardTitle>
+        <CardDescription className="line-clamp-3">{course.description}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 space-y-3">
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          <span className="rounded-full bg-background px-2 py-1">Completed</span>
+          <span className="rounded-full bg-background px-2 py-1">Score: {item.examScore ?? '-'}</span>
+          <span className="rounded-full bg-background px-2 py-1">Certificate: {item.certificateIssuedAt ? 'Issued' : item.certificateFeePaid ? 'Ready' : 'Locked'}</span>
+        </div>
+        <p className="text-sm text-muted-foreground">You can open the course hub to review lessons, or start a fresh course from the catalogue.</p>
+      </CardContent>
+      <CardFooter className="flex flex-col gap-2 sm:flex-row">
+        <Button asChild className="w-full"><Link href={`/student/courses/${course.id}`}>Review course</Link></Button>
+        <Button asChild variant="outline" className="w-full"><Link href="/short-courses">Start new course</Link></Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function isCompletedEnrollment(item: ShortCourseEnrollmentSummary) {
+  return Boolean(item.completedAt) || item.status === 'completed' || Number(item.progress ?? 0) >= 100;
 }
 
 function AvailableCourseCard({ course }: { course: PublicShortCourse }) {

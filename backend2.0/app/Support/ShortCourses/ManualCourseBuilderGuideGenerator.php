@@ -122,6 +122,65 @@ class ManualCourseBuilderGuideGenerator
             'Mobile-friendly layouts',
             'Launch-ready flow',
         ]);
+        $this->sectionPage($pdf, '9. Save, Resume, And Edit Safely', [
+            'Use Save Draft when the course is not ready for learners. Drafts can be reviewed, improved, and sent through the approval flow before publication.',
+            'Use Resume Draft only when you intentionally want to continue the saved work from this browser. Starting a new course should always begin from a clean outline.',
+            'Use Load Into Builder when you need to revise an existing short course. This creates an editing session linked to that saved course, so later saves update the right draft.',
+            'After a course is published, create a fresh draft for new work. Do not keep building unrelated courses on top of an old published course.',
+        ], [
+            'Save draft for unfinished work',
+            'Resume only when continuing the same course',
+            'Start new course for a clean build',
+            'Load existing course only for edits',
+            'Review before publishing changes',
+        ]);
+        $this->sectionPage($pdf, '10. Build For Mobile Learners', [
+            'Many learners will open short courses on small phones. Every card should still read clearly when the screen is narrow.',
+            'Keep tables short. If a table becomes wide, split it into smaller tables or move the detailed data into an expandable section.',
+            'Use visuals to explain, not decorate. A chart, graph, or image should have a clear instruction telling the learner what to notice.',
+            'Preview mobile before publishing. If a learner must pinch, scroll sideways, or guess what a visual means, the card needs more work.',
+        ], [
+            'Short paragraphs',
+            'Small tables',
+            'Clear visual instructions',
+            'Alt text for every image',
+            'Mobile preview before publish',
+        ]);
+        $this->sectionPage($pdf, '11. Classroom Threads And Teacher Reasoning', [
+            'Use classroom thread fields when a card needs a guided discussion, board trail, or teacher explanation that supports the main learning point.',
+            'Keep the main card focused. Put teacher reasoning, long source problems, and classroom board history in secondary or expandable sections.',
+            'Use teacher notes to help reviewers and future editors understand why the card exists. Do not turn teacher notes into learner-facing clutter.',
+            'When importing from source documents, keep the original question available only when it helps the learner or reviewer verify the context.',
+        ], [
+            'Main card stays focused',
+            'Teacher reasoning supports review',
+            'Board trail goes in expandable context',
+            'Source questions stay available without crowding the card',
+        ]);
+        $this->sectionPage($pdf, '12. Quality Checklist For Reviewers', [
+            'A reviewer should be able to check the whole course without reading code, JSON, or internal system names.',
+            'Check accuracy first. Then check clarity, structure, assessment answers, visual accessibility, mobile layout, and launch settings.',
+            'Each checkpoint must have a correct answer and a useful explanation. Each practice task must have criteria that a learner can understand.',
+            'If the review panel shows missing plans, heavy cards, empty lessons, missing answers, or images without alt text, resolve those issues before publishing.',
+        ], [
+            'Content is accurate',
+            'Lessons have cards',
+            'Questions have answers',
+            'Images have alt text',
+            'Heavy cards are split',
+            'Plans and fees are ready',
+        ]);
+        $this->sectionPage($pdf, '13. Common Mistakes To Avoid', [
+            'Do not paste an entire textbook page into one card. Break long material into a teaching sequence.',
+            'Do not make every card a question. Learners need explanation, examples, practice, checks, and summaries.',
+            'Do not hide required instructions inside teacher notes. Learner instructions belong in the primary card or visible supporting sections.',
+            'Do not publish because the course saves successfully. A saved course is technically stored; a published course must also be readable, complete, priced, and reviewed.',
+        ], [
+            'One card should not carry the whole lesson',
+            'Questions need explanations',
+            'Learner instructions must be visible',
+            'Publishing requires review, not only saving',
+        ]);
 
         return $pdf->Output('S');
     }
@@ -191,6 +250,11 @@ class ManualCourseBuilderGuideGenerator
             'Keep assessments practical',
             'Review before you publish',
             'Maintain a launch-ready standard',
+            'Save, resume and edit safely',
+            'Build for mobile learners',
+            'Use classroom threads and teacher reasoning',
+            'Apply the reviewer checklist',
+            'Avoid common course-building mistakes',
         ]);
     }
 
@@ -237,7 +301,7 @@ class ManualCourseBuilderGuideGenerator
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetTextColor(34, 49, 72);
         foreach ($items as $index => $item) {
-            $pdf->Cell(8, 5.8, '•', 0, 0);
+            $pdf->Cell(8, 5.8, '-', 0, 0);
             $x = $pdf->GetX();
             $y = $pdf->GetY();
             $pdf->MultiCell(154, 5.8, $this->cleanText(($index + 1) . '. ' . $item));

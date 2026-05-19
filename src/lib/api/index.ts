@@ -1,6 +1,7 @@
 import { apiFetch, buildApiUrl } from '@/lib/api/client';
 import type {
   AdmissionStatus,
+  AccountProfileResponse,
   AdmissionsSettings,
   Badge,
   ApplicationDetail,
@@ -50,6 +51,7 @@ import type {
   EnrollmentData,
   ExamQuestion,
   ExamQuestionRecord,
+  DocumentBrandingSettings,
   ExamResultsMap,
   AcademicPolicy,
   ProgramPolicyAssignment,
@@ -72,6 +74,9 @@ import type {
   ShortCourseDraftCreatePayload,
   PortfolioItem,
   FinanceReportRow,
+  AffiliateOverview,
+  AffiliateRecord,
+  AffiliatePayout,
   ResearchApplication,
   LecturerApplication,
   AiResponse,
@@ -1159,6 +1164,69 @@ export async function updatePaymentSettings(payload: PaymentSettings): Promise<P
   });
 }
 
+export async function getDocumentBrandingSettings(): Promise<DocumentBrandingSettings> {
+  return apiFetch('/admin/document-branding');
+}
+
+export async function updateDocumentBrandingSettings(payload: DocumentBrandingSettings): Promise<DocumentBrandingSettings> {
+  return apiFetch('/admin/document-branding', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function documentBrandingPreviewUrl(type: 'offer' | 'admission' | 'certificate'): string {
+  return buildApiUrl(`/admin/document-branding/preview/${type}`);
+}
+
+export async function getAffiliateOverview(): Promise<AffiliateOverview> {
+  return apiFetch('/admin/affiliates');
+}
+
+export async function createAffiliate(payload: {
+  userId?: number | null;
+  code?: string | null;
+  displayName: string;
+  scope?: string;
+  status?: string;
+  formalProgrammeRate?: number;
+  shortCourseRate?: number;
+  lencoAccountId?: string | null;
+  payoutPhone?: string | null;
+  payoutOperator?: string | null;
+  payoutCountry?: string | null;
+  notes?: string | null;
+}): Promise<AffiliateRecord> {
+  return apiFetch('/admin/affiliates', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function requestAffiliatePayout(
+  affiliateId: number,
+  payload: {
+    amount: number;
+    currency?: string;
+    phone?: string | null;
+    operator?: string | null;
+    country?: string | null;
+    reference?: string | null;
+    fee?: number;
+  }
+): Promise<AffiliatePayout> {
+  return apiFetch(`/admin/affiliates/${affiliateId}/payouts`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyAffiliatePayout(payoutId: number): Promise<AffiliatePayout> {
+  return apiFetch(`/admin/affiliates/payouts/${payoutId}/verify`, {
+    method: 'PATCH',
+  });
+}
+
 export async function getAdmissionStatus(): Promise<AdmissionStatus> {
   return apiFetch('/admissions/status');
 }
@@ -1279,6 +1347,25 @@ export async function logout(): Promise<void> {
 
 export async function getSession(): Promise<Session> {
   return apiFetch('/auth/me');
+}
+
+export async function getAccountProfile(): Promise<AccountProfileResponse> {
+  return apiFetch('/auth/profile');
+}
+
+export async function updateAccountProfile(payload: {
+  name: string;
+  email: string;
+  phone?: string | null;
+  country?: string | null;
+  timezone?: string | null;
+  bio?: string | null;
+  avatar?: string | null;
+}): Promise<AccountProfileResponse> {
+  return apiFetch('/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function completeCheckout(role: string, accessTier?: string): Promise<Session> {

@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\LencoPaymentService;
 use App\Support\AuditLogger;
+use App\Support\Affiliates\AffiliateService;
 use App\Support\DeliveryModes;
 use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentReceiptMailer;
@@ -113,7 +114,7 @@ class BillingController extends Controller
         ]);
     }
 
-    public function verify(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
+    public function verify(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer, AffiliateService $affiliates)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
@@ -124,6 +125,9 @@ class BillingController extends Controller
 
         if ($invoice->status === 'paid') {
             $unlocker->unlock($invoice);
+            $affiliates->recordForInvoice($invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
+                'channel' => 'already-paid',
+            ]);
             $receiptMailer->sendForInvoice($invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
                 'channel' => 'already-paid',
             ]);
@@ -203,6 +207,9 @@ class BillingController extends Controller
         );
 
         $unlocker->unlock($invoice);
+        $affiliates->recordForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
+            'channel' => 'lenco-verify',
+        ]);
         $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
             'channel' => 'lenco-verify',
         ]);

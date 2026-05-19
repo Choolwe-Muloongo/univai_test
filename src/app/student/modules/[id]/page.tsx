@@ -14,8 +14,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getLessonsByCourse, getProgram } from "@/lib/api";
-import type { Lesson, Program } from "@/lib/api/types";
+import { getProgram } from "@/lib/api";
+import type { Program } from "@/lib/api/types";
 import { Calendar, ClipboardCheck, Lightbulb } from "lucide-react";
 import { PageError, PageLoading } from "@/components/ui/page-feedback";
 import { readRouteParam } from "@/lib/route-params";
@@ -24,7 +24,6 @@ export default function ModuleDetailPage() {
   const params = useParams();
   const id = readRouteParam(params, 'id');
   const [program, setProgram] = useState<Program | null>(null);
-  const [moduleLessons, setModuleLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,16 +39,13 @@ export default function ModuleDetailPage() {
 
       try {
         const nextProgram = await getProgram();
-        const lessons = await getLessonsByCourse(nextProgram.id);
         if (!isMounted) return;
         setProgram(nextProgram);
-        setModuleLessons(lessons);
         setError(null);
       } catch (err) {
         console.error('Failed to load module detail', err);
         if (isMounted) {
           setProgram(null);
-          setModuleLessons([]);
           setError('Module data is unavailable. Please refresh or check that your account has programme access.');
         }
       } finally {
@@ -69,7 +65,8 @@ export default function ModuleDetailPage() {
   const module = useMemo(() => {
     return program?.modules.find((item) => item.id === id) ?? null;
   }, [id, program]);
-  const nextLesson = moduleLessons[0] ?? null;
+  const lessons = module?.lessons ?? [];
+  const nextLesson = lessons[0] ?? null;
 
   if (loading) {
     return (
@@ -198,20 +195,20 @@ export default function ModuleDetailPage() {
             <CardDescription>Resume learning from where you left off.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {moduleLessons.slice(0, 3).map((lesson, index) => (
+            {lessons.slice(0, 3).map((lesson, index) => (
               <div key={lesson.id} className="flex items-center justify-between rounded-lg border p-4">
                 <div>
                   <p className="font-semibold">
                     {index + 1}. {lesson.title}
                   </p>
-                  <p className="text-sm text-muted-foreground">{lesson.content}</p>
+                  <p className="text-sm text-muted-foreground">{lesson.summary || lesson.content}</p>
                 </div>
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/student/lessons/${lesson.id}`}>Open</Link>
                 </Button>
               </div>
             ))}
-            {moduleLessons.length === 0 && (
+            {lessons.length === 0 && (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                 Lessons for this module will appear here once published.
               </div>

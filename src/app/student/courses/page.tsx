@@ -161,6 +161,18 @@ export default function CoursesPage() {
           <p className="text-sm text-muted-foreground">Free courses enroll immediately. Paid courses open checkout or testing access depending on backend settings.</p>
         </div>
 
+        <Card className="rounded-3xl border-primary/10 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="font-semibold">Single-course access is available on every course page.</p>
+              <p className="text-sm text-muted-foreground">Open a course to see the plan options for that one course. Bundles are optional for learners who want several courses at once.</p>
+            </div>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/short-courses">Browse catalogue</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
         {browseCourses.length ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {browseCourses.map((course) => (
@@ -176,10 +188,11 @@ export default function CoursesPage() {
                 <CardContent className="flex-1 space-y-3 text-sm">
                   <Info icon={CreditCard} label={formatMoney(course.price, course.currency || 'ZMW') === 'Free' ? 'Free to learn' : 'Starter Access from ZMW 30 for 14 days'} />
                   <Info icon={BadgeCheck} label={Number(course.certificateFee ?? 0) > 0 ? `Certificate fee applies: ${formatMoney(course.certificateFee, course.certificateCurrency || course.currency || 'ZMW')}` : 'Certificate included when eligible'} />
+                  <Info icon={BookOpen} label="Single-course plans are shown after opening the course" />
                   <Info icon={Sparkles} label="Interactive lessons, practice, exam, and certificate path" />
                 </CardContent>
                 <CardFooter className="flex flex-col gap-2 sm:flex-row">
-                  <Button asChild variant="outline" className="w-full"><Link href={`/short-courses/${course.id}`}>View Course</Link></Button>
+                  <Button asChild variant="outline" className="w-full"><Link href={`/student/courses/${course.id}`}>View plans</Link></Button>
                   <Button className="w-full" onClick={() => enroll(course)} disabled={busyId === course.id}>
                     {busyId === course.id ? 'Working...' : Number(course.price ?? 0) <= 0 ? 'Enroll Free' : 'Enroll / Pay'}
                   </Button>
@@ -194,8 +207,8 @@ export default function CoursesPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-2xl font-semibold">Course Bundles</h2>
-          <p className="text-sm text-muted-foreground">Bundles are cheaper than buying courses one by one. AI limits are shared across the bundle.</p>
+          <h2 className="text-2xl font-semibold">Optional bundles</h2>
+          <p className="text-sm text-muted-foreground">Bundles are there for learners who want multiple courses together. They do not replace single-course access.</p>
         </div>
         {bundles.length ? (
           <Card className="rounded-3xl">
@@ -278,7 +291,7 @@ function EnrolledCourseCard({ item }: { item: ShortCourseEnrollmentSummary }) {
 }
 
 function Info({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return <div className="flex items-start gap-2 text-muted-foreground"><Icon className="mt-0.5 h-4 w-4 text-primary" /><span>{label}</span></div>;
+  return <div className="flex items-start gap-2 text-sm text-muted-foreground"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 break-words">{label}</span></div>;
 }
 
 function planLabel(plan?: string | null) {

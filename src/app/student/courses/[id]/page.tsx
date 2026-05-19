@@ -95,7 +95,9 @@ export default function CourseHubPage() {
   const totalLessons = lessonNodes.length;
   const completedLessons = lessonNodes.filter((lesson) => completedLessonIds.has(String(lesson.id))).length;
   const nextLesson = lessonNodes.find((lesson) => !completedLessonIds.has(String(lesson.id))) ?? lessonNodes[0];
+  const reviewLesson = lessonNodes[0] ?? null;
   const allLessonsComplete = totalLessons > 0 && completedLessons >= totalLessons;
+  const courseCompleted = Boolean(progress?.completedAt) || allLessonsComplete;
   const access = accessState(progress);
   const hasActiveAccess = access === 'Active';
   const certificate = certificateState(progress);
@@ -189,9 +191,14 @@ export default function CourseHubPage() {
             </div>
             {nextLesson && hasActiveAccess ? (
               <Button asChild className="w-full">
-                <Link href={`/student/courses/${course.id}/lessons/${nextLesson.id}`}>Continue Course <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link href={courseCompleted && reviewLesson ? `/student/courses/${course.id}/lessons/${reviewLesson.id}` : `/student/courses/${course.id}/lessons/${nextLesson.id}`}>{courseCompleted ? 'Review Course' : 'Continue Course'} <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
             ) : <Button disabled className="w-full">{nextLesson ? 'Activate access to continue' : 'No lessons yet'}</Button>}
+            {courseCompleted ? (
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/short-courses">Start a new course</Link>
+              </Button>
+            ) : null}
           </div>
         </div>
         {notice ? <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">{notice}</div> : null}
@@ -281,11 +288,12 @@ export default function CourseHubPage() {
               )}
               {allLessonsComplete && hasActiveAccess ? (
                 <Button asChild className="w-full sm:w-auto">
-                  <Link href={`/student/courses/${course.id}/exam`}>Start Final Exam</Link>
+                  <Link href={`/student/courses/${course.id}/exam`}>{courseCompleted ? 'Review Final Exam' : 'Start Final Exam'}</Link>
                 </Button>
               ) : (
                 <Button disabled className="w-full sm:w-auto">Start Final Exam</Button>
               )}
+              {courseCompleted ? <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/short-courses">Start New Course</Link></Button> : null}
             </CardContent>
           </Card>
         </div>
@@ -331,8 +339,8 @@ export default function CourseHubPage() {
 
           <Card className="rounded-3xl">
             <CardHeader>
-              <CardTitle>Upgrade Access / Plans</CardTitle>
-              <CardDescription>Choose course access, AI support, or certificate-inclusive plans.</CardDescription>
+              <CardTitle>Single-course plans</CardTitle>
+              <CardDescription>Choose one plan for this course. Bundles live on the catalogue page if you want multiple courses together.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {plans.length ? plans.map((plan) => (
@@ -421,7 +429,7 @@ function EmptyMessage({ icon: Icon, title }: { icon: LucideIcon; title: string }
 }
 
 function Info({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-center justify-between gap-3 rounded-xl border p-3"><span className="text-muted-foreground">{label}</span><strong className="text-right">{value}</strong></div>;
+  return <div className="flex flex-col gap-1 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><span className="text-muted-foreground">{label}</span><strong className="break-words sm:text-right">{value}</strong></div>;
 }
 
 function accessState(progress?: ShortCourseProgress | null) {

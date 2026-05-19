@@ -12,6 +12,7 @@ use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentReceiptMailer;
 use App\Support\Payments\PaymentSettings;
 use App\Support\Pricing\ShortCourseAccessPlans;
+use App\Support\Affiliates\AffiliateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -28,7 +29,7 @@ class ShortCourseAccessController extends Controller
         return response()->json(array_values(ShortCourseAccessPlans::bundlePlans('ZMW')));
     }
 
-    public function purchase(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
+    public function purchase(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer, AffiliateService $affiliates)
     {
         $payload = $request->validate(['plan' => ['required', 'string']]);
         $studentId = $this->studentId($request);
@@ -53,7 +54,7 @@ class ShortCourseAccessController extends Controller
                 'amount' => $plan['amount'],
                 'currency' => $plan['currency'],
                 'status' => 'pending',
-                'metadata' => ['short_course_id' => $course->id, 'access_plan' => $plan['code']],
+                'metadata' => ['short_course_id' => $course->id, 'access_plan' => $plan['code'], 'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code')],
                 'due_date' => now()->addDays(7),
             ]
         );
@@ -98,7 +99,7 @@ class ShortCourseAccessController extends Controller
         ]);
     }
 
-    public function purchaseBundle(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
+    public function purchaseBundle(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer, AffiliateService $affiliates)
     {
         $payload = $request->validate([
             'bundle' => ['required', 'string'],
@@ -146,7 +147,7 @@ class ShortCourseAccessController extends Controller
                 'amount' => $plan['amount'],
                 'currency' => $plan['currency'],
                 'status' => 'pending',
-                'metadata' => ['short_course_ids' => $courseIds->all(), 'bundle_plan' => $plan['code']],
+                'metadata' => ['short_course_ids' => $courseIds->all(), 'bundle_plan' => $plan['code'], 'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code')],
                 'due_date' => now()->addDays(7),
             ]
         );

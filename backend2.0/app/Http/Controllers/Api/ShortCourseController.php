@@ -9,11 +9,13 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\ShortCourseEnrollment;
 use App\Models\ShortCourseLessonProgress;
+use App\Services\CertificatePdfService;
 use App\Services\LencoPaymentService;
 use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentSettings;
 use App\Support\Pricing\LaunchFeeSchedule;
 use App\Support\Pricing\ShortCourseAccessPlans;
+use App\Support\Affiliates\AffiliateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -48,7 +50,7 @@ class ShortCourseController extends Controller
         ])->values());
     }
 
-    public function enroll(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
+    public function enroll(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, AffiliateService $affiliates)
     {
         $studentId = $this->studentId($request);
         $course = Course::whereIn('status', ['published', 'active'])->findOrFail($courseId);
@@ -67,7 +69,10 @@ class ShortCourseController extends Controller
             return response()->json(['status' => 'active', 'checkout_url' => null]);
         }
 
-        $invoice = $this->invoiceFor($studentId, $course, 'short_course_entry', 'Starter Access: ' . $course->title, $fee, ['access_plan' => 'starter_access']);
+        $invoice = $this->invoiceFor($studentId, $course, 'short_course_entry', 'Starter Access: ' . $course->title, $fee, [
+            'access_plan' => 'starter_access',
+            'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code'),
+        ]);
         if (!PaymentSettings::lencoCollectionsEnabled()) {
             $settings = PaymentSettings::current();
             $paidInvoice = $unlocker->markPaidForTesting($invoice, $settings->test_mode_message ?: 'Payment confirmed in test mode.');
@@ -369,7 +374,7 @@ class ShortCourseController extends Controller
         return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id]);
     }
 
-    public function certificate(Request $request, string $courseId)
+    public function certificate(Request $request, string $courseId, CertificatePdfService $certificates)
     {
         $studentId = $this->studentId($request);
         $enrollment = ShortCourseEnrollment::with(['student', 'course'])->where('student_id', $studentId)->where('short_course_id', $courseId)->firstOrFail();
@@ -377,13 +382,13 @@ class ShortCourseController extends Controller
             return response()->json(['message' => 'Certificate fee payment required.'], 402);
         }
 
-        if (!$enrollment->certificate_path) {
-            $path = 'certificates/short-course-' . $enrollment->id . '.html';
-            Storage::disk('local')->put($path, view('certificates.short-course', ['enrollment' => $enrollment])->render());
+        if (!$enrollment->certificate_path || !str_ends_with($enrollment->certificate_path, '.pdf') || !Storage::disk('local')->exists($enrollment->certificate_path)) {
+            $path = 'certificates/short-course-' . $enrollment->id . '.pdf';
+            Storage::disk('local')->put($path, $certificates->shortCourseCertificate($enrollment));
             $enrollment->update(['certificate_path' => $path, 'certificate_issued_at' => now()]);
         }
 
-        return Storage::disk('local')->download($enrollment->certificate_path, 'univai-certificate-' . $courseId . '.html');
+        return Storage::disk('local')->download($enrollment->certificate_path, 'univai-certificate-' . $courseId . '.pdf');
     }
 
     private function applyInitialEntryAccess(ShortCourseEnrollment $enrollment, Course $course): void

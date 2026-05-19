@@ -187,8 +187,8 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
         </div>
       </div>
 
-      <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <Card className="flex min-h-[390px] min-w-0 flex-1 flex-col rounded-2xl border-primary/10 shadow-sm sm:rounded-3xl">
+      <div className="grid flex-1 min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <Card className="flex min-h-[390px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border-primary/10 shadow-sm sm:rounded-3xl">
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Badge className="rounded-full capitalize" variant={isInteractive ? 'default' : 'secondary'}>
@@ -199,7 +199,7 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
           <CardTitle className="text-xl sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
         </CardHeader>
 
-        <CardContent className="flex-1 space-y-5">
+        <CardContent className="flex-1 min-w-0 space-y-5">
           <BlockContent block={block} revealed={Boolean(revealed[index])} onReveal={() => setRevealed((current) => ({ ...current, [index]: true }))} />
 
           {block.type === 'question' ? (
@@ -378,7 +378,7 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
 
 function GuidedSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border bg-muted/10 p-4">
+    <section className="min-w-0 rounded-2xl border bg-muted/10 p-4">
       <p className="mb-3 text-sm font-semibold">{title}</p>
       {children}
     </section>
@@ -387,7 +387,7 @@ function GuidedSection({ title, children }: { title: string; children: ReactNode
 
 function ExpandableSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <details className="rounded-2xl border bg-muted/10 p-4">
+    <details className="min-w-0 rounded-2xl border bg-muted/10 p-4">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
         {title}
         <ChevronDown className="size-4 text-muted-foreground" />
@@ -460,7 +460,7 @@ function SideContextPanel({ block, lessonDifficulty }: { block: LessonBlock; les
   if (!hasContext) return null;
   return (
     <aside className="hidden min-w-0 space-y-3 xl:block">
-      <div className="sticky top-4 rounded-2xl border bg-background/95 p-4 shadow-sm">
+      <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border bg-background/95 p-4 shadow-sm">
         <p className="text-sm font-semibold">Card context</p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
           {typeof block.subjectArea === 'string' ? <Badge variant="outline" className="rounded-full"><MathText text={block.subjectArea} /></Badge> : null}

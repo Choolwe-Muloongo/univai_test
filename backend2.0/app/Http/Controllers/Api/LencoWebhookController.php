@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\LencoPaymentService;
+use App\Support\Affiliates\AffiliateService;
 use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentReceiptMailer;
 use Illuminate\Http\Request;
 
 class LencoWebhookController extends Controller
 {
-    public function __invoke(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer)
+    public function __invoke(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer, AffiliateService $affiliates)
     {
         $payload = $request->all();
         $signature = $request->header('X-Lenco-Signature') ?? $request->header('X-Signature');
@@ -32,6 +33,9 @@ class LencoWebhookController extends Controller
         }
 
         if ($invoice->status === 'paid') {
+            $affiliates->recordForInvoice($invoice, Payment::where('transaction_reference', $reference)->first(), [
+                'channel' => 'already-paid-webhook',
+            ]);
             $receiptMailer->sendForInvoice($invoice, Payment::where('transaction_reference', $reference)->first(), [
                 'channel' => 'already-paid-webhook',
             ]);
@@ -75,6 +79,9 @@ class LencoWebhookController extends Controller
             );
 
             $unlocker->unlock($invoice);
+            $affiliates->recordForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $reference)->first(), [
+                'channel' => 'lenco-webhook',
+            ]);
             $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $reference)->first(), [
                 'channel' => 'lenco-webhook',
             ]);

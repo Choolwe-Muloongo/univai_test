@@ -34,10 +34,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Textarea } from '@/components/ui/textarea';
-import { getCourses, getSchools } from '@/lib/api';
+import { getCourseById, getCourses, getLessonsByCourse, getSchools } from '@/lib/api';
 import { saveShortCourseDraftWithBlueprint } from '@/lib/api/safe-short-course-save';
 import { generateShortCourseContent } from '@/lib/api/short-course-generation';
-import type { Course, School } from '@/lib/api/types';
+import type { Course, Lesson, School } from '@/lib/api/types';
 import {
   LESSON_BLOCK_CATEGORIES,
   LESSON_BLOCK_TEMPLATE_COUNT,
@@ -145,6 +145,7 @@ type BuilderSnapshot = {
   form: CourseForm;
   lessons: ManualLesson[];
   quizBank: QuizQuestion[];
+  editingCourseId?: string | null;
 };
 
 type ReadinessItem = {
@@ -187,6 +188,17 @@ const steps: Array<{ id: Step; label: string; description: string }> = [
 ];
 
 const AUTOSAVE_KEY = 'univai.manual-builder.autosave.v2';
+
+const initialCourseForm = (schoolId = ''): CourseForm => ({
+  title: '',
+  description: '',
+  schoolId,
+  level: 'beginner',
+  durationHours: '8',
+  entryFee: '0',
+  currency: 'ZMW',
+  certificateFee: '0',
+});
 
 const cardTypeOptions = [
   ['teach', 'Teach'],
@@ -386,6 +398,7 @@ export function DedicatedManualCourseBuilderClient() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadingCourseId, setLoadingCourseId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [reading, setReading] = useState(false);
   const [progress, setProgress] = useState<DocumentExtractionProgress | null>(null);
@@ -398,34 +411,33 @@ export function DedicatedManualCourseBuilderClient() {
   const [quizIndex, setQuizIndex] = useState(0);
   const [lessons, setLessons] = useState<ManualLesson[]>([makeLesson(1)]);
   const [quizBank, setQuizBank] = useState<QuizQuestion[]>([makeQuiz()]);
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  const [recoverableDraft, setRecoverableDraft] = useState<BuilderSnapshot | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
   const undoStack = useRef<BuilderSnapshot[]>([]);
   const redoStack = useRef<BuilderSnapshot[]>([]);
   const autosaveReady = useRef(false);
-  const [form, setForm] = useState<CourseForm>({
-    title: '',
-    description: '',
-    schoolId: '',
-    level: 'beginner',
-    durationHours: '8',
-    entryFee: '0',
-    currency: 'ZMW',
-    certificateFee: '0',
-  });
+  const [form, setForm] = useState<CourseForm>(initialCourseForm());
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(AUTOSAVE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<BuilderSnapshot>;
-        if (parsed.form) setForm((current) => ({ ...current, ...parsed.form }));
-        if (Array.isArray(parsed.lessons) && parsed.lessons.length) setLessons(parsed.lessons);
-        if (Array.isArray(parsed.quizBank) && parsed.quizBank.length) setQuizBank(parsed.quizBank);
-        setMessage('Recovered a local draft from this browser.');
+        if (parsed.form && Array.isArray(parsed.lessons) && parsed.lessons.length) {
+          setRecoverableDraft({
+            form: { ...initialCourseForm(), ...parsed.form },
+            lessons: parsed.lessons,
+            quizBank: Array.isArray(parsed.quizBank) && parsed.quizBank.length ? parsed.quizBank : [makeQuiz()],
+            editingCourseId: typeof parsed.editingCourseId === 'string' ? parsed.editingCourseId : null,
+          });
+          setMessage('A saved builder draft is available. Resume it, or start a new course.');
+          return;
+        }
       }
+      autosaveReady.current = true;
     } catch {
       // Local draft recovery should never block the builder.
-    } finally {
       autosaveReady.current = true;
     }
   }, []);
@@ -451,10 +463,10 @@ export function DedicatedManualCourseBuilderClient() {
   useEffect(() => {
     if (!autosaveReady.current) return;
     const handle = window.setTimeout(() => {
-      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ form, lessons, quizBank }));
+      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ form, lessons, quizBank, editingCourseId }));
     }, 400);
     return () => window.clearTimeout(handle);
-  }, [form, lessons, quizBank]);
+  }, [form, lessons, quizBank, editingCourseId]);
 
   const activeLesson = lessons[lessonIndex] ?? lessons[0];
   const activeCard = activeLesson.cards[cardIndex] ?? activeLesson.cards[0];
@@ -480,6 +492,7 @@ export function DedicatedManualCourseBuilderClient() {
       form: structuredClone(form),
       lessons: structuredClone(lessons),
       quizBank: structuredClone(quizBank),
+      editingCourseId,
     };
   }
 
@@ -493,9 +506,44 @@ export function DedicatedManualCourseBuilderClient() {
     setForm(snapshot.form);
     setLessons(snapshot.lessons);
     setQuizBank(snapshot.quizBank);
+    setEditingCourseId(snapshot.editingCourseId ?? null);
     setLessonIndex(0);
     setCardIndex(0);
     setQuizIndex(0);
+  }
+
+  function resumeRecoveredDraft() {
+    if (!recoverableDraft) return;
+    restoreSnapshot(recoverableDraft);
+    setRecoverableDraft(null);
+    autosaveReady.current = true;
+    setStep('setup');
+    setMode('manual');
+    setMessage(recoverableDraft.editingCourseId ? 'Resumed saved editing draft.' : 'Resumed saved new-course draft.');
+  }
+
+  function startNewCourse() {
+    const defaultSchoolId = schools[0]?.id || '';
+    undoStack.current = [];
+    redoStack.current = [];
+    setForm(initialCourseForm(defaultSchoolId));
+    setLessons([makeLesson(1)]);
+    setQuizBank([makeQuiz()]);
+    setEditingCourseId(null);
+    setRecoverableDraft(null);
+    setLessonIndex(0);
+    setCardIndex(0);
+    setQuizIndex(0);
+    setMode('manual');
+    setStep('setup');
+    setHistoryVersion((value) => value + 1);
+    try {
+      window.localStorage.removeItem(AUTOSAVE_KEY);
+    } catch {
+      // Clearing local recovery is best effort only.
+    }
+    autosaveReady.current = true;
+    setMessage('Started a fresh course. The previous saved draft is no longer loaded here.');
   }
 
   function undoChange() {
@@ -545,6 +593,17 @@ export function DedicatedManualCourseBuilderClient() {
     };
     setLessons((current) => insertAt(current, index + 1, copy));
     setLessonIndex(index + 1);
+    setCardIndex(0);
+  }
+
+  function removeLesson(index: number) {
+    if (lessons.length <= 1) {
+      setError('A course needs at least one lesson.');
+      return;
+    }
+    recordHistory();
+    setLessons((current) => current.filter((_, lessonIdx) => lessonIdx !== index));
+    setLessonIndex((current) => Math.max(0, Math.min(current >= index ? current - 1 : current, lessons.length - 2)));
     setCardIndex(0);
   }
 
@@ -702,6 +761,16 @@ export function DedicatedManualCourseBuilderClient() {
     setQuizIndex(index + 1);
   }
 
+  function removeQuiz(index: number) {
+    if (quizBank.length <= 1) {
+      setError('Keep at least one quiz question in the bank.');
+      return;
+    }
+    recordHistory();
+    setQuizBank((current) => current.filter((_, quizIdx) => quizIdx !== index));
+    setQuizIndex((current) => Math.max(0, Math.min(current >= index ? current - 1 : current, quizBank.length - 2)));
+  }
+
   function reorderQuiz(fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
     recordHistory();
@@ -791,6 +860,47 @@ export function DedicatedManualCourseBuilderClient() {
     }
   }
 
+  async function loadCourseIntoBuilder(courseId: string) {
+    setLoadingCourseId(courseId);
+    setError(null);
+    setMessage(null);
+    try {
+      const [courseData, lessonData] = await Promise.all([
+        getCourseById(courseId),
+        getLessonsByCourse(courseId).catch(() => []),
+      ]);
+
+      if (!courseData) {
+        setError('That course could not be loaded into the builder.');
+        return;
+      }
+
+      setEditingCourseId(courseData.id);
+      setForm({
+        title: courseData.title || '',
+        description: courseData.description || '',
+        schoolId: courseData.schoolId || '',
+        level: courseData.level || 'beginner',
+        durationHours: String(courseData.durationHours ?? 8),
+        entryFee: String(courseData.price ?? 0),
+        currency: courseData.currency || 'ZMW',
+        certificateFee: String(courseData.certificateFee ?? 0),
+      });
+      setLessons(manualLessonsFromCourse(lessonData));
+      setQuizBank(quizBankFromLessons(lessonData));
+      setLessonIndex(0);
+      setCardIndex(0);
+      setQuizIndex(0);
+      setStep('setup');
+      setMode('manual');
+      setMessage(`Loaded ${courseData.title} into the builder. Saving now updates this draft.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load that course into the builder.');
+    } finally {
+      setLoadingCourseId(null);
+    }
+  }
+
   async function saveDraft() {
     const validation = validateCourse(form, lessons);
     if (validation) {
@@ -803,9 +913,9 @@ export function DedicatedManualCourseBuilderClient() {
     setMessage(null);
 
     try {
-      await saveShortCourseDraftWithBlueprint({
+      const savedCourse = await saveShortCourseDraftWithBlueprint({
         course: {
-          id: slugify(form.title),
+          id: editingCourseId || slugify(form.title),
           title: form.title,
           description: form.description || blueprint.courseSummary.description,
           schoolId: form.schoolId,
@@ -828,6 +938,7 @@ export function DedicatedManualCourseBuilderClient() {
         programmeCourseTitle: null,
       });
 
+      setEditingCourseId(savedCourse.id);
       setCourses(await getCourses());
       setStep('preview');
       setMessage('Draft saved. Open Review & Publish to approve it.');
@@ -842,9 +953,10 @@ export function DedicatedManualCourseBuilderClient() {
 
   return (
     <div className="space-y-6">
-      <Header mode={mode} step={step} setMode={setMode} setStep={setStep} saving={saving} saveDraft={saveDraft} stats={stats} canUndo={canUndo} canRedo={canRedo} undo={undoChange} redo={redoChange} />
+      <Header mode={mode} step={step} setMode={setMode} setStep={setStep} saving={saving} saveDraft={saveDraft} stats={stats} canUndo={canUndo} canRedo={canRedo} undo={undoChange} redo={redoChange} editingCourseId={editingCourseId} startNewCourse={startNewCourse} />
       {error ? <PageError message={error} /> : null}
       {message ? <div className="rounded-2xl border bg-muted/40 p-4 text-sm">{message}</div> : null}
+      {recoverableDraft ? <RecoveryNotice draft={recoverableDraft} onResume={resumeRecoveredDraft} onStartNew={startNewCourse} /> : null}
       {progress ? <ProgressNotice progress={progress} /> : null}
 
       {mode === 'ai' ? (
@@ -865,10 +977,10 @@ export function DedicatedManualCourseBuilderClient() {
           <StudioNavigator step={step} setStep={setStep} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} setCardIndex={setCardIndex} readiness={readiness} quizCount={quizBank.length} />
           <div className="min-w-0">
             {step === 'setup' ? <SetupStep form={form} updateForm={updateForm} schools={schools} goNext={() => setStep('lessons')} /> : null}
-            {step === 'lessons' ? <LessonsStep lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
+            {step === 'lessons' ? <LessonsStep lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} removeLesson={removeLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
             {step === 'cards' ? <CardsStep form={form} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addWorkflowCard={addWorkflowCard} insertWorkflowCard={insertWorkflowCard} addTemplateCard={addTemplateCard} insertTemplateCard={insertTemplateCard} insertCards={insertCards} replaceCard={replaceCard} replaceCardWithCards={replaceCardWithCards} reorderCard={reorderCard} duplicateCard={duplicateCard} removeCard={removeCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
-            {step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={addQuiz} duplicateQuiz={duplicateQuiz} reorderQuiz={reorderQuiz} bulkAddQuiz={bulkAddQuiz} finish={() => setStep('preview')} /> : null}
-            {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={lessons} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} /> : null}
+            {step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={addQuiz} duplicateQuiz={duplicateQuiz} removeQuiz={removeQuiz} reorderQuiz={reorderQuiz} bulkAddQuiz={bulkAddQuiz} finish={() => setStep('preview')} /> : null}
+            {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={lessons} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} editingCourseId={editingCourseId} /> : null}
           </div>
         </div>
       ) : null}
@@ -876,7 +988,7 @@ export function DedicatedManualCourseBuilderClient() {
   );
 }
 
-function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUndo, canRedo, undo, redo }: { mode: Mode; step: Step; setMode: (mode: Mode) => void; setStep: (step: Step) => void; saving: boolean; saveDraft: () => void; stats: BuilderStats; canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void }) {
+function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUndo, canRedo, undo, redo, editingCourseId, startNewCourse }: { mode: Mode; step: Step; setMode: (mode: Mode) => void; setStep: (step: Step) => void; saving: boolean; saveDraft: () => void; stats: BuilderStats; canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void; editingCourseId: string | null; startNewCourse: () => void }) {
   const activeStepIndex = Math.max(0, steps.findIndex((item) => item.id === step));
   return (
     <Card className="rounded-2xl border-primary/20 shadow-sm">
@@ -899,7 +1011,8 @@ function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUnd
               <Button type="button" size="sm" variant="ghost" disabled={!canUndo} onClick={undo}><RotateCcw className="mr-2 size-4" />Undo</Button>
               <Button type="button" size="sm" variant="ghost" disabled={!canRedo} onClick={redo}><RotateCw className="mr-2 size-4" />Redo</Button>
             </div>
-            <Button type="button" disabled={saving} onClick={saveDraft}><Save className="mr-2 size-4" />{saving ? 'Saving...' : 'Save draft'}</Button>
+            <Button type="button" variant="outline" onClick={startNewCourse}><Plus className="mr-2 size-4" />New course</Button>
+            <Button type="button" disabled={saving} onClick={saveDraft}><Save className="mr-2 size-4" />{saving ? 'Saving...' : editingCourseId ? 'Update draft' : 'Save draft'}</Button>
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -908,6 +1021,12 @@ function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUnd
           <Stat icon={ListChecks} label="Quiz questions" value={stats.quizQuestions} />
           <Stat icon={FileText} label="Hours" value={stats.hours} />
         </div>
+        {editingCourseId ? (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
+            <p className="font-semibold">Editing an existing course draft</p>
+            <p className="mt-1 text-muted-foreground">This builder is linked to a saved course. Save will update that course instead of creating a new one.</p>
+          </div>
+        ) : null}
         {mode === 'manual' ? (
           <div className="grid gap-2 md:grid-cols-5">
             {steps.map((item, index) => (
@@ -918,6 +1037,27 @@ function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUnd
             ))}
           </div>
         ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecoveryNotice({ draft, onResume, onStartNew }: { draft: BuilderSnapshot; onResume: () => void; onStartNew: () => void }) {
+  const title = draft.form.title?.trim() || 'Untitled course draft';
+  const lessonCount = draft.lessons.length;
+  const mode = draft.editingCourseId ? 'editing an existing course' : 'new course draft';
+
+  return (
+    <Card className="rounded-2xl border-primary/30 bg-primary/5">
+      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-semibold">Saved builder work found</p>
+          <p className="text-sm text-muted-foreground">{title} - {lessonCount} lesson{lessonCount === 1 ? '' : 's'} - {mode}</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button type="button" variant="outline" onClick={onStartNew}><Plus className="mr-2 size-4" />Start new course</Button>
+          <Button type="button" onClick={onResume}><RotateCcw className="mr-2 size-4" />Resume draft</Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -1036,8 +1176,8 @@ function SetupStep({ form, updateForm, schools, goNext }: { form: CourseForm; up
   );
 }
 
-function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
-  const { lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, reorderLesson, finish } = props;
+function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; removeLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
+  const { lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, removeLesson, reorderLesson, finish } = props;
   return (
     <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
       <Card className="rounded-2xl">
@@ -1055,6 +1195,7 @@ function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setL
                   <Button type="button" size="sm" variant="ghost" disabled={index === 0} onClick={() => reorderLesson(index, index - 1)}>Move up</Button>
                   <Button type="button" size="sm" variant="ghost" disabled={index === lessons.length - 1} onClick={() => reorderLesson(index, index + 1)}>Move down</Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => duplicateLesson(index)}><Copy className="mr-1 size-3" />Copy</Button>
+                  <Button type="button" size="sm" variant="ghost" disabled={lessons.length <= 1} onClick={() => removeLesson(index)} className="text-destructive hover:text-destructive"><Trash2 className="mr-1 size-3" />Delete</Button>
                 </div>
               </div>
             );
@@ -1167,12 +1308,12 @@ function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonInd
           <CardTitle>Blocks</CardTitle>
           <CardDescription>Drag a block into the lesson canvas or click to append it.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <div className="rounded-xl border bg-primary/5 p-3">
             <Label className="text-xs">Quick compose</Label>
             <Textarea
               className="mt-2"
-              rows={3}
+              rows={2}
               value={quickCommand}
               onChange={(event) => setQuickCommand(event.target.value)}
               onKeyDown={(event) => {
@@ -1184,6 +1325,31 @@ function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonInd
               <Wand2 className="mr-2 size-4" />
               Make cards
             </Button>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground">Advanced blocks</p>
+            <Input value={templateSearch} onChange={(event) => setTemplateSearch(event.target.value)} placeholder="Search blocks..." />
+            <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
+              {LESSON_BLOCK_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+            <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+              {visibleTemplates.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  draggable
+                  onDragStart={(event) => onLibraryDragStart(event, template)}
+                  onClick={() => addTemplateCard(template)}
+                  className="w-full rounded-xl border p-3 text-left text-xs transition hover:border-primary hover:bg-primary/5"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{template.label}</span>
+                    <GripVertical className="size-4 text-muted-foreground" />
+                  </span>
+                  <span className="mt-1 line-clamp-2 text-muted-foreground">{template.help}</span>
+                </button>
+              ))}
+            </div>
           </div>
           <div className="grid gap-2">
             <p className="text-xs font-semibold text-muted-foreground">Saved patterns</p>
@@ -1212,30 +1378,6 @@ function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonInd
                 <span className="mt-1 block text-muted-foreground">{template.help}</span>
               </button>
             ))}
-          </div>
-          <div className="space-y-3 border-t pt-4">
-            <Input value={templateSearch} onChange={(event) => setTemplateSearch(event.target.value)} placeholder="Search advanced blocks..." />
-            <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
-              {LESSON_BLOCK_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-            </select>
-            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {visibleTemplates.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  draggable
-                  onDragStart={(event) => onLibraryDragStart(event, template)}
-                  onClick={() => addTemplateCard(template)}
-                  className="w-full rounded-xl border p-3 text-left text-xs transition hover:border-primary hover:bg-primary/5"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">{template.label}</span>
-                    <GripVertical className="size-4 text-muted-foreground" />
-                  </span>
-                  <span className="mt-1 line-clamp-2 text-muted-foreground">{template.help}</span>
-                </button>
-              ))}
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -1591,8 +1733,8 @@ function ImageFields({ card, updateCard }: { card: ManualCard; updateCard: (patc
   return <div className="space-y-3 rounded-2xl border p-4"><p className="text-sm font-semibold">Optional image for this card</p><Input type="file" accept="image/*" onChange={readImage} />{card.imageUrl ? <img src={card.imageUrl} alt={card.imageAlt || 'Card image'} className="max-h-48 rounded-xl border object-contain" /> : null}<Field label="Image description"><Input value={card.imageAlt || ''} onChange={(event) => updateCard({ imageAlt: event.target.value })} /></Field><Field label="Caption"><Input value={card.imageCaption || ''} onChange={(event) => updateCard({ imageCaption: event.target.value })} /></Field></div>;
 }
 
-function QuizStep(props: { quizBank: QuizQuestion[]; quizIndex: number; setQuizIndex: (index: number) => void; activeQuiz: QuizQuestion; updateQuiz: (patch: Partial<QuizQuestion>) => void; addQuiz: () => void; duplicateQuiz: (index: number) => void; reorderQuiz: (fromIndex: number, toIndex: number) => void; bulkAddQuiz: (raw: string) => void; finish: () => void }) {
-  const { quizBank, quizIndex, setQuizIndex, activeQuiz, updateQuiz, addQuiz, duplicateQuiz, reorderQuiz, bulkAddQuiz, finish } = props;
+function QuizStep(props: { quizBank: QuizQuestion[]; quizIndex: number; setQuizIndex: (index: number) => void; activeQuiz: QuizQuestion; updateQuiz: (patch: Partial<QuizQuestion>) => void; addQuiz: () => void; duplicateQuiz: (index: number) => void; removeQuiz: (index: number) => void; reorderQuiz: (fromIndex: number, toIndex: number) => void; bulkAddQuiz: (raw: string) => void; finish: () => void }) {
+  const { quizBank, quizIndex, setQuizIndex, activeQuiz, updateQuiz, addQuiz, duplicateQuiz, removeQuiz, reorderQuiz, bulkAddQuiz, finish } = props;
   const [bulkText, setBulkText] = useState('');
   const distribution = difficultyDistribution(quizBank);
   const missingAnswers = quizBank.filter((quiz) => !quiz.question.trim() || !quiz.answer.trim() || (quiz.type === 'mcq' && lines(quiz.options).length < 2)).length;
@@ -1618,6 +1760,7 @@ function QuizStep(props: { quizBank: QuizQuestion[]; quizIndex: number; setQuizI
                 <Button type="button" size="sm" variant="ghost" disabled={index === 0} onClick={() => reorderQuiz(index, index - 1)}>Up</Button>
                 <Button type="button" size="sm" variant="ghost" disabled={index === quizBank.length - 1} onClick={() => reorderQuiz(index, index + 1)}>Down</Button>
                 <Button type="button" size="sm" variant="ghost" onClick={() => duplicateQuiz(index)}><Copy className="mr-1 size-3" />Copy</Button>
+                <Button type="button" size="sm" variant="ghost" disabled={quizBank.length <= 1} onClick={() => removeQuiz(index)} className="text-destructive hover:text-destructive"><Trash2 className="mr-1 size-3" />Delete</Button>
               </div>
             </div>
           ))}
@@ -1655,7 +1798,7 @@ function AiPanel(props: { aiPrompt: string; setAiPrompt: (value: string) => void
   return <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]"><Card className="rounded-3xl border-primary/20 bg-primary/5"><CardHeader><CardTitle>AI helper</CardTitle><CardDescription>AI tools live here only. Generate a draft, then edit it manually.</CardDescription></CardHeader><CardContent className="space-y-4"><Field label="Prompt for AI"><Textarea rows={7} value={props.aiPrompt} onChange={(event) => props.setAiPrompt(event.target.value)} /></Field><Field label="Documents for AI"><Input type="file" multiple accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.xml,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={props.readDocuments} disabled={props.reading} /></Field><DocumentList documents={props.documents} onClear={props.clearDocuments} /><Button className="w-full" onClick={props.generateWithAi} disabled={props.generating || props.reading}>{props.generating ? 'Generating...' : 'Generate draft and open manual editor'}</Button></CardContent></Card><Card className="rounded-3xl"><CardHeader><CardTitle>Rule</CardTitle></CardHeader><CardContent className="space-y-3 text-sm text-muted-foreground"><p>AI never publishes directly.</p><p>AI output becomes editable lessons, cards and quiz questions.</p></CardContent></Card></div>;
 }
 
-function PreviewStep({ form, lesson, lessons, quizBank, readiness, courses, saveDraft, saving }: { form: CourseForm; lesson: ManualLesson; lessons: ManualLesson[]; quizBank: QuizQuestion[]; readiness: ReadinessItem[]; courses: Course[]; saveDraft: () => void; saving: boolean }) {
+function PreviewStep({ form, lesson, lessons, quizBank, readiness, courses, saveDraft, saving, onLoadCourse, loadingCourseId, editingCourseId }: { form: CourseForm; lesson: ManualLesson; lessons: ManualLesson[]; quizBank: QuizQuestion[]; readiness: ReadinessItem[]; courses: Course[]; saveDraft: () => void; saving: boolean; onLoadCourse: (courseId: string) => void; loadingCourseId: string | null; editingCourseId: string | null }) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop');
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
@@ -1675,7 +1818,7 @@ function PreviewStep({ form, lesson, lessons, quizBank, readiness, courses, save
           {previewMode === 'mobile' ? <div className="mx-auto max-w-[390px] rounded-2xl border bg-muted/20 p-2"><LessonPlayer lesson={lessonPreview(lesson, form)} courseTitle={form.title || 'Short course'} onComplete={() => undefined} completeLabel="Preview complete" /></div> : null}
           {previewMode === 'outline' ? <div className="space-y-2">{lessons.map((item, index) => <div key={item.id} className="rounded-xl border p-3"><p className="font-semibold">{index + 1}. {item.title}</p><p className="text-sm text-muted-foreground">{item.summary}</p><p className="mt-1 text-xs text-muted-foreground">{item.cards.length} cards | {item.outcomes.length} outcomes</p></div>)}</div> : null}
           {previewMode === 'quiz' ? <div className="space-y-2">{quizBank.map((quiz, index) => <div key={quiz.id} className="rounded-xl border p-3"><p className="font-semibold">{index + 1}. {quiz.question}</p><p className="mt-1 text-xs text-muted-foreground">{quiz.type} | {quiz.difficulty} | Answer: {quiz.answer || 'Missing'}</p></div>)}</div> : null}
-          <Button className="mt-4 w-full" onClick={saveDraft} disabled={saving}><Save className="mr-2 size-4" />{saving ? 'Saving...' : 'Save draft for review'}</Button>
+          <Button className="mt-4 w-full" onClick={saveDraft} disabled={saving}><Save className="mr-2 size-4" />{saving ? 'Saving...' : editingCourseId ? 'Update draft for review' : 'Save draft for review'}</Button>
         </CardContent>
       </Card>
       <Card className="rounded-2xl">
@@ -1687,7 +1830,22 @@ function PreviewStep({ form, lesson, lessons, quizBank, readiness, courses, save
           {readiness.map((item) => <div key={item.label} className="flex gap-2 rounded-xl border p-3"><span>{item.done ? <CheckCircle2 className="size-4 text-emerald-600" /> : <AlertTriangle className="size-4 text-amber-600" />}</span><div><p className="font-medium">{item.label}</p>{item.detail ? <p className="text-xs text-muted-foreground">{item.detail}</p> : null}</div></div>)}
           <div className="pt-3">
             <p className="mb-2 font-semibold">Recent courses</p>
-          {courses.slice(0, 8).map((course) => <div key={course.id} className="rounded-xl border p-3"><p className="font-semibold">{course.title}</p><p className="text-muted-foreground">{course.status ?? 'draft'} | {course.level ?? 'beginner'} | {course.durationHours ?? 0}h</p></div>)}
+          <div className="grid gap-2">
+            {courses.slice(0, 8).map((course) => (
+              <div key={course.id} className={`rounded-xl border p-3 ${editingCourseId === course.id ? 'border-primary bg-primary/5' : ''}`}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-semibold">{course.title}</p>
+                    <p className="text-muted-foreground">{course.status ?? 'draft'} | {course.level ?? 'beginner'} | {course.durationHours ?? 0}h</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={() => onLoadCourse(course.id)} disabled={loadingCourseId === course.id}>
+                    <Edit3 className="mr-2 size-4" />
+                    {loadingCourseId === course.id ? 'Loading...' : editingCourseId === course.id ? 'Loaded' : 'Load into builder'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
           </div>
         </CardContent>
       </Card>
@@ -1753,6 +1911,65 @@ function cardFromBlock(block: any, index: number): ManualCard {
     max: visual?.max != null ? String(visual.max) : card.max,
     points: Array.isArray(visual?.points) ? visual.points.map((point: any) => typeof point === 'object' ? point.value : point).join(', ') : card.points,
   };
+}
+
+function manualLessonsFromCourse(lessons: Lesson[]): ManualLesson[] {
+  if (!lessons.length) return [makeLesson(1)];
+  return lessons.map((lesson, index) => {
+    const cards = lesson.learningObjects?.flatMap((object) => {
+      const payload = object.payload ?? parseMaybeJson(object.body);
+      return extractBlocksFromPayload(payload).map((block, blockIndex) => cardFromBlock(block, blockIndex + 1));
+    }) ?? [];
+
+    return {
+      id: lesson.id,
+      title: lesson.title || `Lesson ${index + 1}`,
+      summary: stripHtml(lesson.content).slice(0, 180) || lesson.exercise || 'Describe what this lesson teaches.',
+      outcomes: lesson.exercise ? [stripHtml(lesson.exercise).slice(0, 180)] : ['Understand the main idea.'],
+      subLessons: [],
+      cards: cards.length ? cards : [makeCard('teach', 1), makeCard('summary', 2)],
+      saved: true,
+    };
+  });
+}
+
+function quizBankFromLessons(lessons: Lesson[]): QuizQuestion[] {
+  const quizzes = lessons.flatMap((lesson) => (lesson.quiz?.questions ?? []).map((question, index) => ({
+    id: uid('quiz'),
+    type: ((question.options?.length ?? 0) > 2 ? 'mcq' : 'true_false') as QuestionType,
+    difficulty: 'easy' as Difficulty,
+    timeSeconds: '60',
+    question: question.question || `Question ${index + 1}`,
+    options: question.options?.length ? question.options.join('\n') : 'True\nFalse',
+    answer: question.answer || question.options?.[0] || 'True',
+    explanation: `Review the lesson before answering question ${index + 1}.`,
+  })));
+  return quizzes.length ? quizzes : [makeQuiz()];
+}
+
+function extractBlocksFromPayload(value: unknown): any[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'object') return [];
+  const record = value as Record<string, unknown>;
+  const lists = [record.blocks, record.cards, record.items, record.steps].filter(Array.isArray) as any[][];
+  if (lists.length) return lists.flat();
+  return [];
+}
+
+function parseMaybeJson(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function blockFromCard(card: ManualCard): any {

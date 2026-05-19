@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicEntitlement;
 use App\Models\User;
+use App\Models\UserProfile;
 use App\Support\Access\AccessControl;
+use App\Support\Affiliates\AffiliateService;
 use Illuminate\Http\Request;
 use App\Support\StudentAccess;
 use Illuminate\Support\Facades\Hash;
@@ -46,7 +48,7 @@ class AuthController extends Controller
         return response()->json(['user' => $sessionUser]);
     }
 
-    public function register(Request $request)
+    public function register(Request $request, AffiliateService $affiliates)
     {
         $payload = $request->validate([
             'name' => ['required', 'string', 'min:2'],
@@ -71,6 +73,7 @@ class AuthController extends Controller
             'account_state' => $accountState,
             'verification_status' => 'email',
             'profile_completed_at' => $profileCompletedAt,
+            'referred_by_affiliate_code' => $affiliates->captureReferralCode($request),
         ]);
 
         if ($role === 'applicant') {
@@ -91,6 +94,90 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json(['user' => $request->session()->get('user')]);
+    }
+
+    public function profile(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+
+        if (!$userId || !is_numeric($userId)) {
+            return response()->json([
+                'user' => $sessionUser,
+                'profile' => [
+                    'displayName' => $sessionUser['name'] ?? null,
+                    'phone' => null,
+                    'country' => null,
+                    'timezone' => null,
+                    'bio' => null,
+                    'avatar' => $sessionUser['avatar'] ?? null,
+                ],
+            ]);
+        }
+
+        $user = User::with('profile', 'activeSubscription', 'activeEntitlements')->findOrFail((int) $userId);
+
+        return response()->json([
+            'user' => $this->mapUser($user),
+            'profile' => $this->mapProfile($user),
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+
+        if (!$userId || !is_numeric($userId)) {
+            return response()->json(['message' => 'Profile editing requires a saved user account.'], 422);
+        }
+
+        $payload = $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:150'],
+            'email' => ['required', 'email', 'max:190'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'timezone' => ['nullable', 'string', 'max:100'],
+            'bio' => ['nullable', 'string', 'max:2000'],
+            'avatar' => ['nullable', 'string', 'max:1000000'],
+        ]);
+
+        $user = User::with('profile', 'activeSubscription', 'activeEntitlements')->findOrFail((int) $userId);
+        $email = strtolower(trim($payload['email']));
+        $emailTaken = User::where('email', $email)->where('id', '!=', $user->id)->exists();
+        if ($emailTaken) {
+            return response()->json(['message' => 'Email already belongs to another account.'], 422);
+        }
+
+        $user->forceFill([
+            'name' => trim($payload['name']),
+            'email' => $email,
+            'avatar' => $payload['avatar'] ?: $user->avatar,
+            'profile_completed_at' => now(),
+        ])->save();
+
+        UserProfile::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'display_name' => trim($payload['name']),
+                'phone' => $payload['phone'] ?? null,
+                'country' => $payload['country'] ?? null,
+                'timezone' => $payload['timezone'] ?? null,
+                'bio' => $payload['bio'] ?? null,
+                'avatar' => $payload['avatar'] ?? $user->profile?->avatar,
+                'completion_percent' => 100,
+                'completed_at' => now(),
+            ]
+        );
+
+        $fresh = $user->fresh(['profile', 'activeSubscription', 'activeEntitlements']);
+        $session = $this->mapUser($fresh);
+        $request->session()->put('user', $session);
+
+        return response()->json([
+            'user' => $session,
+            'profile' => $this->mapProfile($fresh),
+        ]);
     }
 
     public function logout(Request $request)
@@ -129,6 +216,7 @@ class AuthController extends Controller
             'schoolId' => $user->school_id,
             'programId' => $user->program_id,
             'intakeId' => $user->intake_id,
+            'avatar' => $user->profile?->avatar ?: $user->avatar,
         ];
 
         $access = app(AccessControl::class)->contextFor($sessionUser);
@@ -141,6 +229,18 @@ class AuthController extends Controller
             'subscriptionStatus' => $access['subscription'],
             'subscriptionTier' => $access['subscriptionTier'],
             'entitlements' => $access['entitlements'],
+        ];
+    }
+
+    private function mapProfile(User $user): array
+    {
+        return [
+            'displayName' => $user->profile?->display_name ?: $user->name,
+            'phone' => $user->profile?->phone,
+            'country' => $user->profile?->country,
+            'timezone' => $user->profile?->timezone,
+            'bio' => $user->profile?->bio,
+            'avatar' => $user->profile?->avatar ?: $user->avatar,
         ];
     }
 

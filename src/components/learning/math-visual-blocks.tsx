@@ -42,11 +42,11 @@ function TableBlock({ block }: { block: AnyBlock }) {
     <div className="space-y-3">
       {block.description ? <p className="text-sm text-muted-foreground"><MathText text={block.description} /></p> : null}
       <div className="overflow-x-auto rounded-2xl border">
-        <table className="w-full min-w-[420px] text-sm">
+        <table className="w-full min-w-[320px] text-xs sm:min-w-[420px] sm:text-sm">
           <thead className="bg-muted/60 text-left">
-            <tr>{columns.map((column: string) => <th key={column} className="p-3"><MathText text={column} /></th>)}</tr>
+            <tr>{columns.map((column: string) => <th key={column} className="p-2 align-top sm:p-3"><MathText text={column} /></th>)}</tr>
           </thead>
-          <tbody>{rows.map((row: any[], index: number) => <tr key={index} className="border-t">{row.map((cell, cellIndex) => <td key={cellIndex} className="p-3"><MathText text={cell} /></td>)}</tr>)}</tbody>
+          <tbody>{rows.map((row: any[], index: number) => <tr key={index} className="border-t">{row.map((cell, cellIndex) => <td key={cellIndex} className="break-words p-2 align-top sm:p-3"><MathText text={cell} /></td>)}</tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -63,7 +63,7 @@ function NumberLineBlock({ block }: { block: AnyBlock }) {
     <div className="space-y-3">
       {block.description ? <p className="text-sm text-muted-foreground"><MathText text={block.description} /></p> : null}
       <div className="overflow-x-auto rounded-2xl border bg-muted/20 p-4">
-        <svg viewBox="0 0 520 120" className="h-auto w-full min-w-[360px]">
+        <svg viewBox="0 0 520 120" className="h-auto w-full min-w-[280px] sm:min-w-[360px]">
           <line x1="35" x2="485" y1="60" y2="60" className="stroke-foreground" strokeWidth="2" />
           {ticks(min, max).map((tick) => <g key={tick}><line x1={scale(tick)} x2={scale(tick)} y1="52" y2="68" className="stroke-foreground" /><text x={scale(tick)} y="90" textAnchor="middle" className="fill-muted-foreground text-[11px]">{tick}</text></g>)}
           {intervals.map((interval: AnyBlock, index: number) => <line key={index} x1={scale(Number(interval.start))} x2={scale(Number(interval.end))} y1="60" y2="60" className="stroke-primary" strokeWidth="7" strokeLinecap="round" />)}
@@ -96,7 +96,7 @@ function GeometryBlock({ block }: { block: AnyBlock }) {
     <div className="space-y-3">
       {block.description ? <p className="text-sm text-muted-foreground"><MathText text={block.description} /></p> : null}
       <div className="overflow-x-auto rounded-2xl border bg-muted/20 p-4">
-        <svg viewBox="0 0 420 260" className="h-auto w-full min-w-[320px]">
+        <svg viewBox="0 0 420 260" className="h-auto w-full min-w-[280px] sm:min-w-[320px]">
           {shape === 'circle' ? <><circle cx="210" cy="125" r="80" fill="none" className="stroke-primary" strokeWidth="3" /><line x1="210" y1="125" x2="290" y2="125" className="stroke-foreground" strokeWidth="2" /><text x="245" y="116" className="fill-foreground text-[14px]">r</text></> : null}
           {shape === 'rectangle' ? <rect x="85" y="70" width="250" height="120" fill="none" className="stroke-primary" strokeWidth="3" /> : null}
           {shape === 'line' ? <line x1="70" y1="130" x2="350" y2="130" className="stroke-primary" strokeWidth="3" /> : null}

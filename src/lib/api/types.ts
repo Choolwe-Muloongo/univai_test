@@ -84,6 +84,20 @@ export type Session = {
   user: SessionUser | null;
 };
 
+export type AccountProfile = {
+  displayName?: string | null;
+  phone?: string | null;
+  country?: string | null;
+  timezone?: string | null;
+  bio?: string | null;
+  avatar?: string | null;
+};
+
+export type AccountProfileResponse = {
+  user: SessionUser | null;
+  profile: AccountProfile;
+};
+
 export type School = {
   id: string;
   name: string;
@@ -223,6 +237,13 @@ export type ProgramModule = {
   supportedDeliveryModes?: string[];
   isCore?: boolean;
   track?: string | null;
+  lessons?: Array<{
+    id: string;
+    title: string;
+    summary?: string | null;
+    content?: string | null;
+    videoUrl?: string | null;
+  }>;
 };
 
 export type Program = {
@@ -358,6 +379,73 @@ export type PracticalSession = {
   supervisorId?: number | null;
   supervisorName?: string | null;
   status: string;
+};
+
+export type AffiliateEarning = {
+  id: number;
+  sourceType: string;
+  sourceReference?: string | null;
+  grossAmount: string;
+  commissionRate: string;
+  commissionAmount: string;
+  currency: string;
+  status: string;
+  createdAt?: string | null;
+};
+
+export type AffiliatePayout = {
+  id: number;
+  reference: string;
+  affiliateId: number;
+  amount: string;
+  fee: string;
+  currency: string;
+  method: string;
+  phone?: string | null;
+  operator?: string | null;
+  country?: string | null;
+  status: string;
+  lencoReference?: string | null;
+  failureReason?: string | null;
+  requestedAt?: string | null;
+  completedAt?: string | null;
+};
+
+export type AffiliateSummary = {
+  grossEarned: string;
+  commissionEarned: string;
+  availableToWithdraw: string;
+  pendingPayouts: string;
+  processingPayouts: string;
+  successfulPayouts: string;
+};
+
+export type AffiliateRecord = {
+  id: number;
+  userId?: number | null;
+  userName?: string | null;
+  userEmail?: string | null;
+  code: string;
+  displayName: string;
+  scope: string;
+  status: string;
+  formalProgrammeRate: number;
+  shortCourseRate: number;
+  payoutPhone?: string | null;
+  payoutOperator?: string | null;
+  payoutCountry?: string | null;
+  summary: AffiliateSummary;
+  recentEarnings: AffiliateEarning[];
+  recentPayouts: AffiliatePayout[];
+};
+
+export type AffiliateOverview = {
+  affiliates: AffiliateRecord[];
+  summary: {
+    count: number;
+    active: number;
+    totalAvailable: string;
+  };
 };
 
 export type AdminAcademicStructureResponse = {
@@ -519,6 +607,18 @@ export type AdmissionsSettings = {
 export type PaymentSettings = {
   lencoCollectionsEnabled: boolean;
   testModeMessage?: string | null;
+};
+
+export type DocumentBrandingSettings = {
+  registrarName?: string | null;
+  registrarTitle?: string | null;
+  registrarSignature?: string | null;
+  directorName?: string | null;
+  directorTitle?: string | null;
+  directorSignature?: string | null;
+  footerTagline?: string | null;
+  verificationUrl?: string | null;
+  contactEmail?: string | null;
 };
 
 export type AcademicPolicy = {

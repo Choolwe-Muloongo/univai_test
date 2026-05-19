@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { BadgeCheck, Edit } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { BadgeCard } from '@/components/ui/badge-card';
 import { type Badge as BadgeType } from '@/lib/api/types';
@@ -24,14 +25,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const role = session?.user?.role || 'premium-student';
-    setUser(
-      roleDetails[role] || {
-        name: session?.user?.name || 'Student',
-        email: session?.user?.email || 'student@univai.edu',
-        avatar: session?.user?.avatar || '',
-        school: 'UnivAI',
-      }
-    );
+    const fallback = roleDetails[role] || { name: 'Student', email: 'student@univai.edu', avatar: '', school: 'UnivAI' };
+    setUser({
+      name: session?.user?.name || fallback.name,
+      email: session?.user?.email || fallback.email,
+      avatar: session?.user?.avatar || fallback.avatar,
+      school: fallback.school,
+    });
     const loadBadges = async () => {
       const badgeData = await getBadges();
       setEarnedBadges(badgeData);
@@ -52,7 +52,7 @@ export default function ProfilePage() {
             <CardDescription className="text-lg">{user.email}</CardDescription>
             <p className="text-muted-foreground">{user.school}</p>
           </div>
-          <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Profile</Button>
+          <Button asChild variant="outline"><Link href="/student/settings"><Edit className="mr-2 h-4 w-4" /> Edit Profile</Link></Button>
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">
@@ -73,4 +73,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

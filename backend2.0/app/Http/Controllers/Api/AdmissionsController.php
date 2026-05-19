@@ -11,6 +11,8 @@ use App\Models\Invoice;
 use App\Models\Program;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\Affiliates\AffiliateService;
+use App\Support\Admissions\AdmissionsDocumentGenerator;
 use App\Support\DeliveryModes;
 use App\Support\Branding\UnivAiBranding;
 use App\Support\Pricing\LaunchFeeSchedule;
@@ -21,7 +23,7 @@ use Illuminate\Support\Facades\Mail;
 
 class AdmissionsController extends Controller
 {
-    public function submit(Request $request)
+    public function submit(Request $request, AffiliateService $affiliates)
     {
         $settings = AdmissionsSetting::query()->first();
         if ($settings && !$settings->is_open) {
@@ -112,6 +114,17 @@ class AdmissionsController extends Controller
             'country' => $payload['country'] ?? null,
         ]);
 
+        $affiliateCode = $affiliates->captureReferralCode($request);
+        if ($affiliateCode) {
+            $request->session()->put('affiliate_code', $affiliateCode);
+            if ($userId) {
+                $user = User::find($userId);
+                if ($user && empty($user->referred_by_affiliate_code)) {
+                    $user->forceFill(['referred_by_affiliate_code' => $affiliateCode])->saveQuietly();
+                }
+            }
+        }
+
         $request->session()->put('admission_reference', $application->reference);
 
         if ($userId) {
@@ -125,7 +138,7 @@ class AdmissionsController extends Controller
                     'currency' => $fee['currency'],
                     'paid_amount' => 0,
                     'status' => 'pending',
-                    'metadata' => ['application_reference' => $application->reference, 'program_id' => $program->id],
+                    'metadata' => ['application_reference' => $application->reference, 'program_id' => $program->id, 'affiliate_code' => $affiliateCode],
                     'due_date' => now()->addDays(7)->toDateString(),
                 ]
             );
@@ -697,38 +710,7 @@ class AdmissionsController extends Controller
 
     private function generateOfferLetterPdf(Application $application): ?string
     {
-        $text = UnivAiBranding::offerLetterText($application);
-
-        if (class_exists(\FPDF::class)) {
-            $pdf = new \FPDF();
-            $pdf->AddPage();
-            $pdf->SetDrawColor(0, 209, 209);
-            $pdf->SetFillColor(0, 209, 209);
-            $pdf->Rect(0, 0, 210, 8, 'F');
-            $pdf->SetTextColor(7, 18, 55);
-            $pdf->SetFont('Arial', 'B', 20);
-            $pdf->Cell(0, 10, UnivAiBranding::name(), 0, 1);
-            $pdf->SetFont('Arial', '', 10);
-            $pdf->SetTextColor(35, 55, 90);
-            $pdf->Cell(0, 6, UnivAiBranding::tagline() . ' - ' . UnivAiBranding::documentSubtitle(), 0, 1);
-            $pdf->Ln(8);
-            $pdf->SetTextColor(7, 18, 55);
-            $pdf->SetFont('Arial', 'B', 16);
-            $pdf->Cell(0, 10, 'Official Offer Letter', 0, 1);
-            $pdf->SetFont('Arial', '', 12);
-            $pdf->SetTextColor(30, 38, 58);
-            $pdf->Ln(4);
-            $pdf->MultiCell(0, 6, $text);
-            $contents = $pdf->Output('S');
-        } else {
-            $contents = $this->buildSimplePdf($text);
-        }
-
-        $fileName = 'offer-' . $application->reference . '.pdf';
-        $path = 'offers/' . $fileName;
-        Storage::disk('local')->put($path, $contents);
-
-        return $path;
+        return app(AdmissionsDocumentGenerator::class)->ensureOfferLetter($application);
     }
 
     private function buildSimplePdf(string $text): string

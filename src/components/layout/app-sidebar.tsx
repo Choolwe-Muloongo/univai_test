@@ -233,6 +233,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/admin/certificate-fees', label: 'Certificate Fees', icon: BadgeCheck },
         { href: '/admin/ai-package-sales', label: 'AI Package Sales', icon: Sparkles },
         { href: '/admin/instructor-earnings', label: 'Instructor Earnings', icon: Wallet },
+        { href: '/admin/affiliates', label: 'Affiliate Program', icon: Landmark, key: 'admin-affiliates' },
         { href: '/admin/payouts', label: 'Payouts', icon: Landmark, key: 'admin-payouts' },
         { href: '/admin/finance/reports', label: 'Finance Reports', icon: BookMarked },
       ],
@@ -261,6 +262,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
       label: 'System',
       links: [
         { href: '/admin/system', label: 'Settings', icon: Settings },
+        { href: '/admin/document-branding', label: 'Document Branding', icon: BadgeCheck },
         { href: '/admin/system', label: 'Integrations', icon: Link2, key: 'admin-integrations' },
         { href: '/admin/users', label: 'Roles & Permissions', icon: Shield },
         { href: '/admin/audit', label: 'Audit Logs', icon: BadgeCheck },

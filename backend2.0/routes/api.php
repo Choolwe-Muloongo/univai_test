@@ -46,8 +46,10 @@ use App\Http\Controllers\Api\StudentAssignmentsController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\ShortCourseManualGuideController;
 use App\Http\Controllers\Api\LencoWebhookController;
+use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\ExamClinicController;
 use App\Http\Controllers\Api\AdminUsersController;
+use App\Http\Controllers\Api\DocumentBrandingController;
 use App\Support\Access\AccessControl;
 use App\Support\Launch\V1LaunchReadiness;
 use App\Support\StudentAccess;
@@ -116,6 +118,8 @@ Route::middleware('api')->group(function () {
     Route::post('/auth/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:login');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('session.auth');
     Route::get('/auth/me', [AuthController::class, 'me'])->middleware('session.auth');
+    Route::get('/auth/profile', [AuthController::class, 'profile'])->middleware('session.auth');
+    Route::patch('/auth/profile', [AuthController::class, 'updateProfile'])->middleware('session.auth');
     Route::get('/auth/capabilities', function (AccessControl $accessControl) {
         return response()->json($accessControl->capabilitiesFor(session('user')));
     })->middleware('session.auth');
@@ -302,6 +306,9 @@ Route::middleware('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/payment-settings', [PaymentSettingsController::class, 'show']);
         Route::patch('/payment-settings', [PaymentSettingsController::class, 'update']);
+        Route::get('/document-branding', [DocumentBrandingController::class, 'show'])->middleware('access:admin.academic');
+        Route::patch('/document-branding', [DocumentBrandingController::class, 'update'])->middleware('access:admin.academic');
+        Route::get('/document-branding/preview/{type}', [DocumentBrandingController::class, 'preview'])->middleware('access:admin.academic');
         Route::get('/intakes', [IntakesController::class, 'index']);
         Route::post('/intakes', [IntakesController::class, 'store']);
         Route::patch('/programs/{program}/delivery-modes', [ProgramsController::class, 'updateDeliveryModes']);
@@ -386,6 +393,11 @@ Route::middleware('api')->group(function () {
         Route::get('/consultants', [ConsultantsController::class, 'index']);
         Route::get('/consultants/{id}', [ConsultantsController::class, 'show']);
         Route::get('/reports/finance', [ReportsController::class, 'finance']);
+        Route::get('/affiliates', [AffiliateController::class, 'index'])->middleware('access:admin.finance');
+        Route::post('/affiliates', [AffiliateController::class, 'store'])->middleware('access:admin.finance');
+        Route::get('/affiliates/{affiliate}', [AffiliateController::class, 'show'])->middleware('access:admin.finance');
+        Route::post('/affiliates/{affiliate}/payouts', [AffiliateController::class, 'requestPayout'])->middleware('access:admin.finance');
+        Route::patch('/affiliates/payouts/{payout}/verify', [AffiliateController::class, 'verifyPayout'])->middleware('access:admin.finance');
         Route::get('/system-health', [SystemHealthController::class, 'status']);
         Route::post('/system-health/diagnostics', [SystemHealthController::class, 'diagnostics']);
         Route::get('/short-courses/manual-guide', [ShortCourseManualGuideController::class, 'download'])->middleware('access:admin.academic');

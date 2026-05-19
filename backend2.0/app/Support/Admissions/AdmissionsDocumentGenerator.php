@@ -5,6 +5,7 @@ namespace App\Support\Admissions;
 use App\Models\Application;
 use App\Models\Program;
 use App\Support\Branding\UnivAiBranding;
+use App\Support\Documents\DocumentBranding;
 use Illuminate\Support\Facades\Storage;
 
 class AdmissionsDocumentGenerator
@@ -49,6 +50,25 @@ class AdmissionsDocumentGenerator
         return $path;
     }
 
+    public function preview(string $type): string
+    {
+        $application = new Application([
+            'reference' => 'APP-PREVIEW-001',
+            'full_name' => 'David Nymbiri',
+            'email' => 'student@example.com',
+            'program_id' => 'MBA',
+            'school_id' => 'School of Business',
+            'delivery_mode' => 'hybrid',
+            'intake_id' => 'bus301-2026-jan',
+            'status' => $type === 'admission' ? 'admitted' : 'offer_sent',
+            'offer_letter_message' => 'Congratulations. After reviewing your application, ' . UnivAiBranding::name() . ' is pleased to offer you provisional admission into the programme listed below.',
+        ]);
+
+        return class_exists(\FPDF::class)
+            ? $this->buildProfessionalFpdf($application, $type === 'admission' ? 'admission' : 'offer')
+            : $this->buildSimplePdf($application, $type === 'admission' ? 'admission' : 'offer');
+    }
+
     private function buildProfessionalFpdf(Application $application, string $type): string
     {
         $details = $this->programmeDetails($application);
@@ -64,8 +84,11 @@ class AdmissionsDocumentGenerator
         $pdf->SetAutoPageBreak(true, 22);
         $pdf->AddPage();
 
-        $this->drawHeader($pdf, $shortTitle);
-        $this->drawTitleBlock($pdf, $title, $application);
+        $branding = app(DocumentBranding::class);
+        $settings = $branding->settings();
+
+        $this->drawHeader($pdf, $shortTitle, $application);
+        $this->drawTitleBlock($pdf, $title);
 
         $pdf->Ln(6);
         $pdf->SetTextColor(20, 28, 50);
@@ -112,21 +135,21 @@ class AdmissionsDocumentGenerator
             }
         }
 
-        $this->drawActionBox($pdf, $isAdmission);
-        $this->drawSignature($pdf);
-        $this->drawFooter($pdf);
+        $this->drawActionBox($pdf, $isAdmission, $settings->verification_url ?: rtrim(UnivAiBranding::publicUrl(), '/') . '/admissions/status');
+        $this->drawSignature($pdf, $branding);
+        $this->drawFooter($pdf, $settings->footer_tagline ?: 'Unlocking Potential. Building Futures.', $settings->contact_email ?: UnivAiBranding::admissionsEmail());
 
         return $pdf->Output('S');
     }
 
-    private function drawHeader(\FPDF $pdf, string $shortTitle): void
+    private function drawHeader(\FPDF $pdf, string $shortTitle, Application $application): void
     {
-        $pdf->SetFillColor(0, 190, 190);
-        $pdf->Rect(0, 0, 210, 10, 'F');
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->Rect(0, 0, 210, 297, 'F');
 
-        $logoPath = $this->logoPath();
+        $logoPath = $this->fullLogoPath() ?: $this->logoPath();
         if ($logoPath) {
-            $pdf->Image($logoPath, 18, 16, 34);
+            $pdf->Image($logoPath, 18, 14, 86);
         } else {
             $pdf->SetXY(18, 18);
             $pdf->SetDrawColor(0, 190, 190);
@@ -142,64 +165,46 @@ class AdmissionsDocumentGenerator
             $pdf->Cell(30, 4, 'OFFICIAL SEAL', 0, 0, 'C');
         }
 
-        $pdf->SetXY(58, 17);
-        $pdf->SetFont('Arial', 'B', 22);
-        $pdf->SetTextColor(7, 18, 55);
-        $pdf->Cell(0, 8, UnivAiBranding::name(), 0, 1);
-        $pdf->SetX(58);
-        $pdf->SetFont('Arial', '', 9.5);
-        $pdf->SetTextColor(45, 57, 82);
-        $pdf->Cell(0, 5, UnivAiBranding::officialOffice(), 0, 1);
-        $pdf->SetX(58);
-        $pdf->Cell(0, 5, 'Official Academic Correspondence', 0, 1);
+        $pdf->SetDrawColor(0, 140, 150);
+        $pdf->Line(147, 15, 147, 45);
 
-        $pdf->SetXY(155, 18);
-        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetXY(155, 13);
+        $pdf->SetFont('Arial', 'B', 8.5);
         $pdf->SetTextColor(7, 18, 55);
-        $pdf->Cell(37, 6, strtoupper($shortTitle), 1, 1, 'C');
+        $pdf->Cell(18, 5, 'Reference:', 0, 0);
+        $pdf->SetFont('Arial', '', 8.5);
+        $pdf->Cell(0, 5, $this->cleanText($application->reference), 0, 1);
         $pdf->SetX(155);
-        $pdf->SetFont('Arial', '', 8);
-        $pdf->Cell(37, 6, 'Admissions Record', 1, 1, 'C');
+        $pdf->SetFont('Arial', 'B', 8.5);
+        $pdf->Cell(18, 5, 'Issued:', 0, 0);
+        $pdf->SetFont('Arial', '', 8.5);
+        $pdf->Cell(0, 5, now()->toFormattedDateString(), 0, 1);
+        $pdf->SetX(155);
+        $pdf->SetFont('Arial', 'B', 8.5);
+        $pdf->Cell(18, 5, 'Status:', 0, 0);
+        $pdf->SetFont('Arial', '', 8.5);
+        $pdf->Cell(0, 5, $this->cleanText(ucfirst(str_replace('_', ' ', $application->status))), 0, 1);
 
-        $pdf->Ln(8);
-        $pdf->SetDrawColor(220, 230, 236);
-        $pdf->Line(18, 52, 192, 52);
-        $pdf->SetY(58);
+        $pdf->SetDrawColor(0, 145, 150);
+        $pdf->SetLineWidth(1.1);
+        $pdf->Line(18, 54, 192, 54);
+        $pdf->SetDrawColor(7, 18, 55);
+        $pdf->SetLineWidth(0.7);
+        $pdf->Line(40, 54, 192, 54);
+        $pdf->SetY(63);
     }
 
-    private function drawTitleBlock(\FPDF $pdf, string $title, Application $application): void
+    private function drawTitleBlock(\FPDF $pdf, string $title): void
     {
-        $pdf->SetFillColor(245, 250, 252);
-        $pdf->SetDrawColor(205, 221, 229);
-        $pdf->Rect(18, $pdf->GetY(), 174, 28, 'DF');
-
         $startY = $pdf->GetY();
-        $pdf->SetXY(24, $startY + 5);
+        $pdf->SetXY(18, $startY);
         $pdf->SetTextColor(7, 18, 55);
-        $pdf->SetFont('Arial', 'B', 16);
-        $pdf->Cell(108, 7, $title, 0, 1);
-        $pdf->SetX(24);
-        $pdf->SetFont('Arial', '', 9.5);
-        $pdf->SetTextColor(45, 57, 82);
-        $pdf->Cell(108, 6, 'Issued by ' . UnivAiBranding::officialOffice(), 0, 1);
-
-        $pdf->SetXY(135, $startY + 5);
-        $pdf->SetFont('Arial', 'B', 8.8);
-        $pdf->Cell(22, 5, 'Reference:', 0, 0);
-        $pdf->SetFont('Arial', '', 8.8);
-        $pdf->Cell(0, 5, $this->cleanText($application->reference), 0, 1);
-        $pdf->SetX(135);
-        $pdf->SetFont('Arial', 'B', 8.8);
-        $pdf->Cell(22, 5, 'Issued:', 0, 0);
-        $pdf->SetFont('Arial', '', 8.8);
-        $pdf->Cell(0, 5, now()->toFormattedDateString(), 0, 1);
-        $pdf->SetX(135);
-        $pdf->SetFont('Arial', 'B', 8.8);
-        $pdf->Cell(22, 5, 'Status:', 0, 0);
-        $pdf->SetFont('Arial', '', 8.8);
-        $pdf->Cell(0, 5, ucfirst(str_replace('_', ' ', $application->status)), 0, 1);
-
-        $pdf->SetY($startY + 34);
+        $pdf->SetFont('Arial', 'B', 19);
+        $pdf->Cell(0, 10, $title, 0, 1);
+        $pdf->SetDrawColor(0, 145, 150);
+        $pdf->SetLineWidth(1.2);
+        $pdf->Line(18, $pdf->GetY(), 33, $pdf->GetY());
+        $pdf->SetY($startY + 17);
     }
 
     private function drawSectionHeading(\FPDF $pdf, string $heading): void
@@ -247,52 +252,98 @@ class AdmissionsDocumentGenerator
         }
     }
 
-    private function drawActionBox(\FPDF $pdf, bool $isAdmission): void
+    private function drawActionBox(\FPDF $pdf, bool $isAdmission, string $url): void
     {
         $pdf->Ln(5);
         $pdf->SetFillColor(238, 252, 252);
         $pdf->SetDrawColor(0, 190, 190);
         $y = $pdf->GetY();
-        $pdf->Rect(18, $y, 174, 22, 'DF');
+        $pdf->Rect(18, $y, 162, 28, 'DF');
         $pdf->SetXY(24, $y + 4);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->SetTextColor(7, 18, 55);
+        $pdf->SetTextColor(0, 116, 126);
         $pdf->Cell(0, 5, $isAdmission ? 'Next Step: Complete Enrollment' : 'Next Step: Accept Your Offer', 0, 1);
         $pdf->SetX(24);
         $pdf->SetFont('Arial', '', 9.5);
         $pdf->MultiCell(160, 5.2, $isAdmission
             ? 'Proceed to the UnivAI Enrollment Portal. Your full Student Dashboard opens after enrollment confirmation.'
             : 'Log in to the UnivAI Admissions Portal, review this offer, and select Accept Offer to continue.');
-        $pdf->SetY($y + 27);
+        $pdf->SetX(24);
+        $pdf->SetFillColor(0, 116, 126);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 8.5);
+        $pdf->Cell(94, 6, $this->cleanText($url), 0, 1, 'C', true);
+        $pdf->SetY($y + 32);
     }
 
-    private function drawSignature(\FPDF $pdf): void
+    private function drawSignature(\FPDF $pdf, DocumentBranding $branding): void
     {
+        $settings = $branding->settings();
         $pdf->Ln(4);
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetTextColor(20, 28, 50);
         $pdf->Cell(0, 6, 'Sincerely,', 0, 1);
-        $pdf->Ln(9);
+        $sigY = $pdf->GetY();
+        $signaturePath = $branding->signaturePath($settings->registrar_signature, 'registrar');
+        if ($signaturePath) {
+            $pdf->Image($signaturePath, 18, $sigY, 42, 16);
+            $pdf->SetY($sigY + 17);
+        } else {
+            $pdf->Ln(9);
+        }
         $pdf->SetDrawColor(160, 175, 190);
         $pdf->Line(18, $pdf->GetY(), 78, $pdf->GetY());
         $pdf->Ln(2);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell(0, 5, UnivAiBranding::name() . ' Admissions Office', 0, 1);
+        $pdf->Cell(0, 5, $this->cleanText($settings->registrar_name ?: 'Registrar'), 0, 1);
         $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(0, 5, $this->cleanText($settings->registrar_title ?: 'Registrar'), 0, 1);
         $pdf->Cell(0, 5, UnivAiBranding::officialOffice(), 0, 1);
-        $pdf->Cell(0, 5, UnivAiBranding::admissionsEmail(), 0, 1);
+
+        $sealPath = $this->logoPath();
+        if ($sealPath) {
+            $pdf->Image($sealPath, 92, $sigY - 2, 28);
+        }
     }
 
-    private function drawFooter(\FPDF $pdf): void
+    private function drawFooter(\FPDF $pdf, string $tagline, string $email): void
     {
-        $pdf->SetY(-35);
-        $pdf->SetDrawColor(220, 230, 236);
-        $pdf->Line(18, $pdf->GetY(), 192, $pdf->GetY());
-        $pdf->Ln(3);
-        $pdf->SetFont('Arial', '', 7.8);
-        $pdf->SetTextColor(85, 95, 115);
-        $pdf->MultiCell(0, 4.2, $this->cleanText(UnivAiBranding::documentVerificationNotice()));
-        $pdf->Cell(0, 4.2, UnivAiBranding::name() . ' | ' . UnivAiBranding::officialOffice() . ' | ' . UnivAiBranding::publicUrl(), 0, 1, 'C');
+        $pdf->SetY(-33);
+        $pdf->SetFillColor(7, 18, 55);
+        $pdf->Rect(0, $pdf->GetY(), 210, 33, 'F');
+        $pdf->SetFillColor(0, 145, 150);
+        $pdf->Rect(0, $pdf->GetY(), 210, 2, 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetXY(18, 270);
+        $pdf->Cell(76, 5, strtoupper(UnivAiBranding::name()), 0, 1);
+        $pdf->SetX(18);
+        $pdf->SetFont('Arial', '', 8.5);
+        $pdf->Cell(76, 5, $this->cleanText($tagline), 0, 1);
+        $pdf->SetXY(112, 268);
+        $pdf->Cell(0, 5, UnivAiBranding::officialOffice(), 0, 1);
+        $pdf->SetX(112);
+        $pdf->Cell(0, 5, $this->cleanText($email), 0, 1);
+        $pdf->SetX(112);
+        $pdf->Cell(0, 5, UnivAiBranding::publicUrl(), 0, 1);
+    }
+
+    private function fullLogoPath(): ?string
+    {
+        $candidates = [
+            base_path('../public/images/brand/univai-logo-full-transparent.png'),
+            base_path('../src/public/images/brand/univai-logo-full-transparent.png'),
+            base_path('../../public/images/brand/univai-logo-full-transparent.png'),
+            public_path('images/brand/univai-logo-full-transparent.png'),
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_string($path) && file_exists($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     private function logoPath(): ?string
