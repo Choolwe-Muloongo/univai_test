@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Http\Controllers\Api\ShortCourseAccessController;
 use App\Http\Controllers\Api\ShortCourseController;
+use App\Http\Controllers\Api\StudentGamificationController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -11,6 +12,19 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        Route::middleware(['api', 'session.auth', 'access:student.portal'])
+            ->prefix('api/students/me')
+            ->group(function () {
+                Route::get('/gamification', [StudentGamificationController::class, 'state']);
+                Route::get('/daily-quests', [StudentGamificationController::class, 'dailyQuests']);
+                Route::post('/learning-events', [StudentGamificationController::class, 'recordEvent']);
+                Route::get('/rewards', [StudentGamificationController::class, 'rewards']);
+                Route::post('/rewards/redeem', [StudentGamificationController::class, 'redeem']);
+                Route::get('/leaderboard/activity', [StudentGamificationController::class, 'leaderboard']);
+                Route::get('/mistakes', [StudentGamificationController::class, 'mistakes']);
+                Route::post('/mistakes/{id}/review', [StudentGamificationController::class, 'reviewMistake']);
+            });
+
         Route::middleware(['api', 'session.auth', 'access:student.portal'])
             ->prefix('api/students/me/short-courses')
             ->group(function () {
