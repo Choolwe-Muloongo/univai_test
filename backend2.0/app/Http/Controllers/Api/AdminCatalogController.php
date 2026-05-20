@@ -224,11 +224,19 @@ class AdminCatalogController extends Controller
             'lessons.*.title' => ['required_with:lessons', 'string'],
             'lessons.*.summary' => ['nullable', 'string'],
             'lessons.*.durationMinutes' => ['nullable', 'integer', 'min:1'],
+            'lessons.*.estimatedMinutes' => ['nullable', 'integer', 'min:1'],
             'lessons.*.difficulty' => ['nullable', 'string'],
             'lessons.*.outcomes' => ['nullable', 'array'],
             'lessons.*.blocks' => ['nullable', 'array'],
             'lessons.*.activities' => ['nullable', 'array'],
             'lessons.*.assessment' => ['nullable', 'string'],
+            'lessons.*.moduleTitle' => ['nullable', 'string'],
+            'lessons.*.moduleIndex' => ['nullable', 'numeric'],
+            'lessons.*.lessonIndex' => ['nullable', 'numeric'],
+            'lessons.*.sortOrder' => ['nullable', 'numeric'],
+            'lessons.*.isSubLesson' => ['nullable', 'boolean'],
+            'lessons.*.parentLessonTitle' => ['nullable', 'string'],
+            'lessons.*.parentLessonIndex' => ['nullable', 'numeric'],
             'outcomes' => ['nullable', 'array'],
             'outcomes.*' => ['string'],
         ]);
@@ -291,12 +299,16 @@ class AdminCatalogController extends Controller
         foreach (($blueprint['modules'] ?? []) as $moduleIndex => $module) {
             foreach (($module['lessons'] ?? []) as $lessonIndex => $lesson) {
                 $lessons[] = array_merge($lesson, [
-                    'moduleTitle' => $module['title'] ?? 'Module ' . ($moduleIndex + 1),
-                    'moduleIndex' => $moduleIndex,
+                    'moduleTitle' => $lesson['moduleTitle'] ?? $module['title'] ?? 'Module ' . ($moduleIndex + 1),
+                    'moduleIndex' => $lesson['moduleIndex'] ?? $moduleIndex,
+                    'lessonIndex' => $lesson['lessonIndex'] ?? $lessonIndex,
                     'sortOrder' => count($lessons),
                     'title' => $lesson['title'] ?? 'Lesson ' . ($lessonIndex + 1),
                     'summary' => $lesson['summary'] ?? $module['description'] ?? null,
                     'blocks' => $this->normalizeLessonBlocks($lesson['blocks'] ?? [], $lesson),
+                    'isSubLesson' => (bool) ($lesson['isSubLesson'] ?? false),
+                    'parentLessonTitle' => $lesson['parentLessonTitle'] ?? null,
+                    'parentLessonIndex' => $lesson['parentLessonIndex'] ?? null,
                 ]);
             }
         }
@@ -350,6 +362,11 @@ class AdminCatalogController extends Controller
                         'estimatedMinutes' => $lessonPayload['durationMinutes'] ?? $lessonPayload['estimatedMinutes'] ?? null,
                         'difficulty' => $lessonPayload['difficulty'] ?? $course->level ?? 'beginner',
                         'moduleTitle' => $lessonPayload['moduleTitle'] ?? null,
+                        'moduleIndex' => $lessonPayload['moduleIndex'] ?? null,
+                        'lessonIndex' => $lessonPayload['lessonIndex'] ?? $index,
+                        'isSubLesson' => (bool) ($lessonPayload['isSubLesson'] ?? false),
+                        'parentLessonTitle' => $lessonPayload['parentLessonTitle'] ?? null,
+                        'parentLessonIndex' => $lessonPayload['parentLessonIndex'] ?? null,
                         'outcomes' => $lessonPayload['outcomes'] ?? [],
                         'activities' => $lessonPayload['activities'] ?? [],
                         'assessment' => $lessonPayload['assessment'] ?? null,
@@ -603,6 +620,7 @@ class AdminCatalogController extends Controller
         Cache::forget('catalog:courses');
         Cache::forget("catalog:course:{$courseId}");
         Cache::forget("catalog:lessons:{$courseId}");
+        Cache::forget("catalog:course:{$courseId}:lessons");
         Cache::forget('catalog:lessons:all');
     }
 
