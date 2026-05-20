@@ -1,0 +1,243 @@
+import type {
+  AiBuilderAction,
+  AiBuilderGenerationRequest,
+  CourseBuilderBlueprint,
+  CourseBuilderLesson,
+  CourseBuilderModule,
+  CourseBuilderSelection,
+  CourseDocumentChunk,
+  CourseSourceDocument,
+  LessonCardBlock,
+} from '@/lib/api/course-builder-types';
+
+export type AiBuilderGeneratedPatch = {
+  documents?: CourseSourceDocument[];
+  courseSummary?: CourseBuilderBlueprint['courseSummary'];
+  assessments?: CourseBuilderBlueprint['assessments'];
+  modules?: CourseBuilderModule[];
+  lessons?: CourseBuilderLesson[];
+  subLessons?: CourseBuilderLesson[];
+  blocks?: LessonCardBlock[];
+  block?: LessonCardBlock;
+  valid?: boolean;
+  issues?: string[];
+  suggestions?: string[];
+  quizPlan?: string[];
+  changes?: string[];
+};
+
+export function buildAiGenerationRequest(params: {
+  action: AiBuilderAction;
+  currentBlueprint: CourseBuilderBlueprint;
+  selection?: CourseBuilderSelection;
+  selectedDocumentChunks?: CourseDocumentChunk[];
+  count?: number;
+  difficulty?: string;
+  instruction?: string;
+}): AiBuilderGenerationRequest {
+  return {
+    action: params.action,
+    scope: scopeForAction(params.action),
+    currentBlueprint: params.currentBlueprint,
+    selectedScope: params.selection ? {
+      moduleIndex: params.selection.moduleIndex,
+      lessonIndex: params.selection.lessonIndex,
+      subLessonIndex: params.selection.subLessonIndex ?? null,
+      cardIndex: params.selection.cardIndex,
+    } : undefined,
+    selectedDocumentChunks: params.selectedDocumentChunks,
+    count: params.count,
+    difficulty: params.difficulty,
+    instruction: params.instruction,
+  };
+}
+
+export function applyAiGeneratedPatch(
+  blueprint: CourseBuilderBlueprint,
+  selection: CourseBuilderSelection,
+  action: AiBuilderAction,
+  patch: AiBuilderGeneratedPatch
+): CourseBuilderBlueprint {
+  const draft = structuredClone(blueprint);
+
+  if (patch.documents?.length) {
+    draft.documents = mergeDocuments(draft.documents ?? [], patch.documents);
+  }
+
+  if (patch.courseSummary && (action === 'course_plan' || action === 'suggest_improvements')) {
+    draft.courseSummary = { ...draft.courseSummary, ...patch.courseSummary };
+  }
+
+  if (patch.assessments && (action === 'course_plan' || action === 'generate_questions')) {
+    draft.assessments = { ...draft.assessments, ...patch.assessments };
+  }
+
+  if (patch.modules?.length && action === 'generate_modules') {
+    draft.modules = [...draft.modules, ...patch.modules.map(normalizeModule)];
+  }
+
+  const module = draft.modules[selection.moduleIndex];
+  if (!module) return draft;
+
+  if (patch.lessons?.length && action === 'generate_lessons') {
+    module.lessons = [...module.lessons, ...patch.lessons.map(normalizeLesson)];
+  }
+
+  const lesson = getSelectedLesson(draft, selection);
+  if (!lesson) return draft;
+
+  if (patch.subLessons?.length && action === 'generate_sub_lessons') {
+    lesson.subLessons = [...(lesson.subLessons ?? []), ...patch.subLessons.map(normalizeLesson)];
+  }
+
+  if (patch.blocks?.length && (action === 'generate_cards' || action === 'generate_questions')) {
+    lesson.blocks = [...lesson.blocks, ...patch.blocks.map(normalizeCard)];
+  }
+
+  if (patch.block && action === 'generate_single_card') {
+    lesson.blocks.push(normalizeCard(patch.block));
+  }
+
+  if (patch.block && (action === 'repair_card' || action === 'generate_code_card')) {
+    if (lesson.blocks[selection.cardIndex]) {
+      lesson.blocks[selection.cardIndex] = normalizeCard(patch.block);
+    } else {
+      lesson.blocks.push(normalizeCard(patch.block));
+    }
+  }
+
+  return draft;
+}
+
+export function chunkSourceDocument(document: Pick<CourseSourceDocument, 'id' | 'name' | 'mode' | 'text'>, chunkSize = 1800): CourseSourceDocument {
+  const text = document.text ?? '';
+  const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+  const chunks: CourseDocumentChunk[] = [];
+  let buffer = '';
+  let order = 0;
+
+  for (const paragraph of paragraphs.length ? paragraphs : [text]) {
+    if ((buffer + '\n\n' + paragraph).length > chunkSize && buffer.trim()) {
+      chunks.push({ id: `${document.id}-chunk-${order + 1}`, documentId: document.id, title: `${document.name} chunk ${order + 1}`, text: buffer.trim(), order });
+      buffer = paragraph;
+      order += 1;
+    } else {
+      buffer = buffer ? `${buffer}\n\n${paragraph}` : paragraph;
+    }
+  }
+
+  if (buffer.trim()) {
+    chunks.push({ id: `${document.id}-chunk-${order + 1}`, documentId: document.id, title: `${document.name} chunk ${order + 1}`, text: buffer.trim(), order });
+  }
+
+  return {
+    ...document,
+    chunks,
+    outline: inferOutline(text),
+    detectedTopics: inferTopics(text),
+    detectedDifficulty: inferDifficulty(text),
+    text: undefined,
+  };
+}
+
+export function getSelectedLesson(blueprint: CourseBuilderBlueprint, selection: CourseBuilderSelection): CourseBuilderLesson | null {
+  const parentLesson = blueprint.modules[selection.moduleIndex]?.lessons[selection.lessonIndex];
+  if (!parentLesson) return null;
+  return selection.subLessonIndex == null ? parentLesson : parentLesson.subLessons?.[selection.subLessonIndex] ?? null;
+}
+
+function scopeForAction(action: AiBuilderAction): AiBuilderGenerationRequest['scope'] {
+  if (['document_map', 'course_plan', 'generate_modules', 'validate_course', 'suggest_improvements'].includes(action)) return 'course';
+  if (action === 'generate_lessons') return 'module';
+  if (['generate_sub_lessons', 'generate_cards', 'generate_questions', 'generate_code_card'].includes(action)) return 'lesson';
+  return 'card';
+}
+
+function mergeDocuments(existing: CourseSourceDocument[], incoming: CourseSourceDocument[]) {
+  const byId = new Map(existing.map((document) => [document.id, document]));
+  for (const document of incoming) byId.set(document.id, { ...byId.get(document.id), ...document });
+  return Array.from(byId.values());
+}
+
+function normalizeModule(module: CourseBuilderModule): CourseBuilderModule {
+  return {
+    title: module.title || 'Untitled module',
+    description: module.description || 'Module description.',
+    durationMinutes: Number(module.durationMinutes || 60),
+    outcomes: module.outcomes?.length ? module.outcomes : ['Complete this module.'],
+    moduleAssessment: module.moduleAssessment || 'Module review activity.',
+    sourceChunkIds: module.sourceChunkIds ?? [],
+    lessons: (module.lessons ?? []).map(normalizeLesson),
+  };
+}
+
+function normalizeLesson(lesson: CourseBuilderLesson): CourseBuilderLesson {
+  return {
+    title: lesson.title || 'Untitled lesson',
+    summary: lesson.summary || 'Lesson summary.',
+    durationMinutes: Number(lesson.durationMinutes || 20),
+    difficulty: lesson.difficulty || 'beginner',
+    outcomes: lesson.outcomes ?? [],
+    blocks: (lesson.blocks?.length ? lesson.blocks : [{ type: 'explanation', title: 'Core idea', body: 'Explain this lesson clearly.' }]).map(normalizeCard),
+    subLessons: lesson.subLessons?.map(normalizeLesson) ?? [],
+    activities: lesson.activities ?? [],
+    assessment: lesson.assessment || 'Lesson checkpoint.',
+    sourceChunkIds: lesson.sourceChunkIds ?? [],
+  };
+}
+
+function normalizeCard(card: LessonCardBlock): LessonCardBlock {
+  if (isCodingCard(card)) {
+    return {
+      ...card,
+      title: card.title || 'Coding practice',
+      instructions: card.instructions || 'Complete the coding task.',
+      language: card.language || 'javascript',
+      files: card.files?.length ? card.files : [{ name: defaultFileName(card.language || 'javascript'), content: '' }],
+      tests: card.tests ?? [],
+      hints: card.hints ?? [],
+      solutionFiles: card.solutionFiles ?? [],
+      previewMode: card.previewMode ?? defaultPreviewMode(card.language || 'javascript'),
+      aiHelpEnabled: card.aiHelpEnabled ?? true,
+    } as LessonCardBlock;
+  }
+  return card;
+}
+
+function isCodingCard(card: LessonCardBlock) {
+  return ['code_playground', 'debug_code', 'complete_code', 'predict_output', 'code_explanation', 'mini_project'].includes(card.type);
+}
+
+function defaultFileName(language: string) {
+  if (language === 'html') return 'index.html';
+  if (language === 'css') return 'style.css';
+  if (language === 'python') return 'main.py';
+  if (language === 'php') return 'index.php';
+  return 'main.js';
+}
+
+function defaultPreviewMode(language: string) {
+  if (language === 'html') return 'html' as const;
+  if (['javascript', 'python', 'php'].includes(language)) return 'console' as const;
+  return 'none' as const;
+}
+
+function inferOutline(text: string) {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^(chapter|unit|module|lesson|topic|section)\b/i.test(line) || /^\d+(\.\d+)*\s+/.test(line))
+    .slice(0, 40);
+}
+
+function inferTopics(text: string) {
+  const matches = text.match(/\b[A-Z][A-Za-z0-9+#/. -]{3,40}\b/g) ?? [];
+  return Array.from(new Set(matches.map((item) => item.trim()).filter((item) => item.split(' ').length <= 5))).slice(0, 25);
+}
+
+function inferDifficulty(text: string) {
+  const lower = text.toLowerCase();
+  if (lower.includes('advanced') || lower.includes('capstone') || lower.includes('architecture')) return 'advanced';
+  if (lower.includes('intermediate') || lower.includes('project')) return 'intermediate';
+  return 'beginner';
+}
