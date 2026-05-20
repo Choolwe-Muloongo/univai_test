@@ -71,8 +71,9 @@ type CourseForm = {
 };
 
 type SourceDoc = { name: string; text: string; warning?: string };
-type SubLesson = { id: string; title: string; summary: string; saved: boolean };
+type SubLesson = { id: string; title: string; summary: string; cards: ManualCard[]; saved: boolean };
 type ManualLesson = { id: string; title: string; summary: string; outcomes: string[]; subLessons: SubLesson[]; cards: ManualCard[]; saved: boolean };
+type ManualModule = { id: string; title: string; description: string; outcomes: string[]; lessons: ManualLesson[]; saved: boolean };
 type ManualCard = {
   id: string;
   type: CardType;
@@ -143,7 +144,7 @@ type BuilderStats = {
 
 type BuilderSnapshot = {
   form: CourseForm;
-  lessons: ManualLesson[];
+  modules: ManualModule[];
   quizBank: QuizQuestion[];
   editingCourseId?: string | null;
 };
@@ -406,10 +407,12 @@ export function DedicatedManualCourseBuilderClient() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [moduleIndex, setModuleIndex] = useState(0);
   const [lessonIndex, setLessonIndex] = useState(0);
+  const [subLessonIndex, setSubLessonIndex] = useState<number | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [quizIndex, setQuizIndex] = useState(0);
-  const [lessons, setLessons] = useState<ManualLesson[]>([makeLesson(1)]);
+  const [modules, setModules] = useState<ManualModule[]>([{ id: uid('module'), title: 'Module 1', description: 'Main module', outcomes: ['Master this module outcomes.'], lessons: [makeLesson(1)], saved: false }]);
   const [quizBank, setQuizBank] = useState<QuizQuestion[]>([makeQuiz()]);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [recoverableDraft, setRecoverableDraft] = useState<BuilderSnapshot | null>(null);
@@ -424,10 +427,10 @@ export function DedicatedManualCourseBuilderClient() {
       const saved = window.localStorage.getItem(AUTOSAVE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<BuilderSnapshot>;
-        if (parsed.form && Array.isArray(parsed.lessons) && parsed.lessons.length) {
+        if (parsed.form && (Array.isArray((parsed as any).modules) || Array.isArray((parsed as any).lessons))) {
           setRecoverableDraft({
             form: { ...initialCourseForm(), ...parsed.form },
-            lessons: parsed.lessons,
+            modules: Array.isArray((parsed as any).modules) && (parsed as any).modules.length ? (parsed as any).modules : [{ id: uid('module'), title: 'Module 1', description: 'Imported fallback module', outcomes: [], lessons: (parsed as any).lessons ?? [makeLesson(1)], saved: false }],
             quizBank: Array.isArray(parsed.quizBank) && parsed.quizBank.length ? parsed.quizBank : [makeQuiz()],
             editingCourseId: typeof parsed.editingCourseId === 'string' ? parsed.editingCourseId : null,
           });
@@ -463,34 +466,37 @@ export function DedicatedManualCourseBuilderClient() {
   useEffect(() => {
     if (!autosaveReady.current) return;
     const handle = window.setTimeout(() => {
-      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ form, lessons, quizBank, editingCourseId }));
+      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ form, modules, quizBank, editingCourseId }));
     }, 400);
     return () => window.clearTimeout(handle);
-  }, [form, lessons, quizBank, editingCourseId]);
+  }, [form, modules, quizBank, editingCourseId]);
 
+  const activeModule = modules[moduleIndex] ?? modules[0];
+  const lessons = activeModule?.lessons ?? [];
   const activeLesson = lessons[lessonIndex] ?? lessons[0];
-  const activeCard = activeLesson.cards[cardIndex] ?? activeLesson.cards[0];
+  const activeSubLesson = subLessonIndex == null ? null : (activeLesson?.subLessons[subLessonIndex] ?? null);
+  const activeCard = (activeSubLesson?.cards ?? activeLesson?.cards ?? [])[cardIndex] ?? (activeSubLesson?.cards ?? activeLesson?.cards ?? [])[0];
   const activeQuiz = quizBank[quizIndex] ?? quizBank[0];
   const sourceText = useMemo(
     () => documents.map((doc, index) => `DOCUMENT ${index + 1}: ${doc.name}\n${doc.text}`).join('\n\n---\n\n').slice(0, 180000),
     [documents]
   );
-  const blueprint = useMemo(() => buildBlueprint(form, lessons, quizBank), [form, lessons, quizBank]);
+  const blueprint = useMemo(() => buildBlueprint(form, modules, quizBank), [form, modules, quizBank]);
   const stats = useMemo(() => ({
-    lessons: lessons.length,
-    cards: lessons.reduce((count, lesson) => count + lesson.cards.length, 0),
+    lessons: modules.reduce((count, module) => count + module.lessons.length, 0),
+    cards: modules.reduce((count, module) => count + module.lessons.reduce((inner, lesson) => inner + lesson.cards.length + lesson.subLessons.reduce((s, sub) => s + sub.cards.length, 0), 0), 0),
     quizQuestions: quizBank.length,
     hours: toPositiveInt(form.durationHours, 1),
-  }), [form.durationHours, lessons, quizBank]);
+  }), [form.durationHours, modules, quizBank]);
 
-  const readiness = useMemo(() => courseReadiness(form, lessons, quizBank), [form, lessons, quizBank]);
+  const readiness = useMemo(() => courseReadiness(form, modules, quizBank), [form, modules, quizBank]);
   const canUndo = historyVersion >= 0 && undoStack.current.length > 0;
   const canRedo = historyVersion >= 0 && redoStack.current.length > 0;
 
   function currentSnapshot(): BuilderSnapshot {
     return {
       form: structuredClone(form),
-      lessons: structuredClone(lessons),
+      modules: structuredClone(modules),
       quizBank: structuredClone(quizBank),
       editingCourseId,
     };
@@ -504,10 +510,12 @@ export function DedicatedManualCourseBuilderClient() {
 
   function restoreSnapshot(snapshot: BuilderSnapshot) {
     setForm(snapshot.form);
-    setLessons(snapshot.lessons);
+    setModules(snapshot.modules);
     setQuizBank(snapshot.quizBank);
     setEditingCourseId(snapshot.editingCourseId ?? null);
+    setModuleIndex(0);
     setLessonIndex(0);
+    setSubLessonIndex(null);
     setCardIndex(0);
     setQuizIndex(0);
   }
@@ -527,11 +535,13 @@ export function DedicatedManualCourseBuilderClient() {
     undoStack.current = [];
     redoStack.current = [];
     setForm(initialCourseForm(defaultSchoolId));
-    setLessons([makeLesson(1)]);
+    setModules([{ id: uid('module'), title: 'Module 1', description: 'Main module', outcomes: ['Master this module outcomes.'], lessons: [makeLesson(1)], saved: false }]);
     setQuizBank([makeQuiz()]);
     setEditingCourseId(null);
     setRecoverableDraft(null);
+    setModuleIndex(0);
     setLessonIndex(0);
+    setSubLessonIndex(null);
     setCardIndex(0);
     setQuizIndex(0);
     setMode('manual');
@@ -560,6 +570,14 @@ export function DedicatedManualCourseBuilderClient() {
     undoStack.current.push(currentSnapshot());
     restoreSnapshot(next);
     setHistoryVersion((value) => value + 1);
+  }
+
+
+  function setLessons(updater: (current: ManualLesson[]) => ManualLesson[]) {
+    setModules((currentModules) => currentModules.map((module, index) => {
+      if (index !== moduleIndex) return module;
+      return { ...module, saved: false, lessons: updater(module.lessons) };
+    }));
   }
 
   function updateLesson(patch: Partial<ManualLesson>) {
@@ -847,7 +865,7 @@ export function DedicatedManualCourseBuilderClient() {
         level: parsed.courseSummary?.level || current.level,
         durationHours: String(parsed.courseSummary?.totalDurationHours || current.durationHours),
       }));
-      if (importedLessons.length) setLessons(importedLessons);
+      if (importedLessons.length) setModules([{ id: uid('module'), title: 'AI Module 1', description: 'Generated from AI draft', outcomes: [], lessons: importedLessons, saved: false }]);
       setMode('manual');
       setStep('cards');
       setLessonIndex(0);
@@ -886,7 +904,7 @@ export function DedicatedManualCourseBuilderClient() {
         currency: courseData.currency || 'ZMW',
         certificateFee: String(courseData.certificateFee ?? 0),
       });
-      setLessons(manualLessonsFromCourse(lessonData));
+      setModules(modulesFromCourse(lessonData));
       setQuizBank(quizBankFromLessons(lessonData));
       setLessonIndex(0);
       setCardIndex(0);
@@ -902,7 +920,7 @@ export function DedicatedManualCourseBuilderClient() {
   }
 
   async function saveDraft() {
-    const validation = validateCourse(form, lessons);
+    const validation = validateCourse(form, modules);
     if (validation) {
       setError(validation);
       return;
@@ -980,7 +998,7 @@ export function DedicatedManualCourseBuilderClient() {
             {step === 'lessons' ? <LessonsStep lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} removeLesson={removeLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
             {step === 'cards' ? <CardsStep form={form} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addWorkflowCard={addWorkflowCard} insertWorkflowCard={insertWorkflowCard} addTemplateCard={addTemplateCard} insertTemplateCard={insertTemplateCard} insertCards={insertCards} replaceCard={replaceCard} replaceCardWithCards={replaceCardWithCards} reorderCard={reorderCard} duplicateCard={duplicateCard} removeCard={removeCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
             {step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={addQuiz} duplicateQuiz={duplicateQuiz} removeQuiz={removeQuiz} reorderQuiz={reorderQuiz} bulkAddQuiz={bulkAddQuiz} finish={() => setStep('preview')} /> : null}
-            {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={lessons} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} editingCourseId={editingCourseId} /> : null}
+            {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={modules.flatMap((module) => module.lessons)} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} editingCourseId={editingCourseId} /> : null}
           </div>
         </div>
       ) : null}
@@ -1044,7 +1062,7 @@ function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUnd
 
 function RecoveryNotice({ draft, onResume, onStartNew }: { draft: BuilderSnapshot; onResume: () => void; onStartNew: () => void }) {
   const title = draft.form.title?.trim() || 'Untitled course draft';
-  const lessonCount = draft.lessons.length;
+  const lessonCount = draft.modules.reduce((count, module) => count + module.lessons.length, 0);
   const mode = draft.editingCourseId ? 'editing an existing course' : 'new course draft';
 
   return (
@@ -1913,9 +1931,9 @@ function cardFromBlock(block: any, index: number): ManualCard {
   };
 }
 
-function manualLessonsFromCourse(lessons: Lesson[]): ManualLesson[] {
-  if (!lessons.length) return [makeLesson(1)];
-  return lessons.map((lesson, index) => {
+function modulesFromCourse(lessons: Lesson[]): ManualModule[] {
+  if (!lessons.length) return [{ id: uid('module'), title: 'Module 1', description: 'Fallback module', outcomes: [], lessons: [makeLesson(1)], saved: true }];
+  const mapped = lessons.map((lesson, index) => {
     const cards = lesson.learningObjects?.flatMap((object) => {
       const payload = object.payload ?? parseMaybeJson(object.body);
       return extractBlocksFromPayload(payload).map((block, blockIndex) => cardFromBlock(block, blockIndex + 1));
@@ -1931,7 +1949,9 @@ function manualLessonsFromCourse(lessons: Lesson[]): ManualLesson[] {
       saved: true,
     };
   });
+  return [{ id: uid('module'), title: 'Module 1', description: 'Imported module', outcomes: [], lessons: mapped, saved: true }];
 }
+
 
 function quizBankFromLessons(lessons: Lesson[]): QuizQuestion[] {
   const quizzes = lessons.flatMap((lesson) => (lesson.quiz?.questions ?? []).map((question, index) => ({
@@ -2263,6 +2283,7 @@ function uniqueTemplateIds(values: CardWorkflowTemplateId[]) {
   });
 }
 
+
 function commandTopic(value: string) {
   return value
     .replace(/\b(teach|explain|intro|introduce|with|and|then|add|make|create|card|cards|example|checkpoint|quiz|question|summary|visual|image|practice|task|case|scenario|flashcard|flash)\b/gi, ' ')
@@ -2356,12 +2377,15 @@ function requestErrorMessage(cause: unknown, fallback: string) {
   return error.message || fallback;
 }
 
-function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: QuizQuestion[]): any {
-  const totalMinutes = Math.max(5, toPositiveInt(form.durationHours, 1) * 60);
-  const lessonMinutes = Math.max(5, Math.round(totalMinutes / Math.max(1, lessons.length)));
-  const outcomes = lessons.flatMap((lesson) => lesson.outcomes).filter(Boolean).slice(0, 10);
+function buildBlueprint(form: CourseForm, modules: ManualModule[], quizBank: QuizQuestion[]): any {
+  const totalMinutes = Math.max(30, toPositiveInt(form.durationHours, 1) * 60);
+  const allLessons = modules.flatMap((module) => module.lessons);
+  const lessonMinutes = Math.max(5, Math.round(totalMinutes / Math.max(1, allLessons.length)));
+  const outcomes = allLessons.flatMap((lesson) => lesson.outcomes).filter(Boolean).slice(0, 10);
 
   return {
+    schemaVersion: 'short-course-v1',
+    generatedAt: new Date().toISOString(),
     courseSummary: {
       title: form.title || 'Untitled short course',
       audience: 'Short-course learners',
@@ -2378,25 +2402,29 @@ function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: Qui
       practicalWork: [],
       instructorReviewChecklist: ['Check lesson accuracy.', 'Check block-template fit for the subject.', 'Check math inside cards.', 'Check quiz answers.', 'Check images and captions.'],
     },
-    modules: [
-      {
-        title: form.title || 'Main module',
-        description: form.description || 'Manual module.',
-        durationMinutes: totalMinutes,
-        outcomes,
-        moduleAssessment: 'Quiz bank practice.',
-        lessons: lessons.map((lesson) => ({
-          title: lesson.title,
-          summary: lesson.summary,
-          durationMinutes: lessonMinutes,
-          difficulty: form.level,
-          outcomes: lesson.outcomes,
-          blocks: lesson.cards.map(blockFromCard),
-          activities: [],
-          assessment: 'Complete all cards.',
+    modules: modules.map((module, moduleIndex) => ({
+      title: module.title || `Module ${moduleIndex + 1}`,
+      description: module.description || 'Manual module.',
+      durationMinutes: Math.max(30, lessonMinutes * Math.max(1, module.lessons.length)),
+      outcomes: module.outcomes?.length ? module.outcomes : outcomes,
+      moduleAssessment: 'Quiz bank practice.',
+      lessons: module.lessons.map((lesson) => ({
+        title: lesson.title,
+        summary: lesson.summary,
+        durationMinutes: lessonMinutes,
+        difficulty: form.level,
+        outcomes: lesson.outcomes,
+        blocks: lesson.cards.map(blockFromCard),
+        subLessons: lesson.subLessons.map((subLesson) => ({
+          id: subLesson.id,
+          title: subLesson.title,
+          summary: subLesson.summary,
+          blocks: subLesson.cards.map(blockFromCard),
         })),
-      },
-    ],
+        activities: [],
+        assessment: 'Complete all cards.',
+      })),
+    })),
   };
 }
 
@@ -2428,20 +2456,24 @@ function lessonPreview(lesson: ManualLesson, form: CourseForm) {
   } as any;
 }
 
-function validateCourse(form: CourseForm, lessons: ManualLesson[]) {
+function validateCourse(form: CourseForm, modules: ManualModule[]) {
   if (!form.title.trim()) return 'Course title is required.';
   if (!form.schoolId) return 'School / Faculty is required.';
   if ((form.currency || 'ZMW').trim().length !== 3) return 'Currency must be a 3-letter code, for example ZMW.';
+  const lessons = modules.flatMap((module) => module.lessons);
+  if (!modules.length) return 'Add at least one module.';
   if (!lessons.length) return 'Add at least one lesson.';
   if (lessons.some((lesson) => !lesson.title.trim())) return 'Every lesson needs a title.';
-  if (lessons.some((lesson) => !lesson.cards.length)) return 'Every lesson needs cards.';
+  if (lessons.some((lesson) => !lesson.cards.length && !lesson.subLessons.some((sub) => sub.cards.length))) return 'Every lesson needs cards.';
   return null;
 }
 
-function courseReadiness(form: CourseForm, lessons: ManualLesson[], quizBank: QuizQuestion[]): ReadinessItem[] {
-  const checkpoints = lessons.flatMap((lesson) => lesson.cards).filter((card) => ['question', 'fill_blank', 'true_false'].includes(card.type));
-  const heavyCards = lessons.flatMap((lesson) => lesson.cards).filter((card) => learnerLoadForCard(card).level === 'heavy');
-  const imagesMissingAlt = lessons.flatMap((lesson) => lesson.cards).filter((card) => card.imageUrl && !card.imageAlt?.trim());
+function courseReadiness(form: CourseForm, modules: ManualModule[], quizBank: QuizQuestion[]): ReadinessItem[] {
+  const lessons = modules.flatMap((module) => module.lessons);
+  const cards = lessons.flatMap((lesson) => [...lesson.cards, ...lesson.subLessons.flatMap((sub) => sub.cards)]);
+  const checkpoints = cards.filter((card) => ['question', 'fill_blank', 'true_false'].includes(card.type));
+  const heavyCards = cards.filter((card) => learnerLoadForCard(card).level === 'heavy');
+  const imagesMissingAlt = cards.filter((card) => card.imageUrl && !card.imageAlt?.trim());
   const incompleteQuestions = quizBank.filter((quiz) => !quiz.question.trim() || !quiz.answer.trim() || (quiz.type === 'mcq' && lines(quiz.options).length < 2));
   return [
     { label: 'Course title is set', done: Boolean(form.title.trim()), detail: form.title.trim() ? undefined : 'Add a clear course name.' },
@@ -2481,6 +2513,7 @@ function quizFromBulkText(raw: string): QuizQuestion[] {
       } as QuizQuestion;
     });
 }
+
 
 function cleanJson(raw: string) {
   return raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();

@@ -380,9 +380,59 @@ function toLessonNode(lesson: Lesson): LessonNode {
   return {
     id: lesson.id,
     title: lesson.title,
-    summary: lesson.content ? stripHtml(lesson.content).slice(0, 180) : null,
+    summary: lessonSummary(lesson),
     subLessons: extracted.length ? extracted : [],
   };
+}
+
+
+function lessonSummary(lesson: Lesson): string | null {
+  const fromObjects = lesson.learningObjects?.flatMap((object) => {
+    const payload = object.payload ?? parseMaybeJson(object.body);
+    return extractSummaryText(payload);
+  }) ?? [];
+  const firstObjectSummary = fromObjects.find((item) => item.trim().length > 0);
+  if (firstObjectSummary) return firstObjectSummary.slice(0, 180);
+
+  if (lesson.content) {
+    const parsed = parseMaybeJson(lesson.content);
+    if (parsed) {
+      const parsedSummary = extractSummaryText(parsed).find((item) => item.trim().length > 0);
+      if (parsedSummary) return parsedSummary.slice(0, 180);
+    }
+
+    const cleaned = stripHtml(lesson.content);
+    if (cleaned && !cleaned.startsWith('{"blocks"') && !cleaned.startsWith('[{"')) return cleaned.slice(0, 180);
+  }
+
+  return null;
+}
+
+function extractSummaryText(value: unknown): string[] {
+  if (!value || typeof value !== 'object') return [];
+  const record = value as Record<string, unknown>;
+  const blocks = [
+    ...(Array.isArray(record.blocks) ? record.blocks : []),
+    ...(Array.isArray(record.cards) ? record.cards : []),
+    ...(Array.isArray(record.items) ? record.items : []),
+  ] as Record<string, unknown>[];
+
+  const textFromBlocks = blocks
+    .flatMap((block) => [
+      typeof block.body === 'string' ? block.body : null,
+      typeof block.text === 'string' ? block.text : null,
+      typeof block.summary === 'string' ? block.summary : null,
+      typeof block.prompt === 'string' ? block.prompt : null,
+    ])
+    .filter((item): item is string => Boolean(item))
+    .map((item) => stripHtml(item).trim())
+    .filter(Boolean);
+
+  if (textFromBlocks.length) return textFromBlocks;
+
+  if (typeof record.summary === 'string') return [stripHtml(record.summary)];
+  if (typeof record.description === 'string') return [stripHtml(record.description)];
+  return [];
 }
 
 function extractSubLessons(value: unknown): LessonNode['subLessons'] {
