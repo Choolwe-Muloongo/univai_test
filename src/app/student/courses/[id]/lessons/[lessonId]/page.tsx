@@ -1,17 +1,20 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { MouseEvent, useEffect, useRef, useState } from 'react';
 
-import { LessonPlayer } from '@/components/learning/lesson-player';
+import { StudentMissionLessonPlayer } from '@/components/learning/student-mission-lesson-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { getCourseById, getLessonById, getLessonsByCourse } from '@/lib/api';
 import { completeShortCourseLesson, getShortCourseProgress } from '@/lib/api/short-courses';
-import { recordLearningEvent, type LearningEventType } from '@/lib/api/student-gamification';
+import { recordLearningEvent } from '@/lib/api/student-gamification';
 import type { Course, Lesson, LessonWithCourseId } from '@/lib/api/types';
+
+type CardPayload = { cardIndex: number; cardType: string; title?: string; source?: string };
+type CheckPayload = CardPayload & { correct: boolean };
 
 export default function FocusedLessonPage() {
   const params = useParams<{ id: string; lessonId: string }>();
@@ -22,7 +25,6 @@ export default function FocusedLessonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
-  const playerShellRef = useRef<HTMLDivElement | null>(null);
   const completedCardsRef = useRef<Set<number>>(new Set());
   const checkedCardsRef = useRef<Set<number>>(new Set());
   const missedCountRef = useRef(0);
@@ -71,61 +73,47 @@ export default function FocusedLessonPage() {
   const currentIndex = lessons.findIndex((item) => String(item.id) === String(params.lessonId));
   const nextLesson = currentIndex >= 0 ? lessons[currentIndex + 1] : null;
 
-  function visibleCardIndex() {
-    const text = playerShellRef.current?.textContent ?? '';
-    const match = text.match(/Card\s+(\d+)\s+of\s+(\d+)/i);
-    return match ? Number(match[1]) - 1 : null;
-  }
-
-  function logCard(source: string) {
-    const cardIndex = visibleCardIndex();
-    if (cardIndex === null || completedCardsRef.current.has(cardIndex)) return;
-    completedCardsRef.current.add(cardIndex);
+  function handleCardCompleted(payload: CardPayload) {
+    if (completedCardsRef.current.has(payload.cardIndex)) return;
+    completedCardsRef.current.add(payload.cardIndex);
     recordLearningEvent({
       type: 'card_completed',
       courseId: params.id,
       lessonId: params.lessonId,
-      metadata: { source, cardIndex: cardIndex + 1, lessonTitle: lesson?.title },
+      metadata: {
+        source: payload.source ?? 'lesson_player',
+        cardIndex: payload.cardIndex + 1,
+        cardType: payload.cardType,
+        cardTitle: payload.title,
+        lessonTitle: lesson?.title,
+      },
     }).catch((error) => console.warn('Gamification event failed', error));
   }
 
-  function logCheck() {
-    const cardIndex = visibleCardIndex();
-    if (cardIndex === null || checkedCardsRef.current.has(cardIndex)) return;
-    const text = playerShellRef.current?.textContent ?? '';
-    const passed = /\bCorrect\b/.test(text);
-    const missed = /\bNot quite\b/.test(text);
-    if (!passed && !missed) return;
+  function handleCheckpointAnswered(payload: CheckPayload) {
+    if (checkedCardsRef.current.has(payload.cardIndex)) return;
+    checkedCardsRef.current.add(payload.cardIndex);
+    if (payload.correct) correctCountRef.current += 1;
+    if (!payload.correct) missedCountRef.current += 1;
 
-    checkedCardsRef.current.add(cardIndex);
-    if (passed) correctCountRef.current += 1;
-    if (missed) missedCountRef.current += 1;
-
-    const eventType = (passed ? 'checkpoint_correct' : ['checkpoint', 'wrong'].join('_')) as LearningEventType;
     recordLearningEvent({
-      type: eventType,
+      type: payload.correct ? 'checkpoint_correct' : 'checkpoint_wrong',
       courseId: params.id,
       lessonId: params.lessonId,
-      metadata: { source: 'lesson_player', cardIndex: cardIndex + 1, lessonTitle: lesson?.title },
+      metadata: {
+        source: 'lesson_player',
+        cardIndex: payload.cardIndex + 1,
+        cardType: payload.cardType,
+        cardTitle: payload.title,
+        lessonTitle: lesson?.title,
+      },
     }).catch((error) => console.warn('Gamification event failed', error));
-  }
-
-  function handlePlayerClick(event: MouseEvent<HTMLDivElement>) {
-    const target = event.target as HTMLElement | null;
-    const button = target?.closest('button');
-    const label = button?.textContent?.trim() ?? '';
-    if (!button) return;
-
-    if (/^Continue/i.test(label)) logCard('continue_button');
-    if (/Check answer/i.test(label)) window.setTimeout(logCheck, 120);
-    if (/Claim Mission Reward|Complete lesson|Lesson completed/i.test(label)) logCard('mission_complete_button');
   }
 
   async function markComplete() {
     setCompleteError(null);
     const wasCompleted = completed;
     try {
-      logCard('mission_complete');
       await completeShortCourseLesson(params.id, params.lessonId);
       setCompleted(true);
       if (!wasCompleted) {
@@ -150,14 +138,16 @@ export default function FocusedLessonPage() {
 
   return (
     <main className="min-h-screen bg-background px-4 py-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl" ref={playerShellRef} onClickCapture={handlePlayerClick}>
-        <LessonPlayer
+      <div className="mx-auto max-w-4xl">
+        <StudentMissionLessonPlayer
           lesson={lesson as any}
           courseTitle={course.title}
           backHref={`/student/courses/${params.id}`}
           onComplete={markComplete}
           completed={completed}
           completeLabel="Claim Mission Reward"
+          onCardCompleted={handleCardCompleted}
+          onCheckpointAnswered={handleCheckpointAnswered}
         />
         {completeError ? <div className="mx-auto mt-4 max-w-3xl rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{completeError}</div> : null}
         {completed ? (
