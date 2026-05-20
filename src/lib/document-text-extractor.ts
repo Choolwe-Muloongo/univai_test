@@ -253,8 +253,15 @@ function formatError(prefix: string, error: unknown): string {
   return error instanceof Error ? `${prefix}: ${error.message}` : `${prefix}.`;
 }
 
-function loadPdfJs() {
-  return import('pdfjs-dist/legacy/build/pdf.mjs');
+async function loadPdfJs() {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
+  if (typeof window !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerSrc) {
+    const worker = await import('pdfjs-dist/legacy/build/pdf.worker.mjs?url');
+    pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  }
+
+  return pdfjs;
 }
 
 function loadMammoth() {
