@@ -573,25 +573,6 @@ export function DedicatedManualCourseBuilderClient() {
   }
 
 
-
-  function updateCardsForActiveTarget(updater: (cards: ManualCard[]) => ManualCard[]) {
-    setLessons((current) => current.map((lesson, index) => {
-      if (index !== lessonIndex) return lesson;
-      if (subLessonIndex == null) {
-        return { ...lesson, saved: false, cards: updater(lesson.cards).map((card) => ({ ...card, saved: false })) };
-      }
-      return {
-        ...lesson,
-        saved: false,
-        subLessons: lesson.subLessons.map((subLesson, subIndex) => subIndex === subLessonIndex
-          ? { ...subLesson, saved: false, cards: updater(subLesson.cards).map((card) => ({ ...card, saved: false })) }
-          : subLesson),
-      };
-    }));
-  }
-
-  const activeCards = activeSubLesson?.cards ?? activeLesson?.cards ?? [];
-
   function setLessons(updater: (current: ManualLesson[]) => ManualLesson[]) {
     setModules((currentModules) => currentModules.map((module, index) => {
       if (index !== moduleIndex) return module;
