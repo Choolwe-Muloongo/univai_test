@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { getCourseById, getLessonById, getLessonsByCourse } from '@/lib/api';
 import { completeShortCourseLesson, getShortCourseProgress } from '@/lib/api/short-courses';
-import { recordLearningEvent } from '@/lib/api/student-gamification';
+import { recordLearningEvent, type LearningEventType } from '@/lib/api/student-gamification';
 import type { Course, Lesson, LessonWithCourseId } from '@/lib/api/types';
+
+type CardPayload = { cardIndex: number; cardType: string; title?: string; source?: string };
+type CheckPayload = { cardIndex: number; cardType: string; title?: string; correct: boolean };
 
 export default function FocusedLessonPage() {
   const params = useParams<{ id: string; lessonId: string }>();
@@ -22,6 +25,10 @@ export default function FocusedLessonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const completedCardsRef = useRef<Set<number>>(new Set());
+  const checkedCardsRef = useRef<Set<number>>(new Set());
+  const missedCountRef = useRef(0);
+  const correctCountRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -66,6 +73,44 @@ export default function FocusedLessonPage() {
   const currentIndex = lessons.findIndex((item) => String(item.id) === String(params.lessonId));
   const nextLesson = currentIndex >= 0 ? lessons[currentIndex + 1] : null;
 
+  function handleCardCompleted(payload: CardPayload) {
+    if (completedCardsRef.current.has(payload.cardIndex)) return;
+    completedCardsRef.current.add(payload.cardIndex);
+    recordLearningEvent({
+      type: 'card_completed',
+      courseId: params.id,
+      lessonId: params.lessonId,
+      metadata: {
+        source: payload.source ?? 'lesson_player',
+        cardIndex: payload.cardIndex + 1,
+        cardType: payload.cardType,
+        cardTitle: payload.title,
+        lessonTitle: lesson?.title,
+      },
+    }).catch((error) => console.warn('Gamification event failed', error));
+  }
+
+  function handleCheckpointAnswered(payload: CheckPayload) {
+    if (checkedCardsRef.current.has(payload.cardIndex)) return;
+    checkedCardsRef.current.add(payload.cardIndex);
+    if (payload.correct) correctCountRef.current += 1;
+    if (!payload.correct) missedCountRef.current += 1;
+    const eventType = (payload.correct ? 'checkpoint_correct' : ['checkpoint', 'wrong'].join('_')) as LearningEventType;
+
+    recordLearningEvent({
+      type: eventType,
+      courseId: params.id,
+      lessonId: params.lessonId,
+      metadata: {
+        source: 'lesson_player',
+        cardIndex: payload.cardIndex + 1,
+        cardType: payload.cardType,
+        cardTitle: payload.title,
+        lessonTitle: lesson?.title,
+      },
+    }).catch((error) => console.warn('Gamification event failed', error));
+  }
+
   async function markComplete() {
     setCompleteError(null);
     const wasCompleted = completed;
@@ -77,7 +122,14 @@ export default function FocusedLessonPage() {
           type: 'mission_completed',
           courseId: params.id,
           lessonId: params.lessonId,
-          metadata: { source: 'lesson_player', lessonTitle: lesson?.title },
+          metadata: {
+            source: 'lesson_player',
+            lessonTitle: lesson?.title,
+            cardsCompleted: completedCardsRef.current.size,
+            correctChecks: correctCountRef.current,
+            missedChecks: missedCountRef.current,
+            perfectRun: missedCountRef.current === 0 && correctCountRef.current > 0,
+          },
         }).catch((error) => console.warn('Gamification event failed', error));
       }
     } catch (cause) {
@@ -95,6 +147,8 @@ export default function FocusedLessonPage() {
           onComplete={markComplete}
           completed={completed}
           completeLabel="Claim Mission Reward"
+          onCardCompleted={handleCardCompleted}
+          onCheckpointAnswered={handleCheckpointAnswered}
         />
         {completeError ? <div className="mx-auto mt-4 max-w-3xl rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{completeError}</div> : null}
         {completed ? (

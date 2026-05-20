@@ -90,6 +90,20 @@ type PlayableLesson = Partial<LessonWithCourseId> & {
   difficulty?: string | null;
 };
 
+export type LessonCardCompletedPayload = {
+  cardIndex: number;
+  cardType: string;
+  title?: string;
+  source?: string;
+};
+
+export type LessonCheckpointAnsweredPayload = {
+  cardIndex: number;
+  cardType: string;
+  title?: string;
+  correct: boolean;
+};
+
 type LessonPlayerProps = {
   lesson: PlayableLesson;
   courseTitle?: string;
@@ -97,6 +111,8 @@ type LessonPlayerProps = {
   onComplete?: () => Promise<void> | void;
   completed?: boolean;
   completeLabel?: string;
+  onCardCompleted?: (payload: LessonCardCompletedPayload) => void;
+  onCheckpointAnswered?: (payload: LessonCheckpointAnsweredPayload) => void;
 };
 
 type AnswerState = { isCorrect: boolean; message: string };
@@ -111,7 +127,16 @@ const nativePlayerTypes = new Set([
   'timeline', 'risk_review', 'practice_task',
 ]);
 
-export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, completed = false, completeLabel = 'Complete lesson' }: LessonPlayerProps) {
+export function LessonPlayer({
+  lesson,
+  courseTitle,
+  backHref,
+  onComplete,
+  completed = false,
+  completeLabel = 'Complete lesson',
+  onCardCompleted,
+  onCheckpointAnswered,
+}: LessonPlayerProps) {
   const blocks = useMemo(() => normalizeLessonBlocks(lesson), [lesson]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, AnswerState>>({});
@@ -127,6 +152,15 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
   const canContinue = !isInteractive || Boolean(answered);
   const isLast = index === blocks.length - 1;
 
+  function currentCardPayload(source?: string): LessonCardCompletedPayload {
+    return {
+      cardIndex: index,
+      cardType: block.type,
+      title: titleForBlock(block),
+      source,
+    };
+  }
+
   function resetInput() {
     setChoice('');
     setTextAnswer('');
@@ -139,12 +173,14 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
 
   function goNext() {
     if (!canContinue) return;
+    onCardCompleted?.(currentCardPayload('continue'));
     setIndex((value) => Math.min(value + 1, blocks.length - 1));
     resetInput();
   }
 
   async function completeLesson() {
     if (!onComplete) return;
+    onCardCompleted?.(currentCardPayload('complete'));
     setSaving(true);
     try {
       await onComplete();
@@ -157,6 +193,12 @@ export function LessonPlayer({ lesson, courseTitle, backHref, onComplete, comple
     const state = evaluateAnswer(block, block.type === 'fill_blank' ? textAnswer : choice);
     if (!state) return;
     setAnswers((current) => ({ ...current, [index]: state }));
+    onCheckpointAnswered?.({
+      cardIndex: index,
+      cardType: block.type,
+      title: titleForBlock(block),
+      correct: state.isCorrect,
+    });
   }
 
   return (
