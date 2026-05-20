@@ -39,6 +39,8 @@ type LessonNode = {
   id: string;
   title: string;
   summary?: string | null;
+  moduleTitle?: string | null;
+  moduleIndex?: number;
   subLessons: Array<{ id: string; title: string; summary?: string | null }>;
 };
 
@@ -91,6 +93,17 @@ export default function CourseHubPage() {
   }, [courseId, searchParams]);
 
   const lessonNodes = useMemo(() => lessons.map(toLessonNode), [lessons]);
+  const moduleGroups = useMemo(() => {
+    const grouped = new Map<string, { title: string; items: LessonNode[]; index: number }>();
+    lessonNodes.forEach((lesson, index) => {
+      const title = lesson.moduleTitle?.trim() || 'Main module';
+      const key = `${lesson.moduleIndex ?? 0}-${title}`;
+      const existing = grouped.get(key);
+      if (existing) existing.items.push(lesson);
+      else grouped.set(key, { title, items: [lesson], index: lesson.moduleIndex ?? index });
+    });
+    return [...grouped.values()].sort((a, b) => a.index - b.index);
+  }, [lessonNodes]);
   const completedLessonIds = new Set(progress?.completedLessons?.map(String) ?? []);
   const totalLessons = lessonNodes.length;
   const completedLessons = lessonNodes.filter((lesson) => completedLessonIds.has(String(lesson.id))).length;
@@ -212,7 +225,7 @@ export default function CourseHubPage() {
               <CardDescription>The course map shows the path. Open a lesson to study in the focused classroom.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {lessonNodes.length ? lessonNodes.map((lesson, index) => {
+              {lessonNodes.length ? moduleGroups.map((module, moduleIdx) => (<div key={`${module.title}-${moduleIdx}`} className="space-y-3 rounded-2xl border p-3"><p className="text-sm font-semibold text-primary">Module {moduleIdx + 1}: {module.title}</p>{module.items.map((lesson, index) => {
                 const done = completedLessonIds.has(String(lesson.id));
                 const subCount = Math.max(lesson.subLessons.length, 1);
                 return (
@@ -249,7 +262,7 @@ export default function CourseHubPage() {
                     </div>
                   </div>
                 );
-              }) : <EmptyMessage icon={BookOpen} title="This course has no published lessons yet." />}
+              })}</div>)) : <EmptyMessage icon={BookOpen} title="This course has no published lessons yet." />}
             </CardContent>
           </Card>
 
@@ -377,6 +390,7 @@ function toLessonNode(lesson: Lesson): LessonNode {
     const payload = object.payload ?? parseMaybeJson(object.body);
     return extractSubLessons(payload);
   }) ?? [];
+  const row = lesson as unknown as Record<string, unknown>;
   return {
     id: lesson.id,
     title: lesson.title,

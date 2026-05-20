@@ -667,17 +667,13 @@ export function DedicatedManualCourseBuilderClient() {
   }
 
   function addTemplateCard(template: LessonBlockTemplate) {
-    insertTemplateCard(template, activeLesson.cards.length);
+    insertTemplateCard(template, activeCards.length);
   }
 
   function insertTemplateCard(template: LessonBlockTemplate, targetIndex: number) {
     recordHistory();
-    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: insertAt(lesson.cards, clampIndex(targetIndex, lesson.cards.length), makeCardFromTemplate(template, lesson.cards.length + 1)),
-    } : lesson));
-    setCardIndex(clampIndex(targetIndex, activeLesson.cards.length));
+    updateCardsForActiveTarget((cards) => insertAt(cards, clampIndex(targetIndex, cards.length), makeCardFromTemplate(template, cards.length + 1)));
+    setCardIndex(clampIndex(targetIndex, activeCards.length));
   }
 
   function insertCards(cards: ManualCard[], targetIndex: number) {
@@ -690,33 +686,21 @@ export function DedicatedManualCourseBuilderClient() {
 
   function replaceCard(index: number, card: ManualCard) {
     recordHistory();
-    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: lesson.cards.map((item, cardIdx) => cardIdx === index ? card : item),
-    } : lesson));
+    updateCardsForActiveTarget((cards) => cards.map((item, cardIdx) => cardIdx === index ? card : item));
     setCardIndex(index);
   }
 
   function replaceCardWithCards(index: number, cards: ManualCard[]) {
     if (!cards.length) return;
     recordHistory();
-    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: [...lesson.cards.slice(0, index), ...cards, ...lesson.cards.slice(index + 1)],
-    } : lesson));
+    updateCardsForActiveTarget((currentCards) => [...currentCards.slice(0, index), ...cards, ...currentCards.slice(index + 1)]);
     setCardIndex(index);
   }
 
   function reorderCard(fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
     recordHistory();
-    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: moveItem(lesson.cards, fromIndex, toIndex),
-    } : lesson));
+    updateCardsForActiveTarget((cards) => moveItem(cards, fromIndex, toIndex));
     setCardIndex(toIndex);
   }
 
@@ -1214,6 +1198,15 @@ function LessonsStep(props: { modules: ManualModule[]; moduleIndex: number; setM
           <Field label="Lesson title"><Input value={activeLesson.title} onChange={(event) => updateLesson({ title: event.target.value })} /></Field>
           <Field label="Lesson summary"><Textarea rows={4} value={activeLesson.summary} onChange={(event) => updateLesson({ summary: event.target.value })} /></Field>
           <Field label="Learning outcomes, one per line"><Textarea rows={4} value={activeLesson.outcomes.join('\n')} onChange={(event) => updateLesson({ outcomes: lines(event.target.value) })} /></Field>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Sub-lessons</Label>
+              <Button type="button" size="sm" variant="outline" onClick={addSubLesson}>Add sub-lesson</Button>
+            </div>
+            <div className="space-y-2">
+              {activeLesson.subLessons.map((sub, index) => <div key={sub.id} className="rounded-xl border p-2"><div className="flex gap-2"><Input value={sub.title} onChange={(event) => updateSubLesson(index, { title: event.target.value })} /><Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => removeSubLesson(index)}>Delete</Button></div><Textarea rows={2} className="mt-2" value={sub.summary} onChange={(event) => updateSubLesson(index, { summary: event.target.value })} /></div>)}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={addLesson}>Add another lesson</Button>
             <Button type="button" onClick={finish}>Build cards</Button>
