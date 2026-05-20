@@ -172,20 +172,20 @@ class StudentGamificationController extends Controller
     {
         $today = now()->startOfDay();
 
-        if (in_array($type, ['mission_completed', 'final_trial_passed'], true) && $courseId && $lessonId) {
-            return !DB::table('student_learning_events')
-                ->where('student_id', $studentId)
-                ->where('event_type', $type)
-                ->where('short_course_id', $courseId)
-                ->where('lesson_id', $lessonId)
-                ->exists();
-        }
-
         if ($type === 'final_trial_passed' && $courseId) {
             return !DB::table('student_learning_events')
                 ->where('student_id', $studentId)
                 ->where('event_type', $type)
                 ->where('short_course_id', $courseId)
+                ->exists();
+        }
+
+        if ($type === 'mission_completed' && $courseId && $lessonId) {
+            return !DB::table('student_learning_events')
+                ->where('student_id', $studentId)
+                ->where('event_type', $type)
+                ->where('short_course_id', $courseId)
+                ->where('lesson_id', $lessonId)
                 ->exists();
         }
 
@@ -360,6 +360,7 @@ class StudentGamificationController extends Controller
     private function awardFor(string $type): array
     {
         return match ($type) {
+            'practice_started' => ['xp' => 0, 'points' => 0, 'activity' => 0],
             'card_completed' => ['xp' => 5, 'points' => 0, 'activity' => 2],
             'checkpoint_correct' => ['xp' => 10, 'points' => 0, 'activity' => 4],
             'mission_completed' => ['xp' => 50, 'points' => 5, 'activity' => 20],
