@@ -138,6 +138,7 @@ export type CodeCardType =
   | 'complete_code'
   | 'predict_output'
   | 'code_explanation'
+  | 'code_mini_project'
   | 'mini_project';
 
 export type CodeCardBlock = CardImageFields & {
