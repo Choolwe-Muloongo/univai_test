@@ -395,8 +395,6 @@ function toLessonNode(lesson: Lesson): LessonNode {
     id: lesson.id,
     title: lesson.title,
     summary: lessonSummary(lesson),
-    moduleTitle: typeof row.moduleTitle === 'string' ? row.moduleTitle : null,
-    moduleIndex: typeof row.moduleIndex === 'number' ? row.moduleIndex : undefined,
     subLessons: extracted.length ? extracted : [],
   };
 }
