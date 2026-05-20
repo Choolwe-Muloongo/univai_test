@@ -1,6 +1,7 @@
 import type {
   AiBuilderAction,
   AiBuilderGenerationRequest,
+  CodeCardBlock,
   CourseBuilderBlueprint,
   CourseBuilderLesson,
   CourseBuilderModule,
@@ -109,7 +110,7 @@ export function applyAiGeneratedPatch(
   return draft;
 }
 
-export function chunkSourceDocument(document: Pick<CourseSourceDocument, 'id' | 'name' | 'mode' | 'text'>, chunkSize = 1800): CourseSourceDocument {
+export function chunkSourceDocument(document: Pick<CourseSourceDocument, 'id' | 'name' | 'mode' | 'text' | 'warning'>, chunkSize = 1800): CourseSourceDocument {
   const text = document.text ?? '';
   const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const chunks: CourseDocumentChunk[] = [];
@@ -199,12 +200,12 @@ function normalizeCard(card: LessonCardBlock): LessonCardBlock {
       solutionFiles: card.solutionFiles ?? [],
       previewMode: card.previewMode ?? defaultPreviewMode(card.language || 'javascript'),
       aiHelpEnabled: card.aiHelpEnabled ?? true,
-    } as LessonCardBlock;
+    };
   }
   return card;
 }
 
-function isCodingCard(card: LessonCardBlock) {
+function isCodingCard(card: LessonCardBlock): card is CodeCardBlock {
   return ['code_playground', 'debug_code', 'complete_code', 'predict_output', 'code_explanation', 'mini_project'].includes(card.type);
 }
 
