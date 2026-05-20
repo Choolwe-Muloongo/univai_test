@@ -29,6 +29,10 @@ class StudentGamificationController extends Controller
             'metadata' => ['nullable', 'array'],
         ]);
 
+        if (!$this->canAwardEvent($studentId, $payload['type'], $payload['courseId'] ?? null, $payload['lessonId'] ?? null)) {
+            return response()->json($this->statePayload($studentId) + ['message' => 'Learning event recorded, but no extra reward was awarded because the daily or duplicate limit was reached.']);
+        }
+
         $award = $this->awardFor($payload['type']);
 
         DB::table('student_learning_events')->insert([
@@ -87,11 +91,16 @@ class StudentGamificationController extends Controller
     public function redeem(Request $request)
     {
         $studentId = $this->studentId($request);
-        $payload = $request->validate(['code' => ['required', 'string']]);
+        $payload = $request->validate([
+            'code' => ['required', 'string'],
+            'courseId' => ['nullable', 'string'],
+        ]);
         $item = collect($this->rewardShop())->firstWhere('code', $payload['code']);
         abort_unless($item && $item['enabled'], 404, 'Reward not available.');
         $balance = (int) (DB::table('student_reward_points')->where('student_id', $studentId)->value('balance') ?? 0);
         abort_if($balance < $item['cost'], 422, 'Not enough reward points.');
+
+        $effect = $this->applyRewardEffect($studentId, $payload['code'], $payload['courseId'] ?? null);
 
         DB::table('student_reward_points')->where('student_id', $studentId)->update(['balance' => $balance - $item['cost'], 'updated_at' => now()]);
         DB::table('student_reward_redemptions')->insert([
@@ -100,12 +109,12 @@ class StudentGamificationController extends Controller
             'title' => $item['name'],
             'points_spent' => $item['cost'],
             'status' => 'completed',
-            'metadata' => json_encode([]),
+            'metadata' => json_encode($effect),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        return response()->json(['message' => 'Reward redeemed.', 'balance' => $balance - $item['cost']]);
+        return response()->json(['message' => $effect['message'] ?? 'Reward redeemed.', 'balance' => $balance - $item['cost']]);
     }
 
     public function leaderboard(Request $request)
@@ -152,9 +161,119 @@ class StudentGamificationController extends Controller
     public function reviewMistake(Request $request, int $id)
     {
         $studentId = $this->studentId($request);
-        DB::table('student_mistakes')->where('student_id', $studentId)->where('id', $id)->update(['fixed' => true, 'fixed_at' => now(), 'updated_at' => now()]);
-        $this->recordSyntheticEvent($studentId, 'mistake_fixed', 30, 3, 10);
+        DB::table('student_mistakes')->where('student_id', $studentId)->where('id', $id)->where('fixed', false)->update(['fixed' => true, 'fixed_at' => now(), 'updated_at' => now()]);
+        if ($this->canAwardEvent($studentId, 'mistake_fixed', null, null)) {
+            $this->recordSyntheticEvent($studentId, 'mistake_fixed', 30, 3, 10);
+        }
         return response()->json(['message' => 'Mistake marked as fixed.']);
+    }
+
+    private function canAwardEvent(int $studentId, string $type, ?string $courseId, ?string $lessonId): bool
+    {
+        $today = now()->startOfDay();
+
+        if (in_array($type, ['mission_completed', 'final_trial_passed'], true) && $courseId && $lessonId) {
+            return !DB::table('student_learning_events')
+                ->where('student_id', $studentId)
+                ->where('event_type', $type)
+                ->where('short_course_id', $courseId)
+                ->where('lesson_id', $lessonId)
+                ->exists();
+        }
+
+        if ($type === 'final_trial_passed' && $courseId) {
+            return !DB::table('student_learning_events')
+                ->where('student_id', $studentId)
+                ->where('event_type', $type)
+                ->where('short_course_id', $courseId)
+                ->exists();
+        }
+
+        $dailyCaps = [
+            'practice_started' => 10,
+            'practice_passed' => 5,
+            'practice_failed' => 5,
+            'ai_help_used' => 10,
+            'mistake_fixed' => 10,
+            'card_completed' => 80,
+            'checkpoint_correct' => 80,
+            'checkpoint_wrong' => 80,
+        ];
+
+        $cap = $dailyCaps[$type] ?? 20;
+        $count = DB::table('student_learning_events')
+            ->where('student_id', $studentId)
+            ->where('event_type', $type)
+            ->where('created_at', '>=', $today)
+            ->count();
+
+        return $count < $cap;
+    }
+
+    private function applyRewardEffect(int $studentId, string $code, ?string $courseId): array
+    {
+        if ($code === 'streak_shield') {
+            $streak = DB::table('student_streaks')->where('student_id', $studentId)->first();
+            DB::table('student_streaks')->updateOrInsert(
+                ['student_id' => $studentId],
+                [
+                    'streak_shields' => (int) ($streak->streak_shields ?? 0) + 1,
+                    'current_days' => (int) ($streak->current_days ?? 0),
+                    'best_days' => (int) ($streak->best_days ?? 0),
+                    'last_activity_date' => $streak->last_activity_date ?? null,
+                    'updated_at' => now(),
+                    'created_at' => $streak->created_at ?? now(),
+                ]
+            );
+            return ['message' => 'Streak Shield added to your account.'];
+        }
+
+        if ($code === 'access_day') {
+            $query = DB::table('short_course_enrollments')->where('student_id', $studentId);
+            if ($courseId) {
+                $query->where('short_course_id', $courseId);
+            }
+            $enrollment = $query->orderByDesc('updated_at')->first();
+            abort_unless($enrollment, 422, 'Join a Journey before redeeming an access day.');
+
+            $base = $enrollment->access_expires_at && Carbon::parse($enrollment->access_expires_at)->isFuture()
+                ? Carbon::parse($enrollment->access_expires_at)
+                : now();
+
+            DB::table('short_course_enrollments')->where('id', $enrollment->id)->update([
+                'entry_fee_paid' => true,
+                'status' => 'active',
+                'access_expires_at' => $base->copy()->addDay(),
+                'updated_at' => now(),
+            ]);
+
+            return ['message' => 'One extra Journey access day has been added.', 'shortCourseId' => $enrollment->short_course_id];
+        }
+
+        if ($code === 'ai_boost') {
+            $query = DB::table('short_course_enrollments')->where('student_id', $studentId);
+            if ($courseId) {
+                $query->where('short_course_id', $courseId);
+            }
+            $enrollment = $query->orderByDesc('updated_at')->first();
+            abort_unless($enrollment, 422, 'Join a Journey before redeeming an AI boost.');
+
+            $base = $enrollment->ai_access_expires_at && Carbon::parse($enrollment->ai_access_expires_at)->isFuture()
+                ? Carbon::parse($enrollment->ai_access_expires_at)
+                : now();
+
+            DB::table('short_course_enrollments')->where('id', $enrollment->id)->update([
+                'ai_plan' => 'reward_boost',
+                'ai_access_expires_at' => $base->copy()->addHours(6),
+                'hourly_ai_quota' => max((int) ($enrollment->hourly_ai_quota ?? 0), 10),
+                'daily_ai_quota' => max((int) ($enrollment->daily_ai_quota ?? 0), 25),
+                'updated_at' => now(),
+            ]);
+
+            return ['message' => 'AI Boost added for 6 hours.', 'shortCourseId' => $enrollment->short_course_id];
+        }
+
+        return ['message' => 'Reward redeemed.'];
     }
 
     private function statePayload(int $studentId): array
@@ -248,6 +367,7 @@ class StudentGamificationController extends Controller
             'boss_battle_completed' => ['xp' => 200, 'points' => 50, 'activity' => 50],
             'final_trial_passed' => ['xp' => 500, 'points' => 100, 'activity' => 100],
             'ai_help_used' => ['xp' => 20, 'points' => 2, 'activity' => 5],
+            'mistake_fixed' => ['xp' => 30, 'points' => 3, 'activity' => 10],
             default => ['xp' => 0, 'points' => 0, 'activity' => 1],
         };
     }
