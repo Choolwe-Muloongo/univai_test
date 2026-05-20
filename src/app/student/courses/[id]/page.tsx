@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { getLessonsByCourse } from '@/lib/api';
@@ -35,13 +35,19 @@ import {
 } from '@/lib/api/short-courses';
 import { accessLabel, formatExpiryDate, isExpiringSoon, planLabel as shortCoursePlanLabel, timeRemainingLabel } from '@/lib/short-course-ui';
 
+type LessonChildNode = { id: string; title: string; summary?: string | null };
+
 type LessonNode = {
   id: string;
   title: string;
   summary?: string | null;
   moduleTitle?: string | null;
   moduleIndex?: number;
-  subLessons: Array<{ id: string; title: string; summary?: string | null }>;
+  lessonIndex?: number;
+  isSubLesson?: boolean;
+  parentLessonTitle?: string | null;
+  parentLessonIndex?: number | null;
+  subLessons: LessonChildNode[];
 };
 
 export default function CourseHubPage() {
@@ -93,17 +99,20 @@ export default function CourseHubPage() {
   }, [courseId, searchParams]);
 
   const lessonNodes = useMemo(() => lessons.map(toLessonNode), [lessons]);
+  const groupedLessonNodes = useMemo(() => groupParentAndSubLessons(lessonNodes), [lessonNodes]);
   const moduleGroups = useMemo(() => {
     const grouped = new Map<string, { title: string; items: LessonNode[]; index: number }>();
-    lessonNodes.forEach((lesson, index) => {
+    groupedLessonNodes.forEach((lesson, index) => {
       const title = lesson.moduleTitle?.trim() || 'Main module';
       const key = `${lesson.moduleIndex ?? 0}-${title}`;
       const existing = grouped.get(key);
       if (existing) existing.items.push(lesson);
       else grouped.set(key, { title, items: [lesson], index: lesson.moduleIndex ?? index });
     });
-    return [...grouped.values()].sort((a, b) => a.index - b.index);
-  }, [lessonNodes]);
+    return [...grouped.values()]
+      .map((module) => ({ ...module, items: module.items.sort((a, b) => (a.lessonIndex ?? 0) - (b.lessonIndex ?? 0)) }))
+      .sort((a, b) => a.index - b.index);
+  }, [groupedLessonNodes]);
   const completedLessonIds = new Set(progress?.completedLessons?.map(String) ?? []);
   const totalLessons = lessonNodes.length;
   const completedLessons = lessonNodes.filter((lesson) => completedLessonIds.has(String(lesson.id))).length;
@@ -222,12 +231,14 @@ export default function CourseHubPage() {
           <Card className="rounded-3xl">
             <CardHeader>
               <CardTitle>Lessons and Sub-lessons</CardTitle>
-              <CardDescription>The course map shows the path. Open a lesson to study in the focused classroom.</CardDescription>
+              <CardDescription>The course map shows parent lessons and real sub-lessons. Open any item to study it.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {lessonNodes.length ? moduleGroups.map((module, moduleIdx) => (<div key={`${module.title}-${moduleIdx}`} className="space-y-3 rounded-2xl border p-3"><p className="text-sm font-semibold text-primary">Module {moduleIdx + 1}: {module.title}</p>{module.items.map((lesson, index) => {
-                const done = completedLessonIds.has(String(lesson.id));
-                const subCount = Math.max(lesson.subLessons.length, 1);
+              {groupedLessonNodes.length ? moduleGroups.map((module, moduleIdx) => (<div key={`${module.title}-${moduleIdx}`} className="space-y-3 rounded-2xl border p-3"><p className="text-sm font-semibold text-primary">Module {moduleIdx + 1}: {module.title}</p>{module.items.map((lesson, index) => {
+                const parentDone = completedLessonIds.has(String(lesson.id));
+                const completedChildren = lesson.subLessons.filter((sub) => completedLessonIds.has(String(sub.id))).length;
+                const totalInGroup = 1 + lesson.subLessons.length;
+                const completedInGroup = (parentDone ? 1 : 0) + completedChildren;
                 return (
                   <div key={lesson.id} className="rounded-2xl border p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -235,31 +246,40 @@ export default function CourseHubPage() {
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary">{index + 1}</div>
                         <div>
                           <h3 className="font-semibold">Lesson {index + 1}: {lesson.title}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">{lesson.summary || `${subCount} sub-lesson/card${subCount === 1 ? '' : 's'}`}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{lesson.summary || `${lesson.subLessons.length} sub-lesson${lesson.subLessons.length === 1 ? '' : 's'}`}</p>
                           <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <span className="rounded-full bg-muted px-2 py-1">{subCount} sub-lessons/cards</span>
-                            <span className="rounded-full bg-muted px-2 py-1">{done ? subCount : 0} of {subCount} completed</span>
-                            <span className="rounded-full bg-muted px-2 py-1">{done ? 'Completed' : progress?.completedLessons?.length ? 'In progress' : 'Not started'}</span>
+                            <span className="rounded-full bg-muted px-2 py-1">{lesson.subLessons.length} sub-lesson{lesson.subLessons.length === 1 ? '' : 's'}</span>
+                            <span className="rounded-full bg-muted px-2 py-1">{completedInGroup} of {totalInGroup} completed</span>
+                            <span className="rounded-full bg-muted px-2 py-1">{completedInGroup === totalInGroup ? 'Completed' : completedInGroup > 0 ? 'In progress' : 'Not started'}</span>
                           </div>
                         </div>
                       </div>
                       {hasActiveAccess ? (
-                        <Button asChild variant={done ? 'outline' : 'default'} className="w-full sm:w-auto">
-                          <Link href={`/student/courses/${course.id}/lessons/${lesson.id}`}>{done ? 'Review' : nextLesson?.id === lesson.id ? 'Continue' : 'Study'}</Link>
+                        <Button asChild variant={parentDone ? 'outline' : 'default'} className="w-full sm:w-auto">
+                          <Link href={`/student/courses/${course.id}/lessons/${lesson.id}`}>{parentDone ? 'Review parent' : nextLesson?.id === lesson.id ? 'Continue parent' : 'Study parent'}</Link>
                         </Button>
                       ) : <Button disabled className="w-full sm:w-auto">Locked</Button>}
                     </div>
-                    <div className="mt-4 space-y-2">
-                      {(lesson.subLessons.length ? lesson.subLessons : [{ id: lesson.id, title: lesson.title, summary: lesson.summary }]).map((sub, subIndex) => (
-                        <div key={`${lesson.id}-${sub.id}-${subIndex}`} className="flex flex-col gap-2 rounded-xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{index + 1}.{subIndex + 1} {sub.title}</p>
-                            {sub.summary ? <p className="mt-1 text-xs text-muted-foreground">{sub.summary}</p> : null}
-                          </div>
-                          <span className="text-xs text-muted-foreground">{done ? 'Completed' : 'Ready'}</span>
-                        </div>
-                      ))}
-                    </div>
+                    {lesson.subLessons.length ? (
+                      <div className="mt-4 space-y-2">
+                        {lesson.subLessons.map((sub, subIndex) => {
+                          const subDone = completedLessonIds.has(String(sub.id));
+                          return (
+                            <div key={`${lesson.id}-${sub.id}-${subIndex}`} className="flex flex-col gap-2 rounded-xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-sm font-medium">{index + 1}.{subIndex + 1} {sub.title}</p>
+                                {sub.summary ? <p className="mt-1 text-xs text-muted-foreground">{sub.summary}</p> : null}
+                              </div>
+                              {hasActiveAccess ? (
+                                <Button asChild size="sm" variant={subDone ? 'outline' : 'secondary'}>
+                                  <Link href={`/student/courses/${course.id}/lessons/${sub.id}`}>{subDone ? 'Review' : nextLesson?.id === sub.id ? 'Continue' : 'Study'}</Link>
+                                </Button>
+                              ) : <span className="text-xs text-muted-foreground">Locked</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}</div>)) : <EmptyMessage icon={BookOpen} title="This course has no published lessons yet." />}
@@ -385,20 +405,47 @@ export default function CourseHubPage() {
   );
 }
 
+function groupParentAndSubLessons(lessons: LessonNode[]) {
+  const parents = lessons.filter((lesson) => !lesson.isSubLesson);
+  const children = lessons.filter((lesson) => lesson.isSubLesson);
+
+  return parents.map((parent) => {
+    const childRows = children
+      .filter((child) => {
+        if (child.parentLessonTitle && child.parentLessonTitle === parent.title) return true;
+        if (child.parentLessonIndex !== null && child.parentLessonIndex !== undefined && child.parentLessonIndex === parent.lessonIndex) return true;
+        return false;
+      })
+      .sort((a, b) => (a.lessonIndex ?? 0) - (b.lessonIndex ?? 0))
+      .map((child) => ({ id: child.id, title: child.title, summary: child.summary }));
+
+    const existingSubIds = new Set(parent.subLessons.map((sub) => String(sub.id)));
+    return { ...parent, subLessons: [...parent.subLessons, ...childRows.filter((child) => !existingSubIds.has(String(child.id)))] };
+  });
+}
+
 function toLessonNode(lesson: Lesson): LessonNode {
   const extracted = lesson.learningObjects?.flatMap((object) => {
     const payload = object.payload ?? parseMaybeJson(object.body);
     return extractSubLessons(payload);
   }) ?? [];
   const row = lesson as unknown as Record<string, unknown>;
+  const firstPayload = lesson.learningObjects
+    ?.map((object) => object.payload ?? parseMaybeJson(object.body))
+    .find((payload) => payload && typeof payload === 'object') as Record<string, unknown> | undefined;
   return {
     id: lesson.id,
     title: lesson.title,
     summary: lessonSummary(lesson),
-    subLessons: extracted.length ? extracted : [],
+    moduleTitle: stringOrNull(row.moduleTitle ?? firstPayload?.moduleTitle),
+    moduleIndex: numberOrUndefined(row.moduleIndex ?? firstPayload?.moduleIndex),
+    lessonIndex: numberOrUndefined(row.lessonIndex ?? firstPayload?.lessonIndex),
+    isSubLesson: booleanValue(row.isSubLesson ?? firstPayload?.isSubLesson),
+    parentLessonTitle: stringOrNull(row.parentLessonTitle ?? firstPayload?.parentLessonTitle),
+    parentLessonIndex: numberOrNull(row.parentLessonIndex ?? firstPayload?.parentLessonIndex),
+    subLessons: extracted,
   };
 }
-
 
 function lessonSummary(lesson: Lesson): string | null {
   const fromObjects = lesson.learningObjects?.flatMap((object) => {
@@ -462,15 +509,28 @@ function extractSubLessons(value: unknown): LessonNode['subLessons'] {
       summary: typeof item.summary === 'string' ? item.summary : typeof item.description === 'string' ? item.description : null,
     }));
   }
-  const blocks = [...(Array.isArray(record.blocks) ? record.blocks : []), ...(Array.isArray(record.cards) ? record.cards : [])];
-  return blocks.slice(0, 6).map((block, index) => {
-    const row = block as Record<string, unknown>;
-    return {
-      id: String(row.id ?? `card-${index + 1}`),
-      title: String(row.title ?? row.templateLabel ?? `Card ${index + 1}`),
-      summary: typeof row.body === 'string' ? row.body.slice(0, 120) : null,
-    };
-  });
+  return [];
+}
+
+function stringOrNull(value: unknown) {
+  const text = typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+  return text || null;
+}
+
+function numberOrUndefined(value: unknown) {
+  const number = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : undefined;
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function numberOrNull(value: unknown) {
+  const number = numberOrUndefined(value);
+  return number === undefined ? null : number;
+}
+
+function booleanValue(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return ['true', '1', 'yes'].includes(value.toLowerCase());
+  return Boolean(value);
 }
 
 function ActionPanel({ icon: Icon, title, description, note, actions }: { icon: LucideIcon; title: string; description: string; note?: string; actions: ReactNode }) {
@@ -542,7 +602,7 @@ function planLabel(plan?: string | null) {
 
 function planPurpose(plan?: string | null) {
   const notes: Record<string, string> = {
-    starter_access: 'K30 survival plan: two weeks of course access, no certificate.',
+    starter_access: 'Starter plan: two weeks of course access, no certificate.',
     monthly_access: 'Best low-cost access plan for learners who do not need AI.',
     ai_lite: 'Affordable AI study help with short/medium answers.',
     ai_plus: 'Daily AI support for serious learning and practice.',
