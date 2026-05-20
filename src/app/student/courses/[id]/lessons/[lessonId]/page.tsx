@@ -78,7 +78,7 @@ export default function FocusedLessonPage() {
           courseId: params.id,
           lessonId: params.lessonId,
           metadata: { source: 'lesson_player', lessonTitle: lesson?.title },
-        }).catch(() => null);
+        }).catch((error) => console.warn('Gamification event failed', error));
       }
     } catch (cause) {
       setCompleteError(studentFriendlyError(cause));
