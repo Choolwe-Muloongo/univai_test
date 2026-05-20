@@ -582,7 +582,33 @@ const activeCard = activeCards[cardIndex] ?? activeCards[0];
       return { ...module, saved: false, lessons: updater(module.lessons) };
     }));
   }
+  
 
+  function updateCardsForActiveTarget(updater: (cards: ManualCard[]) => ManualCard[]) {
+  setLessons((current) =>
+    current.map((lesson, index) => {
+      if (index !== lessonIndex) return lesson;
+
+      if (subLessonIndex == null) {
+        return {
+          ...lesson,
+          saved: false,
+          cards: updater(lesson.cards),
+        };
+      }
+
+      return {
+        ...lesson,
+        saved: false,
+        subLessons: lesson.subLessons.map((sub, subIndex) =>
+          subIndex === subLessonIndex
+            ? { ...sub, saved: false, cards: updater(sub.cards) }
+            : sub
+        ),
+      };
+    })
+  );
+  }
   function updateLesson(patch: Partial<ManualLesson>) {
     recordHistory();
     setLessons((current) => current.map((lesson, index) => (index === lessonIndex ? { ...lesson, ...patch, saved: false } : lesson)));
