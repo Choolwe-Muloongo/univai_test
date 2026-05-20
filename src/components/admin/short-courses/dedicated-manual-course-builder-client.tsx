@@ -603,7 +603,138 @@ const activeCard = activeCards[cardIndex] ?? activeCards[0];
       return { ...module, saved: false, lessons: updater(module.lessons) };
     }));
   }
-  
+  function resetBuilderSelection(nextModuleIndex: number, nextLessonIndex = 0) {
+    setModuleIndex(nextModuleIndex);
+    setLessonIndex(nextLessonIndex);
+    setSubLessonIndex(null);
+    setCardIndex(0);
+  }
+
+  function addModule() {
+    recordHistory();
+
+    const nextIndex = modules.length;
+    const module: ManualModule = {
+      id: uid('module'),
+      title: `Module ${nextIndex + 1}`,
+      description: 'Describe what this module covers.',
+      outcomes: ['Complete this module successfully.'],
+      lessons: [makeLesson(1)],
+      saved: false,
+    };
+
+    setModules((current) => [...current, module]);
+    resetBuilderSelection(nextIndex, 0);
+  }
+
+  function updateModule(index: number, patch: Partial<ManualModule>) {
+    const module = modules[index];
+    if (!module) return;
+
+    recordHistory();
+
+    setModules((current) =>
+      current.map((item, moduleIdx) =>
+        moduleIdx === index
+          ? {
+              ...item,
+              ...patch,
+              saved: false,
+            }
+          : item
+      )
+    );
+  }
+
+  function removeModule(index: number) {
+    const module = modules[index];
+    if (!module) return;
+
+    if (modules.length <= 1) {
+      setError('A course needs at least one module.');
+      return;
+    }
+
+    recordHistory();
+
+    const fallbackIndex = index > 0 ? index - 1 : index + 1;
+    const nextActiveIndex = index > 0 ? index - 1 : 0;
+
+    setModules((current) => {
+      const removedModule = current[index];
+      if (!removedModule) return current;
+
+      return current
+        .map((item, moduleIdx) => {
+          if (moduleIdx !== fallbackIndex) return item;
+
+          return {
+            ...item,
+            saved: false,
+            lessons: [...item.lessons, ...removedModule.lessons],
+          };
+        })
+        .filter((_, moduleIdx) => moduleIdx !== index);
+    });
+
+    resetBuilderSelection(nextActiveIndex, 0);
+  }
+
+  function reorderModule(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    if (toIndex < 0 || toIndex >= modules.length) return;
+
+    recordHistory();
+
+    setModules((current) =>
+      moveItem(current, fromIndex, toIndex).map((module, index) =>
+        index === toIndex ? { ...module, saved: false } : module
+      )
+    );
+
+    resetBuilderSelection(toIndex, 0);
+  }
+
+  function moveLessonToModule(lessonIndexToMove: number, targetModuleIndex: number) {
+    if (targetModuleIndex === moduleIndex) return;
+
+    const sourceModule = modules[moduleIndex];
+    const targetModule = modules[targetModuleIndex];
+    const lesson = sourceModule?.lessons[lessonIndexToMove];
+
+    if (!sourceModule || !targetModule || !lesson) return;
+
+    if (sourceModule.lessons.length <= 1) {
+      setError('A module must always have at least one lesson.');
+      return;
+    }
+
+    recordHistory();
+
+    setModules((current) =>
+      current.map((module, index) => {
+        if (index === moduleIndex) {
+          return {
+            ...module,
+            saved: false,
+            lessons: module.lessons.filter((_, idx) => idx !== lessonIndexToMove),
+          };
+        }
+
+        if (index === targetModuleIndex) {
+          return {
+            ...module,
+            saved: false,
+            lessons: [...module.lessons, { ...lesson, saved: false }],
+          };
+        }
+
+        return module;
+      })
+    );
+
+    resetBuilderSelection(targetModuleIndex, targetModule.lessons.length);
+}
 
   function updateCardsForActiveTarget(updater: (cards: ManualCard[]) => ManualCard[]) {
   setLessons((current) =>
