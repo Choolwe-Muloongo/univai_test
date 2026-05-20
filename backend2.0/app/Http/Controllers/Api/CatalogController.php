@@ -191,6 +191,7 @@ class CatalogController extends Controller
         $video = $firstOfType('video');
         $exercise = $firstOfType('exercise');
         $quiz = $firstOfType('quiz');
+        $contentPayload = is_array($content?->payload) ? $content->payload : [];
 
         return [
             'id' => $lesson->id,
@@ -198,6 +199,12 @@ class CatalogController extends Controller
             'content' => $content?->body ?? $lesson->summary ?? '',
             'summary' => $lesson->summary,
             'courseId' => $courseId,
+            'moduleTitle' => $contentPayload['moduleTitle'] ?? null,
+            'moduleIndex' => $contentPayload['moduleIndex'] ?? null,
+            'lessonIndex' => $contentPayload['lessonIndex'] ?? null,
+            'isSubLesson' => (bool) ($contentPayload['isSubLesson'] ?? false),
+            'parentLessonTitle' => $contentPayload['parentLessonTitle'] ?? null,
+            'parentLessonIndex' => $contentPayload['parentLessonIndex'] ?? null,
             'videoUrl' => $video?->asset_url,
             'exercise' => $exercise?->body,
             'quiz' => $quiz?->payload,
