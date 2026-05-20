@@ -1304,14 +1304,16 @@ function CardsStep(props: { form: CourseForm; modules: ManualModule[]; moduleInd
   }
 
   function runQuickCommand() {
-    const cards = cardsFromQuickCommand(quickCommand, activeLesson.cards.length + 1);
+    const targetCards = activeSubLesson?.cards ?? activeLesson.cards;
+    const cards = cardsFromQuickCommand(quickCommand, targetCards.length + 1);
     if (!cards.length) return;
-    insertCards(cards, activeLesson.cards.length);
+    insertCards(cards, targetCards.length);
     setQuickCommand('');
   }
 
   function insertSequence(sequence: CardSequence) {
-    insertCards(cardsFromSequence(sequence, quickCommand || activeLesson.title, activeLesson.cards.length + 1), activeLesson.cards.length);
+    const targetCards = activeSubLesson?.cards ?? activeLesson.cards;
+    insertCards(cardsFromSequence(sequence, quickCommand || activeLesson.title, targetCards.length + 1), targetCards.length);
     setQuickCommand('');
   }
 
@@ -1960,23 +1962,71 @@ function cardFromBlock(block: any, index: number): ManualCard {
 
 function modulesFromCourse(lessons: Lesson[]): ManualModule[] {
   if (!lessons.length) return [{ id: uid('module'), title: 'Module 1', description: 'Fallback module', outcomes: [], lessons: [makeLesson(1)], saved: true }];
-  const mapped = lessons.map((lesson, index) => {
+  const moduleMap = new Map<number, ManualModule>();
+  const sortedLessons = [...lessons].sort((left, right) => {
+    const leftOrder = Number((left as any).sortOrder ?? Number.MAX_SAFE_INTEGER);
+    const rightOrder = Number((right as any).sortOrder ?? Number.MAX_SAFE_INTEGER);
+    return leftOrder - rightOrder;
+  });
+
+  sortedLessons.forEach((lesson, index) => {
+    const modulePosition = Number((lesson as any).moduleIndex);
+    const moduleIndex = Number.isFinite(modulePosition) && modulePosition >= 0 ? modulePosition : 0;
+    const moduleTitle = ((lesson as any).moduleTitle as string | undefined)?.trim() || `Module ${moduleIndex + 1}`;
     const cards = lesson.learningObjects?.flatMap((object) => {
       const payload = object.payload ?? parseMaybeJson(object.body);
       return extractBlocksFromPayload(payload).map((block, blockIndex) => cardFromBlock(block, blockIndex + 1));
     }) ?? [];
+    const subLessons = extractSubLessonsFromLesson(lesson);
 
-    return {
+    if (!moduleMap.has(moduleIndex)) {
+      moduleMap.set(moduleIndex, {
+        id: uid('module'),
+        title: moduleTitle,
+        description: 'Imported module',
+        outcomes: [],
+        lessons: [],
+        saved: true,
+      });
+    }
+
+    const module = moduleMap.get(moduleIndex)!;
+    module.lessons.push({
       id: lesson.id,
       title: lesson.title || `Lesson ${index + 1}`,
       summary: stripHtml(lesson.content).slice(0, 180) || lesson.exercise || 'Describe what this lesson teaches.',
       outcomes: lesson.exercise ? [stripHtml(lesson.exercise).slice(0, 180)] : ['Understand the main idea.'],
-      subLessons: [],
+      subLessons,
       cards: cards.length ? cards : [makeCard('teach', 1), makeCard('summary', 2)],
       saved: true,
-    };
+    });
   });
-  return [{ id: uid('module'), title: 'Module 1', description: 'Imported module', outcomes: [], lessons: mapped, saved: true }];
+
+  const modules = [...moduleMap.entries()]
+    .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
+    .map(([, module]) => module);
+  return modules.length ? modules : [{ id: uid('module'), title: 'Module 1', description: 'Imported module', outcomes: [], lessons: [makeLesson(1)], saved: true }];
+}
+
+function extractSubLessonsFromLesson(lesson: Lesson): SubLesson[] {
+  const candidates = lesson.learningObjects?.flatMap((object) => {
+    const payload = object.payload ?? parseMaybeJson(object.body);
+    return extractSubLessonPayload(payload);
+  }) ?? [];
+  return candidates.map((subLesson, index) => ({
+    id: typeof subLesson.id === 'string' && subLesson.id ? subLesson.id : uid('sub'),
+    title: typeof subLesson.title === 'string' && subLesson.title.trim() ? subLesson.title : `Sub-lesson ${index + 1}`,
+    summary: typeof subLesson.summary === 'string' ? subLesson.summary : '',
+    cards: extractBlocksFromPayload(subLesson).map((block, blockIndex) => cardFromBlock(block, blockIndex + 1)),
+    saved: true,
+  }));
+}
+
+function extractSubLessonPayload(value: unknown): Record<string, unknown>[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record.subLessons)) return [];
+  return record.subLessons.filter((subLesson): subLesson is Record<string, unknown> => Boolean(subLesson && typeof subLesson === 'object' && !Array.isArray(subLesson)));
 }
 
 
