@@ -126,6 +126,7 @@ export function normalizeBlockType(type: string) {
   if (normalized === 'fill_in_the_blank') return 'fill_blank';
   if (normalized === 'truefalse' || normalized === 'true_or_false') return 'true_false';
   if (normalized === 'chart' || normalized === 'plot') return 'graph';
+  if (normalized === 'mini_project') return 'code_mini_project';
   return normalized || 'explanation';
 }
 
