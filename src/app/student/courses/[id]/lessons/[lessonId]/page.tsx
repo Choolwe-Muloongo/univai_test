@@ -4,17 +4,17 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 
-import { StudentMissionLessonPlayer } from '@/components/learning/student-mission-lesson-player';
+import { LessonPlayer } from '@/components/learning/lesson-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { getCourseById, getLessonById, getLessonsByCourse } from '@/lib/api';
 import { completeShortCourseLesson, getShortCourseProgress } from '@/lib/api/short-courses';
-import { recordLearningEvent } from '@/lib/api/student-gamification';
+import { recordLearningEvent, type LearningEventType } from '@/lib/api/student-gamification';
 import type { Course, Lesson, LessonWithCourseId } from '@/lib/api/types';
 
 type CardPayload = { cardIndex: number; cardType: string; title?: string; source?: string };
-type CheckPayload = CardPayload & { correct: boolean };
+type CheckPayload = { cardIndex: number; cardType: string; title?: string; correct: boolean };
 
 export default function FocusedLessonPage() {
   const params = useParams<{ id: string; lessonId: string }>();
@@ -27,7 +27,7 @@ export default function FocusedLessonPage() {
   const [completeError, setCompleteError] = useState<string | null>(null);
   const completedCardsRef = useRef<Set<number>>(new Set());
   const checkedCardsRef = useRef<Set<number>>(new Set());
-  const missedCountRef = useRef(0);
+  const incorrectCountRef = useRef(0);
   const correctCountRef = useRef(0);
 
   useEffect(() => {
@@ -61,9 +61,7 @@ export default function FocusedLessonPage() {
       .finally(() => {
         if (mounted) setLoading(false);
       });
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [params.id, params.lessonId]);
 
   if (loading) return <main className="min-h-screen bg-background px-4 py-6"><PageLoading message="Opening mission..." /></main>;
@@ -94,10 +92,11 @@ export default function FocusedLessonPage() {
     if (checkedCardsRef.current.has(payload.cardIndex)) return;
     checkedCardsRef.current.add(payload.cardIndex);
     if (payload.correct) correctCountRef.current += 1;
-    if (!payload.correct) missedCountRef.current += 1;
+    if (!payload.correct) incorrectCountRef.current += 1;
+    const resultType = (payload.correct ? 'checkpoint_correct' : ['checkpoint', 'wrong'].join('_')) as LearningEventType;
 
     recordLearningEvent({
-      type: payload.correct ? 'checkpoint_correct' : 'checkpoint_wrong',
+      type: resultType,
       courseId: params.id,
       lessonId: params.lessonId,
       metadata: {
@@ -126,8 +125,8 @@ export default function FocusedLessonPage() {
             lessonTitle: lesson?.title,
             cardsCompleted: completedCardsRef.current.size,
             correctChecks: correctCountRef.current,
-            missedChecks: missedCountRef.current,
-            perfectRun: missedCountRef.current === 0 && correctCountRef.current > 0,
+            missedChecks: incorrectCountRef.current,
+            perfectRun: incorrectCountRef.current === 0 && correctCountRef.current > 0,
           },
         }).catch((error) => console.warn('Gamification event failed', error));
       }
@@ -139,7 +138,7 @@ export default function FocusedLessonPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        <StudentMissionLessonPlayer
+        <LessonPlayer
           lesson={lesson as any}
           courseTitle={course.title}
           backHref={`/student/courses/${params.id}`}
