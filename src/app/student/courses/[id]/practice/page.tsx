@@ -63,7 +63,7 @@ export default function CoursePracticePage() {
         })
         : await getShortCoursePractice(courseId, { difficulty: nextDifficulty, count, questionType: 'mcq' });
       setPayload(next);
-      await recordLearningEvent({ type: 'practice_started', courseId, metadata: { difficulty: nextDifficulty, count } }).catch(() => null);
+      await recordLearningEvent({ type: 'practice_started', courseId, metadata: { difficulty: nextDifficulty, count } }).catch((error) => console.warn('Gamification event failed', error));
     } catch (cause) {
       setError(studentFriendlyError(cause));
     } finally {
@@ -83,7 +83,7 @@ export default function CoursePracticePage() {
         type: nextResult.score >= 50 ? 'practice_passed' : 'practice_failed',
         courseId,
         metadata: { score: nextResult.score, correct: nextResult.correct, total: nextResult.total, difficulty },
-      }).catch(() => null);
+      }).catch((error) => console.warn('Gamification event failed', error));
     } catch (cause) {
       setError(studentFriendlyError(cause));
     } finally {
