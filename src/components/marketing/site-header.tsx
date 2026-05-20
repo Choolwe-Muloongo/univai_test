@@ -51,7 +51,7 @@ export function SiteHeader() {
               </nav>
             </SheetContent>
           </Sheet>
-          <Button variant="ghost" asChild className="hidden sm:inline-flex"><Link href="/login">Login</Link></Button>
+          <Button variant="ghost" asChild size="sm" className="px-3"><Link href="/login">Login</Link></Button>
           <Button asChild size="sm" className="sm:h-10 sm:px-4"><Link href="/register">Get Started</Link></Button>
         </div>
       </div>
