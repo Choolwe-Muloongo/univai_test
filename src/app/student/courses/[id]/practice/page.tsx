@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError } from '@/components/ui/page-feedback';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { recordLearningEvent } from '@/lib/api/student-gamification';
 import {
   getShortCoursePractice,
   submitShortCoursePractice,
@@ -22,10 +23,10 @@ import {
 type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
 
 const difficultyOptions: Array<{ key: Difficulty; label: string; description: string }> = [
-  { key: 'easy', label: 'Easy', description: 'Build confidence with lighter checks.' },
-  { key: 'medium', label: 'Medium', description: 'Apply ideas with normal challenge.' },
-  { key: 'hard', label: 'Hard', description: 'Prepare for exam-level thinking.' },
-  { key: 'mixed', label: 'Mixed', description: 'Combine easy, medium, and hard questions.' },
+  { key: 'easy', label: 'Quick Battle', description: 'Build confidence with lighter checks.' },
+  { key: 'medium', label: 'XP Battle', description: 'Apply ideas with normal challenge.' },
+  { key: 'hard', label: 'Boss Prep', description: 'Prepare for exam-level thinking.' },
+  { key: 'mixed', label: 'Rescue Battle', description: 'Combine easy, medium, and hard questions.' },
 ];
 
 export default function CoursePracticePage() {
@@ -55,13 +56,14 @@ export default function CoursePracticePage() {
       const next = nextDifficulty === 'mixed'
         ? await getShortCoursePractice(courseId, {
           sections: [
-            { title: 'Easy practice', difficulty: 'easy', questionType: 'mcq', count: Math.ceil(count / 3), timeMinutes: 10 },
-            { title: 'Medium practice', difficulty: 'medium', questionType: 'mcq', count: Math.ceil(count / 3), timeMinutes: 15 },
-            { title: 'Hard practice', difficulty: 'hard', questionType: 'mcq', count: Math.max(1, count - Math.ceil(count / 3) * 2), timeMinutes: 20 },
+            { title: 'Easy rescue', difficulty: 'easy', questionType: 'mcq', count: Math.ceil(count / 3), timeMinutes: 10 },
+            { title: 'Medium rescue', difficulty: 'medium', questionType: 'mcq', count: Math.ceil(count / 3), timeMinutes: 15 },
+            { title: 'Hard rescue', difficulty: 'hard', questionType: 'mcq', count: Math.max(1, count - Math.ceil(count / 3) * 2), timeMinutes: 20 },
           ],
         })
         : await getShortCoursePractice(courseId, { difficulty: nextDifficulty, count, questionType: 'mcq' });
       setPayload(next);
+      await recordLearningEvent({ type: 'practice_started', courseId, metadata: { difficulty: nextDifficulty, count } }).catch((error) => console.warn('Gamification event failed', error));
     } catch (cause) {
       setError(studentFriendlyError(cause));
     } finally {
@@ -75,7 +77,13 @@ export default function CoursePracticePage() {
     setError(null);
     try {
       const rows: PracticeAnswer[] = questions.map((item) => ({ questionId: item.id, answer: answers[item.id] ?? '' }));
-      setResult(await submitShortCoursePractice(courseId, rows));
+      const nextResult = await submitShortCoursePractice(courseId, rows);
+      setResult(nextResult);
+      await recordLearningEvent({
+        type: nextResult.score >= 50 ? 'practice_passed' : 'practice_failed',
+        courseId,
+        metadata: { score: nextResult.score, correct: nextResult.correct, total: nextResult.total, difficulty },
+      }).catch((error) => console.warn('Gamification event failed', error));
     } catch (cause) {
       setError(studentFriendlyError(cause));
     } finally {
@@ -83,26 +91,26 @@ export default function CoursePracticePage() {
     }
   }
 
-  if (error) return <PageError message={error} actionHref={`/student/courses/${courseId}`} actionLabel="Back to course" />;
+  if (error) return <PageError message={error} actionHref={`/student/courses/${courseId}`} actionLabel="Back to Mission Control" />;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <Button variant="ghost" asChild className="gap-2 px-2">
-        <Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Course</Link>
+        <Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Mission Control</Link>
       </Button>
 
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-primary">Practice Zone</p>
-        <h1 className="text-3xl font-bold tracking-tight">Train before the exam</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Choose a level and work question by question. Practice does not require full course completion.</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-primary">Training Arena</p>
+        <h1 className="text-3xl font-bold tracking-tight">Battle your weak areas before the Final Trial</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Choose a battle mode and work question by question. Wins update XP, quests, streaks, and the activity leaderboard.</p>
       </section>
 
       {!payload ? (
         <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
           <Card className="rounded-3xl">
             <CardHeader>
-              <CardTitle>Choose difficulty</CardTitle>
-              <CardDescription>Start with one level or choose mixed practice.</CardDescription>
+              <CardTitle>Choose battle mode</CardTitle>
+              <CardDescription>Start light or choose a rescue battle.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               {difficultyOptions.map((option) => (
@@ -121,36 +129,36 @@ export default function CoursePracticePage() {
 
           <Card className="rounded-3xl">
             <CardHeader>
-              <CardTitle>Question count</CardTitle>
-              <CardDescription>Keep it focused on mobile or increase for exam prep.</CardDescription>
+              <CardTitle>Battle size</CardTitle>
+              <CardDescription>Keep it focused on mobile or increase for Final Trial prep.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Label className="space-y-2">
                 <span>Number of questions</span>
                 <Input type="number" min={1} max={50} value={count} onChange={(event) => setCount(Math.max(1, Math.min(50, Number(event.target.value) || 1)))} />
               </Label>
-              <Button className="w-full" onClick={() => startPractice()} disabled={loading}>{loading ? 'Preparing...' : 'Start Practice'}</Button>
+              <Button className="w-full" onClick={() => startPractice()} disabled={loading}>{loading ? 'Preparing...' : 'Enter Arena'}</Button>
             </CardContent>
           </Card>
         </div>
       ) : !questions.length ? (
         <Card className="rounded-3xl border-dashed">
           <CardContent className="space-y-4 p-8 text-center">
-            <p className="font-semibold">Practice questions are not ready for this course yet.</p>
+            <p className="font-semibold">Arena questions are not ready for this Journey yet.</p>
             <p className="text-sm text-muted-foreground">Ask an admin or instructor to add questions to the course question bank.</p>
-            <Button variant="outline" onClick={() => setPayload(null)}>Choose another practice setup</Button>
+            <Button variant="outline" onClick={() => setPayload(null)}>Choose another battle setup</Button>
           </CardContent>
         </Card>
       ) : result ? (
         <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle>Practice complete</CardTitle>
+            <CardTitle>{result.score >= 50 ? 'Battle Won!' : 'Battle Lost — useful data'}</CardTitle>
             <CardDescription>{result.correct} correct out of {result.total} questions.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="rounded-2xl border bg-primary/5 p-5">
               <p className="text-4xl font-bold">{result.score}%</p>
-              <p className="text-sm text-muted-foreground">Review the explanations, then practice again or return to the course hub.</p>
+              <p className="text-sm text-muted-foreground">{result.score >= 50 ? '+60 XP and reward progress recorded.' : 'Weak area detected. Start a rescue battle after review.'}</p>
             </div>
             <div className="space-y-3">
               {questions.map((item, itemIndex) => {
@@ -165,8 +173,8 @@ export default function CoursePracticePage() {
               })}
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button onClick={() => setPayload(null)} className="gap-2"><RotateCcw className="h-4 w-4" /> Practice Again</Button>
-              <Button asChild variant="outline"><Link href={`/student/courses/${courseId}`}>Back to Course</Link></Button>
+              <Button onClick={() => setPayload(null)} className="gap-2"><RotateCcw className="h-4 w-4" /> Battle Again</Button>
+              <Button asChild variant="outline"><Link href={`/student/courses/${courseId}`}>Back to Mission Control</Link></Button>
             </div>
           </CardContent>
         </Card>
@@ -199,7 +207,7 @@ export default function CoursePracticePage() {
             {checked[question.id] ? (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
                 <div className="mb-1 flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4 text-primary" /> Answer saved</div>
-                <p className="text-muted-foreground">The full explanation appears after you submit this practice set.</p>
+                <p className="text-muted-foreground">The full explanation appears after you submit this Arena battle.</p>
               </div>
             ) : null}
 
@@ -208,7 +216,7 @@ export default function CoursePracticePage() {
               {index < questions.length - 1 ? (
                 <Button variant="outline" onClick={() => setIndex((value) => value + 1)} disabled={!checked[question.id]}>Next Question</Button>
               ) : (
-                <Button variant="outline" onClick={submit} disabled={loading || !checked[question.id]}>{loading ? 'Submitting...' : 'Finish Practice'}</Button>
+                <Button variant="outline" onClick={submit} disabled={loading || !checked[question.id]}>{loading ? 'Submitting...' : 'Finish Battle'}</Button>
               )}
             </div>
           </CardContent>
@@ -219,7 +227,7 @@ export default function CoursePracticePage() {
 }
 
 function studentFriendlyError(cause: unknown) {
-  const message = cause instanceof Error ? cause.message : 'Unable to load practice.';
-  if (message.includes('402')) return 'Active course access is required. Please enroll or renew access.';
-  return message || 'Unable to load practice.';
+  const message = cause instanceof Error ? cause.message : 'Unable to load Training Arena.';
+  if (message.includes('402')) return 'Active Journey access is required. Please enroll or renew access.';
+  return message || 'Unable to load Training Arena.';
 }

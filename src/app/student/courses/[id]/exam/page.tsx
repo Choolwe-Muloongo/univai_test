@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { getLessonsByCourse } from '@/lib/api';
+import { recordLearningEvent } from '@/lib/api/student-gamification';
 import {
   getShortCourseCertificateUrl,
   getShortCourseExam,
@@ -60,12 +61,16 @@ export default function CourseExamPage() {
 
   async function submit() {
     if (!exam) return;
-    if (!window.confirm('Submit final exam now? You should only submit when you are ready for grading.')) return;
+    if (!window.confirm('Submit Final Trial now? You should only submit when you are ready for grading.')) return;
     setSubmitting(true);
     setError(null);
     try {
       const rows: ExamAnswer[] = exam.questions.map((question, index) => ({ questionId: question.id, answer: answers[index] }));
-      setResult(await submitShortCourseExam(courseId, rows));
+      const nextResult = await submitShortCourseExam(courseId, rows);
+      setResult(nextResult);
+      if (nextResult.passed) {
+        await recordLearningEvent({ type: 'final_trial_passed', courseId, metadata: { score: nextResult.score } }).catch((error) => console.warn('Gamification event failed', error));
+      }
     } catch (cause) {
       setError(studentFriendlyError(cause));
     } finally {
@@ -87,22 +92,22 @@ export default function CourseExamPage() {
     }
   }
 
-  if (loading) return <PageLoading message="Loading final exam..." />;
-  if (error) return <PageError message={error} actionHref={`/student/courses/${courseId}`} actionLabel="Back to course" />;
-  if (!exam) return <PageError title="Exam unavailable" message="This exam is not available yet." actionHref={`/student/courses/${courseId}`} actionLabel="Back to course" />;
+  if (loading) return <PageLoading message="Loading Final Trial..." />;
+  if (error) return <PageError message={error} actionHref={`/student/courses/${courseId}`} actionLabel="Back to Mission Control" />;
+  if (!exam) return <PageError title="Final Trial unavailable" message="This Final Trial is not available yet." actionHref={`/student/courses/${courseId}`} actionLabel="Back to Mission Control" />;
 
   if (locked) {
     return (
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <Button variant="ghost" asChild className="gap-2 px-2"><Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Course</Link></Button>
+        <Button variant="ghost" asChild className="gap-2 px-2"><Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Mission Control</Link></Button>
         <Card className="rounded-3xl border-dashed">
           <CardContent className="space-y-4 p-8 text-center">
             <Lock className="mx-auto h-10 w-10 text-primary" />
             <div>
-              <CardTitle>Final Exam Locked</CardTitle>
-              <CardDescription className="mt-2">Complete all required lessons/projects first.</CardDescription>
+              <CardTitle>Final Trial Locked</CardTitle>
+              <CardDescription className="mt-2">Complete all required missions first.</CardDescription>
             </div>
-            <Button asChild><Link href={`/student/courses/${courseId}`}>Back to Course Hub</Link></Button>
+            <Button asChild><Link href={`/student/courses/${courseId}`}>Back to Mission Control</Link></Button>
           </CardContent>
         </Card>
       </main>
@@ -112,12 +117,12 @@ export default function CourseExamPage() {
   if (!exam.ready) {
     return (
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <Button variant="ghost" asChild className="gap-2 px-2"><Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Course</Link></Button>
+        <Button variant="ghost" asChild className="gap-2 px-2"><Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Mission Control</Link></Button>
         <Card className="rounded-3xl">
           <CardContent className="space-y-4 p-8 text-center">
             <Timer className="mx-auto h-10 w-10 text-primary" />
             <div>
-              <CardTitle>This exam needs more questions before it can be taken.</CardTitle>
+              <CardTitle>This Final Trial needs more questions before it can be taken.</CardTitle>
               <CardDescription className="mt-2">Required questions: {exam.requiredQuestions}. Available questions: {exam.availableQuestions}.</CardDescription>
             </div>
           </CardContent>
@@ -131,8 +136,8 @@ export default function CourseExamPage() {
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle>{result.passed ? 'Exam Passed' : 'Exam Submitted'}</CardTitle>
-            <CardDescription>{result.passed ? 'You can move to the certificate step.' : 'Practice again, review lessons, and retake when ready.'}</CardDescription>
+            <CardTitle>{result.passed ? 'Final Trial Passed' : 'Final Trial Submitted'}</CardTitle>
+            <CardDescription>{result.passed ? '+500 XP recorded. You can move to the Skill Proof step.' : 'Practice again, review missions, and retake when ready.'}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="rounded-2xl border bg-muted/20 p-6">
@@ -141,14 +146,14 @@ export default function CourseExamPage() {
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
               {result.passed ? (
-                <Button onClick={openCertificate} disabled={submitting} className="gap-2"><BadgeCheck className="h-4 w-4" /> Certificate Next Step</Button>
+                <Button onClick={openCertificate} disabled={submitting} className="gap-2"><BadgeCheck className="h-4 w-4" /> Skill Proof Next Step</Button>
               ) : (
                 <>
-                  <Button asChild><Link href={`/student/courses/${courseId}/practice`}>Practice Again</Link></Button>
-                  <Button variant="outline" onClick={() => { setResult(null); setAnswers([]); setCurrent(0); }}>Retake Exam</Button>
+                  <Button asChild><Link href={`/student/courses/${courseId}/practice`}>Enter Training Arena</Link></Button>
+                  <Button variant="outline" onClick={() => { setResult(null); setAnswers([]); setCurrent(0); }}>Retake Final Trial</Button>
                 </>
               )}
-              <Button asChild variant="outline"><Link href={`/student/courses/${courseId}`}>Back to Course</Link></Button>
+              <Button asChild variant="outline"><Link href={`/student/courses/${courseId}`}>Back to Mission Control</Link></Button>
             </div>
           </CardContent>
         </Card>
@@ -158,10 +163,10 @@ export default function CourseExamPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <Button variant="ghost" asChild className="gap-2 px-2"><Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Course</Link></Button>
+      <Button variant="ghost" asChild className="gap-2 px-2"><Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Mission Control</Link></Button>
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-primary">Final Exam Ready</p>
-        <h1 className="text-3xl font-bold tracking-tight">Final Exam</h1>
+        <p className="text-sm font-semibold uppercase tracking-wide text-primary">Final Trial Ready</p>
+        <h1 className="text-3xl font-bold tracking-tight">Final Trial</h1>
         <p className="mt-2 text-sm text-muted-foreground">{exam.questions.length} questions. Pass mark is 50%. Save each answer before submitting.</p>
       </section>
 
@@ -207,7 +212,7 @@ export default function CourseExamPage() {
                 <Button variant="outline" onClick={() => setCurrent((value) => Math.max(0, value - 1))} disabled={current === 0}>Previous</Button>
                 <Button variant="outline" onClick={() => setCurrent((value) => Math.min(exam.questions.length - 1, value + 1))} disabled={current === exam.questions.length - 1}>Next</Button>
               </div>
-              <Button onClick={submit} disabled={submitting || answeredCount < exam.questions.length}>{submitting ? 'Submitting...' : 'Submit Exam'}</Button>
+              <Button onClick={submit} disabled={submitting || answeredCount < exam.questions.length}>{submitting ? 'Submitting...' : 'Submit Final Trial'}</Button>
             </div>
           </CardContent>
         </Card>
@@ -217,7 +222,7 @@ export default function CourseExamPage() {
 }
 
 function studentFriendlyError(cause: unknown) {
-  const message = cause instanceof Error ? cause.message : 'Unable to load final exam.';
-  if (message.includes('402')) return 'Active course access is required. Please enroll or renew access.';
-  return message || 'Unable to load final exam.';
+  const message = cause instanceof Error ? cause.message : 'Unable to load Final Trial.';
+  if (message.includes('402')) return 'Active Journey access is required. Please enroll or renew access.';
+  return message || 'Unable to load Final Trial.';
 }
