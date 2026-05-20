@@ -25,6 +25,7 @@ const firstClassCodingTypes = [
   'complete_code',
   'predict_output',
   'code_mini_project',
+  'mini_project',
 ];
 
 const genericCodingDefinitions = createBlockDefinitions(
