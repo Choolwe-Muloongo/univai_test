@@ -13,7 +13,7 @@ import { createShortCourseDraftWithBlueprint, getCourses, getLessonsByCourse, ge
 import type { AiBuilderAction, CourseBuilderBlueprint, CourseBuilderLesson, CourseBuilderSelection, CourseDocumentChunk, CourseSourceDocument, LessonCardBlock } from '@/lib/api/course-builder-types';
 import { buildStepwiseAiBuilderPrompt, generateShortCourseContent } from '@/lib/api/short-course-generation';
 import type { Course, School } from '@/lib/api/types';
-import { applyAiGeneratedPatch, buildAiGenerationRequest, chunkSourceDocument, getSelectedLesson, type AiBuilderGeneratedPatch } from '@/lib/short-course-ai-builder-engine';
+import { applyAiGeneratedPatch, buildAiGenerationRequest, chunkSourceDocument, courseAndLessonsToBuilderBlueprint, getSelectedLesson, type AiBuilderGeneratedPatch } from '@/lib/short-course-ai-builder-engine';
 import { extractDocumentText, type DocumentExtractionProgress } from '@/lib/document-text-extractor';
 
 type BuilderStep = 'source' | 'plan' | 'modules' | 'lessons' | 'cards' | 'questions' | 'preview' | 'validate' | 'save';
@@ -135,8 +135,11 @@ export function ShortCourseStepwiseAiBuilderClient() {
     setSelectedCourseId(courseId);
     setMessage(null);
     setError(null);
+    setRawPatch('');
     if (!courseId) {
       setExistingLessonCount(0);
+      setBlueprint(blankBlueprint);
+      setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
       return;
     }
     const course = courses.find((item) => item.id === courseId);
@@ -153,23 +156,17 @@ export function ShortCourseStepwiseAiBuilderClient() {
       certificateFee: String(course.certificateFee ?? 0),
       certificateCurrency: course.certificateCurrency ?? 'ZMW',
     }));
-    setBlueprint((current) => normalizeBlueprint({
-      ...current,
-      courseSummary: {
-        ...current.courseSummary,
-        title: course.title || current.courseSummary.title,
-        description: course.description || current.courseSummary.description,
-        level: course.level || current.courseSummary.level,
-        totalDurationHours: Number(course.durationHours || current.courseSummary.totalDurationHours),
-      },
-    }));
     try {
       const lessons = await getLessonsByCourse(courseId);
+      const importedBlueprint = normalizeBlueprint(courseAndLessonsToBuilderBlueprint(course, lessons));
+      setBlueprint(importedBlueprint);
+      setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
       setExistingLessonCount(lessons.length);
-      setMessage(`Existing course loaded with ${lessons.length} lesson(s). AI can now improve or complete selected sections.`);
-    } catch {
+      setMessage(`Existing course imported into the AI builder with ${importedBlueprint.modules.length} module(s) and ${lessons.length} lesson(s). AI can now read and improve the real current structure.`);
+    } catch (cause) {
       setExistingLessonCount(0);
-      setMessage('Existing course loaded. Lesson count could not be checked.');
+      setBlueprint(normalizeBlueprint(courseAndLessonsToBuilderBlueprint(course, [])));
+      setMessage(cause instanceof Error ? `Existing course basics loaded, but lessons could not be imported: ${cause.message}` : 'Existing course basics loaded, but lessons could not be imported.');
     }
   }
 
