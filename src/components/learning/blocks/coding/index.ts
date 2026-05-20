@@ -21,13 +21,15 @@ const codingTypes = [
   'output_prediction_step', 'bug_fix_step', 'test_case_step', 'code_reveal_step',
 ];
 
-const firstClassCodingTypes: CodeCardBlock['type'][] = [
+type CanonicalCodeCardType = Exclude<CodeCardBlock['type'], 'mini_project'>;
+
+const firstClassCodingTypes: CanonicalCodeCardType[] = [
   'code_playground',
   'debug_code',
   'complete_code',
   'predict_output',
   'code_explanation',
-  'mini_project',
+  'code_mini_project',
 ];
 
 const genericCodingDefinitions = createBlockDefinitions(
@@ -82,7 +84,7 @@ function FirstClassCodeStudentRenderer({ payload }: BlockRendererProps) {
   return createElement(CodeCardPlayer, { block: normalizeCodePayload(payload) });
 }
 
-function defaultCodePayload(type: CodeCardBlock['type']): LearningBlockPayload {
+function defaultCodePayload(type: CanonicalCodeCardType): LearningBlockPayload {
   return {
     type,
     title: titleCase(type),
@@ -106,8 +108,8 @@ function defaultCodePayload(type: CodeCardBlock['type']): LearningBlockPayload {
 function normalizeCodePayload(payload: LearningBlockPayload): CodeCardBlock {
   const language = typeof payload.language === 'string' ? payload.language : 'javascript';
   const fallbackFile = language === 'html' ? 'index.html' : language === 'python' ? 'main.py' : language === 'php' ? 'index.php' : 'main.js';
-  const type = firstClassCodingTypes.includes(payload.type as CodeCardBlock['type'])
-    ? payload.type as CodeCardBlock['type']
+  const type = firstClassCodingTypes.includes(payload.type as CanonicalCodeCardType)
+    ? payload.type as CanonicalCodeCardType
     : 'code_playground';
 
   return {
