@@ -472,10 +472,13 @@ export function DedicatedManualCourseBuilderClient() {
   }, [form, modules, quizBank, editingCourseId]);
 
   const activeModule = modules[moduleIndex] ?? modules[0];
-  const lessons = activeModule?.lessons ?? [];
-  const activeLesson = lessons[lessonIndex] ?? lessons[0];
-  const activeSubLesson = subLessonIndex == null ? null : (activeLesson?.subLessons[subLessonIndex] ?? null);
-  const activeCard = (activeSubLesson?.cards ?? activeLesson?.cards ?? [])[cardIndex] ?? (activeSubLesson?.cards ?? activeLesson?.cards ?? [])[0];
+const lessons = activeModule?.lessons ?? [];
+const activeLesson = lessons[lessonIndex] ?? lessons[0];
+const activeSubLesson =
+  subLessonIndex == null ? null : (activeLesson?.subLessons[subLessonIndex] ?? null);
+
+const activeCards = activeSubLesson?.cards ?? activeLesson?.cards ?? [];
+const activeCard = activeCards[cardIndex] ?? activeCards[0];
   const activeQuiz = quizBank[quizIndex] ?? quizBank[0];
   const sourceText = useMemo(
     () => documents.map((doc, index) => `DOCUMENT ${index + 1}: ${doc.name}\n${doc.text}`).join('\n\n---\n\n').slice(0, 180000),
