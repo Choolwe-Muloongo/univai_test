@@ -10,6 +10,7 @@ import type {
   CourseSourceDocument,
   LessonCardBlock,
 } from '@/lib/api/course-builder-types';
+import type { Course, LessonWithCourseId } from '@/lib/api/types';
 
 export type AiBuilderGeneratedPatch = {
   documents?: CourseSourceDocument[];
@@ -110,6 +111,62 @@ export function applyAiGeneratedPatch(
   return draft;
 }
 
+export function courseAndLessonsToBuilderBlueprint(course: Course, lessons: LessonWithCourseId[]): CourseBuilderBlueprint {
+  const moduleTitles = course.modules?.length ? course.modules.map((module) => module.title) : ['Existing course content'];
+  const modules: CourseBuilderModule[] = moduleTitles.map((title, index) => ({
+    title: title || `Module ${index + 1}`,
+    description: course.modules?.[index]?.description || `Content imported from ${course.title}.`,
+    durationMinutes: 60,
+    outcomes: [],
+    moduleAssessment: 'Review the lessons in this module.',
+    lessons: [],
+  }));
+
+  const fallbackModule = modules[0];
+  lessons.forEach((lesson, index) => {
+    const moduleIndex = inferModuleIndex(lesson, moduleTitles, index, modules.length);
+    const targetModule = modules[moduleIndex] ?? fallbackModule;
+    targetModule.lessons.push(lessonToBuilderLesson(lesson, index));
+  });
+
+  if (!lessons.length && course.lessons?.length) {
+    course.lessons.forEach((lesson, index) => {
+      fallbackModule.lessons.push(normalizeLesson({
+        title: lesson.title || `Lesson ${index + 1}`,
+        summary: lesson.summary || 'Imported lesson summary.',
+        durationMinutes: 20,
+        difficulty: course.level || 'beginner',
+        outcomes: [],
+        blocks: [{ type: 'explanation', title: lesson.title || `Lesson ${index + 1}`, body: lesson.summary || 'Add content for this lesson.' }],
+        subLessons: [],
+        activities: [],
+        assessment: 'Lesson checkpoint.',
+      }));
+    });
+  }
+
+  return {
+    courseSummary: {
+      title: course.title || 'Untitled short course',
+      audience: 'Short-course learners',
+      level: course.level || 'beginner',
+      description: course.description || 'Imported existing short course.',
+      prerequisites: [],
+      totalDurationHours: Number(course.durationHours || Math.max(1, Math.ceil(lessons.length / 3))),
+      outcomes: course.outcomes?.length ? course.outcomes : ['Complete the imported course lessons.'],
+      finalAssessment: 'Final course assessment.',
+      certificateCriteria: 'Complete all required lessons and assessments.',
+    },
+    assessments: {
+      quizzes: [],
+      practicalWork: [],
+      instructorReviewChecklist: ['Review imported lessons before publishing updates.'],
+    },
+    modules: modules.map(normalizeModule),
+    documents: [],
+  };
+}
+
 export function chunkSourceDocument(document: Pick<CourseSourceDocument, 'id' | 'name' | 'mode' | 'text' | 'warning'>, chunkSize = 1800): CourseSourceDocument {
   const text = document.text ?? '';
   const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
@@ -145,6 +202,99 @@ export function getSelectedLesson(blueprint: CourseBuilderBlueprint, selection: 
   const parentLesson = blueprint.modules[selection.moduleIndex]?.lessons[selection.lessonIndex];
   if (!parentLesson) return null;
   return selection.subLessonIndex == null ? parentLesson : parentLesson.subLessons?.[selection.subLessonIndex] ?? null;
+}
+
+function lessonToBuilderLesson(lesson: LessonWithCourseId, index: number): CourseBuilderLesson {
+  const blocks = blocksFromLesson(lesson);
+  return normalizeLesson({
+    title: lesson.title || `Lesson ${index + 1}`,
+    summary: typeof (lesson as Record<string, unknown>).summary === 'string' ? String((lesson as Record<string, unknown>).summary) : stripHtml(lesson.content || 'Imported lesson.'),
+    durationMinutes: Number((lesson as Record<string, unknown>).estimatedMinutes || 20),
+    difficulty: typeof (lesson as Record<string, unknown>).difficulty === 'string' ? String((lesson as Record<string, unknown>).difficulty) : 'beginner',
+    outcomes: [],
+    blocks,
+    subLessons: [],
+    activities: [],
+    assessment: 'Lesson checkpoint.',
+  });
+}
+
+function blocksFromLesson(lesson: LessonWithCourseId): LessonCardBlock[] {
+  const objectBlocks = lesson.learningObjects?.flatMap((object) => {
+    const payloadBlocks = blocksFromUnknown(object.payload);
+    if (payloadBlocks.length) return payloadBlocks;
+    const bodyBlocks = blocksFromUnknown(parseMaybeJson(object.body));
+    if (bodyBlocks.length) return bodyBlocks;
+    if (object.body && object.type !== 'video') return [{ type: 'explanation', title: object.title, body: stripHtml(object.body) } as LessonCardBlock];
+    return [];
+  }) ?? [];
+  if (objectBlocks.length) return objectBlocks;
+
+  const contentBlocks = blocksFromUnknown(parseMaybeJson(lesson.content));
+  if (contentBlocks.length) return contentBlocks;
+
+  const fallback: LessonCardBlock[] = [{ type: 'explanation', title: lesson.title || 'Imported lesson', body: stripHtml(lesson.content || 'Review this imported lesson.') }];
+  lesson.quiz?.questions?.slice(0, 6).forEach((question, questionIndex) => {
+    fallback.push({
+      type: 'question',
+      title: `Imported question ${questionIndex + 1}`,
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.answer ?? question.options[0] ?? '',
+      explanation: 'Review the imported lesson content before answering.',
+    });
+  });
+  return fallback;
+}
+
+function blocksFromUnknown(value: unknown): LessonCardBlock[] {
+  if (!value || typeof value !== 'object') return [];
+  const record = value as Record<string, unknown>;
+  const direct = [
+    ...(Array.isArray(record.blocks) ? record.blocks as LessonCardBlock[] : []),
+    ...(Array.isArray(record.cards) ? record.cards as LessonCardBlock[] : []),
+  ];
+  const nested = [
+    ...blocksFromSections(record.sections),
+    ...blocksFromSections(record.subLessons),
+    ...blocksFromSections(record.sub_lessons),
+    ...blocksFromSections(record.topics),
+    ...blocksFromSections(record.lessons),
+  ];
+  if (record.lesson && typeof record.lesson === 'object') return [...direct, ...blocksFromUnknown(record.lesson), ...nested];
+  return [...direct, ...nested];
+}
+
+function blocksFromSections(value: unknown): LessonCardBlock[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((section, index) => {
+    if (!section || typeof section !== 'object') return [];
+    const record = section as Record<string, unknown>;
+    const title = String(record.title ?? record.name ?? `Sub-lesson ${index + 1}`);
+    const intro: LessonCardBlock = { type: 'summary', title, body: String(record.description ?? record.summary ?? 'Imported sub-lesson.') };
+    return [intro, ...blocksFromUnknown(record)];
+  });
+}
+
+function parseMaybeJson(value: unknown) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return value;
+  try { return JSON.parse(trimmed); } catch { return value; }
+}
+
+function inferModuleIndex(lesson: LessonWithCourseId, moduleTitles: string[], lessonIndex: number, moduleCount: number) {
+  const lessonRecord = lesson as Record<string, unknown>;
+  const directIndex = Number(lessonRecord.moduleIndex ?? lessonRecord.module_index);
+  if (Number.isInteger(directIndex) && directIndex >= 0 && directIndex < moduleCount) return directIndex;
+  const moduleTitle = String(lessonRecord.moduleTitle ?? lessonRecord.module_title ?? '').toLowerCase();
+  const found = moduleTitles.findIndex((title) => title.toLowerCase() === moduleTitle);
+  if (found >= 0) return found;
+  return moduleCount > 1 ? Math.min(moduleCount - 1, Math.floor(lessonIndex / Math.max(1, Math.ceil((lessonRecord.totalLessons as number || 1) / moduleCount)))) : 0;
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function scopeForAction(action: AiBuilderAction): AiBuilderGenerationRequest['scope'] {
@@ -191,6 +341,7 @@ function normalizeCard(card: LessonCardBlock): LessonCardBlock {
   if (isCodingCard(card)) {
     return {
       ...card,
+      type: card.type === 'mini_project' ? 'code_mini_project' : card.type,
       title: card.title || 'Coding practice',
       instructions: card.instructions || 'Complete the coding task.',
       language: card.language || 'javascript',
@@ -206,7 +357,7 @@ function normalizeCard(card: LessonCardBlock): LessonCardBlock {
 }
 
 function isCodingCard(card: LessonCardBlock): card is CodeCardBlock {
-  return ['code_playground', 'debug_code', 'complete_code', 'predict_output', 'code_explanation', 'mini_project'].includes(card.type);
+  return ['code_playground', 'debug_code', 'complete_code', 'predict_output', 'code_explanation', 'code_mini_project', 'mini_project'].includes(card.type);
 }
 
 function defaultFileName(language: string) {
