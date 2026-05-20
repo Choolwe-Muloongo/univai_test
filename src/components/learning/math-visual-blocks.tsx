@@ -66,7 +66,24 @@ function NumberLineBlock({ block }: { block: AnyBlock }) {
         <svg viewBox="0 0 520 120" className="h-auto w-full min-w-[280px] sm:min-w-[360px]">
           <line x1="35" x2="485" y1="60" y2="60" className="stroke-foreground" strokeWidth="2" />
           {ticks(min, max).map((tick) => <g key={tick}><line x1={scale(tick)} x2={scale(tick)} y1="52" y2="68" className="stroke-foreground" /><text x={scale(tick)} y="90" textAnchor="middle" className="fill-muted-foreground text-[11px]">{tick}</text></g>)}
-          {intervals.map((interval: AnyBlock, index: number) => <line key={index} x1={scale(Number(interval.start))} x2={scale(Number(interval.end))} y1="60" y2="60" className="stroke-primary" strokeWidth="7" strokeLinecap="round" />)}
+          {intervals.map((interval: AnyBlock, index: number) => {
+            const start = interval.start == null ? min : Number(interval.start);
+            const end = interval.end == null ? max : Number(interval.end);
+            const startClosed = Boolean(interval.startClosed ?? interval.inclusiveStart);
+            const endClosed = Boolean(interval.endClosed ?? interval.inclusiveEnd);
+            const hasLeftInfinity = interval.start == null;
+            const hasRightInfinity = interval.end == null;
+            return (
+              <g key={index}>
+                <line x1={scale(start)} x2={scale(end)} y1="60" y2="60" className="stroke-primary" strokeWidth="7" strokeLinecap="round" />
+                {!hasLeftInfinity ? <circle cx={scale(start)} cy="60" r="6" className={startClosed ? 'fill-primary stroke-primary' : 'fill-background stroke-primary'} strokeWidth="2" /> : null}
+                {!hasRightInfinity ? <circle cx={scale(end)} cy="60" r="6" className={endClosed ? 'fill-primary stroke-primary' : 'fill-background stroke-primary'} strokeWidth="2" /> : null}
+                {hasLeftInfinity ? <polygon points={`${scale(min)},60 ${scale(min) + 10},54 ${scale(min) + 10},66`} className="fill-primary" /> : null}
+                {hasRightInfinity ? <polygon points={`${scale(max)},60 ${scale(max) - 10},54 ${scale(max) - 10},66`} className="fill-primary" /> : null}
+                {interval.label ? <text x={(scale(start) + scale(end)) / 2} y="45" textAnchor="middle" className="fill-primary text-[11px]">{interval.label}</text> : null}
+              </g>
+            );
+          })}
           {points.map((point: any, index: number) => { const value = typeof point === 'number' ? point : Number(point.value); return <circle key={index} cx={scale(value)} cy="60" r="6" className="fill-primary" />; })}
         </svg>
       </div>
