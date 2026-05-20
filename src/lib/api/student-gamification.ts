@@ -103,10 +103,10 @@ export async function getStudentRewards(): Promise<{ balance: number; shop: Rewa
   return apiFetch('/students/me/rewards');
 }
 
-export async function redeemStudentReward(code: string): Promise<{ message: string; balance: number }> {
+export async function redeemStudentReward(code: string, courseId?: string | null): Promise<{ message: string; balance: number }> {
   return apiFetch('/students/me/rewards/redeem', {
     method: 'POST',
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, courseId: courseId ?? null }),
   });
 }
 
