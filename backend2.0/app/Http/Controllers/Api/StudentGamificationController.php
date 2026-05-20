@@ -29,11 +29,14 @@ class StudentGamificationController extends Controller
             'metadata' => ['nullable', 'array'],
         ]);
 
-        if (!$this->canAwardEvent($studentId, $payload['type'], $payload['courseId'] ?? null, $payload['lessonId'] ?? null)) {
-            return response()->json($this->statePayload($studentId) + ['message' => 'Learning event recorded, but no extra reward was awarded because the daily or duplicate limit was reached.']);
-        }
+        $canAward = $this->canAwardEvent($studentId, $payload['type'], $payload['courseId'] ?? null, $payload['lessonId'] ?? null);
+        $award = $canAward ? $this->awardFor($payload['type']) : ['xp' => 0, 'points' => 0, 'activity' => 0];
+        $metadata = $payload['metadata'] ?? [];
 
-        $award = $this->awardFor($payload['type']);
+        if (!$canAward) {
+            $metadata['rewardSkipped'] = true;
+            $metadata['skipReason'] = 'daily_or_duplicate_limit';
+        }
 
         DB::table('student_learning_events')->insert([
             'student_id' => $studentId,
@@ -43,10 +46,14 @@ class StudentGamificationController extends Controller
             'xp_awarded' => $award['xp'],
             'reward_points_awarded' => $award['points'],
             'activity_points_awarded' => $award['activity'],
-            'metadata' => json_encode($payload['metadata'] ?? []),
+            'metadata' => json_encode($metadata),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        if (!$canAward) {
+            return response()->json($this->statePayload($studentId) + ['message' => 'Learning event recorded without extra reward because the daily or duplicate limit was reached.']);
+        }
 
         $xp = DB::table('student_xp_balances')->where('student_id', $studentId)->first();
         $newXp = (int) ($xp->xp ?? 0) + $award['xp'];
@@ -177,6 +184,7 @@ class StudentGamificationController extends Controller
                 ->where('student_id', $studentId)
                 ->where('event_type', $type)
                 ->where('short_course_id', $courseId)
+                ->where('xp_awarded', '>', 0)
                 ->exists();
         }
 
@@ -186,6 +194,7 @@ class StudentGamificationController extends Controller
                 ->where('event_type', $type)
                 ->where('short_course_id', $courseId)
                 ->where('lesson_id', $lessonId)
+                ->where('xp_awarded', '>', 0)
                 ->exists();
         }
 
@@ -205,6 +214,11 @@ class StudentGamificationController extends Controller
             ->where('student_id', $studentId)
             ->where('event_type', $type)
             ->where('created_at', '>=', $today)
+            ->where(function ($query) {
+                $query->where('xp_awarded', '>', 0)
+                    ->orWhere('reward_points_awarded', '>', 0)
+                    ->orWhere('activity_points_awarded', '>', 0);
+            })
             ->count();
 
         return $count < $cap;
