@@ -1184,7 +1184,7 @@ function SetupStep({ form, updateForm, schools, goNext }: { form: CourseForm; up
 }
 
 function LessonsStep(props: { modules: ManualModule[]; moduleIndex: number; setModuleIndex: (index: number) => void; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; removeLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
-l  const { modules, moduleIndex, setModuleIndex, lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, removeLesson, reorderLesson, finish } = props;
+const { modules, moduleIndex, setModuleIndex, lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, removeLesson, reorderLesson, finish } = props;
   return (
     <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
       <div className="space-y-2">
