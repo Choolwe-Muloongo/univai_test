@@ -1136,7 +1136,38 @@ const activeCard = activeCards[cardIndex] ?? activeCards[0];
           <StudioNavigator step={step} setStep={setStep} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} setCardIndex={setCardIndex} readiness={readiness} quizCount={quizBank.length} />
           <div className="min-w-0">
             {step === 'setup' ? <SetupStep form={form} updateForm={updateForm} schools={schools} goNext={() => setStep('lessons')} courses={courses} editingCourseId={editingCourseId} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} startNewCourse={startNewCourse} /> : null}
-            {step === 'lessons' ? <LessonsStep modules={modules} moduleIndex={moduleIndex} setModuleIndex={setModuleIndex} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} removeLesson={removeLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
+            {step === 'lessons' ? (
+  <LessonsStep
+    modules={modules}
+    moduleIndex={moduleIndex}
+    setModuleIndex={(index) => {
+      setModuleIndex(index);
+      setLessonIndex(0);
+      setSubLessonIndex(null);
+      setCardIndex(0);
+    }}
+    lessons={lessons}
+    lessonIndex={lessonIndex}
+    setLessonIndex={(index) => {
+      setLessonIndex(index);
+      setSubLessonIndex(null);
+      setCardIndex(0);
+    }}
+    activeLesson={activeLesson}
+    updateLesson={updateLesson}
+    addLesson={addLesson}
+    addLessonTemplate={addLessonTemplate}
+    duplicateLesson={duplicateLesson}
+    removeLesson={removeLesson}
+    reorderLesson={reorderLesson}
+    addModule={addModule}
+    updateModule={updateModule}
+    removeModule={removeModule}
+    reorderModule={reorderModule}
+    moveLessonToModule={moveLessonToModule}
+    finish={() => setStep('cards')}
+  />
+) : null}
             {step === 'cards' ? <CardsStep form={form} modules={modules} moduleIndex={moduleIndex} setModuleIndex={setModuleIndex} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} subLessonIndex={subLessonIndex} setSubLessonIndex={setSubLessonIndex} activeLesson={activeLesson} activeSubLesson={activeSubLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addWorkflowCard={addWorkflowCard} insertWorkflowCard={insertWorkflowCard} addTemplateCard={addTemplateCard} insertTemplateCard={insertTemplateCard} insertCards={insertCards} replaceCard={replaceCard} replaceCardWithCards={replaceCardWithCards} reorderCard={reorderCard} duplicateCard={duplicateCard} removeCard={removeCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
             {step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={addQuiz} duplicateQuiz={duplicateQuiz} removeQuiz={removeQuiz} reorderQuiz={reorderQuiz} bulkAddQuiz={bulkAddQuiz} finish={() => setStep('preview')} /> : null}
             {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={modules.flatMap((module) => module.lessons)} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} editingCourseId={editingCourseId} /> : null}
