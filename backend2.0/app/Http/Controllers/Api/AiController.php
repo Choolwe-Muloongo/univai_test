@@ -24,6 +24,16 @@ class AiController extends Controller
             'brandContext' => 'nullable|string',
             'courseId' => 'nullable|string',
             'shortCourseId' => 'nullable|string',
+            'action' => 'nullable|string|in:document_map,course_plan,generate_modules,generate_lessons,generate_sub_lessons,generate_cards,generate_single_card,repair_card,generate_questions,generate_code_card,validate_course,suggest_improvements',
+            'builderRequest' => 'nullable|array',
+            'builderRequest.action' => 'nullable|string|in:document_map,course_plan,generate_modules,generate_lessons,generate_sub_lessons,generate_cards,generate_single_card,repair_card,generate_questions,generate_code_card,validate_course,suggest_improvements',
+            'builderRequest.scope' => 'nullable|string|in:course,module,lesson,sub_lesson,card',
+            'builderRequest.currentBlueprint' => 'nullable|array',
+            'builderRequest.selectedScope' => 'nullable|array',
+            'builderRequest.selectedDocumentChunks' => 'nullable|array',
+            'builderRequest.count' => 'nullable|integer|min:1|max:20',
+            'builderRequest.difficulty' => 'nullable|string|max:100',
+            'builderRequest.instruction' => 'nullable|string|max:2000',
         ]);
 
         $mode = $data['mode'] ?? 'general';
@@ -75,6 +85,10 @@ class AiController extends Controller
         }
 
         $prompt = trim($data['prompt']);
+        $builderRequest = $data['builderRequest'] ?? null;
+        if (is_array($builderRequest)) {
+            $prompt .= "\n\nStructured AI builder request:\n" . json_encode($builderRequest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
         $maxPrompt = min((int) env('AI_MAX_PROMPT', 4000), $policy['maxPrompt']);
         if (mb_strlen($prompt) > $maxPrompt) {
             return response()->json(['error' => "Prompt exceeds {$maxPrompt} characters."], 422);
@@ -95,6 +109,8 @@ class AiController extends Controller
             'mode' => $mode,
             'tier' => $tier,
             'feature' => $feature,
+            'action' => $data['action'] ?? ($builderRequest['action'] ?? null),
+            'builder_scope' => is_array($builderRequest) ? ($builderRequest['scope'] ?? null) : null,
             'model' => $data['model'] ?? null,
             'prompt_length' => mb_strlen($prompt),
             'context_length' => mb_strlen($context),
@@ -104,7 +120,7 @@ class AiController extends Controller
             'user_id' => is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null,
         ]);
 
-        $systemInstruction = $this->systemInstructionFor($mode, $tier, $policy);
+        $systemInstruction = $this->systemInstructionFor($mode, $tier, $policy, $feature, $data['action'] ?? ($builderRequest['action'] ?? null));
         if ($approvedMaterials !== '') {
             $systemInstruction .= "\n\nApproved module materials:\n{$approvedMaterials}";
         }
@@ -175,7 +191,7 @@ class AiController extends Controller
         return response()->json(['text' => $text]);
     }
 
-    private function systemInstructionFor(string $mode, string $tier, array $policy): string
+    private function systemInstructionFor(string $mode, string $tier, array $policy, ?string $feature = null, ?string $action = null): string
     {
         $brand = UnivAiBranding::brand();
         $guardrails = implode(' ', config('univai.ai.brand_guardrails', []));
@@ -193,11 +209,15 @@ class AiController extends Controller
             default => 'Answer as a helpful UnivAI university assistant.',
         };
 
+        $builderInstruction = $feature === 'admin_short_course_stepwise_builder'
+            ? " Stepwise short-course builder rule: treat action {$action} as authoritative, use the supplied builderRequest/currentBlueprint/selectedScope/selectedDocumentChunks, generate only the requested section, avoid duplicate course parts, and return strict JSON for the requested patch only. Use coding cards with language, instructions, files, tests, hints, solutionFiles, expectedOutput, previewMode, and aiHelpEnabled when coding is involved."
+            : '';
+
         $grounding = $tier === 'programme'
             ? ' Programme student rule: ground answers in approved module materials supplied in Approved module materials or Student context. If materials are insufficient, state that the approved module materials do not contain the answer. Formal programme delivery modes are online, hybrid, and physical only.'
             : '';
 
-        return $base . ' ' . $modeInstruction . $grounding;
+        return $base . ' ' . $modeInstruction . $builderInstruction . $grounding;
     }
 
     private function resolveAccessTier(?string $role, ?string $requestedTier): string
@@ -226,9 +246,9 @@ class AiController extends Controller
             ],
             'paid-certificate' => [
                 'label' => 'Paid Certificate AI',
-                'maxPrompt' => 2500,
+                'maxPrompt' => 6000,
                 'modes' => ['general', 'summary', 'tutor', 'lesson', 'document', 'email'],
-                'features' => ['chat', 'tutor', 'lessonCompanion', 'notes', 'studyPlan', 'short_course_ai', 'admin_short_course_builder_multi_document'],
+                'features' => ['chat', 'tutor', 'lessonCompanion', 'notes', 'studyPlan', 'short_course_ai', 'admin_short_course_builder_multi_document', 'admin_short_course_stepwise_builder'],
                 'guidance' => 'Support certificate and short-course completion with explanations, summaries, and focused revision.',
             ],
             'programme' => [
@@ -242,7 +262,7 @@ class AiController extends Controller
                 'label' => 'Premium AI',
                 'maxPrompt' => 6000,
                 'modes' => ['general', 'summary', 'tutor', 'lesson', 'quiz', 'document', 'video', 'email', 'public-notice', 'admissions-letter'],
-                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'cashback', 'docs', 'video', 'email', 'publicComms', 'short_course_ai', 'admin_short_course_builder_multi_document'],
+                'features' => ['chat', 'tutor', 'lessonCompanion', 'studyPlan', 'flashcards', 'mockExam', 'weakAreas', 'career', 'notes', 'cashback', 'docs', 'video', 'email', 'publicComms', 'short_course_ai', 'admin_short_course_builder_multi_document', 'admin_short_course_stepwise_builder'],
                 'guidance' => 'Premium students receive advanced tutor, adaptive study plan, flashcards, mock exam, and weak-area support.',
             ],
         };
