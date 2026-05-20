@@ -17,6 +17,8 @@ export type CardImageFields = {
   templateLabel?: string;
   subjectArea?: string;
   teachingMove?: string;
+  sourceChunkIds?: string[];
+  sourceExcerpt?: string;
 };
 
 export type VisualBlockType =
@@ -116,6 +118,44 @@ export type LessonStep = CardImageFields & {
   visual?: LessonVisualBlock;
 };
 
+export type CodeCardFile = {
+  name: string;
+  content: string;
+  readonly?: boolean;
+};
+
+export type CodeCardTest = {
+  type: 'contains' | 'not_contains' | 'equals' | 'regex' | 'stdout_contains' | 'unit' | 'custom';
+  file?: string;
+  value?: string;
+  command?: string;
+  description?: string;
+};
+
+export type CodeCardType =
+  | 'code_playground'
+  | 'debug_code'
+  | 'complete_code'
+  | 'predict_output'
+  | 'code_explanation'
+  | 'mini_project';
+
+export type CodeCardBlock = CardImageFields & {
+  type: CodeCardType;
+  title: string;
+  instructions: string;
+  language: string;
+  files: CodeCardFile[];
+  starterFiles?: CodeCardFile[];
+  solutionFiles?: CodeCardFile[];
+  tests?: CodeCardTest[];
+  hints?: string[];
+  expectedOutput?: string;
+  previewMode?: 'html' | 'console' | 'terminal' | 'none';
+  aiHelpEnabled?: boolean;
+  explanation?: string;
+};
+
 export type LessonCardBlock =
   | (CardImageFields & { type: 'explanation'; title: string; body: string; steps?: LessonStep[] })
   | (CardImageFields & { type: 'example'; title: string; body: string; code?: string | null })
@@ -126,6 +166,7 @@ export type LessonCardBlock =
   | MatrixBlock
   | FormulaSheetBlock
   | GeometryBlock
+  | CodeCardBlock
   | (CardImageFields & { type: 'question'; title?: string; question: string; visual?: LessonVisualBlock; options: string[]; correctAnswer: string; explanation: string })
   | (CardImageFields & { type: 'fill_blank'; title?: string; text: string; visual?: LessonVisualBlock; correctAnswer: string; explanation: string })
   | (CardImageFields & { type: 'true_false'; title?: string; statement: string; visual?: LessonVisualBlock; correctAnswer: boolean; explanation: string })
@@ -141,6 +182,7 @@ export type CourseBuilderLesson = {
   subLessons?: CourseBuilderLesson[];
   activities: string[];
   assessment: string;
+  sourceChunkIds?: string[];
 };
 
 export type CourseBuilderModule = {
@@ -150,6 +192,29 @@ export type CourseBuilderModule = {
   outcomes: string[];
   lessons: CourseBuilderLesson[];
   moduleAssessment: string;
+  sourceChunkIds?: string[];
+};
+
+export type CourseDocumentChunk = {
+  id: string;
+  documentId: string;
+  title?: string;
+  text: string;
+  order: number;
+  topicTags?: string[];
+};
+
+export type CourseSourceDocument = {
+  id: string;
+  name: string;
+  mode: string;
+  text?: string;
+  chunks?: CourseDocumentChunk[];
+  outline?: string[];
+  detectedTopics?: string[];
+  detectedDifficulty?: string;
+  missingParts?: string[];
+  warning?: string;
 };
 
 export type CourseBuilderBlueprint = {
@@ -163,6 +228,9 @@ export type CourseBuilderBlueprint = {
     outcomes: string[];
     finalAssessment: string;
     certificateCriteria: string;
+    targetLearner?: string;
+    assessmentApproach?: string;
+    projectIdea?: string;
   };
   assessments: {
     quizzes: string[];
@@ -170,6 +238,7 @@ export type CourseBuilderBlueprint = {
     instructorReviewChecklist: string[];
   };
   modules: CourseBuilderModule[];
+  documents?: CourseSourceDocument[];
 };
 
 export type CourseBuilderSelection = {
@@ -177,4 +246,36 @@ export type CourseBuilderSelection = {
   lessonIndex: number;
   subLessonIndex?: number | null;
   cardIndex: number;
+};
+
+export type AiBuilderAction =
+  | 'document_map'
+  | 'course_plan'
+  | 'generate_modules'
+  | 'generate_lessons'
+  | 'generate_sub_lessons'
+  | 'generate_cards'
+  | 'generate_single_card'
+  | 'repair_card'
+  | 'generate_questions'
+  | 'generate_code_card'
+  | 'validate_course'
+  | 'suggest_improvements';
+
+export type AiBuilderScope = 'course' | 'module' | 'lesson' | 'sub_lesson' | 'card';
+
+export type AiBuilderGenerationRequest = {
+  action: AiBuilderAction;
+  scope: AiBuilderScope;
+  currentBlueprint: Partial<CourseBuilderBlueprint>;
+  selectedScope?: {
+    moduleIndex?: number;
+    lessonIndex?: number;
+    subLessonIndex?: number | null;
+    cardIndex?: number;
+  };
+  selectedDocumentChunks?: CourseDocumentChunk[] | string[];
+  count?: number;
+  difficulty?: string;
+  instruction?: string;
 };
