@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
+import { MathText } from '@/components/learning/math-text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -122,6 +123,21 @@ type ManualCard = {
   max?: string;
   points?: string;
   intervals?: string;
+
+  vennSetCount?: string;
+  vennLabels?: string;
+  vennHighlight?: string;
+  vennDescription?: string;
+  given?: string;
+  required?: string;
+  formula?: string;
+  steps?: string;
+  finalAnswer?: string;
+  commonMistake?: string;
+  assumption?: string;
+  reasoning?: string;
+  contradiction?: string;
+  conclusion?: string;
   saved: boolean;
 };
 
@@ -163,7 +179,7 @@ type LearnerLoad = {
   hint: string;
 };
 
-type CardWorkflowTemplateId = 'teach' | 'example' | 'checkpoint' | 'visual' | 'flashcard' | 'practice_task' | 'case_scenario' | 'summary';
+type CardWorkflowTemplateId = 'teach' | 'example' | 'checkpoint' | 'visual' | 'flashcard' | 'practice_task' | 'case_scenario' | 'summary' | 'worked_solution' | 'proof';
 
 type CardWorkflowTemplate = {
   id: CardWorkflowTemplateId;
@@ -223,6 +239,8 @@ const cardTypeOptions = [
   ['risk_review', 'Risk review'],
   ['practice_task', 'Practice task'],
   ['capstone_prompt', 'Capstone prompt'],
+  ['worked_solution', 'Worked Solution'],
+  ['proof', 'Proof'],
 ] as const;
 
 const CARD_WORKFLOW_TEMPLATES: CardWorkflowTemplate[] = [
@@ -234,6 +252,8 @@ const CARD_WORKFLOW_TEMPLATES: CardWorkflowTemplate[] = [
   { id: 'practice_task', label: 'Practice Task', type: 'practice_task', help: 'Give one applied task with success criteria.', focus: 'Practice', seed: { title: 'Practice task', prompt: 'Describe the task learners should complete.', criteria: 'Clear attempt\nUses the lesson idea\nChecks the result', body: '' } },
   { id: 'case_scenario', label: 'Case/Scenario', type: 'scenario', help: 'Frame one decision or workplace situation.', focus: 'Applied context', seed: { title: 'Scenario', body: 'Describe the case or situation.', prompt: 'What should the learner decide or explain?', criteria: 'Uses evidence from the case\nExplains the decision' } },
   { id: 'summary', label: 'Summary', type: 'summary', help: 'Close with the key takeaways.', focus: 'Wrap-up', seed: { title: 'Summary', body: 'Summarize what learners should remember.' } },
+  { id: 'worked_solution', label: 'Worked Solution', type: 'worked_solution', help: 'Step-by-step solution card for MA110.', focus: 'Reasoned method', seed: { title: 'Worked Solution', body: 'Solve the problem step by step.', question: 'Problem', explanation: 'Final check' } },
+  { id: 'proof', label: 'Proof', type: 'proof', help: 'Formal reasoning or contradiction proof.', focus: 'Proof logic', seed: { title: 'Proof', statement: 'Statement to prove', body: 'Reasoning steps', conclusion: 'Conclusion' } as Partial<ManualCard> },
 ];
 
 const CARD_SEQUENCES: CardSequence[] = [
@@ -364,7 +384,7 @@ function workflowTemplateForType(type: string): CardWorkflowTemplateId {
   if (type === 'practice_task' || type === 'mini_project' || type === 'capstone_prompt') return 'practice_task';
   if (type === 'case_study' || type === 'scenario') return 'case_scenario';
   if (type === 'summary') return 'summary';
-  if (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'].includes(type)) return 'visual';
+  if (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn'].includes(type)) return 'visual';
   return 'teach';
 }
 
@@ -984,7 +1004,7 @@ const activeCard = activeCards[cardIndex] ?? activeCards[0];
         <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
           <StudioNavigator step={step} setStep={setStep} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} setCardIndex={setCardIndex} readiness={readiness} quizCount={quizBank.length} />
           <div className="min-w-0">
-            {step === 'setup' ? <SetupStep form={form} updateForm={updateForm} schools={schools} goNext={() => setStep('lessons')} /> : null}
+            {step === 'setup' ? <SetupStep form={form} updateForm={updateForm} schools={schools} goNext={() => setStep('lessons')} courses={courses} editingCourseId={editingCourseId} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} startNewCourse={startNewCourse} /> : null}
             {step === 'lessons' ? <LessonsStep modules={modules} moduleIndex={moduleIndex} setModuleIndex={setModuleIndex} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} removeLesson={removeLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
             {step === 'cards' ? <CardsStep form={form} modules={modules} moduleIndex={moduleIndex} setModuleIndex={setModuleIndex} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} subLessonIndex={subLessonIndex} setSubLessonIndex={setSubLessonIndex} activeLesson={activeLesson} activeSubLesson={activeSubLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addWorkflowCard={addWorkflowCard} insertWorkflowCard={insertWorkflowCard} addTemplateCard={addTemplateCard} insertTemplateCard={insertTemplateCard} insertCards={insertCards} replaceCard={replaceCard} replaceCardWithCards={replaceCardWithCards} reorderCard={reorderCard} duplicateCard={duplicateCard} removeCard={removeCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
             {step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={addQuiz} duplicateQuiz={duplicateQuiz} removeQuiz={removeQuiz} reorderQuiz={reorderQuiz} bulkAddQuiz={bulkAddQuiz} finish={() => setStep('preview')} /> : null}
@@ -1144,7 +1164,7 @@ function StudioNavigator(props: { step: Step; setStep: (step: Step) => void; les
   );
 }
 
-function SetupStep({ form, updateForm, schools, goNext }: { form: CourseForm; updateForm: (patch: Partial<CourseForm>) => void; schools: School[]; goNext: () => void }) {
+function SetupStep({ form, updateForm, schools, goNext, courses, editingCourseId, onLoadCourse, loadingCourseId, startNewCourse }: { form: CourseForm; updateForm: (patch: Partial<CourseForm>) => void; schools: School[]; goNext: () => void; courses: Course[]; editingCourseId: string | null; onLoadCourse: (courseId: string) => void; loadingCourseId: string | null; startNewCourse: () => void }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
       <Card className="rounded-2xl">
@@ -1186,6 +1206,9 @@ function SetupStep({ form, updateForm, schools, goNext }: { form: CourseForm; up
 
 function LessonsStep(props: { modules: ManualModule[]; moduleIndex: number; setModuleIndex: (index: number) => void; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; removeLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
 const { modules, moduleIndex, setModuleIndex, lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, removeLesson, reorderLesson, finish } = props;
+  const addSubLesson = () => updateLesson({ subLessons: [...activeLesson.subLessons, { id: uid('sublesson'), title: `Sub-lesson ${activeLesson.subLessons.length + 1}`, summary: '', cards: [], saved: false }] });
+  const updateSubLesson = (index: number, patch: Partial<SubLesson>) => updateLesson({ subLessons: activeLesson.subLessons.map((sub, i) => i === index ? { ...sub, ...patch } : sub) });
+  const removeSubLesson = (index: number) => updateLesson({ subLessons: activeLesson.subLessons.filter((_, i) => i !== index) });
   return (
     <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
       <div className="space-y-2">
@@ -1672,9 +1695,10 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
           <option value="table">Table</option>
           <option value="formula_sheet">Formula sheet</option>
           <option value="number_line">Number line</option>
+          <option value="venn">Venn diagram</option>
         </select>
       </Field>
-      {card.mathTool === 'equation' ? <Field label="Equation"><Input value={card.equation || ''} onChange={(event) => updateCard({ equation: event.target.value })} placeholder="x^2 + y^2 = r^2" /></Field> : null}
+      {card.mathTool === 'equation' ? <><Field label="Equation"><Input value={card.equation || ''} onChange={(event) => updateCard({ equation: event.target.value })} placeholder="x^2 + y^2 = r^2" /></Field><div className="rounded-xl border bg-muted/30 p-3 text-center"><MathText text={`$${card.equation || ''}$`} /></div></> : null}
       {card.mathTool === 'graph' ? (
         <div className="space-y-4 rounded-xl border bg-muted/20 p-3">
           <Field label="Graph mode">
@@ -1712,6 +1736,14 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
           </div>
         </div>
       ) : null}
+      {card.mathTool === 'venn' ? (
+        <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+          <Field label="Set count"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={(card as any).vennSetCount || '2'} onChange={(event) => updateCard({ vennSetCount: event.target.value } as Partial<ManualCard>)}><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></Field>
+          <Field label="Labels (comma-separated)"><Input value={(card as any).vennLabels || 'A,B,C'} onChange={(event) => updateCard({ vennLabels: event.target.value } as Partial<ManualCard>)} /></Field>
+          <Field label="Highlight"><Input value={(card as any).vennHighlight || 'none'} onChange={(event) => updateCard({ vennHighlight: event.target.value } as Partial<ManualCard>)} placeholder="intersection" /></Field>
+          <Field label="Description"><Input value={(card as any).vennDescription || ''} onChange={(event) => updateCard({ vennDescription: event.target.value } as Partial<ManualCard>)} /></Field>
+        </div>
+      ) : null}
       {card.mathTool === 'table' ? (
         <>
           <Field label="Columns, comma separated"><Input value={card.columns || ''} onChange={(event) => updateCard({ columns: event.target.value })} placeholder="Account, Debit, Credit, Reason" /></Field>
@@ -1735,7 +1767,7 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
               placeholder={'2,,closed,open,x ≥ 2\n-3,4,open,closed,-3 < x ≤ 4\n,5,open,closed,(-∞, 5]'}
             />
           </Field>
-          <p className="text-xs text-muted-foreground">Use blank start/end for infinity. Endpoint values: open or closed.</p>
+          <p className="text-xs text-muted-foreground">Use blank start/end for infinity. Endpoint values: open or closed.</p><Button type="button" size="sm" variant="outline" onClick={() => updateCard({ intervals: `${card.intervals ? `${card.intervals}\n` : ''}2,7,closed,open,2 ≤ x < 7` })}>Add sample interval</Button>
         </div>
       ) : null}
     </div>
@@ -1915,7 +1947,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function cardFromBlock(block: any, index: number): ManualCard {
   const type: CardType = block.type === 'explanation' ? 'teach' : block.type || 'teach';
   const card = makeCard(type, index);
-  const visual = block.visual || (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry'].includes(block.type) ? block : null);
+  const visual = block.visual || (['equation', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn'].includes(block.type) ? block : null);
   return {
     ...card,
     title: block.title || card.title,
@@ -2227,6 +2259,7 @@ function mathVisual(card: ManualCard) {
       }),
     };
   }
+  if ((card as any).mathTool === 'venn') return compactBlock({ type: 'venn', setCount: Number((card as any).vennSetCount || 2), labels: comma((card as any).vennLabels || 'A,B,C').slice(0,3), highlight: ((card as any).vennHighlight || 'none'), description: (card as any).vennDescription || undefined });
   if (card.mathTool === 'number_line') {
     return compactBlock({
       type: 'number_line',

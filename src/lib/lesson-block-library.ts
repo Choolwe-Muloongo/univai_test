@@ -8,7 +8,7 @@ import { blockDefinitions, learningBlockRegistryCount } from '@/components/learn
 
 export type BroadCardType = string;
 
-export type BroadMathTool = 'none' | 'equation' | 'formula' | 'graph' | 'table' | 'formula_sheet' | 'number_line' | 'matrix' | 'geometry';
+export type BroadMathTool = 'none' | 'equation' | 'formula' | 'graph' | 'table' | 'formula_sheet' | 'number_line' | 'matrix' | 'geometry' | 'venn';
 
 export type LessonBlockTemplate = {
   id: string;
@@ -48,7 +48,7 @@ export type LessonBlockTemplate = {
   points?: string;
 };
 
-const visualTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry']);
+const visualTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn']);
 
 const registryTemplates: LessonBlockTemplate[] = blockDefinitions.map((definition) => {
   const payload = definition.defaultPayload;
