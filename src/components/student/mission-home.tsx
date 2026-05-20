@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ElementType } from 'react';
 import { ArrowRight, BookOpen, Gift, Sparkles, Target, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -98,7 +99,7 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
   );
 }
 
-function MiniStat({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+function MiniStat({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) {
   return <div className="rounded-2xl border bg-muted/20 p-3"><Icon className="mb-2 h-4 w-4 text-primary" /><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-sm font-bold">{value}</p></div>;
 }
 
