@@ -6,18 +6,28 @@ import { Gift, History, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { getMyShortCourses, type ShortCourseEnrollmentSummary } from '@/lib/api/short-courses';
 import { getStudentRewards, redeemStudentReward, type RewardHistoryItem, type RewardShopItem } from '@/lib/api/student-gamification';
 
 type RewardsState = { balance: number; shop: RewardShopItem[]; history: RewardHistoryItem[] };
 
 export default function StudentRewardsPage() {
   const [data, setData] = useState<RewardsState | null>(null);
+  const [journeys, setJourneys] = useState<ShortCourseEnrollmentSummary[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    setData(await getStudentRewards());
+    const [rewards, myJourneys] = await Promise.all([
+      getStudentRewards(),
+      getMyShortCourses().catch(() => []),
+    ]);
+    setData(rewards);
+    setJourneys(myJourneys);
+    const firstCourseId = myJourneys.find((item) => item.course?.id)?.course?.id ?? '';
+    setSelectedCourseId((current) => current || firstCourseId);
   }
 
   useEffect(() => {
@@ -25,11 +35,17 @@ export default function StudentRewardsPage() {
   }, []);
 
   async function claim(code: string) {
+    const requiresCourse = code === 'access_day' || code === 'ai_boost';
+    if (requiresCourse && !selectedCourseId) {
+      setError('Choose a Journey before using this reward.');
+      return;
+    }
+
     setBusy(code);
     setNotice(null);
     setError(null);
     try {
-      const response = await redeemStudentReward(code);
+      const response = await redeemStudentReward(code, requiresCourse ? selectedCourseId : null);
       setNotice(response.message);
       await refresh();
     } catch (cause) {
@@ -41,6 +57,9 @@ export default function StudentRewardsPage() {
 
   if (error) return <PageError message={error} actionHref="/student/courses" actionLabel="Back to Journeys" />;
   if (!data) return <PageLoading message="Loading rewards..." />;
+
+  const targetableJourneys = journeys.filter((item) => item.course?.id);
+  const selectedJourneyTitle = targetableJourneys.find((item) => item.course?.id === selectedCourseId)?.course?.title;
 
   return (
     <div className="space-y-6">
@@ -61,21 +80,40 @@ export default function StudentRewardsPage() {
             <CardContent><p className="text-5xl font-bold">{data.balance.toLocaleString()} pts</p></CardContent>
           </Card>
 
+          {targetableJourneys.length ? (
+            <Card className="rounded-3xl">
+              <CardHeader>
+                <CardTitle>Choose reward Journey</CardTitle>
+                <CardDescription>AI and access rewards will be applied to this Journey.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <select className="h-11 w-full rounded-md border bg-background px-3 text-sm" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)}>
+                  {targetableJourneys.map((item) => <option key={item.course!.id} value={item.course!.id}>{item.course!.title}</option>)}
+                </select>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-2">
-            {data.shop.map((item) => (
-              <Card key={item.code} className="rounded-3xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">{iconFor(item.code)} {item.name}</CardTitle>
-                  <CardDescription>{item.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-2xl font-bold">{item.cost.toLocaleString()} pts</p>
-                  <Button className="w-full" disabled={!item.enabled || data.balance < item.cost || busy === item.code} onClick={() => claim(item.code)}>
-                    {!item.enabled ? 'Coming soon' : busy === item.code ? 'Working...' : data.balance >= item.cost ? 'Use points' : 'Need more points'}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+            {data.shop.map((item) => {
+              const requiresCourse = item.code === 'access_day' || item.code === 'ai_boost';
+              const disabled = !item.enabled || data.balance < item.cost || busy === item.code || (requiresCourse && !selectedCourseId);
+              return (
+                <Card key={item.code} className="rounded-3xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">{iconFor(item.code)} {item.name}</CardTitle>
+                    <CardDescription>{item.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-2xl font-bold">{item.cost.toLocaleString()} pts</p>
+                    {requiresCourse ? <p className="text-xs text-muted-foreground">Journey: {selectedJourneyTitle || 'Choose one first'}</p> : null}
+                    <Button className="w-full" disabled={disabled} onClick={() => claim(item.code)}>
+                      {!item.enabled ? 'Coming soon' : busy === item.code ? 'Working...' : data.balance >= item.cost ? 'Use points' : 'Need more points'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
 
