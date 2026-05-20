@@ -5,7 +5,6 @@ export type LearningEventType =
   | 'checkpoint_correct'
   | 'checkpoint_wrong'
   | 'mission_completed'
-  | 'perfect_mission_bonus'
   | 'practice_started'
   | 'practice_passed'
   | 'practice_failed'
