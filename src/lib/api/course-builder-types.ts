@@ -67,7 +67,15 @@ export type NumberLineBlock = CardImageFields & {
   max: number;
   step?: number;
   points?: Array<number | { value: number; label?: string }>;
-  intervals?: Array<{ start: number; end: number; label?: string; inclusiveStart?: boolean; inclusiveEnd?: boolean }>;
+  intervals?: Array<{
+    start: number | null;
+    end: number | null;
+    label?: string;
+    inclusiveStart?: boolean;
+    inclusiveEnd?: boolean;
+    startClosed?: boolean;
+    endClosed?: boolean;
+  }>;
 };
 
 export type MatrixBlock = CardImageFields & {

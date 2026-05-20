@@ -121,6 +121,7 @@ type ManualCard = {
   min?: string;
   max?: string;
   points?: string;
+  intervals?: string;
   saved: boolean;
 };
 
@@ -1718,10 +1719,21 @@ function MathFields({ card, updateCard }: { card: ManualCard; updateCard: (patch
       ) : null}
       {card.mathTool === 'formula_sheet' ? <Field label="Formulas: name | formula | description"><Textarea rows={5} value={card.formulas || ''} onChange={(event) => updateCard({ formulas: event.target.value })} /></Field> : null}
       {card.mathTool === 'number_line' ? (
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-3">
           <Field label="Min"><Input inputMode="decimal" value={card.min || ''} onChange={(event) => updateCard({ min: event.target.value })} placeholder="-5" /></Field>
           <Field label="Max"><Input inputMode="decimal" value={card.max || ''} onChange={(event) => updateCard({ max: event.target.value })} placeholder="5" /></Field>
           <Field label="Points"><Input value={card.points || ''} onChange={(event) => updateCard({ points: event.target.value })} placeholder="-2, 0, 3" /></Field>
+          </div>
+          <Field label="Intervals (one per line: start,end,startEndpoint,endEndpoint,label)">
+            <Textarea
+              rows={4}
+              value={card.intervals || ''}
+              onChange={(event) => updateCard({ intervals: event.target.value })}
+              placeholder={'2,,closed,open,x ≥ 2\n-3,4,open,closed,-3 < x ≤ 4\n,5,open,closed,(-∞, 5]'}
+            />
+          </Field>
+          <p className="text-xs text-muted-foreground">Use blank start/end for infinity. Endpoint values: open or closed.</p>
         </div>
       ) : null}
     </div>
@@ -1942,6 +1954,7 @@ function cardFromBlock(block: any, index: number): ManualCard {
     min: visual?.min != null ? String(visual.min) : card.min,
     max: visual?.max != null ? String(visual.max) : card.max,
     points: Array.isArray(visual?.points) ? visual.points.map((point: any) => typeof point === 'object' ? point.value : point).join(', ') : card.points,
+    intervals: intervalsString(visual?.intervals),
   };
 }
 
@@ -2119,6 +2132,7 @@ function normalizeManualCard(card: ManualCard): ManualCard {
     min: numericString(card.min),
     max: numericString(card.max),
     points: comma(card.points).join(', '),
+    intervals: lines(card.intervals).join('\n'),
   };
 }
 
@@ -2163,8 +2177,43 @@ function mathVisual(card: ManualCard) {
       }),
     };
   }
-  if (card.mathTool === 'number_line') return compactBlock({ type: 'number_line', min: optionalNumber(card.min), max: optionalNumber(card.max), points: comma(card.points).map(Number).filter(Number.isFinite) });
+  if (card.mathTool === 'number_line') {
+    return compactBlock({
+      type: 'number_line',
+      min: optionalNumber(card.min),
+      max: optionalNumber(card.max),
+      points: comma(card.points).map(Number).filter(Number.isFinite),
+      intervals: parseIntervals(card.intervals),
+    });
+  }
   return undefined;
+}
+
+function intervalsString(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  return value.map((interval) => {
+    if (!interval || typeof interval !== 'object') return '';
+    const record = interval as Record<string, unknown>;
+    const start = record.start == null ? '' : String(record.start);
+    const end = record.end == null ? '' : String(record.end);
+    const startType = Boolean(record.startClosed ?? record.inclusiveStart) ? 'closed' : 'open';
+    const endType = Boolean(record.endClosed ?? record.inclusiveEnd) ? 'closed' : 'open';
+    const label = typeof record.label === 'string' ? record.label : '';
+    return [start, end, startType, endType, label].join(',');
+  }).filter(Boolean).join('\n');
+}
+
+function parseIntervals(value?: string) {
+  return lines(value).map((line) => {
+    const [startRaw = '', endRaw = '', startType = 'open', endType = 'open', ...labelParts] = line.split(',').map((part) => part.trim());
+    const start = startRaw === '' ? null : Number(startRaw);
+    const end = endRaw === '' ? null : Number(endRaw);
+    if ((start !== null && !Number.isFinite(start)) || (end !== null && !Number.isFinite(end))) return null;
+    const startClosed = startType.toLowerCase() === 'closed';
+    const endClosed = endType.toLowerCase() === 'closed';
+    const label = labelParts.join(', ').trim();
+    return compactBlock({ start, end, startClosed, endClosed, inclusiveStart: startClosed, inclusiveEnd: endClosed, label: label || undefined });
+  }).filter(Boolean);
 }
 
 function optionalNumber(value?: string) {
