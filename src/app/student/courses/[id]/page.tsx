@@ -39,6 +39,8 @@ type LessonNode = {
   id: string;
   title: string;
   summary?: string | null;
+  moduleTitle?: string | null;
+  moduleIndex?: number;
   subLessons: Array<{ id: string; title: string; summary?: string | null }>;
 };
 
@@ -91,6 +93,17 @@ export default function CourseHubPage() {
   }, [courseId, searchParams]);
 
   const lessonNodes = useMemo(() => lessons.map(toLessonNode), [lessons]);
+  const moduleGroups = useMemo(() => {
+    const grouped = new Map<string, { title: string; items: LessonNode[]; index: number }>();
+    lessonNodes.forEach((lesson, index) => {
+      const title = lesson.moduleTitle?.trim() || 'Main module';
+      const key = `${lesson.moduleIndex ?? 0}-${title}`;
+      const existing = grouped.get(key);
+      if (existing) existing.items.push(lesson);
+      else grouped.set(key, { title, items: [lesson], index: lesson.moduleIndex ?? index });
+    });
+    return [...grouped.values()].sort((a, b) => a.index - b.index);
+  }, [lessonNodes]);
   const completedLessonIds = new Set(progress?.completedLessons?.map(String) ?? []);
   const totalLessons = lessonNodes.length;
   const completedLessons = lessonNodes.filter((lesson) => completedLessonIds.has(String(lesson.id))).length;
@@ -212,7 +225,7 @@ export default function CourseHubPage() {
               <CardDescription>The course map shows the path. Open a lesson to study in the focused classroom.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {lessonNodes.length ? lessonNodes.map((lesson, index) => {
+              {lessonNodes.length ? moduleGroups.map((module, moduleIdx) => (<div key={`${module.title}-${moduleIdx}`} className="space-y-3 rounded-2xl border p-3"><p className="text-sm font-semibold text-primary">Module {moduleIdx + 1}: {module.title}</p>{module.items.map((lesson, index) => {
                 const done = completedLessonIds.has(String(lesson.id));
                 const subCount = Math.max(lesson.subLessons.length, 1);
                 return (
@@ -249,7 +262,7 @@ export default function CourseHubPage() {
                     </div>
                   </div>
                 );
-              }) : <EmptyMessage icon={BookOpen} title="This course has no published lessons yet." />}
+              })}</div>)) : <EmptyMessage icon={BookOpen} title="This course has no published lessons yet." />}
             </CardContent>
           </Card>
 
@@ -377,12 +390,65 @@ function toLessonNode(lesson: Lesson): LessonNode {
     const payload = object.payload ?? parseMaybeJson(object.body);
     return extractSubLessons(payload);
   }) ?? [];
+  const row = lesson as unknown as Record<string, unknown>;
   return {
     id: lesson.id,
     title: lesson.title,
-    summary: lesson.content ? stripHtml(lesson.content).slice(0, 180) : null,
+    summary: lessonSummary(lesson),
+    moduleTitle: typeof row.moduleTitle === 'string' ? row.moduleTitle : null,
+    moduleIndex: typeof row.moduleIndex === 'number' ? row.moduleIndex : undefined,
     subLessons: extracted.length ? extracted : [],
   };
+}
+
+
+function lessonSummary(lesson: Lesson): string | null {
+  const fromObjects = lesson.learningObjects?.flatMap((object) => {
+    const payload = object.payload ?? parseMaybeJson(object.body);
+    return extractSummaryText(payload);
+  }) ?? [];
+  const firstObjectSummary = fromObjects.find((item) => item.trim().length > 0);
+  if (firstObjectSummary) return firstObjectSummary.slice(0, 180);
+
+  if (lesson.content) {
+    const parsed = parseMaybeJson(lesson.content);
+    if (parsed) {
+      const parsedSummary = extractSummaryText(parsed).find((item) => item.trim().length > 0);
+      if (parsedSummary) return parsedSummary.slice(0, 180);
+    }
+
+    const cleaned = stripHtml(lesson.content);
+    if (cleaned && !cleaned.startsWith('{"blocks"') && !cleaned.startsWith('[{"')) return cleaned.slice(0, 180);
+  }
+
+  return null;
+}
+
+function extractSummaryText(value: unknown): string[] {
+  if (!value || typeof value !== 'object') return [];
+  const record = value as Record<string, unknown>;
+  const blocks = [
+    ...(Array.isArray(record.blocks) ? record.blocks : []),
+    ...(Array.isArray(record.cards) ? record.cards : []),
+    ...(Array.isArray(record.items) ? record.items : []),
+  ] as Record<string, unknown>[];
+
+  const textFromBlocks = blocks
+    .flatMap((block) => [
+      typeof block.body === 'string' ? block.body : null,
+      typeof block.text === 'string' ? block.text : null,
+      typeof block.summary === 'string' ? block.summary : null,
+      typeof block.prompt === 'string' ? block.prompt : null,
+    ])
+    .filter((item): item is string => Boolean(item))
+    .map((item) => stripHtml(item).trim())
+    .filter(Boolean);
+
+  if (textFromBlocks.length) return textFromBlocks;
+
+  if (typeof record.summary === 'string') return [stripHtml(record.summary)];
+  if (typeof record.description === 'string') return [stripHtml(record.description)];
+  return [];
 }
 
 function extractSubLessons(value: unknown): LessonNode['subLessons'] {
