@@ -193,13 +193,6 @@
 }
 
 @layer utilities {
-  /*
-   * Manual course builder responsive repair.
-   * The builder already lives beside the admin course map. Its original cards step
-   * added Blocks + Canvas + Preview as another three-column grid, creating four
-   * visible columns on desktop and a crushed editor. These selectors target the
-   * unique Tailwind arbitrary grid used by CardsStep and progressively relax it.
-   */
   div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"],
   div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -211,11 +204,7 @@
   }
 
   div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :first-child,
-  div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :first-child {
-    position: static !important;
-    align-self: auto !important;
-  }
-
+  div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :first-child,
   div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :last-child,
   div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :last-child {
     position: static !important;
@@ -225,6 +214,35 @@
   div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] article,
   div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] article {
     min-width: 0 !important;
+  }
+
+  div[class*="xl:grid-cols-[300px_360px_1fr]"],
+  div[class*="xl:grid-cols-\[300px_360px_1fr\]"] {
+    min-width: 0 !important;
+  }
+
+  div[class*="xl:grid-cols-[300px_360px_1fr]"] > *,
+  div[class*="xl:grid-cols-\[300px_360px_1fr\]"] > * {
+    min-width: 0 !important;
+  }
+
+  @media (max-width: 767px) {
+    div[class*="xl:grid-cols-[300px_360px_1fr]"],
+    div[class*="xl:grid-cols-\[300px_360px_1fr\]"] {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 1rem !important;
+    }
+
+    div[class*="xl:grid-cols-[300px_360px_1fr]"] > :first-child,
+    div[class*="xl:grid-cols-\[300px_360px_1fr\]"] > :first-child {
+      position: sticky !important;
+      top: 0.5rem !important;
+      z-index: 30 !important;
+      border-color: hsl(var(--primary) / 0.58) !important;
+      background: hsl(var(--card) / 0.98) !important;
+      box-shadow: 0 16px 40px -28px hsl(var(--primary) / 0.9), 0 0 0 1px hsl(var(--primary) / 0.14) !important;
+    }
   }
 
   @media (min-width: 1024px) {
