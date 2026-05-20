@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Code2, Eye, FileCode2, Lightbulb, Play, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Code2, Eye, FileCode2, Lightbulb, Lock, Play, ShieldCheck } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,15 +13,20 @@ type CodeCardPlayerProps = {
 };
 
 export function CodeCardPlayer({ block }: CodeCardPlayerProps) {
-  const initialFiles = useMemo(() => filesToMap(block.files?.length ? block.files : block.starterFiles ?? []), [block.files, block.starterFiles]);
+  const sourceFiles = useMemo(() => block.files?.length ? block.files : block.starterFiles ?? [], [block.files, block.starterFiles]);
+  const fileMetaByName = useMemo(() => new Map(sourceFiles.map((file) => [file.name, file])), [sourceFiles]);
+  const initialFiles = useMemo(() => filesToMap(sourceFiles), [sourceFiles]);
   const [files, setFiles] = useState<Record<string, string>>(initialFiles);
   const [activeFile, setActiveFile] = useState(Object.keys(initialFiles)[0] ?? 'main.js');
   const [showHints, setShowHints] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
   const testResults = useMemo(() => runSimpleTests(files, block.tests ?? []), [files, block.tests]);
   const activeContent = files[activeFile] ?? '';
+  const activeFileMeta = fileMetaByName.get(activeFile);
+  const activeFileReadonly = activeFileMeta?.readonly === true;
 
   function updateFile(value: string) {
+    if (activeFileReadonly) return;
     setFiles((current) => ({ ...current, [activeFile]: value }));
   }
 
@@ -41,31 +46,43 @@ export function CodeCardPlayer({ block }: CodeCardPlayerProps) {
         <Card className="min-w-0 overflow-hidden rounded-2xl">
           <CardHeader className="border-b bg-muted/20 p-3">
             <div className="flex flex-wrap items-center gap-2">
-              {Object.keys(files).map((fileName) => (
-                <button
-                  key={fileName}
-                  type="button"
-                  onClick={() => setActiveFile(fileName)}
-                  className={`rounded-full border px-3 py-1 text-xs transition ${activeFile === fileName ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:border-primary/60'}`}
-                >
-                  {fileName}
-                </button>
-              ))}
+              {Object.keys(files).map((fileName) => {
+                const isReadonly = fileMetaByName.get(fileName)?.readonly === true;
+                return (
+                  <button
+                    key={fileName}
+                    type="button"
+                    onClick={() => setActiveFile(fileName)}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${activeFile === fileName ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:border-primary/60'}`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {isReadonly ? <Lock className="size-3" /> : null}
+                      {fileName}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {activeFileReadonly ? (
+              <div className="border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+                This file is read-only. Use it as reference while editing the writable files.
+              </div>
+            ) : null}
             <textarea
               value={activeContent}
               onChange={(event) => updateFile(event.target.value)}
+              readOnly={activeFileReadonly}
               spellCheck={false}
-              className="min-h-[340px] w-full resize-y bg-background p-4 font-mono text-sm outline-none"
+              className={`min-h-[340px] w-full resize-y p-4 font-mono text-sm outline-none ${activeFileReadonly ? 'bg-muted/40 text-muted-foreground' : 'bg-background'}`}
             />
           </CardContent>
         </Card>
 
         <div className="space-y-4">
           <Card className="rounded-2xl">
-            <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4" /> Checks</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4" /> Visual/structure checks</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               {testResults.length ? testResults.map((result, index) => (
                 <div key={`${result.label}-${index}`} className="flex items-start gap-2 rounded-xl border p-3">
@@ -75,7 +92,8 @@ export function CodeCardPlayer({ block }: CodeCardPlayerProps) {
                     <p className="text-muted-foreground">{result.label}</p>
                   </div>
                 </div>
-              )) : <p className="text-muted-foreground">No automated checks were added for this card yet.</p>}
+              )) : <p className="text-muted-foreground">No visual/structure checks were added for this card yet.</p>}
+              <p className="text-xs text-muted-foreground">These checks inspect the written files. They are not a full secure code execution runner yet.</p>
             </CardContent>
           </Card>
 
@@ -136,7 +154,7 @@ function runSimpleTests(files: Record<string, string>, tests: CodeCardTest[]) {
 function HtmlPreview({ files }: { files: Record<string, string> }) {
   const html = files['index.html'] ?? Object.entries(files).find(([name]) => name.endsWith('.html'))?.[1] ?? '';
   const css = files['style.css'] ?? Object.entries(files).filter(([name]) => name.endsWith('.css')).map(([, content]) => content).join('\n');
-  const srcDoc = css ? html.replace('</head>', `<style>${css}</style></head>`) : html;
+  const srcDoc = css ? html.includes('</head>') ? html.replace('</head>', `<style>${css}</style></head>`) : `<style>${css}</style>${html}` : html;
   if (!html.trim()) return null;
   return (
     <Card className="overflow-hidden rounded-2xl">
