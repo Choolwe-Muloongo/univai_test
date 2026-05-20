@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useSession } from '@/components/providers/session-provider';
 import { getAiAccessPolicy } from '@/lib/ai-access';
+import { recordLearningEvent } from '@/lib/api/student-gamification';
 
 type ChatMessage = {
   role: 'user' | 'assistant';
@@ -100,6 +101,10 @@ export default function AiChatPage() {
         createdAt: Date.now(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      await recordLearningEvent({
+        type: 'ai_help_used',
+        metadata: { source: 'ai_chat', promptLength: userMessage.content.length, accessTier: policy.tier },
+      }).catch((error) => console.warn('Gamification event failed', error));
     } catch (error) {
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -201,4 +206,3 @@ export default function AiChatPage() {
     </div>
   );
 }
-
