@@ -11,7 +11,7 @@ import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Textarea } from '@/components/ui/textarea';
 import { createShortCourseDraftWithBlueprint, getCourses, getLessonsByCourse, getSchools } from '@/lib/api';
 import type { AiBuilderAction, CourseBuilderBlueprint, CourseBuilderLesson, CourseBuilderSelection, CourseDocumentChunk, CourseSourceDocument, LessonCardBlock } from '@/lib/api/course-builder-types';
-import { buildStepwiseAiBuilderPrompt, generateShortCourseContent } from '@/lib/api/short-course-generation';
+import { generateShortCourseContent } from '@/lib/api/short-course-generation';
 import type { Course, School } from '@/lib/api/types';
 import { applyAiGeneratedPatch, buildAiGenerationRequest, chunkSourceDocument, courseAndLessonsToBuilderBlueprint, getSelectedLesson, type AiBuilderGeneratedPatch } from '@/lib/short-course-ai-builder-engine';
 import { extractDocumentText, type DocumentExtractionProgress } from '@/lib/document-text-extractor';
@@ -162,7 +162,7 @@ export function ShortCourseStepwiseAiBuilderClient() {
       setBlueprint(importedBlueprint);
       setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });
       setExistingLessonCount(lessons.length);
-      setMessage(`Existing course imported into the AI builder with ${importedBlueprint.modules.length} module(s) and ${lessons.length} lesson(s). AI can now read and improve the real current structure.`);
+      setMessage(`Existing course imported into the AI builder with ${importedBlueprint.modules.length} module(s) and ${lessons.length} lesson(s). Imported lesson structure may need review, so check module placement before generating new content.`);
     } catch (cause) {
       setExistingLessonCount(0);
       setBlueprint(normalizeBlueprint(courseAndLessonsToBuilderBlueprint(course, [])));
@@ -176,6 +176,7 @@ export function ShortCourseStepwiseAiBuilderClient() {
     setMessage(null);
     setValidationReport([]);
     try {
+      const aiInstruction = instruction || prompt || defaultInstruction(action);
       const request = buildAiGenerationRequest({
         action,
         currentBlueprint: blueprint,
@@ -183,7 +184,7 @@ export function ShortCourseStepwiseAiBuilderClient() {
         selectedDocumentChunks: selectedChunks,
         count: Number(count) || undefined,
         difficulty: form.level || blueprint.courseSummary.level,
-        instruction: instruction || prompt || defaultInstruction(action),
+        instruction: aiInstruction,
       });
       const response = await generateShortCourseContent({
         action,
@@ -192,7 +193,7 @@ export function ShortCourseStepwiseAiBuilderClient() {
         feature: 'admin_short_course_stepwise_builder',
         audience: 'short-course learners',
         brandContext: 'UnivAI Institute uses one shared course blueprint for manual and AI-assisted course building.',
-        prompt: buildStepwiseAiBuilderPrompt(request),
+        prompt: aiInstruction,
       });
       const raw = String(response.text || response.output || response.content || JSON.stringify(response));
       const patch = parsePatch(raw);
@@ -410,7 +411,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function parsePatch(raw: string): AiBuilderGeneratedPatch {
   const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-  return JSON.parse(cleaned) as AiBuilderGeneratedPatch;
+  try {
+    return JSON.parse(cleaned) as AiBuilderGeneratedPatch;
+  } catch {
+    const objectStart = cleaned.indexOf('{');
+    const objectEnd = cleaned.lastIndexOf('}');
+    if (objectStart >= 0 && objectEnd > objectStart) {
+      return JSON.parse(cleaned.slice(objectStart, objectEnd + 1)) as AiBuilderGeneratedPatch;
+    }
+    const arrayStart = cleaned.indexOf('[');
+    const arrayEnd = cleaned.lastIndexOf(']');
+    if (arrayStart >= 0 && arrayEnd > arrayStart) {
+      const parsedArray = JSON.parse(cleaned.slice(arrayStart, arrayEnd + 1));
+      return { payload: parsedArray } as AiBuilderGeneratedPatch;
+    }
+    throw new Error('AI returned content that could not be parsed as JSON. Regenerate or ask the AI to return strict JSON only.');
+  }
 }
 
 function normalizeBlueprint(blueprint: CourseBuilderBlueprint): CourseBuilderBlueprint {
