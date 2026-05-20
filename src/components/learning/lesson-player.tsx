@@ -102,8 +102,8 @@ type LessonPlayerProps = {
 type AnswerState = { isCorrect: boolean; message: string };
 
 const interactiveTypes = new Set(['question', 'fill_blank', 'true_false']);
-const revealTypes = new Set(['flashcard', 'reveal', 'worked_solution']);
-const visualBlockTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry']);
+const revealTypes = new Set(['flashcard', 'reveal']);
+const visualBlockTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn']);
 const nativePlayerTypes = new Set([
   'sub_lesson', 'explanation', 'example', 'question', 'fill_blank', 'true_false', 'summary',
   'definition', 'analogy', 'case_study', 'scenario', 'process', 'checklist', 'reflection',
@@ -330,6 +330,31 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
               </li>
             ))}
           </ul>
+        </GuidedSection>
+      ) : null}
+
+      {block.type === 'worked_solution' ? (
+        <GuidedSection title="Worked solution">
+          <div className="space-y-2 rounded-xl border bg-muted/20 p-3 text-sm">
+            {block.problem ? <p><strong>Problem:</strong> <MathText text={String(block.problem)} /></p> : null}
+            {block.given ? <p><strong>Given:</strong> <MathText text={String(block.given)} /></p> : null}
+            {block.required ? <p><strong>Required:</strong> <MathText text={String(block.required)} /></p> : null}
+            {block.formula ? <p><strong>Formula:</strong> <MathText text={`$${String(block.formula)}$`} /></p> : null}
+            {block.steps ? <p><strong>Steps:</strong> <MathText text={String(block.steps)} /></p> : null}
+            {block.finalAnswer ? <p><strong>Final answer:</strong> <MathText text={String(block.finalAnswer)} /></p> : null}
+            {block.commonMistake ? <p><strong>Common mistake:</strong> <MathText text={String(block.commonMistake)} /></p> : null}
+          </div>
+        </GuidedSection>
+      ) : null}
+      {block.type === 'proof' ? (
+        <GuidedSection title="Proof / reasoning">
+          <div className="space-y-2 rounded-xl border bg-muted/20 p-3 text-sm">
+            {block.statement ? <p><strong>Statement:</strong> <MathText text={String(block.statement)} /></p> : null}
+            {block.assumption ? <p><strong>Assumption:</strong> <MathText text={String(block.assumption)} /></p> : null}
+            {block.reasoning ? <p><strong>Reasoning:</strong> <MathText text={String(block.reasoning)} /></p> : null}
+            {block.contradiction ? <p><strong>Contradiction:</strong> <MathText text={String(block.contradiction)} /></p> : null}
+            {block.conclusion ? <p><strong>Conclusion:</strong> <MathText text={String(block.conclusion)} /></p> : null}
+          </div>
         </GuidedSection>
       ) : null}
       {Array.isArray(block.pairs) && block.pairs.length ? (
