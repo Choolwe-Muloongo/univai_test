@@ -71,8 +71,9 @@ type CourseForm = {
 };
 
 type SourceDoc = { name: string; text: string; warning?: string };
-type SubLesson = { id: string; title: string; summary: string; saved: boolean };
+type SubLesson = { id: string; title: string; summary: string; cards: ManualCard[]; saved: boolean };
 type ManualLesson = { id: string; title: string; summary: string; outcomes: string[]; subLessons: SubLesson[]; cards: ManualCard[]; saved: boolean };
+type ManualModule = { id: string; title: string; description: string; outcomes: string[]; lessons: ManualLesson[]; saved: boolean };
 type ManualCard = {
   id: string;
   type: CardType;
@@ -143,7 +144,7 @@ type BuilderStats = {
 
 type BuilderSnapshot = {
   form: CourseForm;
-  lessons: ManualLesson[];
+  modules: ManualModule[];
   quizBank: QuizQuestion[];
   editingCourseId?: string | null;
 };
@@ -406,10 +407,12 @@ export function DedicatedManualCourseBuilderClient() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [moduleIndex, setModuleIndex] = useState(0);
   const [lessonIndex, setLessonIndex] = useState(0);
+  const [subLessonIndex, setSubLessonIndex] = useState<number | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [quizIndex, setQuizIndex] = useState(0);
-  const [lessons, setLessons] = useState<ManualLesson[]>([makeLesson(1)]);
+  const [modules, setModules] = useState<ManualModule[]>([{ id: uid('module'), title: 'Module 1', description: 'Main module', outcomes: ['Master this module outcomes.'], lessons: [makeLesson(1)], saved: false }]);
   const [quizBank, setQuizBank] = useState<QuizQuestion[]>([makeQuiz()]);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [recoverableDraft, setRecoverableDraft] = useState<BuilderSnapshot | null>(null);
@@ -424,10 +427,10 @@ export function DedicatedManualCourseBuilderClient() {
       const saved = window.localStorage.getItem(AUTOSAVE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<BuilderSnapshot>;
-        if (parsed.form && Array.isArray(parsed.lessons) && parsed.lessons.length) {
+        if (parsed.form && (Array.isArray((parsed as any).modules) || Array.isArray((parsed as any).lessons))) {
           setRecoverableDraft({
             form: { ...initialCourseForm(), ...parsed.form },
-            lessons: parsed.lessons,
+            modules: Array.isArray((parsed as any).modules) && (parsed as any).modules.length ? (parsed as any).modules : [{ id: uid('module'), title: 'Module 1', description: 'Imported fallback module', outcomes: [], lessons: (parsed as any).lessons ?? [makeLesson(1)], saved: false }],
             quizBank: Array.isArray(parsed.quizBank) && parsed.quizBank.length ? parsed.quizBank : [makeQuiz()],
             editingCourseId: typeof parsed.editingCourseId === 'string' ? parsed.editingCourseId : null,
           });
@@ -463,34 +466,38 @@ export function DedicatedManualCourseBuilderClient() {
   useEffect(() => {
     if (!autosaveReady.current) return;
     const handle = window.setTimeout(() => {
-      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ form, lessons, quizBank, editingCourseId }));
+      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ form, modules, quizBank, editingCourseId }));
     }, 400);
     return () => window.clearTimeout(handle);
-  }, [form, lessons, quizBank, editingCourseId]);
+  }, [form, modules, quizBank, editingCourseId]);
 
+  const activeModule = modules[moduleIndex] ?? modules[0];
+  const lessons = activeModule?.lessons ?? [];
   const activeLesson = lessons[lessonIndex] ?? lessons[0];
-  const activeCard = activeLesson.cards[cardIndex] ?? activeLesson.cards[0];
+  const activeSubLesson = subLessonIndex == null ? null : (activeLesson?.subLessons[subLessonIndex] ?? null);
+  const activeCards = activeSubLesson?.cards ?? activeLesson?.cards ?? [];
+  const activeCard = activeCards[cardIndex] ?? activeCards[0];
   const activeQuiz = quizBank[quizIndex] ?? quizBank[0];
   const sourceText = useMemo(
     () => documents.map((doc, index) => `DOCUMENT ${index + 1}: ${doc.name}\n${doc.text}`).join('\n\n---\n\n').slice(0, 180000),
     [documents]
   );
-  const blueprint = useMemo(() => buildBlueprint(form, lessons, quizBank), [form, lessons, quizBank]);
+  const blueprint = useMemo(() => buildBlueprint(form, modules, quizBank), [form, modules, quizBank]);
   const stats = useMemo(() => ({
-    lessons: lessons.length,
-    cards: lessons.reduce((count, lesson) => count + lesson.cards.length, 0),
+    lessons: modules.reduce((count, module) => count + module.lessons.length, 0),
+    cards: modules.reduce((count, module) => count + module.lessons.reduce((inner, lesson) => inner + lesson.cards.length + lesson.subLessons.reduce((s, sub) => s + sub.cards.length, 0), 0), 0),
     quizQuestions: quizBank.length,
     hours: toPositiveInt(form.durationHours, 1),
-  }), [form.durationHours, lessons, quizBank]);
+  }), [form.durationHours, modules, quizBank]);
 
-  const readiness = useMemo(() => courseReadiness(form, lessons, quizBank), [form, lessons, quizBank]);
+  const readiness = useMemo(() => courseReadiness(form, modules, quizBank), [form, modules, quizBank]);
   const canUndo = historyVersion >= 0 && undoStack.current.length > 0;
   const canRedo = historyVersion >= 0 && redoStack.current.length > 0;
 
   function currentSnapshot(): BuilderSnapshot {
     return {
       form: structuredClone(form),
-      lessons: structuredClone(lessons),
+      modules: structuredClone(modules),
       quizBank: structuredClone(quizBank),
       editingCourseId,
     };
@@ -504,10 +511,12 @@ export function DedicatedManualCourseBuilderClient() {
 
   function restoreSnapshot(snapshot: BuilderSnapshot) {
     setForm(snapshot.form);
-    setLessons(snapshot.lessons);
+    setModules(snapshot.modules);
     setQuizBank(snapshot.quizBank);
     setEditingCourseId(snapshot.editingCourseId ?? null);
+    setModuleIndex(0);
     setLessonIndex(0);
+    setSubLessonIndex(null);
     setCardIndex(0);
     setQuizIndex(0);
   }
@@ -527,11 +536,13 @@ export function DedicatedManualCourseBuilderClient() {
     undoStack.current = [];
     redoStack.current = [];
     setForm(initialCourseForm(defaultSchoolId));
-    setLessons([makeLesson(1)]);
+    setModules([{ id: uid('module'), title: 'Module 1', description: 'Main module', outcomes: ['Master this module outcomes.'], lessons: [makeLesson(1)], saved: false }]);
     setQuizBank([makeQuiz()]);
     setEditingCourseId(null);
     setRecoverableDraft(null);
+    setModuleIndex(0);
     setLessonIndex(0);
+    setSubLessonIndex(null);
     setCardIndex(0);
     setQuizIndex(0);
     setMode('manual');
@@ -560,6 +571,130 @@ export function DedicatedManualCourseBuilderClient() {
     undoStack.current.push(currentSnapshot());
     restoreSnapshot(next);
     setHistoryVersion((value) => value + 1);
+  }
+
+
+
+  function updateCardsForActiveTarget(updater: (cards: ManualCard[]) => ManualCard[]) {
+    setLessons((current) => current.map((lesson, index) => {
+      if (index !== lessonIndex) return lesson;
+      if (subLessonIndex == null) {
+        return { ...lesson, saved: false, cards: updater(lesson.cards).map((card) => ({ ...card, saved: false })) };
+      }
+      return {
+        ...lesson,
+        saved: false,
+        subLessons: lesson.subLessons.map((subLesson, subIndex) => subIndex === subLessonIndex
+          ? { ...subLesson, saved: false, cards: updater(subLesson.cards).map((card) => ({ ...card, saved: false })) }
+          : subLesson),
+      };
+    }));
+  }
+
+
+  function updateModule(index: number, patch: Partial<ManualModule>) {
+    recordHistory();
+    setModules((current) => current.map((module, moduleIdx) => moduleIdx === index ? { ...module, ...patch, saved: false } : module));
+  }
+
+  function addModule() {
+    recordHistory();
+    setModules((current) => [...current, { id: uid('module'), title: `Module ${current.length + 1}`, description: 'Describe this module.', outcomes: [], lessons: [makeLesson(1)], saved: false }]);
+    setModuleIndex(modules.length);
+    setLessonIndex(0);
+    setSubLessonIndex(null);
+    setCardIndex(0);
+  }
+
+  function removeModule(index: number) {
+    if (modules.length <= 1) return;
+    recordHistory();
+    setModules((current) => current.filter((_, moduleIdx) => moduleIdx !== index));
+    setModuleIndex((current) => Math.max(0, Math.min(current >= index ? current - 1 : current, modules.length - 2)));
+    setLessonIndex(0);
+    setSubLessonIndex(null);
+    setCardIndex(0);
+  }
+
+
+  function duplicateModule(index: number) {
+    const source = modules[index];
+    if (!source) return;
+    recordHistory();
+    const copy: ManualModule = { ...structuredClone(source), id: uid('module'), title: `${source.title || 'Module'} copy`, saved: false };
+    setModules((current) => insertAt(current, index + 1, copy));
+    setModuleIndex(index + 1);
+    setLessonIndex(0);
+    setSubLessonIndex(null);
+    setCardIndex(0);
+  }
+
+  function reorderModule(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    recordHistory();
+    setModules((current) => moveItem(current, fromIndex, toIndex));
+    setModuleIndex(toIndex);
+    setLessonIndex(0);
+    setSubLessonIndex(null);
+    setCardIndex(0);
+  }
+
+  function setLessons(updater: (current: ManualLesson[]) => ManualLesson[]) {
+    setModules((currentModules) => currentModules.map((module, index) => {
+      if (index !== moduleIndex) return module;
+      return { ...module, saved: false, lessons: updater(module.lessons) };
+    }));
+  }
+
+
+  function addSubLesson() {
+    recordHistory();
+    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      subLessons: [...lesson.subLessons, { id: uid('sub'), title: `Sub-lesson ${lesson.subLessons.length + 1}`, summary: '', cards: [makeCard('teach', 1)], saved: false }],
+    } : lesson));
+    setSubLessonIndex(activeLesson.subLessons.length);
+    setCardIndex(0);
+  }
+
+  function updateSubLesson(index: number, patch: Partial<SubLesson>) {
+    recordHistory();
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      subLessons: lesson.subLessons.map((sub, subIdx) => subIdx === index ? { ...sub, ...patch, saved: false } : sub),
+    } : lesson));
+  }
+
+  function removeSubLesson(index: number) {
+    recordHistory();
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
+      ...lesson,
+      saved: false,
+      subLessons: lesson.subLessons.filter((_, subIdx) => subIdx !== index),
+    } : lesson));
+    setSubLessonIndex((current) => current == null ? null : (current === index ? null : Math.max(0, current - (current > index ? 1 : 0))));
+    setCardIndex(0);
+  }
+
+
+  function duplicateSubLesson(index: number) {
+    const source = activeLesson.subLessons[index];
+    if (!source) return;
+    recordHistory();
+    const copy: SubLesson = { ...structuredClone(source), id: uid('sub'), title: `${source.title || 'Sub-lesson'} copy`, saved: false, cards: source.cards.map((card) => ({ ...card, id: uid('card'), saved: false })) };
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? { ...lesson, saved: false, subLessons: insertAt(lesson.subLessons, index + 1, copy) } : lesson));
+    setSubLessonIndex(index + 1);
+    setCardIndex(0);
+  }
+
+  function reorderSubLesson(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    recordHistory();
+    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? { ...lesson, saved: false, subLessons: moveItem(lesson.subLessons, fromIndex, toIndex) } : lesson));
+    setSubLessonIndex(toIndex);
+    setCardIndex(0);
   }
 
   function updateLesson(patch: Partial<ManualLesson>) {
@@ -628,118 +763,78 @@ export function DedicatedManualCourseBuilderClient() {
 
   function updateCard(patch: Partial<ManualCard>) {
     recordHistory();
-    setLessons((current) => current.map((lesson, index) => index !== lessonIndex ? lesson : {
-      ...lesson,
-      saved: false,
-      cards: lesson.cards.map((card, idx) => idx === cardIndex ? { ...card, ...patch, saved: false } : card),
-    }));
+    updateCardsForActiveTarget((cards) => cards.map((card, idx) => idx === cardIndex ? { ...card, ...patch, saved: false } : card));
   }
 
   function addCard(type: CardType) {
     recordHistory();
     const workflow = workflowTemplateForType(type);
-    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: [...lesson.cards, { ...makeCard(type, lesson.cards.length + 1), workflowTemplate: workflow }],
-    } : lesson));
-    setCardIndex(activeLesson.cards.length);
+    updateCardsForActiveTarget((cards) => [...cards, { ...makeCard(type, cards.length + 1), workflowTemplate: workflow }]);
+    setCardIndex(activeCards.length);
   }
 
   function addWorkflowCard(template: CardWorkflowTemplate) {
-    insertWorkflowCard(template, activeLesson.cards.length);
+    insertWorkflowCard(template, activeCards.length);
   }
 
   function insertWorkflowCard(template: CardWorkflowTemplate, targetIndex: number) {
     recordHistory();
-    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: insertAt(lesson.cards, clampIndex(targetIndex, lesson.cards.length), makeCardFromWorkflowTemplate(template, lesson.cards.length + 1)),
-    } : lesson));
-    setCardIndex(clampIndex(targetIndex, activeLesson.cards.length));
+    updateCardsForActiveTarget((cards) => insertAt(cards, clampIndex(targetIndex, cards.length), makeCardFromWorkflowTemplate(template, cards.length + 1)));
+    setCardIndex(clampIndex(targetIndex, activeCards.length));
   }
 
   function addTemplateCard(template: LessonBlockTemplate) {
-    insertTemplateCard(template, activeLesson.cards.length);
+    insertTemplateCard(template, activeCards.length);
   }
 
   function insertTemplateCard(template: LessonBlockTemplate, targetIndex: number) {
     recordHistory();
-    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: insertAt(lesson.cards, clampIndex(targetIndex, lesson.cards.length), makeCardFromTemplate(template, lesson.cards.length + 1)),
-    } : lesson));
-    setCardIndex(clampIndex(targetIndex, activeLesson.cards.length));
+    updateCardsForActiveTarget((cards) => insertAt(cards, clampIndex(targetIndex, cards.length), makeCardFromTemplate(template, cards.length + 1)));
+    setCardIndex(clampIndex(targetIndex, activeCards.length));
   }
 
   function insertCards(cards: ManualCard[], targetIndex: number) {
     if (!cards.length) return;
     recordHistory();
-    const safeIndex = clampIndex(targetIndex, activeLesson.cards.length);
-    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: [...lesson.cards.slice(0, safeIndex), ...cards, ...lesson.cards.slice(safeIndex)],
-    } : lesson));
+    const safeIndex = clampIndex(targetIndex, activeCards.length);
+    updateCardsForActiveTarget((currentCards) => [...currentCards.slice(0, safeIndex), ...cards, ...currentCards.slice(safeIndex)]);
     setCardIndex(safeIndex);
   }
 
   function replaceCard(index: number, card: ManualCard) {
     recordHistory();
-    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: lesson.cards.map((item, cardIdx) => cardIdx === index ? card : item),
-    } : lesson));
+    updateCardsForActiveTarget((cards) => cards.map((item, cardIdx) => cardIdx === index ? card : item));
     setCardIndex(index);
   }
 
   function replaceCardWithCards(index: number, cards: ManualCard[]) {
     if (!cards.length) return;
     recordHistory();
-    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: [...lesson.cards.slice(0, index), ...cards, ...lesson.cards.slice(index + 1)],
-    } : lesson));
+    updateCardsForActiveTarget((currentCards) => [...currentCards.slice(0, index), ...cards, ...currentCards.slice(index + 1)]);
     setCardIndex(index);
   }
 
   function reorderCard(fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
     recordHistory();
-    setLessons((current) => current.map((lesson, index) => index === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: moveItem(lesson.cards, fromIndex, toIndex),
-    } : lesson));
+    updateCardsForActiveTarget((cards) => moveItem(cards, fromIndex, toIndex));
     setCardIndex(toIndex);
   }
 
   function duplicateCard(index: number) {
-    const source = activeLesson.cards[index];
+    const source = activeCards[index];
     if (!source) return;
     recordHistory();
     const copy = { ...source, id: uid('card'), title: `${source.title || 'Card'} copy`, saved: false };
-    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: insertAt(lesson.cards, index + 1, copy),
-    } : lesson));
+    updateCardsForActiveTarget((cards) => insertAt(cards, index + 1, copy));
     setCardIndex(index + 1);
   }
 
   function removeCard(index: number) {
-    if (activeLesson.cards.length <= 1) return;
+    if (activeCards.length <= 1) return;
     recordHistory();
-    setLessons((current) => current.map((lesson, lessonIdx) => lessonIdx === lessonIndex ? {
-      ...lesson,
-      saved: false,
-      cards: lesson.cards.filter((_, cardIdx) => cardIdx !== index),
-    } : lesson));
-    setCardIndex(Math.max(0, Math.min(index, activeLesson.cards.length - 2)));
+    updateCardsForActiveTarget((cards) => cards.filter((_, cardIdx) => cardIdx !== index));
+    setCardIndex(Math.max(0, Math.min(index, activeCards.length - 2)));
   }
 
   function updateQuiz(patch: Partial<QuizQuestion>) {
@@ -847,7 +942,7 @@ export function DedicatedManualCourseBuilderClient() {
         level: parsed.courseSummary?.level || current.level,
         durationHours: String(parsed.courseSummary?.totalDurationHours || current.durationHours),
       }));
-      if (importedLessons.length) setLessons(importedLessons);
+      if (importedLessons.length) setModules([{ id: uid('module'), title: 'AI Module 1', description: 'Generated from AI draft', outcomes: [], lessons: importedLessons, saved: false }]);
       setMode('manual');
       setStep('cards');
       setLessonIndex(0);
@@ -886,7 +981,7 @@ export function DedicatedManualCourseBuilderClient() {
         currency: courseData.currency || 'ZMW',
         certificateFee: String(courseData.certificateFee ?? 0),
       });
-      setLessons(manualLessonsFromCourse(lessonData));
+      setModules(modulesFromCourse(lessonData));
       setQuizBank(quizBankFromLessons(lessonData));
       setLessonIndex(0);
       setCardIndex(0);
@@ -902,7 +997,7 @@ export function DedicatedManualCourseBuilderClient() {
   }
 
   async function saveDraft() {
-    const validation = validateCourse(form, lessons);
+    const validation = validateCourse(form, modules);
     if (validation) {
       setError(validation);
       return;
@@ -977,10 +1072,10 @@ export function DedicatedManualCourseBuilderClient() {
           <StudioNavigator step={step} setStep={setStep} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} setCardIndex={setCardIndex} readiness={readiness} quizCount={quizBank.length} />
           <div className="min-w-0">
             {step === 'setup' ? <SetupStep form={form} updateForm={updateForm} schools={schools} goNext={() => setStep('lessons')} /> : null}
-            {step === 'lessons' ? <LessonsStep lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} removeLesson={removeLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
-            {step === 'cards' ? <CardsStep form={form} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addWorkflowCard={addWorkflowCard} insertWorkflowCard={insertWorkflowCard} addTemplateCard={addTemplateCard} insertTemplateCard={insertTemplateCard} insertCards={insertCards} replaceCard={replaceCard} replaceCardWithCards={replaceCardWithCards} reorderCard={reorderCard} duplicateCard={duplicateCard} removeCard={removeCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
+            {step === 'lessons' ? <LessonsStep modules={modules} moduleIndex={moduleIndex} setModuleIndex={setModuleIndex} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} activeLesson={activeLesson} updateLesson={updateLesson} addModule={addModule} removeModule={removeModule} duplicateModule={duplicateModule} reorderModule={reorderModule} updateModule={updateModule} addSubLesson={addSubLesson} updateSubLesson={updateSubLesson} removeSubLesson={removeSubLesson} duplicateSubLesson={duplicateSubLesson} reorderSubLesson={reorderSubLesson} addLesson={addLesson} addLessonTemplate={addLessonTemplate} duplicateLesson={duplicateLesson} removeLesson={removeLesson} reorderLesson={reorderLesson} finish={() => setStep('cards')} /> : null}
+            {step === 'cards' ? <CardsStep form={form} modules={modules} moduleIndex={moduleIndex} setModuleIndex={setModuleIndex} lessons={lessons} lessonIndex={lessonIndex} setLessonIndex={setLessonIndex} subLessonIndex={subLessonIndex} setSubLessonIndex={setSubLessonIndex} activeLesson={activeLesson} activeSubLesson={activeSubLesson} cardIndex={cardIndex} setCardIndex={setCardIndex} activeCard={activeCard} addCard={addCard} addWorkflowCard={addWorkflowCard} insertWorkflowCard={insertWorkflowCard} addTemplateCard={addTemplateCard} insertTemplateCard={insertTemplateCard} insertCards={insertCards} replaceCard={replaceCard} replaceCardWithCards={replaceCardWithCards} reorderCard={reorderCard} duplicateCard={duplicateCard} removeCard={removeCard} updateCard={updateCard} finish={() => setStep('quiz')} /> : null}
             {step === 'quiz' ? <QuizStep quizBank={quizBank} quizIndex={quizIndex} setQuizIndex={setQuizIndex} activeQuiz={activeQuiz} updateQuiz={updateQuiz} addQuiz={addQuiz} duplicateQuiz={duplicateQuiz} removeQuiz={removeQuiz} reorderQuiz={reorderQuiz} bulkAddQuiz={bulkAddQuiz} finish={() => setStep('preview')} /> : null}
-            {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={lessons} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} editingCourseId={editingCourseId} /> : null}
+            {step === 'preview' ? <PreviewStep form={form} lesson={activeLesson} lessons={modules.flatMap((module) => module.lessons)} quizBank={quizBank} readiness={readiness} courses={courses} saveDraft={saveDraft} saving={saving} onLoadCourse={loadCourseIntoBuilder} loadingCourseId={loadingCourseId} editingCourseId={editingCourseId} /> : null}
           </div>
         </div>
       ) : null}
@@ -1044,7 +1139,7 @@ function Header({ mode, step, setMode, setStep, saving, saveDraft, stats, canUnd
 
 function RecoveryNotice({ draft, onResume, onStartNew }: { draft: BuilderSnapshot; onResume: () => void; onStartNew: () => void }) {
   const title = draft.form.title?.trim() || 'Untitled course draft';
-  const lessonCount = draft.lessons.length;
+  const lessonCount = draft.modules.reduce((count, module) => count + module.lessons.length, 0);
   const mode = draft.editingCourseId ? 'editing an existing course' : 'new course draft';
 
   return (
@@ -1176,10 +1271,15 @@ function SetupStep({ form, updateForm, schools, goNext }: { form: CourseForm; up
   );
 }
 
-function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; removeLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
-  const { lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, removeLesson, reorderLesson, finish } = props;
+function LessonsStep(props: { modules: ManualModule[]; moduleIndex: number; setModuleIndex: (index: number) => void; addModule: () => void; removeModule: (index: number) => void; duplicateModule: (index: number) => void; reorderModule: (fromIndex: number, toIndex: number) => void; updateModule: (index: number, patch: Partial<ManualModule>) => void; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; removeLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; addSubLesson: () => void; updateSubLesson: (index: number, patch: Partial<SubLesson>) => void; removeSubLesson: (index: number) => void; duplicateSubLesson: (index: number) => void; reorderSubLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
+  const { modules, moduleIndex, setModuleIndex, addModule, removeModule, duplicateModule, reorderModule, updateModule, lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addSubLesson, updateSubLesson, removeSubLesson, duplicateSubLesson, reorderSubLesson, addLesson, addLessonTemplate, duplicateLesson, removeLesson, reorderLesson, finish } = props;
   return (
     <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
+      <div className="space-y-2">
+          <Label>Module</Label>
+          <div className="space-y-2"><div className="flex flex-wrap gap-2">{modules.map((module, index) => <Button key={module.id} type="button" size="sm" variant={index === moduleIndex ? 'default' : 'outline'} onClick={() => { setModuleIndex(index); setLessonIndex(0); }}>{module.title || `Module ${index + 1}`}</Button>)}</div><div className="grid gap-2"><Input value={modules[moduleIndex]?.title || ""} onChange={(event) => updateModule(moduleIndex, { title: event.target.value })} placeholder="Module title" /><Textarea rows={2} value={modules[moduleIndex]?.description || ""} onChange={(event) => updateModule(moduleIndex, { description: event.target.value })} placeholder="Module description" /><Textarea rows={3} value={(modules[moduleIndex]?.outcomes ?? []).join('\n')} onChange={(event) => updateModule(moduleIndex, { outcomes: lines(event.target.value) })} placeholder="Module outcomes, one per line" /><div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={addModule}>Add module</Button><Button type="button" size="sm" variant="ghost" disabled={moduleIndex===0} onClick={() => reorderModule(moduleIndex, moduleIndex-1)}>Up</Button><Button type="button" size="sm" variant="ghost" disabled={moduleIndex===modules.length-1} onClick={() => reorderModule(moduleIndex, moduleIndex+1)}>Down</Button><Button type="button" size="sm" variant="ghost" onClick={() => duplicateModule(moduleIndex)}>Copy</Button><Button type="button" size="sm" variant="ghost" disabled={modules.length<=1} onClick={() => removeModule(moduleIndex)} className="text-destructive">Delete module</Button></div></div></div>
+        </div>
+      
       <Card className="rounded-2xl">
         <CardHeader><CardTitle>Lessons</CardTitle><CardDescription>Treat lessons like chapters. Keep each one focused.</CardDescription></CardHeader>
         <CardContent className="space-y-2">
@@ -1215,6 +1315,15 @@ function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setL
           <Field label="Lesson title"><Input value={activeLesson.title} onChange={(event) => updateLesson({ title: event.target.value })} /></Field>
           <Field label="Lesson summary"><Textarea rows={4} value={activeLesson.summary} onChange={(event) => updateLesson({ summary: event.target.value })} /></Field>
           <Field label="Learning outcomes, one per line"><Textarea rows={4} value={activeLesson.outcomes.join('\n')} onChange={(event) => updateLesson({ outcomes: lines(event.target.value) })} /></Field>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Sub-lessons</Label>
+              <Button type="button" size="sm" variant="outline" onClick={addSubLesson}>Add sub-lesson</Button>
+            </div>
+            <div className="space-y-2">
+              {activeLesson.subLessons.map((sub, index) => <div key={sub.id} className="rounded-xl border p-2"><div className="flex gap-2"><Input value={sub.title} onChange={(event) => updateSubLesson(index, { title: event.target.value })} /><Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => duplicateSubLesson(index)}>Copy</Button><Button type="button" size="sm" variant="ghost" disabled={index===0} onClick={() => reorderSubLesson(index, index-1)}>Up</Button><Button type="button" size="sm" variant="ghost" disabled={index===activeLesson.subLessons.length-1} onClick={() => reorderSubLesson(index, index+1)}>Down</Button><Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => removeSubLesson(index)}>Delete</Button></div><Textarea rows={2} className="mt-2" value={sub.summary} onChange={(event) => updateSubLesson(index, { summary: event.target.value })} /></div>)}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={addLesson}>Add another lesson</Button>
             <Button type="button" onClick={finish}>Build cards</Button>
@@ -1225,8 +1334,8 @@ function LessonsStep(props: { lessons: ManualLesson[]; lessonIndex: number; setL
   );
 }
 
-function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; cardIndex: number; setCardIndex: (index: number) => void; activeCard: ManualCard; addCard: (type: CardType) => void; addWorkflowCard: (template: CardWorkflowTemplate) => void; insertWorkflowCard: (template: CardWorkflowTemplate, index: number) => void; addTemplateCard: (template: LessonBlockTemplate) => void; insertTemplateCard: (template: LessonBlockTemplate, index: number) => void; insertCards: (cards: ManualCard[], index: number) => void; replaceCard: (index: number, card: ManualCard) => void; replaceCardWithCards: (index: number, cards: ManualCard[]) => void; reorderCard: (fromIndex: number, toIndex: number) => void; duplicateCard: (index: number) => void; removeCard: (index: number) => void; updateCard: (patch: Partial<ManualCard>) => void; finish: () => void }) {
-  const { form, lessons, lessonIndex, setLessonIndex, activeLesson, cardIndex, setCardIndex, activeCard, addWorkflowCard, insertWorkflowCard, addTemplateCard, insertTemplateCard, insertCards, replaceCard, replaceCardWithCards, reorderCard, duplicateCard, removeCard, updateCard, finish } = props;
+function CardsStep(props: { form: CourseForm; modules: ManualModule[]; moduleIndex: number; setModuleIndex: (index: number) => void; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; subLessonIndex: number | null; setSubLessonIndex: (index: number | null) => void; activeLesson: ManualLesson; activeSubLesson: SubLesson | null; cardIndex: number; setCardIndex: (index: number) => void; activeCard: ManualCard; addCard: (type: CardType) => void; addWorkflowCard: (template: CardWorkflowTemplate) => void; insertWorkflowCard: (template: CardWorkflowTemplate, index: number) => void; addTemplateCard: (template: LessonBlockTemplate) => void; insertTemplateCard: (template: LessonBlockTemplate, index: number) => void; insertCards: (cards: ManualCard[], index: number) => void; replaceCard: (index: number, card: ManualCard) => void; replaceCardWithCards: (index: number, cards: ManualCard[]) => void; reorderCard: (fromIndex: number, toIndex: number) => void; duplicateCard: (index: number) => void; removeCard: (index: number) => void; updateCard: (patch: Partial<ManualCard>) => void; finish: () => void }) {
+  const { form, modules, moduleIndex, setModuleIndex, lessons, lessonIndex, setLessonIndex, subLessonIndex, setSubLessonIndex, activeLesson, activeSubLesson, cardIndex, setCardIndex, activeCard, addWorkflowCard, insertWorkflowCard, addTemplateCard, insertTemplateCard, insertCards, replaceCard, replaceCardWithCards, reorderCard, duplicateCard, removeCard, updateCard, finish } = props;
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateCategory, setTemplateCategory] = useState('All');
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -1389,15 +1498,26 @@ function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonInd
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
+            <Label>Module</Label>
+            <div className="flex gap-2 overflow-x-auto pb-1">{modules.map((module, index) => <Button key={module.id} type="button" size="sm" variant={index === moduleIndex ? 'default' : 'outline'} onClick={() => { setModuleIndex(index); setLessonIndex(0); setSubLessonIndex(null); setCardIndex(0); }}>{module.title || `Module ${index + 1}`}</Button>)}</div>
+          </div>
+          <div className="space-y-2">
             <Label>Lesson</Label>
             <div className="flex gap-2 overflow-x-auto pb-1">{lessons.map((lesson, index) => <Button key={lesson.id} type="button" size="sm" variant={index === lessonIndex ? 'default' : 'outline'} onClick={() => { setLessonIndex(index); setCardIndex(0); }}>{lesson.title || `Lesson ${index + 1}`}</Button>)}</div>
+          </div>
+          <div className="space-y-2">
+            <Label>Target</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant={subLessonIndex == null ? 'default' : 'outline'} onClick={() => { setSubLessonIndex(null); setCardIndex(0); }}>Lesson cards</Button>
+              {activeLesson.subLessons.map((sub, index) => <Button key={sub.id} type="button" size="sm" variant={subLessonIndex === index ? 'default' : 'outline'} onClick={() => { setSubLessonIndex(index); setCardIndex(0); }}>{sub.title || `Sub-lesson ${index + 1}`}</Button>)}
+            </div>
           </div>
           <div
             className="space-y-2 rounded-2xl border bg-muted/20 p-3"
             onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => onCanvasDrop(event, activeLesson.cards.length)}
+            onDrop={(event) => onCanvasDrop(event, (activeSubLesson?.cards ?? activeLesson.cards).length)}
           >
-            {activeLesson.cards.map((card, index) => {
+            {(activeSubLesson?.cards ?? activeLesson.cards).map((card, index) => {
               const cardLoad = learnerLoadForCard(card);
               return (
                 <div key={card.id}>
@@ -1433,17 +1553,17 @@ function CardsStep(props: { form: CourseForm; lessons: ManualLesson[]; lessonInd
                     </div>
                     <div className="flex items-center gap-1 self-start">
                       <Button type="button" size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); duplicateCard(index); }}><Copy className="size-4" /></Button>
-                      <Button type="button" size="sm" variant="ghost" disabled={activeLesson.cards.length <= 1} onClick={(event) => { event.stopPropagation(); removeCard(index); }}><Trash2 className="size-4" /></Button>
+                      <Button type="button" size="sm" variant="ghost" disabled={(activeSubLesson?.cards ?? activeLesson.cards).length <= 1} onClick={(event) => { event.stopPropagation(); removeCard(index); }}><Trash2 className="size-4" /></Button>
                     </div>
                   </article>
                 </div>
               );
             })}
             <div
-              className={`rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground transition ${dragOverIndex === activeLesson.cards.length ? 'border-primary bg-primary/5 text-primary' : ''}`}
-              onDragOver={(event) => { event.preventDefault(); setDragOverIndex(activeLesson.cards.length); }}
+              className={`rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground transition ${dragOverIndex === (activeSubLesson?.cards ?? activeLesson.cards).length ? 'border-primary bg-primary/5 text-primary' : ''}`}
+              onDragOver={(event) => { event.preventDefault(); setDragOverIndex((activeSubLesson?.cards ?? activeLesson.cards).length); }}
               onDragLeave={() => setDragOverIndex(null)}
-              onDrop={(event) => onCanvasDrop(event, activeLesson.cards.length)}
+              onDrop={(event) => onCanvasDrop(event, (activeSubLesson?.cards ?? activeLesson.cards).length)}
             >
               Drop a block here to add it to the end
             </div>
@@ -1913,9 +2033,9 @@ function cardFromBlock(block: any, index: number): ManualCard {
   };
 }
 
-function manualLessonsFromCourse(lessons: Lesson[]): ManualLesson[] {
-  if (!lessons.length) return [makeLesson(1)];
-  return lessons.map((lesson, index) => {
+function modulesFromCourse(lessons: Lesson[]): ManualModule[] {
+  if (!lessons.length) return [{ id: uid('module'), title: 'Module 1', description: 'Fallback module', outcomes: [], lessons: [makeLesson(1)], saved: true }];
+  const mapped = lessons.map((lesson, index) => {
     const cards = lesson.learningObjects?.flatMap((object) => {
       const payload = object.payload ?? parseMaybeJson(object.body);
       return extractBlocksFromPayload(payload).map((block, blockIndex) => cardFromBlock(block, blockIndex + 1));
@@ -1931,7 +2051,9 @@ function manualLessonsFromCourse(lessons: Lesson[]): ManualLesson[] {
       saved: true,
     };
   });
+  return [{ id: uid('module'), title: 'Module 1', description: 'Imported module', outcomes: [], lessons: mapped, saved: true }];
 }
+
 
 function quizBankFromLessons(lessons: Lesson[]): QuizQuestion[] {
   const quizzes = lessons.flatMap((lesson) => (lesson.quiz?.questions ?? []).map((question, index) => ({
@@ -2263,6 +2385,7 @@ function uniqueTemplateIds(values: CardWorkflowTemplateId[]) {
   });
 }
 
+
 function commandTopic(value: string) {
   return value
     .replace(/\b(teach|explain|intro|introduce|with|and|then|add|make|create|card|cards|example|checkpoint|quiz|question|summary|visual|image|practice|task|case|scenario|flashcard|flash)\b/gi, ' ')
@@ -2356,12 +2479,15 @@ function requestErrorMessage(cause: unknown, fallback: string) {
   return error.message || fallback;
 }
 
-function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: QuizQuestion[]): any {
-  const totalMinutes = Math.max(5, toPositiveInt(form.durationHours, 1) * 60);
-  const lessonMinutes = Math.max(5, Math.round(totalMinutes / Math.max(1, lessons.length)));
-  const outcomes = lessons.flatMap((lesson) => lesson.outcomes).filter(Boolean).slice(0, 10);
+function buildBlueprint(form: CourseForm, modules: ManualModule[], quizBank: QuizQuestion[]): any {
+  const totalMinutes = Math.max(30, toPositiveInt(form.durationHours, 1) * 60);
+  const allLessons = modules.flatMap((module) => module.lessons);
+  const lessonMinutes = Math.max(5, Math.round(totalMinutes / Math.max(1, allLessons.length)));
+  const outcomes = allLessons.flatMap((lesson) => lesson.outcomes).filter(Boolean).slice(0, 10);
 
   return {
+    schemaVersion: 'short-course-v1',
+    generatedAt: new Date().toISOString(),
     courseSummary: {
       title: form.title || 'Untitled short course',
       audience: 'Short-course learners',
@@ -2378,25 +2504,29 @@ function buildBlueprint(form: CourseForm, lessons: ManualLesson[], quizBank: Qui
       practicalWork: [],
       instructorReviewChecklist: ['Check lesson accuracy.', 'Check block-template fit for the subject.', 'Check math inside cards.', 'Check quiz answers.', 'Check images and captions.'],
     },
-    modules: [
-      {
-        title: form.title || 'Main module',
-        description: form.description || 'Manual module.',
-        durationMinutes: totalMinutes,
-        outcomes,
-        moduleAssessment: 'Quiz bank practice.',
-        lessons: lessons.map((lesson) => ({
-          title: lesson.title,
-          summary: lesson.summary,
-          durationMinutes: lessonMinutes,
-          difficulty: form.level,
-          outcomes: lesson.outcomes,
-          blocks: lesson.cards.map(blockFromCard),
-          activities: [],
-          assessment: 'Complete all cards.',
+    modules: modules.map((module, moduleIndex) => ({
+      title: module.title || `Module ${moduleIndex + 1}`,
+      description: module.description || 'Manual module.',
+      durationMinutes: Math.max(30, lessonMinutes * Math.max(1, module.lessons.length)),
+      outcomes: module.outcomes?.length ? module.outcomes : outcomes,
+      moduleAssessment: 'Quiz bank practice.',
+      lessons: module.lessons.map((lesson) => ({
+        title: lesson.title,
+        summary: lesson.summary,
+        durationMinutes: lessonMinutes,
+        difficulty: form.level,
+        outcomes: lesson.outcomes,
+        blocks: lesson.cards.map(blockFromCard),
+        subLessons: lesson.subLessons.map((subLesson) => ({
+          id: subLesson.id,
+          title: subLesson.title,
+          summary: subLesson.summary,
+          blocks: subLesson.cards.map(blockFromCard),
         })),
-      },
-    ],
+        activities: [],
+        assessment: 'Complete all cards.',
+      })),
+    })),
   };
 }
 
@@ -2422,31 +2552,35 @@ function lessonPreview(lesson: ManualLesson, form: CourseForm) {
         type: 'content',
         title: lesson.title,
         body: JSON.stringify({ blocks: lesson.cards.map(blockFromCard) }),
-        payload: { blocks: lesson.cards.map(blockFromCard) },
+        payload: { blocks: lesson.cards.map(blockFromCard), subLessons: lesson.subLessons.map((sub) => ({ id: sub.id, title: sub.title, summary: sub.summary, blocks: sub.cards.map(blockFromCard) })) },
       },
     ] as any,
   } as any;
 }
 
-function validateCourse(form: CourseForm, lessons: ManualLesson[]) {
+function validateCourse(form: CourseForm, modules: ManualModule[]) {
   if (!form.title.trim()) return 'Course title is required.';
   if (!form.schoolId) return 'School / Faculty is required.';
   if ((form.currency || 'ZMW').trim().length !== 3) return 'Currency must be a 3-letter code, for example ZMW.';
+  const lessons = modules.flatMap((module) => module.lessons);
+  if (!modules.length) return 'Add at least one module.';
   if (!lessons.length) return 'Add at least one lesson.';
   if (lessons.some((lesson) => !lesson.title.trim())) return 'Every lesson needs a title.';
-  if (lessons.some((lesson) => !lesson.cards.length)) return 'Every lesson needs cards.';
+  if (lessons.some((lesson) => !lesson.cards.length && !lesson.subLessons.some((sub) => sub.cards.length))) return 'Every lesson needs cards.';
   return null;
 }
 
-function courseReadiness(form: CourseForm, lessons: ManualLesson[], quizBank: QuizQuestion[]): ReadinessItem[] {
-  const checkpoints = lessons.flatMap((lesson) => lesson.cards).filter((card) => ['question', 'fill_blank', 'true_false'].includes(card.type));
-  const heavyCards = lessons.flatMap((lesson) => lesson.cards).filter((card) => learnerLoadForCard(card).level === 'heavy');
-  const imagesMissingAlt = lessons.flatMap((lesson) => lesson.cards).filter((card) => card.imageUrl && !card.imageAlt?.trim());
+function courseReadiness(form: CourseForm, modules: ManualModule[], quizBank: QuizQuestion[]): ReadinessItem[] {
+  const lessons = modules.flatMap((module) => module.lessons);
+  const cards = lessons.flatMap((lesson) => [...lesson.cards, ...lesson.subLessons.flatMap((sub) => sub.cards)]);
+  const checkpoints = cards.filter((card) => ['question', 'fill_blank', 'true_false'].includes(card.type));
+  const heavyCards = cards.filter((card) => learnerLoadForCard(card).level === 'heavy');
+  const imagesMissingAlt = cards.filter((card) => card.imageUrl && !card.imageAlt?.trim());
   const incompleteQuestions = quizBank.filter((quiz) => !quiz.question.trim() || !quiz.answer.trim() || (quiz.type === 'mcq' && lines(quiz.options).length < 2));
   return [
     { label: 'Course title is set', done: Boolean(form.title.trim()), detail: form.title.trim() ? undefined : 'Add a clear course name.' },
     { label: 'School is selected', done: Boolean(form.schoolId), detail: form.schoolId ? undefined : 'Choose the school or faculty.' },
-    { label: 'Lessons have cards', done: lessons.length > 0 && lessons.every((lesson) => lesson.cards.length > 0), detail: `${lessons.length} lesson${lessons.length === 1 ? '' : 's'} planned.` },
+    { label: 'Lessons have cards', done: lessons.length > 0 && lessons.every((lesson) => lesson.cards.length > 0 || lesson.subLessons.some((sub) => sub.cards.length > 0)), detail: `${lessons.length} lesson${lessons.length === 1 ? '' : 's'} planned.` },
     { label: 'Checkpoints have answers', done: checkpoints.every((card) => String(card.answer ?? '').trim()), detail: checkpoints.length ? `${checkpoints.length} checkpoint card${checkpoints.length === 1 ? '' : 's'} found.` : 'Add at least one checkpoint when ready.' },
     { label: 'Question bank is ready', done: quizBank.length > 0 && incompleteQuestions.length === 0, detail: incompleteQuestions.length ? `${incompleteQuestions.length} question${incompleteQuestions.length === 1 ? '' : 's'} need fixing.` : `${quizBank.length} question${quizBank.length === 1 ? '' : 's'}.` },
     { label: 'Cards are readable', done: heavyCards.length === 0, detail: heavyCards.length ? `${heavyCards.length} heavy card${heavyCards.length === 1 ? '' : 's'} should be split.` : undefined },
@@ -2481,6 +2615,7 @@ function quizFromBulkText(raw: string): QuizQuestion[] {
       } as QuizQuestion;
     });
 }
+
 
 function cleanJson(raw: string) {
   return raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
