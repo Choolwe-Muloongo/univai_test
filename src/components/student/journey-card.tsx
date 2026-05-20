@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ElementType } from 'react';
 import { ArrowRight, BadgeCheck, Clock, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +51,7 @@ export function JourneyCard({ item }: { item: ShortCourseEnrollmentSummary }) {
   );
 }
 
-function Meta({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+function Meta({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) {
   return <div className="flex items-start gap-2"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span><span className="text-muted-foreground">{label}: </span><strong>{value}</strong></span></div>;
 }
 
