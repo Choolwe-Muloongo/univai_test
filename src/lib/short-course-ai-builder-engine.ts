@@ -323,13 +323,15 @@ function normalizeModule(module: CourseBuilderModule): CourseBuilderModule {
 }
 
 function normalizeLesson(lesson: CourseBuilderLesson): CourseBuilderLesson {
+  const fallbackBlocks: LessonCardBlock[] = [{ type: 'explanation', title: 'Core idea', body: 'Explain this lesson clearly.' }];
+
   return {
     title: lesson.title || 'Untitled lesson',
     summary: lesson.summary || 'Lesson summary.',
     durationMinutes: Number(lesson.durationMinutes || 20),
     difficulty: lesson.difficulty || 'beginner',
     outcomes: lesson.outcomes ?? [],
-    blocks: (lesson.blocks?.length ? lesson.blocks : [{ type: 'explanation', title: 'Core idea', body: 'Explain this lesson clearly.' }]).map(normalizeCard),
+    blocks: (lesson.blocks?.length ? lesson.blocks : fallbackBlocks).map(normalizeCard),
     subLessons: lesson.subLessons?.map(normalizeLesson) ?? [],
     activities: lesson.activities ?? [],
     assessment: lesson.assessment || 'Lesson checkpoint.',
