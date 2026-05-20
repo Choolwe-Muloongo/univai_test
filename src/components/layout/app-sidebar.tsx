@@ -65,13 +65,19 @@ type NavGroup = {
 };
 
 const studentCoreLinks: NavLink[] = [
-  { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/student/dashboard', label: 'Mission Home', icon: Home },
+  { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
+  { href: '/student/courses', label: 'Training Arena', icon: ClipboardCheck, key: 'student-core-training-arena' },
+  { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+  { href: '/student/rewards', label: 'Rewards', icon: Trophy },
+  { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
+  { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
+  { href: '/student/certificates', label: 'Skill Proofs', icon: BadgeCheck },
+  { href: '/student/profile', label: 'Profile', icon: User },
   { href: '/student/program', label: 'My Program', icon: GraduationCap },
   { href: '/student/study-plan', label: 'Study Plan', icon: BookOpen },
-  { href: '/student/ai', label: 'AI Tutor', icon: Lightbulb },
   { href: '/student/virtual-lab', label: 'Virtual Lab', icon: FlaskConical },
   { href: '/student/wallet', label: 'My Wallet', icon: Wallet },
-  { href: '/student/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/student/community', label: 'Community', icon: Users },
   { href: '/student/jobs', label: 'Job Board', icon: Briefcase },
   { href: '/student/research', label: 'Research Hub', icon: FlaskConical },
@@ -79,24 +85,32 @@ const studentCoreLinks: NavLink[] = [
 ];
 
 const shortCourseOnlyStudentLinks: NavLink[] = [
-  { href: '/student/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/student/courses', label: 'My Short Courses', icon: BookOpen },
+  { href: '/student/dashboard', label: 'Mission Home', icon: Home },
+  { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
+  { href: '/student/courses', label: 'Training Arena', icon: ClipboardCheck, key: 'student-short-training-arena' },
+  { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+  { href: '/student/rewards', label: 'Rewards', icon: Trophy },
+  { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
+  { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
+  { href: '/student/certificates', label: 'Skill Proofs', icon: BadgeCheck },
+  { href: '/student/profile', label: 'Profile', icon: User },
   { href: '/short-courses', label: 'Browse Short Courses', icon: BookMarked },
-  { href: '/student/courses', label: 'Practice', icon: ClipboardCheck, key: 'student-short-practice' },
-  { href: '/student/certificates', label: 'Certificates', icon: BadgeCheck },
-  { href: '/student/ai', label: 'AI Tutor', icon: Lightbulb },
   { href: '/admissions/portal', label: 'Apply for Formal Programme', icon: GraduationCap },
   { href: '/student/payments', label: 'Billing', icon: Landmark },
 ];
 
 const formalStudentLinks: NavLink[] = [
-  { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/student/dashboard', label: 'Mission Home', icon: Home },
+  { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
+  { href: '/student/courses', label: 'Training Arena', icon: ClipboardCheck, key: 'student-formal-training-arena' },
+  { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+  { href: '/student/rewards', label: 'Rewards', icon: Trophy },
+  { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
+  { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
+  { href: '/student/certificates', label: 'Skill Proofs', icon: BadgeCheck },
+  { href: '/student/profile', label: 'Profile', icon: User },
   { href: '/student/program', label: 'My Program', icon: GraduationCap },
   { href: '/student/study-plan', label: 'Study Plan', icon: BookOpen },
-  { href: '/student/courses', label: 'Short Courses', icon: BookMarked },
-  { href: '/student/courses', label: 'Practice', icon: ClipboardCheck, key: 'student-formal-practice' },
-  { href: '/student/certificates', label: 'Certificates', icon: BadgeCheck },
-  { href: '/student/ai', label: 'AI Tutor', icon: Lightbulb },
   { href: '/student/payments', label: 'Billing', icon: Landmark },
 ];
 
@@ -106,8 +120,12 @@ const groupedLinks: Record<string, NavGroup[]> = {
   'freemium-student': [
     {
       links: [
-        { href: '/student/dashboard', label: 'Dashboard', icon: Home },
-        { href: '/student/program', label: 'My Program', icon: GraduationCap },
+        { href: '/student/dashboard', label: 'Mission Home', icon: Home },
+        { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
+        { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+        { href: '/student/rewards', label: 'Rewards', icon: Trophy },
+        { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
+        { href: '/student/profile', label: 'Profile', icon: User },
         { href: '/student/community', label: 'Community', icon: Users },
         { href: '/student/payments', label: 'Upgrade', icon: CreditCard },
       ],
