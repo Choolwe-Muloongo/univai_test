@@ -69,7 +69,7 @@ export default function CourseExamPage() {
       const nextResult = await submitShortCourseExam(courseId, rows);
       setResult(nextResult);
       if (nextResult.passed) {
-        await recordLearningEvent({ type: 'final_trial_passed', courseId, metadata: { score: nextResult.score } }).catch(() => null);
+        await recordLearningEvent({ type: 'final_trial_passed', courseId, metadata: { score: nextResult.score } }).catch((error) => console.warn('Gamification event failed', error));
       }
     } catch (cause) {
       setError(studentFriendlyError(cause));
