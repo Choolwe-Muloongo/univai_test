@@ -1437,10 +1437,125 @@ function LessonsStep(props: {
     });
   return (
     <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
-      <div className="space-y-2">
-          <Label>Module</Label>
-          <div className="flex flex-wrap gap-2">{modules.map((module, index) => <Button key={module.id} type="button" size="sm" variant={index === moduleIndex ? 'default' : 'outline'} onClick={() => { setModuleIndex(index); setLessonIndex(0); }}>{module.title || `Module ${index + 1}`}</Button>)}</div>
-        </div>
+      <div className="space-y-4">
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>Modules</CardTitle>
+                <CardDescription>Group lessons into clear course sections.</CardDescription>
+              </div>
+              <Button type="button" size="sm" onClick={addModule}>
+                <Plus className="mr-2 size-4" />
+                Add module
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-3">
+            {modules.map((module, index) => (
+              <div
+                key={module.id}
+                className={`rounded-xl border p-3 text-sm transition ${
+                  index === moduleIndex
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'bg-background hover:border-primary/50'
+                }`}
+              >
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => setModuleIndex(index)}
+                >
+                  <p className="font-semibold">{module.title || `Module ${index + 1}`}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {module.description || 'No module description yet.'}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {module.lessons.length} lesson{module.lessons.length === 1 ? '' : 's'}
+                  </p>
+                </button>
+
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={index === 0}
+                    onClick={() => reorderModule(index, index - 1)}
+                  >
+                    Move up
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={index === modules.length - 1}
+                    onClick={() => reorderModule(index, index + 1)}
+                  >
+                    Move down
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={modules.length <= 1}
+                    onClick={() => removeModule(index)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="mr-1 size-3" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {activeModule ? (
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle>Edit active module</CardTitle>
+              <CardDescription>
+                These details stay compatible with the existing course blueprint format.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <Field label="Module name">
+                <Input
+                  value={activeModule.title}
+                  onChange={(event) =>
+                    updateModule(moduleIndex, { title: event.target.value })
+                  }
+                />
+              </Field>
+
+              <Field label="Module description">
+                <Textarea
+                  rows={4}
+                  value={activeModule.description}
+                  onChange={(event) =>
+                    updateModule(moduleIndex, { description: event.target.value })
+                  }
+                />
+              </Field>
+
+              <Field label="Module outcomes, one per line">
+                <Textarea
+                  rows={4}
+                  value={activeModule.outcomes.join('\n')}
+                  onChange={(event) =>
+                    updateModule(moduleIndex, { outcomes: lines(event.target.value) })
+                  }
+                />
+              </Field>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
       
       <Card className="rounded-2xl">
         <CardHeader><CardTitle>Lessons</CardTitle><CardDescription>Treat lessons like chapters. Keep each one focused.</CardDescription></CardHeader>
