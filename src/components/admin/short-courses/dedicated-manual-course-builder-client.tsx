@@ -1574,6 +1574,26 @@ function LessonsStep(props: {
                   <Button type="button" size="sm" variant="ghost" onClick={() => duplicateLesson(index)}><Copy className="mr-1 size-3" />Copy</Button>
                   <Button type="button" size="sm" variant="ghost" disabled={lessons.length <= 1} onClick={() => removeLesson(index)} className="text-destructive hover:text-destructive"><Trash2 className="mr-1 size-3" />Delete</Button>
                 </div>
+
+                <div className="mt-3 max-w-xs" onClick={(event) => event.stopPropagation()}>
+                  <Field label="Move to module">
+                    <select
+                      className="h-9 w-full rounded-md border bg-background px-3 text-xs"
+                      value={moduleIndex}
+                      onChange={(event) => moveLessonToModule(index, Number(event.target.value))}
+                    >
+                      {modules.map((module, targetIndex) => (
+                        <option
+                          key={module.id}
+                          value={targetIndex}
+                          disabled={targetIndex === moduleIndex}
+                        >
+                          {module.title || `Module ${targetIndex + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               </div>
             );
           })}
