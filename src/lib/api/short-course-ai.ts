@@ -22,15 +22,15 @@ export type ShortCourseAiResponse = {
 export async function askShortCourseAi(request: ShortCourseAiRequest): Promise<ShortCourseAiResponse> {
   const contextParts = [
     request.context,
-    request.courseTitle ? `Course/Journey: ${request.courseTitle}` : '',
-    request.lessonTitle ? `Current lesson/mission: ${request.lessonTitle}` : '',
-    request.currentCardTitle ? `Current card: ${request.currentCardTitle}` : '',
-    request.currentCardType ? `Current card type: ${request.currentCardType}` : '',
-    request.currentCardText ? `Current card content: ${request.currentCardText}` : '',
-    typeof request.progress === 'number' ? `Learner progress: ${request.progress}%` : '',
+    request.courseTitle ? `Course: ${request.courseTitle}` : '',
+    request.lessonTitle ? `Lesson: ${request.lessonTitle}` : '',
+    request.currentCardTitle ? `Card: ${request.currentCardTitle}` : '',
+    request.currentCardType ? `Card type: ${request.currentCardType}` : '',
+    request.currentCardText ? `Card content: ${request.currentCardText}` : '',
+    typeof request.progress === 'number' ? `Progress: ${request.progress}%` : '',
   ].filter(Boolean).join('\n');
 
-  return apiFetch<ShortCourseAiResponse>('/ai/generate', {
+  return apiFetch<ShortCourseAiResponse>(`/students/me/short-courses/${request.courseId}/ai`, {
     method: 'POST',
     body: JSON.stringify({
       prompt: request.prompt,
@@ -40,7 +40,7 @@ export async function askShortCourseAi(request: ShortCourseAiRequest): Promise<S
       feature: 'short_course_ai',
       courseId: request.courseId,
       shortCourseId: request.courseId,
-      audience: 'Short-course student using the UnivAI student Journey interface.',
+      audience: 'Short-course student.',
     }),
   });
 }
