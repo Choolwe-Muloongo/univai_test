@@ -1,5 +1,6 @@
 import { MathText } from '@/components/learning/math-text';
 import { PlotlyGraph } from '@/components/learning/plotly-graph';
+import { ProfessionalVennBlock } from '@/components/learning/professional-venn-block';
 
 type AnyBlock = Record<string, any>;
 
@@ -11,7 +12,7 @@ export function MathVisualBlock({ block }: { block: AnyBlock }) {
   if (block.type === 'matrix') return <MatrixBlock block={block} />;
   if (block.type === 'formula_sheet') return <FormulaSheetBlock block={block} />;
   if (block.type === 'geometry') return <GeometryBlock block={block} />;
-  if (block.type === 'venn') return <VennBlock block={block} />;
+  if (block.type === 'venn') return <ProfessionalVennBlock block={block} />;
   return null;
 }
 
@@ -131,40 +132,4 @@ function ticks(min: number, max: number) {
   const count = 6;
   const step = (max - min) / count || 1;
   return Array.from({ length: count + 1 }, (_, i) => Number((min + i * step).toFixed(2)));
-}
-
-
-function VennBlock({ block }: { block: AnyBlock }) {
-  const setCount = Number(block.setCount ?? 2);
-  const labels = Array.isArray(block.labels) ? block.labels.map(String) : ['A', 'B', 'C'];
-  const highlight = String(block.highlight ?? 'none');
-  const description = typeof block.description === 'string' ? block.description : '';
-  return <div className="space-y-3">
-    {description ? <p className="text-sm text-muted-foreground"><MathText text={description} /></p> : null}
-    <div className="overflow-x-auto rounded-2xl border bg-muted/20 p-4">
-      <svg viewBox="0 0 420 260" className="h-auto w-full min-w-[280px] sm:min-w-[360px]">
-        {setCount >= 1 ? <circle cx="170" cy="130" r="72" fill={fillFor('A', highlight)} fillOpacity="0.4" className="stroke-primary" strokeWidth="2" /> : null}
-        {setCount >= 2 ? <circle cx="250" cy="130" r="72" fill={fillFor('B', highlight)} fillOpacity="0.4" className="stroke-primary" strokeWidth="2" /> : null}
-        {setCount === 3 ? <circle cx="210" cy="72" r="72" fill={fillFor('C', highlight)} fillOpacity="0.35" className="stroke-primary" strokeWidth="2" /> : null}
-        <text x="132" y="56" className="fill-foreground text-sm">{labels[0] || 'A'}</text>
-        {setCount >= 2 ? <text x="288" y="56" className="fill-foreground text-sm">{labels[1] || 'B'}</text> : null}
-        {setCount === 3 ? <text x="208" y="18" className="fill-foreground text-sm">{labels[2] || 'C'}</text> : null}
-        {highlight !== 'none' ? <text x="210" y="238" textAnchor="middle" className="fill-primary text-xs">{highlight}</text> : null}
-      </svg>
-    </div>
-  </div>;
-}
-
-function fillFor(setName: 'A' | 'B' | 'C', highlight: string) {
-  const map: Record<string, string[]> = {
-    A: ['A','union','intersection','differenceAB','differenceAC','deMorganIntersection'],
-    B: ['B','union','intersection','differenceBA','differenceBC','deMorganIntersection'],
-    C: ['C','union','intersection','differenceCA','differenceCB','deMorganIntersection'],
-    complementA: ['B','C'],
-    complementB: ['A','C'],
-    complementC: ['A','B'],
-    deMorganUnion: [],
-  };
-  const on = (map[highlight] || []).includes(setName);
-  return on ? 'hsl(var(--primary))' : 'hsl(var(--muted))';
 }
