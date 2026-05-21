@@ -6,16 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\ExamQuestion;
 use App\Models\Invoice;
-use App\Models\Payment;
 use App\Models\ShortCourseEnrollment;
 use App\Models\ShortCourseLessonProgress;
 use App\Services\CertificatePdfService;
 use App\Services\LencoPaymentService;
+use App\Support\Affiliates\AffiliateService;
 use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentSettings;
 use App\Support\Pricing\LaunchFeeSchedule;
 use App\Support\Pricing\ShortCourseAccessPlans;
-use App\Support\Affiliates\AffiliateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -30,24 +29,13 @@ class ShortCourseController extends Controller
             ->latest()
             ->get();
 
-        return response()->json($enrollments->map(fn (ShortCourseEnrollment $enrollment) => [
-            'id' => $enrollment->id,
-            'course' => $this->coursePayload($enrollment->course),
-            'status' => $enrollment->status,
-            'progress' => (int) $enrollment->progress,
-            'entryFeePaid' => (bool) $enrollment->entry_fee_paid,
-            'certificateFeePaid' => (bool) $enrollment->certificate_fee_paid,
-            'examScore' => $enrollment->exam_score,
-            'completedAt' => optional($enrollment->completed_at)->toISOString(),
-            'certificateIssuedAt' => optional($enrollment->certificate_issued_at)->toISOString(),
-            'accessExpiresAt' => optional($enrollment->access_expires_at)->toISOString(),
-            'accessPlan' => $enrollment->access_plan,
-            'aiPlan' => $enrollment->ai_plan,
-            'aiAccessExpiresAt' => optional($enrollment->ai_access_expires_at)->toISOString(),
-            'hourlyAiQuota' => $enrollment->hourly_ai_quota,
-            'dailyAiQuota' => $enrollment->daily_ai_quota,
-            'certificateIncluded' => (bool) $enrollment->certificate_included,
-        ])->values());
+        return response()->json($enrollments->map(function (ShortCourseEnrollment $enrollment) {
+            if ($enrollment->course) {
+                $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $enrollment->course);
+            }
+
+            return $this->enrollmentPayload($enrollment);
+        })->values());
     }
 
     public function enroll(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, AffiliateService $affiliates)
@@ -55,9 +43,10 @@ class ShortCourseController extends Controller
         $studentId = $this->studentId($request);
         $course = Course::whereIn('status', ['published', 'active'])->findOrFail($courseId);
         $starterPlan = ShortCourseAccessPlans::get('starter_access', $course);
-        $fee = ((float) ($course->price ?? 0) <= 0 || $course->pricing_type === 'free')
-            ? ['amount' => 0, 'currency' => strtoupper($course->currency ?? $starterPlan['currency'] ?? 'ZMW')]
-            : ['amount' => $starterPlan['amount'], 'currency' => $starterPlan['currency']];
+        $fee = [
+            'amount' => $this->courseEntryFee($course),
+            'currency' => strtoupper($course->currency ?? $starterPlan['currency'] ?? 'ZMW'),
+        ];
 
         $enrollment = ShortCourseEnrollment::firstOrCreate([
             'student_id' => $studentId,
@@ -73,6 +62,7 @@ class ShortCourseController extends Controller
             'access_plan' => 'starter_access',
             'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code'),
         ]);
+
         if (!PaymentSettings::lencoCollectionsEnabled()) {
             $settings = PaymentSettings::current();
             $paidInvoice = $unlocker->markPaidForTesting($invoice, $settings->test_mode_message ?: 'Payment confirmed in test mode.');
@@ -95,34 +85,73 @@ class ShortCourseController extends Controller
         $studentId = $this->studentId($request);
         $course = Course::with('lessons')->findOrFail($courseId);
         $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
+        $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
         $completed = ShortCourseLessonProgress::where('student_id', $studentId)->where('short_course_id', $course->id)->pluck('lesson_id');
 
-        return response()->json([
-            'status' => $enrollment->status,
-            'entryFeePaid' => $enrollment->entry_fee_paid,
-            'certificateFeePaid' => $enrollment->certificate_fee_paid,
+        return response()->json($this->enrollmentPayload($enrollment) + [
             'completedLessons' => $completed,
-            'progress' => $enrollment->progress,
-            'examScore' => $enrollment->exam_score,
-            'completedAt' => optional($enrollment->completed_at)->toISOString(),
-            'certificateIssuedAt' => optional($enrollment->certificate_issued_at)->toISOString(),
-            'accessExpiresAt' => optional($enrollment->access_expires_at)->toISOString(),
-            'accessPlan' => $enrollment->access_plan,
-            'aiPlan' => $enrollment->ai_plan,
-            'aiAccessExpiresAt' => optional($enrollment->ai_access_expires_at)->toISOString(),
-            'hourlyAiQuota' => $enrollment->hourly_ai_quota,
-            'dailyAiQuota' => $enrollment->daily_ai_quota,
-            'certificateIncluded' => (bool) $enrollment->certificate_included,
         ]);
+    }
+
+    public function accessPlans(Request $request, string $courseId)
+    {
+        $this->studentId($request);
+        $course = Course::findOrFail($courseId);
+
+        return response()->json(array_values(ShortCourseAccessPlans::plans($course)));
+    }
+
+    public function purchaseAccessPlan(Request $request, string $courseId, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
+    {
+        $studentId = $this->studentId($request);
+        $payload = $request->validate(['plan' => ['required', 'string']]);
+        $course = Course::whereIn('status', ['published', 'active'])->findOrFail($courseId);
+        $plan = ShortCourseAccessPlans::get((string) $payload['plan'], $course);
+        $fee = [
+            'amount' => (float) ($plan['amount'] ?? 0),
+            'currency' => strtoupper($plan['currency'] ?? $course->currency ?? 'ZMW'),
+        ];
+
+        $enrollment = ShortCourseEnrollment::firstOrCreate([
+            'student_id' => $studentId,
+            'short_course_id' => $course->id,
+        ]);
+
+        if ((float) $fee['amount'] <= 0) {
+            $this->applyAccessPlan($enrollment, $plan);
+            return response()->json(['status' => 'active', 'checkout_url' => null, 'plan' => $plan]);
+        }
+
+        $invoice = $this->invoiceFor($studentId, $course, 'short_course_access_plan', $plan['name'] . ': ' . $course->title, $fee, [
+            'access_plan' => $plan['code'],
+        ]);
+
+        if (!PaymentSettings::lencoCollectionsEnabled()) {
+            $settings = PaymentSettings::current();
+            $paidInvoice = $unlocker->markPaidForTesting($invoice, $settings->test_mode_message ?: 'Payment confirmed in test mode.');
+
+            return response()->json([
+                'status' => 'active',
+                'checkout_url' => null,
+                'invoiceId' => $paidInvoice->id,
+                'reference' => $paidInvoice->transaction_reference,
+                'testMode' => true,
+                'message' => $settings->test_mode_message ?: 'Payment confirmed in test mode.',
+                'plan' => $plan,
+            ]);
+        }
+
+        return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id, 'plan' => $plan]);
     }
 
     public function completeLesson(Request $request, string $courseId, string $lessonId)
     {
         $studentId = $this->studentId($request);
         $course = Course::with('lessons')->findOrFail($courseId);
-        $enrollment = ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $course->id)->firstOrFail();
+        $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
+        $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
 
-        if (!$enrollment->entry_fee_paid || !$enrollment->hasActiveCourseAccess()) {
+        if (!$enrollment->hasActiveCourseAccess()) {
             return response()->json(['message' => 'Active course access is required before starting lessons.'], 402);
         }
 
@@ -146,10 +175,14 @@ class ShortCourseController extends Controller
     public function practice(Request $request, string $courseId)
     {
         $studentId = $this->studentId($request);
-        $enrollment = ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $courseId)->first();
-        if (!$enrollment || !$enrollment->entry_fee_paid || !$enrollment->hasActiveCourseAccess()) {
+        $course = Course::findOrFail($courseId);
+        $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
+        $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
+
+        if (!$enrollment->hasActiveCourseAccess()) {
             return response()->json(['message' => 'Active course access is required before starting practice.'], 402);
         }
+
         $payload = $request->validate([
             'difficulty' => ['nullable', 'string'],
             'count' => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -182,6 +215,7 @@ class ShortCourseController extends Controller
             if (!empty($payload['lessonId'])) {
                 $query->where('lesson_id', $payload['lessonId']);
             }
+
             $count = (int) ($section['count'] ?? 10);
             $questions = $query->inRandomOrder()->take($count)->get();
             $timeMinutes = (int) ($section['timeMinutes'] ?? $this->defaultPracticeMinutes($section['difficulty'] ?? 'easy', $count));
@@ -207,10 +241,14 @@ class ShortCourseController extends Controller
     public function submitPractice(Request $request, string $courseId)
     {
         $studentId = $this->studentId($request);
-        $enrollment = ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $courseId)->first();
-        if (!$enrollment || !$enrollment->entry_fee_paid || !$enrollment->hasActiveCourseAccess()) {
+        $course = Course::findOrFail($courseId);
+        $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
+        $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
+
+        if (!$enrollment->hasActiveCourseAccess()) {
             return response()->json(['message' => 'Active course access is required before submitting practice.'], 402);
         }
+
         $payload = $request->validate([
             'answers' => ['required', 'array'],
             'answers.*.questionId' => ['required'],
@@ -247,10 +285,13 @@ class ShortCourseController extends Controller
     {
         $studentId = $this->studentId($request);
         $course = Course::with('lessons')->findOrFail($courseId);
-        $enrollment = ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $courseId)->firstOrFail();
-        if (!$enrollment->entry_fee_paid || !$enrollment->hasActiveCourseAccess()) {
+        $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
+        $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
+
+        if (!$enrollment->hasActiveCourseAccess()) {
             return response()->json(['message' => 'Active course access is required before taking the final exam.'], 402);
         }
+
         $totalLessons = $course->lessons()->count();
         $completedLessons = ShortCourseLessonProgress::where('student_id', $studentId)->where('short_course_id', $courseId)->count();
         if ($totalLessons > 0 && $completedLessons < $totalLessons) {
@@ -261,6 +302,7 @@ class ShortCourseController extends Controller
                 'completedLessons' => $completedLessons,
             ], 423);
         }
+
         $questions = ExamQuestion::where('course_id', $courseId)->inRandomOrder()->take(25)->get();
 
         return response()->json([
@@ -280,22 +322,23 @@ class ShortCourseController extends Controller
             'answers.*.questionId' => ['nullable'],
             'answers.*.answer' => ['nullable', 'string'],
         ]);
-        $enrollment = ShortCourseEnrollment::where('student_id', $studentId)->where('short_course_id', $courseId)->firstOrFail();
-        if (!$enrollment->entry_fee_paid || !$enrollment->hasActiveCourseAccess()) {
+        $course = Course::with('lessons')->findOrFail($courseId);
+        $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
+        $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
+
+        if (!$enrollment->hasActiveCourseAccess()) {
             return response()->json(['message' => 'Active course access is required before submitting the final exam.'], 402);
         }
-        $course = Course::with('lessons')->findOrFail($courseId);
+
         $totalLessons = $course->lessons()->count();
         $completedLessons = ShortCourseLessonProgress::where('student_id', $studentId)->where('short_course_id', $courseId)->count();
         if ($totalLessons > 0 && $completedLessons < $totalLessons) {
             return response()->json(['message' => 'Complete all required lessons before submitting the final exam.'], 423);
         }
-        $allQuestions = ExamQuestion::where('course_id', $courseId)->get();
 
+        $allQuestions = ExamQuestion::where('course_id', $courseId)->get();
         if ($allQuestions->count() < 25) {
-            return response()->json([
-                'message' => 'This lesson/course needs at least 25 assessment questions before exam submission is enabled.',
-            ], 422);
+            return response()->json(['message' => 'This lesson/course needs at least 25 assessment questions before exam submission is enabled.'], 422);
         }
 
         $answerRows = collect($payload['answers']);
@@ -306,11 +349,8 @@ class ShortCourseController extends Controller
             if ($questionIds->unique()->count() < 25) {
                 return response()->json(['message' => 'Submit answers for all 25 final exam questions.'], 422);
             }
-            $selectedQuestions = ExamQuestion::where('course_id', $courseId)
-                ->whereIn('id', $questionIds)
-                ->get()
-                ->keyBy('id');
 
+            $selectedQuestions = ExamQuestion::where('course_id', $courseId)->whereIn('id', $questionIds)->get()->keyBy('id');
             if ($selectedQuestions->count() !== $questionIds->unique()->count()) {
                 return response()->json(['message' => 'One or more submitted questions are not part of this course.'], 422);
             }
@@ -331,7 +371,6 @@ class ShortCourseController extends Controller
         }
 
         $score = round(($correct / $total) * 100, 2);
-
         $enrollment->update([
             'exam_score' => $score,
             'status' => $score >= 50 ? 'completed' : 'exam_failed',
@@ -391,19 +430,51 @@ class ShortCourseController extends Controller
         return Storage::disk('local')->download($enrollment->certificate_path, 'univai-certificate-' . $courseId . '.pdf');
     }
 
+    private function courseEntryFee(Course $course): float
+    {
+        if ($this->courseIsFree($course)) {
+            return 0;
+        }
+
+        return max(0, (float) ($course->price ?? 0));
+    }
+
+    private function courseIsFree(Course $course): bool
+    {
+        return (float) ($course->price ?? 0) <= 0 || $course->pricing_type === 'free';
+    }
+
+    private function ensureFreeAccessIfEligible(ShortCourseEnrollment $enrollment, Course $course): ShortCourseEnrollment
+    {
+        if (!$enrollment->entry_fee_paid && $this->courseIsFree($course)) {
+            $this->applyInitialEntryAccess($enrollment, $course);
+            $enrollment->refresh();
+        }
+
+        return $enrollment;
+    }
+
     private function applyInitialEntryAccess(ShortCourseEnrollment $enrollment, Course $course): void
     {
-        $entry = ShortCourseAccessPlans::initialEntryAccess($course);
+        $this->applyAccessPlan($enrollment, ShortCourseAccessPlans::initialEntryAccess($course));
+    }
+
+    private function applyAccessPlan(ShortCourseEnrollment $enrollment, array $plan): void
+    {
+        $aiHours = (int) ($plan['aiHours'] ?? 0);
+        $code = (string) ($plan['code'] ?? 'starter_access');
+
         $enrollment->update([
             'entry_fee_paid' => true,
             'status' => 'active',
-            'access_plan' => $entry['code'] ?? 'starter_access',
-            'access_expires_at' => now()->addHours($entry['accessHours']),
-            'ai_plan' => ((int) ($entry['aiHours'] ?? 0)) > 0 ? 'free_trial' : 'none',
-            'ai_access_expires_at' => ((int) ($entry['aiHours'] ?? 0)) > 0 ? now()->addHours($entry['aiHours']) : null,
-            'hourly_ai_quota' => $entry['hourlyAiQuota'],
-            'daily_ai_quota' => $entry['dailyAiQuota'],
-            'certificate_included' => (bool) ($entry['certificateIncluded'] ?? false),
+            'access_plan' => $code,
+            'access_expires_at' => now()->addHours((int) ($plan['accessHours'] ?? ShortCourseAccessPlans::MIN_ENTRY_ACCESS_HOURS)),
+            'ai_plan' => $aiHours > 0 ? ($code === 'free_access' ? 'free_trial' : $code) : 'none',
+            'ai_access_expires_at' => $aiHours > 0 ? now()->addHours($aiHours) : null,
+            'hourly_ai_quota' => (int) ($plan['hourlyAiQuota'] ?? 0),
+            'daily_ai_quota' => (int) ($plan['dailyAiQuota'] ?? 0),
+            'certificate_included' => (bool) ($plan['certificateIncluded'] ?? false),
+            'certificate_fee_paid' => (bool) ($plan['certificateIncluded'] ?? false) || $enrollment->certificate_fee_paid,
         ]);
     }
 
@@ -417,18 +488,53 @@ class ShortCourseController extends Controller
 
     private function invoiceFor(int $studentId, Course $course, string $type, string $title, array $fee, array $metadata = []): Invoice
     {
-        return Invoice::firstOrCreate(
-            ['student_id' => $studentId, 'type' => $type, 'title' => $title],
-            [
-                'uuid' => (string) Str::uuid(),
-                'description' => $title,
-                'amount' => $fee['amount'],
-                'currency' => $fee['currency'],
-                'status' => 'pending',
-                'metadata' => ['short_course_id' => $course->id, 'short_course_title' => $course->title] + $metadata,
-                'due_date' => now()->addDays(7),
-            ]
-        );
+        $invoice = Invoice::firstOrNew([
+            'student_id' => $studentId,
+            'type' => $type,
+            'title' => $title,
+        ]);
+
+        if ($invoice->exists && $invoice->status === 'paid') {
+            return $invoice;
+        }
+
+        $invoice->forceFill([
+            'uuid' => $invoice->uuid ?: (string) Str::uuid(),
+            'description' => $title,
+            'amount' => $fee['amount'],
+            'currency' => $fee['currency'],
+            'status' => 'pending',
+            'paid_amount' => 0,
+            'paid_at' => null,
+            'transaction_reference' => null,
+            'checkout_url' => null,
+            'metadata' => ['short_course_id' => $course->id, 'short_course_title' => $course->title] + $metadata,
+            'due_date' => now()->addDays(7),
+        ])->save();
+
+        return $invoice;
+    }
+
+    private function enrollmentPayload(ShortCourseEnrollment $enrollment): array
+    {
+        return [
+            'id' => $enrollment->id,
+            'course' => $this->coursePayload($enrollment->course),
+            'status' => $enrollment->status,
+            'progress' => (int) $enrollment->progress,
+            'entryFeePaid' => (bool) $enrollment->entry_fee_paid,
+            'certificateFeePaid' => (bool) $enrollment->certificate_fee_paid,
+            'examScore' => $enrollment->exam_score,
+            'completedAt' => optional($enrollment->completed_at)->toISOString(),
+            'certificateIssuedAt' => optional($enrollment->certificate_issued_at)->toISOString(),
+            'accessExpiresAt' => optional($enrollment->access_expires_at)->toISOString(),
+            'accessPlan' => $enrollment->access_plan,
+            'aiPlan' => $enrollment->ai_plan,
+            'aiAccessExpiresAt' => optional($enrollment->ai_access_expires_at)->toISOString(),
+            'hourlyAiQuota' => $enrollment->hourly_ai_quota,
+            'dailyAiQuota' => $enrollment->daily_ai_quota,
+            'certificateIncluded' => (bool) $enrollment->certificate_included,
+        ];
     }
 
     private function coursePayload(?Course $course): ?array
