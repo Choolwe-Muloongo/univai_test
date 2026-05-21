@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   BadgeCheck,
-  BookOpen,
   CheckCircle2,
   FileCheck2,
   Lock,
@@ -18,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { CourseMissionMap, type MissionStageGroup } from '@/components/student/course-mission-map';
 import { getLessonsByCourse } from '@/lib/api';
 import type { Lesson } from '@/lib/api/types';
 import { getShortCourseAccessPlans, purchaseShortCourseAccessPlan, type ShortCourseAccessPlan } from '@/lib/api/short-course-access';
@@ -73,12 +73,14 @@ export default function CourseHubPage() {
         setNotice('Payment is being confirmed. If access does not update immediately, refresh this page in a moment.');
       }
     }
+
     const [courseData, lessonData, progressData, planData] = await Promise.all([
       getPublicShortCourse(courseId),
       getLessonsByCourse(courseId).catch(() => []),
       getShortCourseProgress(courseId).catch(() => null),
       getShortCourseAccessPlans(courseId).catch(() => []),
     ]);
+
     setCourse(courseData);
     setLessons(lessonData);
     setProgress(progressData);
@@ -88,10 +90,14 @@ export default function CourseHubPage() {
   useEffect(() => {
     let mounted = true;
     refresh()
-      .catch((cause) => { if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load this course.'); })
+      .catch((cause) => {
+        if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load this Journey.');
+      })
       .finally(() => {
         if (mounted) {
-          if (searchParams.get('payment') === 'success' && !searchParams.get('invoice')) setNotice('Payment completed. Your course access is being refreshed.');
+          if (searchParams.get('payment') === 'success' && !searchParams.get('invoice')) {
+            setNotice('Payment completed. Your Journey access is being refreshed.');
+          }
           setLoading(false);
         }
       });
@@ -100,20 +106,8 @@ export default function CourseHubPage() {
 
   const lessonNodes = useMemo(() => lessons.map(toLessonNode), [lessons]);
   const groupedLessonNodes = useMemo(() => groupParentAndSubLessons(lessonNodes), [lessonNodes]);
-  const moduleGroups = useMemo(() => {
-    const grouped = new Map<string, { title: string; items: LessonNode[]; index: number }>();
-    groupedLessonNodes.forEach((lesson, index) => {
-      const title = lesson.moduleTitle?.trim() || 'Main module';
-      const key = `${lesson.moduleIndex ?? 0}-${title}`;
-      const existing = grouped.get(key);
-      if (existing) existing.items.push(lesson);
-      else grouped.set(key, { title, items: [lesson], index: lesson.moduleIndex ?? index });
-    });
-    return [...grouped.values()]
-      .map((module) => ({ ...module, items: module.items.sort((a, b) => (a.lessonIndex ?? 0) - (b.lessonIndex ?? 0)) }))
-      .sort((a, b) => a.index - b.index);
-  }, [groupedLessonNodes]);
-  const completedLessonIds = new Set(progress?.completedLessons?.map(String) ?? []);
+  const moduleGroups = useMemo(() => groupLessonsIntoStages(groupedLessonNodes), [groupedLessonNodes]);
+  const completedLessonIds = useMemo(() => new Set(progress?.completedLessons?.map(String) ?? []), [progress?.completedLessons]);
   const totalLessons = lessonNodes.length;
   const completedLessons = lessonNodes.filter((lesson) => completedLessonIds.has(String(lesson.id))).length;
   const nextLesson = lessonNodes.find((lesson) => !completedLessonIds.has(String(lesson.id))) ?? lessonNodes[0];
@@ -141,7 +135,7 @@ export default function CourseHubPage() {
         window.location.href = checkout;
         return;
       }
-      setNotice(response.testMode ? 'Testing mode: course access is active.' : 'Course access is active.');
+      setNotice(response.testMode ? 'Testing mode: Journey access is active.' : 'Journey access is active.');
       await refresh();
     } catch (cause) {
       setError(studentFriendlyError(cause));
@@ -190,21 +184,21 @@ export default function CourseHubPage() {
     }
   }
 
-  if (loading) return <PageLoading message="Opening course hub..." />;
-  if (error) return <PageError message={error} actionHref="/student/courses" actionLabel="Back to short courses" />;
-  if (!course) return <PageError title="Course not found" message="This short course is unavailable." actionHref="/student/courses" actionLabel="Back to short courses" />;
+  if (loading) return <PageLoading message="Opening Mission Control..." />;
+  if (error) return <PageError message={error} actionHref="/student/courses" actionLabel="Back to Journeys" />;
+  if (!course) return <PageError title="Journey not found" message="This Journey is unavailable." actionHref="/student/courses" actionLabel="Back to Journeys" />;
 
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
         <div className="grid gap-5 lg:grid-cols-[1fr_280px] lg:items-center">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Course hub</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Mission Control</p>
             <h1 className="text-3xl font-bold tracking-tight">{course.title}</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{course.description}</p>
           </div>
           <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
-            <div className="flex justify-between text-sm"><span>Overall progress</span><strong>{progress?.progress ?? 0}%</strong></div>
+            <div className="flex justify-between text-sm"><span>Journey progress</span><strong>{progress?.progress ?? 0}%</strong></div>
             <Progress value={progress?.progress ?? 0} className="h-3" />
             <div className="grid gap-2 text-xs text-muted-foreground">
               <Info label="Access" value={access} />
@@ -213,12 +207,12 @@ export default function CourseHubPage() {
             </div>
             {nextLesson && hasActiveAccess ? (
               <Button asChild className="w-full">
-                <Link href={courseCompleted && reviewLesson ? `/student/courses/${course.id}/lessons/${reviewLesson.id}` : `/student/courses/${course.id}/lessons/${nextLesson.id}`}>{courseCompleted ? 'Review Course' : 'Continue Course'} <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link href={courseCompleted && reviewLesson ? `/student/courses/${course.id}/lessons/${reviewLesson.id}` : `/student/courses/${course.id}/lessons/${nextLesson.id}`}>{courseCompleted ? 'Replay Journey' : 'Continue Journey'} <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
-            ) : <Button disabled className="w-full">{nextLesson ? 'Activate access to continue' : 'No lessons yet'}</Button>}
+            ) : <Button disabled className="w-full">{nextLesson ? 'Activate access to unlock missions' : 'No missions yet'}</Button>}
             {courseCompleted ? (
               <Button asChild variant="outline" className="w-full">
-                <Link href="/short-courses">Start a new course</Link>
+                <Link href="/short-courses">Start a new Journey</Link>
               </Button>
             ) : null}
           </div>
@@ -228,105 +222,55 @@ export default function CourseHubPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <Card className="rounded-3xl">
-            <CardHeader>
-              <CardTitle>Lessons and Sub-lessons</CardTitle>
-              <CardDescription>The course map shows parent lessons and real sub-lessons. Open any item to study it.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {groupedLessonNodes.length ? moduleGroups.map((module, moduleIdx) => (<div key={`${module.title}-${moduleIdx}`} className="space-y-3 rounded-2xl border p-3"><p className="text-sm font-semibold text-primary">Module {moduleIdx + 1}: {module.title}</p>{module.items.map((lesson, index) => {
-                const parentDone = completedLessonIds.has(String(lesson.id));
-                const completedChildren = lesson.subLessons.filter((sub) => completedLessonIds.has(String(sub.id))).length;
-                const totalInGroup = 1 + lesson.subLessons.length;
-                const completedInGroup = (parentDone ? 1 : 0) + completedChildren;
-                return (
-                  <div key={lesson.id} className="rounded-2xl border p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary">{index + 1}</div>
-                        <div>
-                          <h3 className="font-semibold">Lesson {index + 1}: {lesson.title}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">{lesson.summary || `${lesson.subLessons.length} sub-lesson${lesson.subLessons.length === 1 ? '' : 's'}`}</p>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <span className="rounded-full bg-muted px-2 py-1">{lesson.subLessons.length} sub-lesson{lesson.subLessons.length === 1 ? '' : 's'}</span>
-                            <span className="rounded-full bg-muted px-2 py-1">{completedInGroup} of {totalInGroup} completed</span>
-                            <span className="rounded-full bg-muted px-2 py-1">{completedInGroup === totalInGroup ? 'Completed' : completedInGroup > 0 ? 'In progress' : 'Not started'}</span>
-                          </div>
-                        </div>
-                      </div>
-                      {hasActiveAccess ? (
-                        <Button asChild variant={parentDone ? 'outline' : 'default'} className="w-full sm:w-auto">
-                          <Link href={`/student/courses/${course.id}/lessons/${lesson.id}`}>{parentDone ? 'Review parent' : nextLesson?.id === lesson.id ? 'Continue parent' : 'Study parent'}</Link>
-                        </Button>
-                      ) : <Button disabled className="w-full sm:w-auto">Locked</Button>}
-                    </div>
-                    {lesson.subLessons.length ? (
-                      <div className="mt-4 space-y-2">
-                        {lesson.subLessons.map((sub, subIndex) => {
-                          const subDone = completedLessonIds.has(String(sub.id));
-                          return (
-                            <div key={`${lesson.id}-${sub.id}-${subIndex}`} className="flex flex-col gap-2 rounded-xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
-                                <p className="text-sm font-medium">{index + 1}.{subIndex + 1} {sub.title}</p>
-                                {sub.summary ? <p className="mt-1 text-xs text-muted-foreground">{sub.summary}</p> : null}
-                              </div>
-                              {hasActiveAccess ? (
-                                <Button asChild size="sm" variant={subDone ? 'outline' : 'secondary'}>
-                                  <Link href={`/student/courses/${course.id}/lessons/${sub.id}`}>{subDone ? 'Review' : nextLesson?.id === sub.id ? 'Continue' : 'Study'}</Link>
-                                </Button>
-                              ) : <span className="text-xs text-muted-foreground">Locked</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}</div>)) : <EmptyMessage icon={BookOpen} title="This course has no published lessons yet." />}
-            </CardContent>
-          </Card>
+          <CourseMissionMap
+            courseId={course.id}
+            moduleGroups={moduleGroups}
+            completedLessonIds={completedLessonIds}
+            hasActiveAccess={hasActiveAccess}
+            nextLessonId={nextLesson?.id ?? null}
+          />
 
           <div className="grid gap-5 lg:grid-cols-2">
             <ActionPanel
               icon={Sparkles}
-              title="Practice Zone"
-              description="Train with Easy, Medium, Hard, or Mixed practice. Practice is available after enrollment."
-              actions={hasActiveAccess ? <Button asChild className="w-full"><Link href={`/student/courses/${course.id}/practice`}>Start Practice</Link></Button> : <Button disabled className="w-full">Activate access first</Button>}
+              title="Training Arena"
+              description="Train with Easy, Medium, Hard, or Mixed practice. The Arena opens after enrollment."
+              actions={hasActiveAccess ? <Button asChild className="w-full"><Link href={`/student/courses/${course.id}/practice`}>Enter Training Arena</Link></Button> : <Button disabled className="w-full">Activate access first</Button>}
             />
             <ActionPanel
               icon={FileCheck2}
-              title="Project Builder"
+              title="Project Forge"
               description="Apply what you learned by building something inside UnivAI."
-              note="No required project is configured yet."
-              actions={<Button disabled variant="outline" className="w-full">Project not required</Button>}
+              note="No required project mission is configured yet."
+              actions={<Button disabled variant="outline" className="w-full">Project mission locked</Button>}
             />
           </div>
 
           <Card className="rounded-3xl">
             <CardHeader>
-              <CardTitle>Final Exam</CardTitle>
-              <CardDescription>Complete required learning first, then take the final assessment.</CardDescription>
+              <CardTitle>Final Boss Exam</CardTitle>
+              <CardDescription>Clear the required missions first, then challenge the final assessment.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {!allLessonsComplete ? (
                 <div className="rounded-2xl border bg-muted/30 p-4 text-sm text-muted-foreground">
                   <Lock className="mb-2 h-5 w-5" />
-                  Complete all required lessons before taking the final exam.
+                  Clear all required missions before entering the Final Boss Exam.
                 </div>
               ) : (
                 <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
                   <CheckCircle2 className="mb-2 h-5 w-5 text-primary" />
-                  Final Exam Ready
+                  Final Boss Exam Ready
                 </div>
               )}
               {allLessonsComplete && hasActiveAccess ? (
                 <Button asChild className="w-full sm:w-auto">
-                  <Link href={`/student/courses/${course.id}/exam`}>{courseCompleted ? 'Review Final Exam' : 'Start Final Exam'}</Link>
+                  <Link href={`/student/courses/${course.id}/exam`}>{courseCompleted ? 'Replay Final Boss' : 'Start Final Boss'}</Link>
                 </Button>
               ) : (
-                <Button disabled className="w-full sm:w-auto">Start Final Exam</Button>
+                <Button disabled className="w-full sm:w-auto">Start Final Boss</Button>
               )}
-              {courseCompleted ? <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/short-courses">Start New Course</Link></Button> : null}
+              {courseCompleted ? <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/short-courses">Start New Journey</Link></Button> : null}
             </CardContent>
           </Card>
         </div>
@@ -335,7 +279,7 @@ export default function CourseHubPage() {
           <Card className="rounded-3xl">
             <CardHeader>
               <CardTitle>Your Access</CardTitle>
-              <CardDescription>Course access, AI access, and certificate inclusion.</CardDescription>
+              <CardDescription>Journey access, AI access, and certificate inclusion.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <Info label="Status" value={accessLabel(progress)} />
@@ -344,7 +288,7 @@ export default function CourseHubPage() {
               <Info label="AI access expiry" value={`${aiExpiry} · ${aiTimeLeft}`} />
               <Info label="AI quota" value={`${progress?.hourlyAiQuota ?? 0}/hr, ${progress?.dailyAiQuota ?? 0}/day`} />
               <Info label="Certificate included" value={progress?.certificateIncluded ? 'Yes' : 'No'} />
-              {accessWarning ? <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">This access is close to expiry. Renew it before the course locks.</div> : null}
+              {accessWarning ? <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">This access is close to expiry. Renew it before the Journey locks.</div> : null}
               <Button onClick={startEntryAccess} disabled={busy === 'entry'} className="w-full">
                 {busy === 'entry' ? 'Working...' : progress?.entryFeePaid ? 'Renew / Refresh Access' : Number(course.price ?? 0) <= 0 ? 'Enroll Free' : 'Enroll / Pay'}
               </Button>
@@ -354,7 +298,7 @@ export default function CourseHubPage() {
           <Card className="rounded-3xl">
             <CardHeader>
               <CardTitle>Certificate</CardTitle>
-              <CardDescription>Certificates unlock after the required learning path and exam.</CardDescription>
+              <CardDescription>Certificates unlock after the required Journey path and exam.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3 rounded-2xl border p-4">
@@ -372,8 +316,8 @@ export default function CourseHubPage() {
 
           <Card className="rounded-3xl">
             <CardHeader>
-              <CardTitle>Single-course plans</CardTitle>
-              <CardDescription>Choose one plan for this course. Bundles live on the catalogue page if you want multiple courses together.</CardDescription>
+              <CardTitle>Single-Journey plans</CardTitle>
+              <CardDescription>Choose one plan for this Journey. Bundles live on the catalogue page if you want multiple Journeys together.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {plans.length ? plans.map((plan) => (
@@ -403,6 +347,20 @@ export default function CourseHubPage() {
       </div>
     </div>
   );
+}
+
+function groupLessonsIntoStages(lessons: LessonNode[]): MissionStageGroup[] {
+  const grouped = new Map<string, MissionStageGroup>();
+  lessons.forEach((lesson, index) => {
+    const title = lesson.moduleTitle?.trim() || 'Main Stage';
+    const key = `${lesson.moduleIndex ?? 0}-${title}`;
+    const existing = grouped.get(key);
+    if (existing) existing.items.push(lesson);
+    else grouped.set(key, { title, items: [lesson], index: lesson.moduleIndex ?? index });
+  });
+  return [...grouped.values()]
+    .map((module) => ({ ...module, items: module.items.sort((a, b) => (a.lessonIndex ?? 0) - (b.lessonIndex ?? 0)) }))
+    .sort((a, b) => a.index - b.index);
 }
 
 function groupParentAndSubLessons(lessons: LessonNode[]) {
@@ -548,10 +506,6 @@ function ActionPanel({ icon: Icon, title, description, note, actions }: { icon: 
   );
 }
 
-function EmptyMessage({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
-  return <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground"><Icon className="mx-auto mb-3 h-8 w-8 text-primary" />{title}</div>;
-}
-
 function Info({ label, value }: { label: string; value: string }) {
   return <div className="flex flex-col gap-1 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><span className="text-muted-foreground">{label}</span><strong className="break-words sm:text-right">{value}</strong></div>;
 }
@@ -572,18 +526,18 @@ function certificateState(progress?: ShortCourseProgress | null) {
 
 function certificateHelp(state: string) {
   switch (state) {
-    case 'Lessons Required': return 'Complete all required lessons first.';
-    case 'Exam Required': return 'Pass the final exam to unlock the certificate.';
+    case 'Lessons Required': return 'Clear all required missions first.';
+    case 'Exam Required': return 'Pass the Final Boss Exam to unlock the certificate.';
     case 'Payment Required': return 'Pay the certificate fee or choose a certificate-inclusive access plan.';
     case 'Ready': return 'Your certificate is ready to download.';
     case 'Issued': return 'Your certificate has already been issued.';
-    default: return 'Finish the required learning path to unlock this certificate.';
+    default: return 'Finish the required Journey path to unlock this certificate.';
   }
 }
 
 function planLabel(plan?: string | null) {
   const labels: Record<string, string> = {
-    free_access: 'Free Course Access',
+    free_access: 'Free Journey Access',
     entry: 'Starter Access',
     starter_access: 'Starter Access',
     access_only: 'Monthly Access',
@@ -602,7 +556,7 @@ function planLabel(plan?: string | null) {
 
 function planPurpose(plan?: string | null) {
   const notes: Record<string, string> = {
-    starter_access: 'Starter plan: two weeks of course access, no certificate.',
+    starter_access: 'Starter plan: two weeks of Journey access, no certificate.',
     monthly_access: 'Best low-cost access plan for learners who do not need AI.',
     ai_lite: 'Affordable AI study help with short/medium answers.',
     ai_plus: 'Daily AI support for serious learning and practice.',
@@ -610,7 +564,7 @@ function planPurpose(plan?: string | null) {
     certified_premium: 'Certificate included after passing, with strong AI support.',
     certified_elite: 'Maximum AI support, certificate inclusion, and project support.',
   };
-  return plan ? notes[plan] ?? 'Per-course access plan.' : 'Per-course access plan.';
+  return plan ? notes[plan] ?? 'Per-Journey access plan.' : 'Per-Journey access plan.';
 }
 
 function parseMaybeJson(value?: string | null) {
@@ -626,6 +580,6 @@ function stripHtml(value: string) {
 
 function studentFriendlyError(cause: unknown) {
   const message = cause instanceof Error ? cause.message : 'Unable to complete this action.';
-  if (message.includes('402')) return 'Active course access is required. Please enroll or renew access.';
+  if (message.includes('402')) return 'Active Journey access is required. Please enroll or renew access.';
   return message || 'Unable to complete this action.';
 }
