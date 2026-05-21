@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 
+import { CourseHelperBox } from '@/components/student/course-helper-box';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -104,6 +105,8 @@ export default function CoursePracticePage() {
         <h1 className="text-3xl font-bold tracking-tight">Battle your weak areas before the Final Trial</h1>
         <p className="mt-2 text-sm text-muted-foreground">Choose a battle mode and work question by question. Wins update XP, quests, streaks, and the activity leaderboard.</p>
       </section>
+
+      <CourseHelperBox courseId={courseId} lessonTitle={result ? `Practice review: ${result.score}%` : 'Training Arena'} />
 
       {!payload ? (
         <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
