@@ -1365,12 +1365,76 @@ function SetupStep({ form, updateForm, schools, goNext, courses, editingCourseId
     </div>
   );
 }
+function LessonsStep(props: {
+  modules: ManualModule[];
+  moduleIndex: number;
+  setModuleIndex: (index: number) => void;
+  lessons: ManualLesson[];
+  lessonIndex: number;
+  setLessonIndex: (index: number) => void;
+  activeLesson: ManualLesson;
+  updateLesson: (patch: Partial<ManualLesson>) => void;
+  addLesson: () => void;
+  addLessonTemplate: () => void;
+  duplicateLesson: (index: number) => void;
+  removeLesson: (index: number) => void;
+  reorderLesson: (fromIndex: number, toIndex: number) => void;
+  addModule: () => void;
+  updateModule: (index: number, patch: Partial<ManualModule>) => void;
+  removeModule: (index: number) => void;
+  reorderModule: (fromIndex: number, toIndex: number) => void;
+  moveLessonToModule: (lessonIndex: number, targetModuleIndex: number) => void;
+  finish: () => void;
+}) {
+  const {
+    modules,
+    moduleIndex,
+    setModuleIndex,
+    lessons,
+    lessonIndex,
+    setLessonIndex,
+    activeLesson,
+    updateLesson,
+    addLesson,
+    addLessonTemplate,
+    duplicateLesson,
+    removeLesson,
+    reorderLesson,
+    addModule,
+    updateModule,
+    removeModule,
+    reorderModule,
+    moveLessonToModule,
+    finish,
+  } = props;
 
-function LessonsStep(props: { modules: ManualModule[]; moduleIndex: number; setModuleIndex: (index: number) => void; lessons: ManualLesson[]; lessonIndex: number; setLessonIndex: (index: number) => void; activeLesson: ManualLesson; updateLesson: (patch: Partial<ManualLesson>) => void; addLesson: () => void; addLessonTemplate: () => void; duplicateLesson: (index: number) => void; removeLesson: (index: number) => void; reorderLesson: (fromIndex: number, toIndex: number) => void; finish: () => void }) {
-const { modules, moduleIndex, setModuleIndex, lessons, lessonIndex, setLessonIndex, activeLesson, updateLesson, addLesson, addLessonTemplate, duplicateLesson, removeLesson, reorderLesson, finish } = props;
-  const addSubLesson = () => updateLesson({ subLessons: [...activeLesson.subLessons, { id: uid('sublesson'), title: `Sub-lesson ${activeLesson.subLessons.length + 1}`, summary: '', cards: [], saved: false }] });
-  const updateSubLesson = (index: number, patch: Partial<SubLesson>) => updateLesson({ subLessons: activeLesson.subLessons.map((sub, i) => i === index ? { ...sub, ...patch } : sub) });
-  const removeSubLesson = (index: number) => updateLesson({ subLessons: activeLesson.subLessons.filter((_, i) => i !== index) });
+  const activeModule = modules[moduleIndex] ?? modules[0];
+
+  const addSubLesson = () =>
+    updateLesson({
+      subLessons: [
+        ...activeLesson.subLessons,
+        {
+          id: uid('sublesson'),
+          title: `Sub-lesson ${activeLesson.subLessons.length + 1}`,
+          summary: '',
+          cards: [],
+          saved: false,
+        },
+      ],
+    });
+
+  const updateSubLesson = (index: number, patch: Partial<SubLesson>) =>
+    updateLesson({
+      subLessons: activeLesson.subLessons.map((sub, i) =>
+        i === index ? { ...sub, ...patch, saved: false } : sub
+      ),
+    });
+
+  const removeSubLesson = (index: number) =>
+    updateLesson({
+      subLessons: activeLesson.subLessons.filter((_, i) => i !== index),
+    });
   return (
     <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
       <div className="space-y-2">
