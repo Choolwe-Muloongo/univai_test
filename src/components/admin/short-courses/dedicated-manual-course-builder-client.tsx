@@ -1799,6 +1799,28 @@ function CardsStep(props: { form: CourseForm; modules: ManualModule[]; moduleInd
           <div className="space-y-2">
             <Label>Module</Label>
             <div className="flex gap-2 overflow-x-auto pb-1">
+              {modules.map((module, index) => (
+                <Button
+                  key={module.id}
+                  type="button"
+                  size="sm"
+                  variant={index === moduleIndex ? 'default' : 'outline'}
+                  onClick={() => {
+                    setModuleIndex(index);
+                    setLessonIndex(0);
+                    setSubLessonIndex(null);
+                    setCardIndex(0);
+                  }}
+                >
+                  {module.title || `Module ${index + 1}`}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Lesson</Label>
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {lessons.map((lesson, index) => (
                 <Button
                   key={lesson.id}
