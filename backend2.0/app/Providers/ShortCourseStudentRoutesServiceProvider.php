@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\Api\AiController;
 use App\Http\Controllers\Api\ShortCourseAccessController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\StudentGamificationController;
@@ -33,6 +34,7 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
                 Route::post('/bundles/purchase', [ShortCourseAccessController::class, 'purchaseBundle']);
                 Route::post('/{courseId}/enroll', [ShortCourseController::class, 'enroll']);
                 Route::get('/{courseId}/progress', [ShortCourseController::class, 'progress']);
+                Route::post('/{courseId}/ai', [AiController::class, 'generate'])->middleware('throttle:ai');
                 Route::get('/{courseId}/access-plans', [ShortCourseAccessController::class, 'plans']);
                 Route::post('/{courseId}/access-plans/purchase', [ShortCourseAccessController::class, 'purchase']);
                 Route::post('/{courseId}/lessons/{lessonId}/complete', [ShortCourseController::class, 'completeLesson']);
