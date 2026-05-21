@@ -75,42 +75,14 @@ Route::middleware('api')->group(function () {
     })->middleware('throttle:general');
 
     Route::get('/readiness', function () {
-        $checks = [
-            'database' => false,
-            'cache' => false,
-            'storage' => false,
-        ];
+        $checks = ['database' => false, 'cache' => false, 'storage' => false];
 
-        try {
-            DB::connection()->select('select 1');
-            $checks['database'] = true;
-        } catch (Throwable $exception) {
-            report($exception);
-        }
-
-        try {
-            $key = 'univai_readiness_' . app()->environment();
-            Cache::put($key, now()->toISOString(), 30);
-            $checks['cache'] = Cache::has($key);
-        } catch (Throwable $exception) {
-            report($exception);
-        }
-
-        try {
-            $path = 'readiness/.probe';
-            Storage::disk('local')->put($path, now()->toISOString());
-            $checks['storage'] = Storage::disk('local')->exists($path);
-        } catch (Throwable $exception) {
-            report($exception);
-        }
+        try { DB::connection()->select('select 1'); $checks['database'] = true; } catch (Throwable $exception) { report($exception); }
+        try { $key = 'univai_readiness_' . app()->environment(); Cache::put($key, now()->toISOString(), 30); $checks['cache'] = Cache::has($key); } catch (Throwable $exception) { report($exception); }
+        try { $path = 'readiness/.probe'; Storage::disk('local')->put($path, now()->toISOString()); $checks['storage'] = Storage::disk('local')->exists($path); } catch (Throwable $exception) { report($exception); }
 
         $ready = !in_array(false, $checks, true);
-
-        return response()->json([
-            'status' => $ready ? 'ready' : 'degraded',
-            'checks' => $checks,
-            'time' => now()->toISOString(),
-        ], $ready ? 200 : 503);
+        return response()->json(['status' => $ready ? 'ready' : 'degraded', 'checks' => $checks, 'time' => now()->toISOString()], $ready ? 200 : 503);
     })->middleware('throttle:general');
 
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
@@ -120,9 +92,7 @@ Route::middleware('api')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me'])->middleware('session.auth');
     Route::get('/auth/profile', [AuthController::class, 'profile'])->middleware('session.auth');
     Route::patch('/auth/profile', [AuthController::class, 'updateProfile'])->middleware('session.auth');
-    Route::get('/auth/capabilities', function (AccessControl $accessControl) {
-        return response()->json($accessControl->capabilitiesFor(session('user')));
-    })->middleware('session.auth');
+    Route::get('/auth/capabilities', function (AccessControl $accessControl) { return response()->json($accessControl->capabilitiesFor(session('user'))); })->middleware('session.auth');
 
     Route::get('/schools', [CatalogController::class, 'schools']);
     Route::get('/programs', [ProgramsController::class, 'index']);
@@ -166,15 +136,9 @@ Route::middleware('api')->group(function () {
         Route::get('/students/me/program', [ProgramController::class, 'program']);
         Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
         Route::get('/students/me/exams/semester-{semesterId}', [ProgramController::class, 'semesterExam']);
-
         Route::post('/students/checkout', [StudentsController::class, 'checkout']);
         Route::get('/students/me/dashboard', [DashboardController::class, 'student']);
-        Route::get('/students/me/entitlements', fn () => [
-            'entitlements' => session('user.entitlements') ?? [],
-            'subscriptionTier' => session('user.subscriptionTier') ?? session('user.subscription_tier'),
-            'subscriptionStatus' => session('user.subscriptionStatus') ?? session('user.subscription_status'),
-            'accountState' => session('user.accountState') ?? session('user.account_state'),
-        ]);
+        Route::get('/students/me/entitlements', fn () => ['entitlements' => session('user.entitlements') ?? [], 'subscriptionTier' => session('user.subscriptionTier') ?? session('user.subscription_tier'), 'subscriptionStatus' => session('user.subscriptionStatus') ?? session('user.subscription_status'), 'accountState' => session('user.accountState') ?? session('user.account_state')]);
         Route::get('/students/me/intakes', [IntakesController::class, 'availableForStudent']);
         Route::get('/students/me/invoices', [BillingController::class, 'invoices']);
         Route::post('/students/me/invoices/{invoice}/pay', [BillingController::class, 'pay']);
@@ -189,10 +153,17 @@ Route::middleware('api')->group(function () {
         Route::post('/students/me/exam-clinic/bookings', [ExamClinicController::class, 'bookSession']);
         Route::delete('/students/me/exam-clinic/bookings/{booking}', [ExamClinicController::class, 'cancelBooking']);
         Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
+
         Route::post('/students/me/short-courses/{courseId}/enroll', [ShortCourseController::class, 'enroll']);
         Route::get('/students/me/short-courses/{courseId}/progress', [ShortCourseController::class, 'progress']);
-        Route::post('/students/me/short-courses/{courseId}/lessons/{lessonId}/complete', [ShortCourseController::class, 'completeLesson']);
+        Route::get('/students/me/short-courses/{courseId}/access-plans', [ShortCourseController::class, 'accessPlans']);
+        Route::post('/students/me/short-courses/{courseId}/access-plans/purchase', [ShortCourseController::class, 'purchaseAccessPlan']);
+        Route::post('/students/me/short-courses/{courseId}/practice', [ShortCourseController::class, 'practice']);
+        Route::post('/students/me/short-courses/{courseId}/practice/submit', [ShortCourseController::class, 'submitPractice']);
+        Route::get('/students/me/short-courses/{courseId}/exam', [ShortCourseController::class, 'exam']);
+        Route::post('/students/me/short-courses/{courseId}/exam/submit', [ShortCourseController::class, 'submitExam']);
         Route::post('/students/me/short-courses/{courseId}/exam', [ShortCourseController::class, 'submitExam']);
+        Route::post('/students/me/short-courses/{courseId}/lessons/{lessonId}/complete', [ShortCourseController::class, 'completeLesson']);
         Route::post('/students/me/short-courses/{courseId}/certificate/pay', [ShortCourseController::class, 'payCertificate']);
         Route::get('/students/me/short-courses/{courseId}/certificate', [ShortCourseController::class, 'certificate']);
 
@@ -279,9 +250,7 @@ Route::middleware('api')->group(function () {
         Route::patch('/lessons/{lessonId}/documents/{document}', [LessonDocumentsController::class, 'review']);
     });
 
-    Route::prefix('employer')->middleware(['session.auth', 'access:employer.portal'])->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'employer']);
-    });
+    Route::prefix('employer')->middleware(['session.auth', 'access:employer.portal'])->group(function () { Route::get('/dashboard', [DashboardController::class, 'employer']); });
 
     Route::prefix('instructor')->middleware(['session.auth', 'access:instructor.portal'])->group(function () {
         Route::get('/portal', [PlatformExpansionController::class, 'instructorPortal']);
@@ -326,15 +295,11 @@ Route::middleware('api')->group(function () {
         Route::get('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'prerequisites']);
         Route::post('/modules/{module}/prerequisites', [AdminCurriculumController::class, 'addPrerequisite']);
         Route::get('/qualification-levels', [AdminCatalogController::class, 'qualificationLevels']);
-        Route::get('/access-matrix', fn () => [
-            'permissions' => AccessControl::permissionMatrix(),
-            'roleCapabilities' => AccessControl::roleCapabilities(),
-        ]);
+        Route::get('/access-matrix', fn () => ['permissions' => AccessControl::permissionMatrix(), 'roleCapabilities' => AccessControl::roleCapabilities()]);
         Route::get('/users', [AdminUsersController::class, 'index'])->middleware('access:admin.users.manage');
         Route::post('/users', [AdminUsersController::class, 'store'])->middleware('access:admin.users.manage');
         Route::patch('/users/{user}', [AdminUsersController::class, 'update'])->middleware('access:admin.users.manage');
         Route::post('/users/{user}/transition', [AdminUsersController::class, 'transition'])->middleware('access:admin.users.manage');
-
         Route::post('/schools', [AdminCatalogController::class, 'createSchool'])->middleware('access:admin.academic');
         Route::patch('/schools/{id}', [AdminCatalogController::class, 'updateSchool'])->middleware('access:admin.academic');
         Route::post('/programs', [AdminCatalogController::class, 'createProgram'])->middleware('access:admin.academic');
@@ -345,7 +310,6 @@ Route::middleware('api')->group(function () {
         Route::delete('/schools/{id}', [AdminCatalogController::class, 'deleteSchool'])->middleware('access:admin.academic');
         Route::delete('/programs/{id}', [AdminCatalogController::class, 'deleteProgram'])->middleware('access:admin.academic');
         Route::delete('/courses/{id}', [AdminCatalogController::class, 'deleteCourse'])->middleware('access:admin.academic');
-
         Route::get('/academic-structure', [AdminAcademicStructureController::class, 'index'])->middleware('access:admin.academic');
         Route::post('/departments', [AdminAcademicStructureController::class, 'storeDepartment'])->middleware('access:admin.academic');
         Route::post('/academic-years', [AdminAcademicStructureController::class, 'storeAcademicYear'])->middleware('access:admin.academic');
@@ -367,7 +331,6 @@ Route::middleware('api')->group(function () {
         Route::post('/message-templates', [PlatformOperationsController::class, 'storeMessageTemplate']);
         Route::post('/announcements', [PlatformOperationsController::class, 'storeAnnouncement']);
         Route::post('/saved-reports', [PlatformOperationsController::class, 'storeSavedReport']);
-
         Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);
         Route::get('/admissions/{id}', [AdmissionsController::class, 'adminShow']);
         Route::patch('/admissions/{id}', [AdmissionsController::class, 'adminUpdate']);
@@ -378,18 +341,15 @@ Route::middleware('api')->group(function () {
         Route::get('/lecturer-applications', [LecturerApplicationsController::class, 'adminIndex']);
         Route::get('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminShow']);
         Route::patch('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminUpdate']);
-
         Route::get('/policies', [AcademicPoliciesController::class, 'index']);
         Route::post('/policies', [AcademicPoliciesController::class, 'store']);
         Route::patch('/policies/{policy}', [AcademicPoliciesController::class, 'update']);
         Route::post('/policies/assign/program', [AcademicPoliciesController::class, 'assignProgram']);
         Route::post('/policies/assign/curriculum', [AcademicPoliciesController::class, 'assignCurriculum']);
-
         Route::get('/exam-questions', [AdminExamQuestionsController::class, 'index']);
         Route::post('/exam-questions', [AdminExamQuestionsController::class, 'store']);
         Route::patch('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'update']);
         Route::delete('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'destroy']);
-
         Route::get('/consultants', [ConsultantsController::class, 'index']);
         Route::get('/consultants/{id}', [ConsultantsController::class, 'show']);
         Route::get('/reports/finance', [ReportsController::class, 'finance']);
