@@ -28,7 +28,8 @@ export type VisualBlockType =
   | 'number_line'
   | 'matrix'
   | 'formula_sheet'
-  | 'geometry';
+  | 'geometry'
+  | 'venn';
 
 export type EquationBlock = CardImageFields & {
   type: 'equation';
@@ -103,6 +104,32 @@ export type GeometryBlock = CardImageFields & {
   values?: Record<string, string | number>;
 };
 
+export type VennBlock = CardImageFields & {
+  type: 'venn';
+  title?: string;
+  description?: string;
+  setCount: 1 | 2 | 3;
+  labels?: string[];
+  highlight?:
+    | 'none'
+    | 'A'
+    | 'B'
+    | 'C'
+    | 'union'
+    | 'intersection'
+    | 'intersectionAB'
+    | 'intersectionAC'
+    | 'intersectionBC'
+    | 'differenceAB'
+    | 'differenceBA'
+    | 'complementA'
+    | 'complementB'
+    | 'complementC'
+    | 'outside'
+    | 'deMorganUnion'
+    | string;
+};
+
 export type LessonVisualBlock =
   | EquationBlock
   | GraphBlock
@@ -110,7 +137,8 @@ export type LessonVisualBlock =
   | NumberLineBlock
   | MatrixBlock
   | FormulaSheetBlock
-  | GeometryBlock;
+  | GeometryBlock
+  | VennBlock;
 
 export type LessonStep = CardImageFields & {
   title?: string;
@@ -167,6 +195,7 @@ export type LessonCardBlock =
   | MatrixBlock
   | FormulaSheetBlock
   | GeometryBlock
+  | VennBlock
   | CodeCardBlock
   | (CardImageFields & { type: 'question'; title?: string; question: string; visual?: LessonVisualBlock; options: string[]; correctAnswer: string; explanation: string })
   | (CardImageFields & { type: 'fill_blank'; title?: string; text: string; visual?: LessonVisualBlock; correctAnswer: string; explanation: string })
