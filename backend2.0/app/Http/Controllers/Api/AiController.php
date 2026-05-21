@@ -63,25 +63,16 @@ class AiController extends Controller
                 $message = ($quota['cooldownMinutes'] ?? 0) > 0
                     ? 'You have reached your hourly AI study limit. Your AI tutor will be available again in 30 minutes. Use this time to review your notes or attempt the next quiz.'
                     : 'Your daily AI limit has been reached or AI tutor access is not included in this plan.';
-                return response()->json([
-                    'error' => $message,
-                    'quota' => $quota,
-                ], 429);
+                return response()->json(['error' => $message, 'quota' => $quota], 429);
             }
         }
 
         if ($feature && !in_array($feature, $policy['features'], true)) {
-            return response()->json([
-                'error' => "The {$policy['label']} tier does not include {$feature} AI access.",
-                'tier' => $tier,
-            ], 403);
+            return response()->json(['error' => "The {$policy['label']} tier does not include {$feature} AI access.", 'tier' => $tier], 403);
         }
 
         if (!in_array($mode, $policy['modes'], true)) {
-            return response()->json([
-                'error' => "The {$policy['label']} tier does not include {$mode} AI access.",
-                'tier' => $tier,
-            ], 403);
+            return response()->json(['error' => "The {$policy['label']} tier does not include {$mode} AI access.", 'tier' => $tier], 403);
         }
 
         $prompt = trim($data['prompt']);
@@ -134,60 +125,43 @@ class AiController extends Controller
             $systemInstruction .= "\n\nAudience: {$data['audience']}";
         }
 
-        $provider = env('AI_PROVIDER', 'gemini');
-
-        if ($provider === 'apifree') {
-            $apiKey = env('AI_API_KEY');
-            if (!$apiKey) {
-                return response()->json(['error' => 'AI_API_KEY is not configured for apifree.'], 500);
-            }
-
-            $model = $data['model'] ?? env('AI_MODEL', 'google/gemini-2.5-pro');
-            $baseUrl = rtrim(env('AI_BASE_URL', 'https://api.apifree.ai'), '/');
-            $payload = [
-                'max_tokens' => (int) env('AI_MAX_TOKENS', 1024),
-                'messages' => [
-                    ['role' => 'system', 'content' => $systemInstruction],
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-                'model' => $model,
-                'stream' => false,
-                'temperature' => (float) env('AI_TEMPERATURE', 0.5),
-                'top_p' => 1,
-            ];
-
-            $response = Http::timeout(30)->withHeaders(['Authorization' => "Bearer {$apiKey}"])->post("{$baseUrl}/v1/chat/completions", $payload);
-            $json = $response->json();
-            if (!$response->successful() || isset($json['error'])) {
-                return response()->json(['error' => 'Apifree request failed.', 'details' => $json], 502);
-            }
-
-            $text = $json['choices'][0]['message']['content'] ?? '';
-            return response()->json(['text' => $text]);
+        $provider = strtolower(trim((string) env('AI_PROVIDER', 'apifree')));
+        if ($provider !== 'apifree') {
+            return response()->json([
+                'error' => 'Direct Gemini is disabled. UnivAI is configured to use ApiFree only. Set AI_PROVIDER=apifree.',
+                'provider' => $provider,
+            ], 500);
         }
 
-        $apiKey = env('GEMINI_API_KEY');
+        $apiKey = env('AI_API_KEY');
         if (!$apiKey) {
-            return response()->json(['error' => 'GEMINI_API_KEY is not configured.'], 500);
+            return response()->json(['error' => 'AI_API_KEY is not configured for ApiFree.'], 500);
         }
 
-        $model = $data['model'] ?? env('AI_MODEL', 'gemini-1.5-flash');
+        $model = $data['model'] ?? env('AI_MODEL', 'google/gemini-2.5-flash-lite');
+        $baseUrl = rtrim(env('AI_BASE_URL', 'https://api.apifree.ai'), '/');
         $payload = [
-            'systemInstruction' => ['parts' => [['text' => $systemInstruction]]],
-            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]],
-            'generationConfig' => [
-                'temperature' => (float) env('AI_TEMPERATURE', 0.5),
-                'maxOutputTokens' => (int) env('AI_MAX_TOKENS', 1024),
+            'max_tokens' => (int) env('AI_MAX_TOKENS', 1024),
+            'messages' => [
+                ['role' => 'system', 'content' => $systemInstruction],
+                ['role' => 'user', 'content' => $prompt],
             ],
+            'model' => $model,
+            'stream' => false,
+            'temperature' => (float) env('AI_TEMPERATURE', 0.5),
+            'top_p' => 1,
         ];
 
-        $response = Http::timeout(30)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", $payload);
-        if (!$response->successful()) {
-            return response()->json(['error' => 'Gemini request failed.', 'details' => $response->json()], 502);
-        }
+        $response = Http::timeout(30)
+            ->withHeaders(['Authorization' => "Bearer {$apiKey}"])
+            ->post("{$baseUrl}/v1/chat/completions", $payload);
 
         $json = $response->json();
-        $text = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        if (!$response->successful() || isset($json['error'])) {
+            return response()->json(['error' => 'ApiFree request failed.', 'details' => $json], 502);
+        }
+
+        $text = $json['choices'][0]['message']['content'] ?? '';
         return response()->json(['text' => $text]);
     }
 
