@@ -6,6 +6,7 @@ const tabs = [
   { href: '/admin/short-courses/catalogue', label: 'Catalogue' },
   { href: '/admin/short-courses/builder', label: 'AI Builder' },
   { href: '/admin/short-courses/manual', label: 'Manual Builder' },
+  { href: '/admin/short-courses/json-builder', label: 'JSON Builder' },
   { href: '/admin/short-courses/card-images', label: 'Card Images' },
   { href: '/admin/short-courses/question-bank', label: 'Question Bank' },
   { href: '/admin/short-courses/review', label: 'Review & Publish' },
