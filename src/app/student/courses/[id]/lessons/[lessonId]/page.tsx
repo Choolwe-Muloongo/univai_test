@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
+import { CourseHelperBox } from '@/components/student/course-helper-box';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
@@ -139,7 +140,7 @@ export default function FocusedLessonPage() {
 
   return (
     <main className="min-h-screen bg-background px-4 py-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-4xl space-y-4">
         <LessonPlayer
           lesson={lesson as any}
           courseTitle={course.title}
@@ -150,6 +151,7 @@ export default function FocusedLessonPage() {
           onCardCompleted={handleCardCompleted}
           onCheckpointAnswered={handleCheckpointAnswered}
         />
+        <CourseHelperBox courseId={params.id} courseTitle={course.title} lessonId={params.lessonId} lessonTitle={lesson.title} />
         {completeError ? <div className="mx-auto mt-4 max-w-3xl rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{completeError}</div> : null}
         {completed ? (
           <Card className="mx-auto mt-4 max-w-3xl rounded-2xl">
