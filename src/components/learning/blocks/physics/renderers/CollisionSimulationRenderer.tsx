@@ -29,9 +29,9 @@ export function CollisionSimulationRenderer({ visual }: Props) {
   const timeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   useEffect(() => {
-    const timeoutId = timeoutRef.current;
     return () => {
-      if (timeoutId) window.clearTimeout(timeoutId);
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     };
   }, []);
 
