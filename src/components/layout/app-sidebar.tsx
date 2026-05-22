@@ -64,12 +64,14 @@ type NavGroup = {
   links: NavLink[];
 };
 
+const NOVA_CHAT_HREF = '/student/ai/chat';
+
 const studentCoreLinks: NavLink[] = [
   { href: '/student/dashboard', label: 'Mission Home', icon: Home },
   { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
   { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-core-training-arena' },
   { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
-  { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+  { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
   { href: '/student/rewards', label: 'Rewards', icon: Trophy },
   { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
   { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
@@ -91,7 +93,7 @@ const shortCourseOnlyStudentLinks: NavLink[] = [
   { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
   { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-short-training-arena' },
   { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
-  { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+  { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
   { href: '/student/rewards', label: 'Rewards', icon: Trophy },
   { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
   { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
@@ -108,7 +110,7 @@ const formalStudentLinks: NavLink[] = [
   { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
   { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-formal-training-arena' },
   { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
-  { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+  { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
   { href: '/student/rewards', label: 'Rewards', icon: Trophy },
   { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
   { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
@@ -130,7 +132,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
         { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck },
         { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
-        { href: '/student/ai', label: 'Nova Mentor', icon: Sparkles },
+        { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
         { href: '/student/rewards', label: 'Rewards', icon: Trophy },
         { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
         { href: '/student/profile', label: 'Profile', icon: User },
