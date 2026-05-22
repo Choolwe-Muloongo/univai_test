@@ -4,7 +4,7 @@ import {
   COURSE_BLOCK_TEMPLATE_COUNT,
   type CourseBlockSeed,
 } from './course-block-library';
-import { blockDefinitions, learningBlockRegistryCount } from '@/components/learning/blocks/registry';
+import { blockDefinitions, learningBlockRegistryCount, type LearningBlockPayload } from '@/components/learning/blocks/registry';
 
 export type BroadCardType = string;
 
@@ -46,6 +46,7 @@ export type LessonBlockTemplate = {
   min?: string;
   max?: string;
   points?: string;
+  registryPayload?: LearningBlockPayload;
 };
 
 const visualTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn']);
@@ -74,6 +75,7 @@ const registryTemplates: LessonBlockTemplate[] = blockDefinitions.map((definitio
     bestUsedFor: definition.bestUsedFor?.join(', '),
     assessmentMode: definition.autoMarked ? 'Auto-marked' : definition.manualMarked ? 'Manual' : 'Teaching',
     certificateCapable: definition.certificate.canRequire,
+    registryPayload: payload,
   };
 });
 
