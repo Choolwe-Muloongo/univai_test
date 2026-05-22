@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -99,7 +100,7 @@ export function NovaContextPanel({
   );
 }
 
-function ContextRow({ active, label, detail, icon }: { active: boolean; label: string; detail: string | null | undefined; icon: React.ReactNode }) {
+function ContextRow({ active, label, detail, icon }: { active: boolean; label: string; detail: string | null | undefined; icon: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-2xl border bg-background/70 p-3">
       <div className="flex items-center gap-2">
