@@ -1,11 +1,5 @@
-import { ChemistryJsonCourseBuilderClient } from './chemistry-json-course-builder-client';
-import { JsonBuilderFullManual } from './json-builder-full-manual';
+import { JsonCourseBuilderStudio } from './json-course-builder-studio';
 
 export function JsonCourseBuilderClient() {
-  return (
-    <div className="space-y-8">
-      <JsonBuilderFullManual />
-      <ChemistryJsonCourseBuilderClient />
-    </div>
-  );
+  return <JsonCourseBuilderStudio />;
 }
