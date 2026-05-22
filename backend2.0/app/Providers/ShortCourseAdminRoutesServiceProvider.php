@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Http\Controllers\Api\AdminExamQuestionsController;
+use App\Http\Controllers\Api\AdminPaymentsController;
 use App\Http\Controllers\Api\AdminShortCourseInsightsController;
 use App\Http\Controllers\Api\AdminShortCoursePlansController;
 use App\Http\Controllers\Api\AiController;
@@ -25,6 +26,12 @@ class ShortCourseAdminRoutesServiceProvider extends ServiceProvider
                 Route::post('/short-courses/question-bank/bulk', [AdminExamQuestionsController::class, 'bulkStore']);
                 Route::patch('/short-courses/question-bank/{examQuestion}', [AdminExamQuestionsController::class, 'update']);
                 Route::delete('/short-courses/question-bank/{examQuestion}', [AdminExamQuestionsController::class, 'destroy']);
+            });
+
+        Route::middleware(['api', 'session.auth', 'access:admin.portal'])
+            ->prefix('api/admin')
+            ->group(function () {
+                Route::get('/payments', [AdminPaymentsController::class, 'index']);
             });
     }
 }
