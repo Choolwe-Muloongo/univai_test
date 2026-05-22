@@ -1,11 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, HelpCircle, RotateCcw, XCircle } from 'lucide-react';
+import { CheckCircle2, HelpCircle, RotateCcw, XCircle } from 'lucide-react';
 
 import { MathText } from '@/components/learning/math-text';
 import { Button } from '@/components/ui/button';
-import type { PhysicsArrow, PhysicsInteraction, PhysicsObject, PhysicsTeachingStep, PhysicsVisual } from './types';
+import type { PhysicsArrow, PhysicsInteraction, PhysicsObject, PhysicsVisual } from './types';
 
 type Props = {
   visual: PhysicsVisual;
@@ -37,17 +37,15 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
   const activeInteraction = interactions[0] ?? activeStep?.checkpointQuestion ?? null;
   const highlighted = useMemo(() => new Set(activeStep?.highlightObjectIds ?? []), [activeStep]);
   const hidden = useMemo(() => new Set(activeStep?.hideObjectIds ?? []), [activeStep]);
+  const width = visual.canvas?.width || 800;
+  const height = visual.canvas?.height || 500;
 
   function handleTarget(targetId: string) {
     setSelectedTargetId(targetId);
     if (!activeInteraction) return;
     const result = evaluateInteraction(activeInteraction, targetId);
-    if (!result) return;
-    setFeedback(result);
+    if (result) setFeedback(result);
   }
-
-  const width = visual.canvas?.width || 800;
-  const height = visual.canvas?.height || 500;
 
   return (
     <div className="space-y-4 rounded-3xl border bg-background p-3 shadow-sm sm:p-4">
@@ -65,67 +63,26 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
       </div>
 
       <div className="overflow-auto rounded-2xl border bg-muted/20 p-2">
-        <svg
-          role="img"
-          aria-label="Interactive physics diagram"
-          viewBox={`0 0 ${width} ${height}`}
-          className="h-auto w-full min-w-[620px] rounded-xl bg-background"
-        >
+        <svg role="img" aria-label="Interactive physics diagram" viewBox={`0 0 ${width} ${height}`} className="h-auto w-full min-w-[620px] rounded-xl bg-background">
           <defs>
             <marker id="physics-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
               <path d="M2,2 L10,6 L2,10 z" className="fill-current" />
             </marker>
-            <marker id="physics-arrow-muted" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
-              <path d="M2,2 L10,6 L2,10 z" className="fill-slate-500" />
-            </marker>
           </defs>
           <CanvasBackground width={width} height={height} background={visual.canvas?.background} />
           {(visual.objects ?? []).filter((object) => !hidden.has(object.id)).map((object) => (
-            <PhysicsObjectNode
-              key={object.id}
-              object={object}
-              highlighted={highlighted.has(object.id) || selectedTargetId === object.id}
-              onSelect={handleTarget}
-            />
+            <PhysicsObjectNode key={object.id} object={object} highlighted={highlighted.has(object.id) || selectedTargetId === object.id} onSelect={handleTarget} />
           ))}
           {(visual.arrows ?? []).filter((arrow) => !hidden.has(arrow.id)).map((arrow) => (
-            <PhysicsArrowNode
-              key={arrow.id}
-              arrow={arrow}
-              highlighted={highlighted.has(arrow.id) || selectedTargetId === arrow.id}
-              onSelect={handleTarget}
-            />
+            <PhysicsArrowNode key={arrow.id} arrow={arrow} highlighted={highlighted.has(arrow.id) || selectedTargetId === arrow.id} onSelect={handleTarget} />
           ))}
           {(visual.labels ?? []).map((label) => (
-            <text key={label.id} x={label.x} y={label.y} className="fill-foreground text-[18px] font-semibold">
-              {label.text}
-            </text>
+            <text key={label.id} x={label.x} y={label.y} className="fill-foreground text-[18px] font-semibold">{label.text}</text>
           ))}
           {(visual.hotspots ?? []).map((hotspot) => (
-            <rect
-              key={hotspot.id}
-              x={hotspot.x}
-              y={hotspot.y}
-              width={hotspot.width}
-              height={hotspot.height}
-              rx="10"
-              className="cursor-pointer fill-primary/5 stroke-primary/40 transition hover:fill-primary/15"
-              strokeDasharray="8 6"
-              onClick={() => handleTarget(hotspot.targetId || hotspot.id)}
-            />
+            <rect key={hotspot.id} x={hotspot.x} y={hotspot.y} width={hotspot.width} height={hotspot.height} rx="10" className="cursor-pointer fill-primary/5 stroke-primary/40 transition hover:fill-primary/15" strokeDasharray="8 6" onClick={() => handleTarget(hotspot.targetId || hotspot.id)} />
           ))}
-          {activeStep?.focusBox ? (
-            <rect
-              x={activeStep.focusBox.x}
-              y={activeStep.focusBox.y}
-              width={activeStep.focusBox.width}
-              height={activeStep.focusBox.height}
-              rx="18"
-              className="fill-transparent stroke-primary"
-              strokeWidth="4"
-              strokeDasharray="10 8"
-            />
-          ) : null}
+          {activeStep?.focusBox ? <rect x={activeStep.focusBox.x} y={activeStep.focusBox.y} width={activeStep.focusBox.width} height={activeStep.focusBox.height} rx="18" className="fill-transparent stroke-primary" strokeWidth="4" strokeDasharray="10 8" /> : null}
         </svg>
       </div>
 
@@ -191,6 +148,8 @@ function PhysicsObjectNode({ object, highlighted, onSelect }: { object: PhysicsO
   const stroke = object.style?.stroke || '#0f172a';
   const common = { onClick: () => onSelect(object.id), className, transform: object.rotation ? `rotate(${object.rotation} ${object.x} ${object.y})` : undefined };
 
+  if (object.type === 'wave') return <WaveObjectNode object={object} highlighted={highlighted} onSelect={onSelect} />;
+
   if (object.type === 'circle' || object.type === 'pulley') {
     const radius = object.radius ?? Math.min(object.width ?? 80, object.height ?? 80) / 2;
     const cx = object.x;
@@ -221,22 +180,33 @@ function PhysicsObjectNode({ object, highlighted, onSelect }: { object: PhysicsO
   );
 }
 
+function WaveObjectNode({ object, highlighted, onSelect }: { object: PhysicsObject; highlighted: boolean; onSelect: (id: string) => void }) {
+  const width = object.width ?? 520;
+  const height = object.height ?? 160;
+  const amplitude = Number(object.physics?.amplitude ?? height / 3);
+  const cycles = Math.max(1, Number(object.physics?.cycles ?? 3));
+  const points = Array.from({ length: 121 }, (_, index) => {
+    const progress = index / 120;
+    const x = object.x + progress * width;
+    const y = object.y + height / 2 - Math.sin(progress * Math.PI * 2 * cycles) * amplitude;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return (
+    <g onClick={() => onSelect(object.id)} className={object.interactive ? 'cursor-pointer' : undefined}>
+      <line x1={object.x} x2={object.x + width} y1={object.y + height / 2} y2={object.y + height / 2} className="stroke-muted-foreground" strokeWidth="2" strokeDasharray="8 8" />
+      <polyline points={points} fill="none" stroke={object.style?.stroke || '#2563eb'} strokeWidth={highlighted ? 6 : object.style?.strokeWidth ?? 4} strokeLinecap="round" strokeLinejoin="round" />
+      {object.label ? <SvgMultilineText text={object.label} x={object.x + width / 2} y={object.y + height + 28} /> : null}
+    </g>
+  );
+}
+
 function PhysicsArrowNode({ arrow, highlighted, onSelect }: { arrow: PhysicsArrow; highlighted: boolean; onSelect: (id: string) => void }) {
   const roleClass = arrowRoleClass[arrow.colorRole || arrow.type] ?? 'stroke-slate-700 fill-slate-700';
   const midX = (arrow.from.x + arrow.to.x) / 2;
   const midY = (arrow.from.y + arrow.to.y) / 2;
   return (
     <g className={`cursor-pointer ${roleClass}`} onClick={() => onSelect(arrow.id)}>
-      <line
-        x1={arrow.from.x}
-        y1={arrow.from.y}
-        x2={arrow.to.x}
-        y2={arrow.to.y}
-        strokeWidth={highlighted ? 6 : 4}
-        strokeDasharray={arrow.dashed ? '8 8' : undefined}
-        strokeLinecap="round"
-        markerEnd="url(#physics-arrow)"
-      />
+      <line x1={arrow.from.x} y1={arrow.from.y} x2={arrow.to.x} y2={arrow.to.y} strokeWidth={highlighted ? 6 : 4} strokeDasharray={arrow.dashed ? '8 8' : undefined} strokeLinecap="round" markerEnd="url(#physics-arrow)" />
       {arrow.label ? <text x={midX + 8} y={midY - 8} className="fill-current text-[16px] font-bold">{arrow.label}</text> : null}
     </g>
   );
@@ -258,12 +228,7 @@ function NumericInteraction({ interaction, onFeedback }: { interaction: PhysicsI
     const actual = Number(value);
     const tolerance = interaction.tolerance ?? 0;
     const correct = Number.isFinite(expected) && Number.isFinite(actual) && Math.abs(expected - actual) <= tolerance;
-    onFeedback({
-      correct,
-      message: correct
-        ? interaction.feedback?.correct || 'Correct. Your calculation matches the diagram.'
-        : interaction.feedback?.incorrect || 'Not quite. Check the formula, units, and signs.',
-    });
+    onFeedback({ correct, message: correct ? interaction.feedback?.correct || 'Correct. Your calculation matches the diagram.' : interaction.feedback?.incorrect || 'Not quite. Check the formula, units, and signs.' });
   }
   return (
     <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -277,8 +242,6 @@ function evaluateInteraction(interaction: PhysicsInteraction, targetId: string):
   const correct = interaction.correctTargetId ? targetId === interaction.correctTargetId : false;
   return {
     correct,
-    message: correct
-      ? interaction.feedback?.correct || 'Correct. You selected the right part of the diagram.'
-      : interaction.feedback?.incorrect || 'Not quite. Study the direction, label, or object role and try again.',
+    message: correct ? interaction.feedback?.correct || 'Correct. You selected the right part of the diagram.' : interaction.feedback?.incorrect || 'Not quite. Study the direction, label, or object role and try again.',
   };
 }
