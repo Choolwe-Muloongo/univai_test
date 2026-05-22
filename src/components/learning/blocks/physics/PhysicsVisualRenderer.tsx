@@ -26,7 +26,6 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
   const activeInteraction = interactions[0] ?? activeStep?.checkpointQuestion ?? null;
   const highlightedIds = useMemo(() => new Set(activeStep?.highlightObjectIds ?? []), [activeStep]);
   const hiddenIds = useMemo(() => new Set(activeStep?.hideObjectIds ?? []), [activeStep]);
-  const shouldUseCollisionSimulation = visual.template === 'collision' || visual.renderMode === 'canvas';
 
   function handleTarget(targetId: string) {
     setSelectedTargetId(targetId);
@@ -55,7 +54,7 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
         </div>
       </div>
 
-      {shouldUseCollisionSimulation ? (
+      {visual.template === 'collision' ? (
         <CollisionSimulationRenderer visual={visual} />
       ) : (
         <SvgDiagramRenderer visual={visual} highlightedIds={highlightedIds} hiddenIds={hiddenIds} selectedTargetId={selectedTargetId} onSelect={handleTarget} />
