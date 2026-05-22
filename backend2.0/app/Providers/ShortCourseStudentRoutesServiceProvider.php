@@ -15,6 +15,12 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        Route::middleware(['api', 'session.auth'])
+            ->prefix('api')
+            ->group(function () {
+                Route::post('/beta-reports', [BetaReportController::class, 'store'])->middleware('throttle:general');
+            });
+
         Route::middleware(['api', 'session.auth', 'access:student.portal'])
             ->prefix('api/students/me')
             ->group(function () {
