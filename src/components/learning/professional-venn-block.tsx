@@ -16,8 +16,8 @@ export function ProfessionalVennBlock({ block }: { block: AnyBlock }) {
   return (
     <div className="space-y-3">
       {description ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={description} /></p> : null}
-      <div className="overflow-x-auto rounded-3xl border bg-gradient-to-br from-muted/30 via-background to-primary/5 p-3 sm:p-4">
-        <div className="min-w-[320px]">
+      <div className="rounded-3xl border bg-gradient-to-br from-muted/30 via-background to-primary/5 p-2 sm:p-4">
+        <div className="w-full">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-primary">Venn diagram</p>
@@ -28,7 +28,7 @@ export function ProfessionalVennBlock({ block }: { block: AnyBlock }) {
             </span>
           </div>
 
-          <svg viewBox="0 0 520 330" className="h-auto w-full min-w-[320px]" role="img" aria-label={title}>
+          <svg viewBox="0 0 520 330" className="block h-auto max-h-[340px] w-full max-w-full" role="img" aria-label={title} preserveAspectRatio="xMidYMid meet">
             <defs>
               <circle id={`${diagramId}-a`} cx="215" cy="160" r="92" />
               <circle id={`${diagramId}-b`} cx="305" cy="160" r="92" />
