@@ -15,12 +15,15 @@ class Payment extends Model
         'provider',
         'transaction_reference',
         'status',
+        'is_test',
+        'payment_mode',
         'payload',
         'paid_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'is_test' => 'boolean',
         'paid_at' => 'datetime',
         'payload' => 'array',
     ];
