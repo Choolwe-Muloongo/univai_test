@@ -149,6 +149,13 @@ export function isPublicShortCourse(course: PublicShortCourse) {
   return PUBLIC_SHORT_COURSE_STATUSES.has(normalizedPublicationStatus(course));
 }
 
+export function formatMoney(value: string | number | null | undefined, currency = 'ZMW') {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount) || amount <= 0) return 'Free';
+  const safeCurrency = String(currency || 'ZMW').trim().toUpperCase();
+  return `${safeCurrency} ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
 export async function getPublicShortCourses(): Promise<PublicShortCourse[]> {
   const courses = await apiFetch<PublicShortCourse[]>('/courses');
   return courses.filter(isPublicShortCourse);
