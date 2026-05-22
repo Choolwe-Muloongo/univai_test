@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 import { AffiliateReferralCapture } from '@/components/providers/affiliate-referral-capture';
+import { ClientErrorReporter } from '@/components/providers/client-error-reporter';
 import { SessionProvider } from '@/components/providers/session-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 
@@ -30,6 +31,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AffiliateReferralCapture />
+          <ClientErrorReporter />
           <SessionProvider>{children}</SessionProvider>
         </ThemeProvider>
       </body>
