@@ -1,1 +1,3 @@
-export { JsonCourseBuilderStudio as JsonCourseBuilderClient } from './json-course-builder-studio';
+import { ChemistryJsonCourseBuilderClient } from './chemistry-json-course-builder-client';
+
+export const JsonCourseBuilderClient = ChemistryJsonCourseBuilderClient;
