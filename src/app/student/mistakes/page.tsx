@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, RotateCcw } from 'lucide-react';
 
+import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
@@ -47,6 +48,16 @@ export default function MistakeBankPage() {
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Nova uses mistakes to recommend rescue battles, explain weak areas, and help students fix problems before the Final Trial.</p>
       </section>
 
+      <NovaInlineActions
+        title="Nova Mistake Coach"
+        description="Turn mistakes into practice. Nova opens with Mistake Bank context and waits for you to send."
+        actions={[
+          { label: 'Explain this mistake', mode: 'explain', intent: 'explain_mistake' },
+          { label: 'Give similar practice', mode: 'quiz', intent: 'similar_mistake_practice' },
+          { label: 'Help me fix weak area', mode: 'tutor', intent: 'fix_weak_area' },
+        ]}
+      />
+
       <div className="grid gap-5 md:grid-cols-3">
         <Stat label="Mistakes to fix" value={openMistakes.length} />
         <Stat label="Fixed mistakes" value={fixedMistakes.length} />
@@ -66,6 +77,17 @@ export default function MistakeBankPage() {
               <Box label="Your answer" value={item.studentAnswer || 'No answer recorded'} />
               <Box label="Expected answer" value={item.correctAnswer || 'Model answer not recorded'} />
               {item.explanation ? <Box label="Explanation" value={item.explanation} /> : null}
+              <NovaInlineActions
+                title="Ask Nova about this mistake"
+                description="Open Nova with this mistake attached so the explanation starts in the right place."
+                mistakeId={String(item.id)}
+                compact
+                actions={[
+                  { label: 'Explain mistake', mode: 'explain', intent: 'explain_mistake' },
+                  { label: 'Practice similar', mode: 'quiz', intent: 'similar_mistake_practice' },
+                  { label: 'Fix weak area', mode: 'tutor', intent: 'fix_weak_area' },
+                ]}
+              />
               <Button onClick={() => review(item.id)} disabled={busy === item.id} className="w-full sm:w-auto"><RotateCcw className="mr-2 h-4 w-4" /> {busy === item.id ? 'Updating...' : 'Mark as fixed'}</Button>
             </CardContent>
           </Card>
