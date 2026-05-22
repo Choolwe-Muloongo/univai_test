@@ -10,6 +10,7 @@ import { recordLearningEvent } from '@/lib/api/student-gamification';
 import { NovaChatShell } from '@/components/ai/nova-chat-shell';
 import { getNovaModeInstruction, type NovaMode } from '@/components/ai/nova-mode-selector';
 import type { NovaChatMessage } from '@/components/ai/nova-message';
+import { getNovaIntentPrompt, isValidNovaMode } from '@/lib/nova-context';
 
 type AiResponse = { text?: string; message?: string; error?: string };
 
@@ -38,12 +39,15 @@ export default function AiChatPage() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
   const lessonId = searchParams.get('lessonId');
+  const intent = searchParams.get('intent');
+  const modeParam = searchParams.get('mode');
+  const initialMode = isValidNovaMode(modeParam) ? modeParam : 'tutor';
   const context = useAiContext();
   const { session } = useSession();
   const policy = getAiAccessPolicy(session?.user?.role);
   const [messages, setMessages] = useState<NovaChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [mode, setMode] = useState<NovaMode>('tutor');
+  const [mode, setMode] = useState<NovaMode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -64,6 +68,19 @@ export default function AiChatPage() {
   }, [messages]);
 
   useEffect(() => {
+    if (isValidNovaMode(modeParam)) {
+      setMode(modeParam);
+    }
+  }, [modeParam]);
+
+  useEffect(() => {
+    const prompt = getNovaIntentPrompt(intent);
+    if (prompt) {
+      setInput((current) => current || prompt);
+    }
+  }, [intent]);
+
+  useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, loading]);
 
@@ -76,11 +93,12 @@ export default function AiChatPage() {
     () => [
       context,
       `Nova mode: ${mode}`,
+      intent ? `Nova intent: ${intent}` : '',
       `Nova instruction: ${getNovaModeInstruction(mode)}`,
       courseId ? `Current Journey ID: ${courseId}` : '',
       lessonId ? `Current lesson ID: ${lessonId}` : '',
     ].filter(Boolean).join('\n'),
-    [context, courseId, lessonId, mode]
+    [context, courseId, lessonId, mode, intent]
   );
 
   function selectPrompt(prompt: string) {
@@ -103,7 +121,7 @@ export default function AiChatPage() {
         type: 'ai_help_used',
         courseId: courseId ?? undefined,
         lessonId: lessonId ?? undefined,
-        metadata: { source: courseId ? 'short_course_ai_chat' : 'ai_chat', promptLength: userMessage.content.length, mode },
+        metadata: { source: courseId ? 'short_course_ai_chat' : 'ai_chat', promptLength: userMessage.content.length, mode, intent: intent ?? undefined },
       }).catch((error) => console.warn('Gamification event failed', error));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'AI service is unavailable right now.';
