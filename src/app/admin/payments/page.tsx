@@ -87,7 +87,7 @@ export default function PaymentsPage() {
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">Finance Control</p>
             <h1 className="text-3xl font-bold tracking-tight">Payments</h1>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Track live payments, Lenco test payments, and local test-mode activations. Test records are labelled clearly so they do not pollute real finance reports.
+              Track live payments, Lenco test payments, local test-mode activations, and legacy beta-test records. Test records are labelled clearly so they do not pollute real finance reports.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -198,6 +198,7 @@ function ModeBadge({ payment }: { payment: AdminPayment }) {
 function readableMode(mode?: string | null) {
   if (mode === 'lenco_test') return 'Lenco Test';
   if (mode === 'local_test') return 'Local Test';
+  if (mode === 'legacy_test') return 'Legacy Test';
   return 'Live';
 }
 
