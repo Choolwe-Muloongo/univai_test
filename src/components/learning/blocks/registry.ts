@@ -9,6 +9,7 @@ import { gamificationBlockDefinitions } from './gamification';
 import { graphingBlockDefinitions } from './graphing';
 import { mathBlockDefinitions } from './math';
 import { mediaBlockDefinitions } from './media';
+import { physicsBlockDefinitions } from './physics';
 import { projectBlockDefinitions } from './projects';
 import { questionBlockDefinitions } from './questions';
 import { scienceBlockDefinitions } from './science';
@@ -31,6 +32,7 @@ const rawDefinitions = [
   ...webBlockDefinitions,
   ...businessBlockDefinitions,
   ...scienceBlockDefinitions,
+  ...physicsBlockDefinitions,
   ...cybersecurityBlockDefinitions,
   ...aiDataBlockDefinitions,
   ...mediaBlockDefinitions,
@@ -109,7 +111,8 @@ export function recommendedBlocksForCourseType(courseType?: string | null) {
   if (normalized.includes('programming') || normalized.includes('coding')) categories.push('coding');
   if (normalized.includes('web')) categories.push('web', 'coding');
   if (normalized.includes('accounting') || normalized.includes('finance')) categories.push('accounting', 'spreadsheet', 'business');
-  if (normalized.includes('math') || normalized.includes('science')) categories.push('classroom_board', 'math', 'graphing', 'science');
+  if (normalized.includes('physics')) categories.push('physics', 'science', 'simulations', 'graphing');
+  if (normalized.includes('math') || normalized.includes('science')) categories.push('classroom_board', 'math', 'graphing', 'science', 'physics');
   if (normalized.includes('business') || normalized.includes('entrepreneur')) categories.push('business', 'spreadsheet');
   if (normalized.includes('exam')) categories.push('questions', 'certificate');
   if (normalized.includes('project')) categories.push('projects', 'certificate');
@@ -125,6 +128,7 @@ export function normalizeBlockType(type: string) {
   if (['multiple_choice', 'mcq', 'checkpoint', 'visual_question', 'graph_question', 'geometry_question', 'table_question', 'number_line_question'].includes(normalized)) return 'question';
   if (normalized === 'fill_in_the_blank') return 'fill_blank';
   if (normalized === 'truefalse' || normalized === 'true_or_false') return 'true_false';
+  if (normalized === 'physics_card' || normalized === 'physics_diagram' || normalized === 'physics_simulation') return 'physics_visual';
   if (normalized === 'chart' || normalized === 'plot') return 'graph';
   if (normalized === 'mini_project') return 'code_mini_project';
   return normalized || 'explanation';
