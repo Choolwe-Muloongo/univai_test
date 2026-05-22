@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { getProgram } from "@/lib/api";
 import type { Program } from "@/lib/api/types";
-import { Calendar, ClipboardCheck, Lightbulb } from "lucide-react";
+import { Calendar, ClipboardCheck, Sparkles } from "lucide-react";
 import { PageError, PageLoading } from "@/components/ui/page-feedback";
 import { readRouteParam } from "@/lib/route-params";
 
@@ -67,6 +67,12 @@ export default function ModuleDetailPage() {
   }, [id, program]);
   const lessons = module?.lessons ?? [];
   const nextLesson = lessons[0] ?? null;
+  const moduleNovaHref = id
+    ? `/student/ai/chat?mode=explain&intent=explain_journey&courseId=${encodeURIComponent(id)}`
+    : '/student/ai/chat';
+  const lessonNovaHref = nextLesson
+    ? `/student/ai/chat?mode=explain&intent=summarize_mission&lessonId=${encodeURIComponent(nextLesson.id)}`
+    : moduleNovaHref;
 
   if (loading) {
     return (
@@ -142,7 +148,7 @@ export default function ModuleDetailPage() {
               <Link href="/student/assignments">View Assignments</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/student/ai">Ask AI Tutor</Link>
+              <Link href={moduleNovaHref}>Ask Nova Mentor</Link>
             </Button>
           </CardFooter>
         </Card>
@@ -235,9 +241,9 @@ export default function ModuleDetailPage() {
           </CardContent>
           <CardFooter className="gap-2">
             <Button variant="outline" className="w-full" asChild>
-              <Link href={nextLesson ? `/student/ai/lesson-companion/${nextLesson.id}` : '/student/ai'}>
-                <Lightbulb className="mr-2 h-4 w-4" />
-                AI Lesson Companion
+              <Link href={lessonNovaHref}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Ask Nova about this lesson
               </Link>
             </Button>
           </CardFooter>
