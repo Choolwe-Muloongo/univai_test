@@ -1,3 +1,5 @@
+import type { ChemistryVisual } from '@/components/learning/blocks/chemistry';
+
 export type GraphFunction = {
   expression: string;
   label?: string;
@@ -185,6 +187,16 @@ export type CodeCardBlock = CardImageFields & {
   explanation?: string;
 };
 
+export type ChemistryVisualBlock = CardImageFields & {
+  type: 'chemistry_visual';
+  title?: string;
+  body?: string;
+  chemistryCardType?: string;
+  chemistryTemplate?: string;
+  visual: ChemistryVisual;
+  required?: boolean;
+};
+
 export type LessonCardBlock =
   | (CardImageFields & { type: 'explanation'; title: string; body: string; steps?: LessonStep[] })
   | (CardImageFields & { type: 'example'; title: string; body: string; code?: string | null })
@@ -197,6 +209,7 @@ export type LessonCardBlock =
   | GeometryBlock
   | VennBlock
   | CodeCardBlock
+  | ChemistryVisualBlock
   | (CardImageFields & { type: 'question'; title?: string; question: string; visual?: LessonVisualBlock; options: string[]; correctAnswer: string; explanation: string })
   | (CardImageFields & { type: 'fill_blank'; title?: string; text: string; visual?: LessonVisualBlock; correctAnswer: string; explanation: string })
   | (CardImageFields & { type: 'true_false'; title?: string; statement: string; visual?: LessonVisualBlock; correctAnswer: boolean; explanation: string })
