@@ -18,11 +18,19 @@ export type NovaQuickAction = {
   intent: string;
 };
 
+type NovaSearchParams = {
+  get: (name: string) => string | null;
+};
+
 export type NovaRouteContext = {
   page: NovaPageContext;
   label: string;
   courseId: string | null;
   lessonId: string | null;
+  cardId: string | null;
+  mistakeId: string | null;
+  attemptId: string | null;
+  questionId: string | null;
 };
 
 export const validNovaModes: NovaMode[] = ['tutor', 'explain', 'quiz', 'summarize', 'exam_prep', 'code_help', 'study_plan'];
@@ -136,6 +144,15 @@ export const novaIntentPrompts: Record<string, string> = {
   current_page_help: 'Help me understand what I can do on this page.',
 };
 
+function getFirstQueryValue(searchParams: NovaSearchParams | undefined, keys: string[]) {
+  if (!searchParams) return null;
+  for (const key of keys) {
+    const value = searchParams.get(key);
+    if (value) return value;
+  }
+  return null;
+}
+
 export function isValidNovaMode(value: string | null | undefined): value is NovaMode {
   return Boolean(value && validNovaModes.includes(value as NovaMode));
 }
@@ -149,26 +166,30 @@ export function getNovaQuickActions(page: NovaPageContext) {
   return quickActions[page] ?? quickActions.student;
 }
 
-export function getNovaRouteContext(pathname: string): NovaRouteContext {
+export function getNovaRouteContext(pathname: string, searchParams?: NovaSearchParams): NovaRouteContext {
   const cleanPath = pathname.split('?')[0].replace(/\/+$/, '') || '/';
   const segments = cleanPath.split('/').filter(Boolean);
   const studentIndex = segments.indexOf('student');
   const afterStudent = studentIndex >= 0 ? segments.slice(studentIndex + 1) : segments;
 
   let page: NovaPageContext = 'student';
-  let courseId: string | null = null;
-  let lessonId: string | null = null;
+  let courseId: string | null = getFirstQueryValue(searchParams, ['courseId', 'shortCourseId', 'journeyId']);
+  let lessonId: string | null = getFirstQueryValue(searchParams, ['lessonId', 'missionId']);
+  const cardId = getFirstQueryValue(searchParams, ['cardId']);
+  const mistakeId = getFirstQueryValue(searchParams, ['mistakeId']);
+  const attemptId = getFirstQueryValue(searchParams, ['attemptId']);
+  const questionId = getFirstQueryValue(searchParams, ['questionId']);
 
   if (cleanPath === '/student' || cleanPath === '/student/dashboard') {
     page = 'mission_home';
   } else if (afterStudent[0] === 'courses') {
-    courseId = afterStudent[1] ?? null;
+    courseId = courseId ?? afterStudent[1] ?? null;
 
     if (!courseId) {
       page = 'journeys';
     } else if (afterStudent[2] === 'lessons') {
       page = 'lesson';
-      lessonId = afterStudent[3] ?? null;
+      lessonId = lessonId ?? afterStudent[3] ?? null;
     } else if (afterStudent[2] === 'practice') {
       page = 'practice';
     } else if (afterStudent[2] === 'exam') {
@@ -184,12 +205,16 @@ export function getNovaRouteContext(pathname: string): NovaRouteContext {
     page = 'league';
   }
 
-  return { page, label: pageLabels[page], courseId, lessonId };
+  return { page, label: pageLabels[page], courseId, lessonId, cardId, mistakeId, attemptId, questionId };
 }
 
 export function buildNovaChatHref(action: NovaQuickAction, context: NovaRouteContext) {
   const params = new URLSearchParams({ mode: action.mode, intent: action.intent });
   if (context.courseId) params.set('courseId', context.courseId);
   if (context.lessonId) params.set('lessonId', context.lessonId);
+  if (context.cardId) params.set('cardId', context.cardId);
+  if (context.mistakeId) params.set('mistakeId', context.mistakeId);
+  if (context.attemptId) params.set('attemptId', context.attemptId);
+  if (context.questionId) params.set('questionId', context.questionId);
   return `/student/ai/chat?${params.toString()}`;
 }
