@@ -45,6 +45,8 @@ class BillingController extends Controller
                 'paidAmount' => (string) $invoice->paid_amount,
                 'status' => $invoice->status,
                 'type' => $invoice->type ?? 'tuition_fee',
+                'isTest' => (bool) $invoice->is_test,
+                'paymentMode' => $invoice->payment_mode ?? 'live',
                 'dueDate' => optional($invoice->due_date)->toDateString(),
                 'deliveryMode' => $mode,
                 'feePolicy' => $mode === DeliveryModes::SOFTWARE_ONLY ? 'Software-only rate applied' : ($mode === DeliveryModes::PHYSICAL ? 'Physical learning facilities rate applied' : 'Hybrid learning rate applied'),
@@ -81,6 +83,7 @@ class BillingController extends Controller
 
             AuditLogger::log($request, 'invoice.payment_test_mode_confirmed', 'invoice', (string) $invoice->id, [
                 'provider' => 'test-mode',
+                'paymentMode' => PaymentSettings::mode(),
             ]);
 
             return response()->json([
@@ -92,15 +95,28 @@ class BillingController extends Controller
                 'checkout_url' => null,
                 'reference' => $paidInvoice->transaction_reference,
                 'testMode' => true,
+                'paymentMode' => $paidInvoice->payment_mode ?? PaymentSettings::mode(),
                 'message' => $settings->test_mode_message ?: 'Payment confirmed in test mode.',
             ]);
         }
 
+        $mode = PaymentSettings::mode();
+        $isTest = PaymentSettings::paymentsAreTest();
         $checkout = $lenco->initiatePayment($invoice);
+        $invoice->forceFill([
+            'is_test' => $isTest,
+            'payment_mode' => $mode,
+            'metadata' => array_merge($invoice->metadata ?? [], [
+                'payment_mode' => $mode,
+                'is_test_payment' => $isTest,
+            ]),
+        ])->save();
 
         AuditLogger::log($request, 'invoice.payment_initiated', 'invoice', (string) $invoice->id, [
             'provider' => 'lenco',
             'reference' => $checkout['reference'],
+            'paymentMode' => $mode,
+            'isTest' => $isTest,
         ]);
 
         return response()->json([
@@ -111,6 +127,8 @@ class BillingController extends Controller
             'status' => $invoice->status,
             'checkout_url' => $checkout['checkout_url'],
             'reference' => $checkout['reference'],
+            'testMode' => $isTest,
+            'paymentMode' => $mode,
         ]);
     }
 
@@ -134,6 +152,8 @@ class BillingController extends Controller
             return response()->json([
                 'id' => $invoice->id,
                 'status' => 'paid',
+                'testMode' => (bool) $invoice->is_test,
+                'paymentMode' => $invoice->payment_mode ?? 'live',
                 'message' => 'Payment is already confirmed.',
             ]);
         }
@@ -185,11 +205,20 @@ class BillingController extends Controller
             ], 202);
         }
 
+        $mode = $invoice->payment_mode ?: PaymentSettings::mode();
+        $isTest = $invoice->is_test || $mode !== PaymentSettings::MODE_LIVE;
+
         $invoice->forceFill([
             'paid_amount' => $invoice->amount,
             'status' => 'paid',
+            'is_test' => $isTest,
+            'payment_mode' => $mode,
             'paid_at' => now(),
-            'metadata' => array_merge($invoice->metadata ?? [], ['lenco_verify' => $verification['payload']]),
+            'metadata' => array_merge($invoice->metadata ?? [], [
+                'lenco_verify' => $verification['payload'],
+                'payment_mode' => $mode,
+                'is_test_payment' => $isTest,
+            ]),
         ])->save();
 
         Payment::updateOrCreate(
@@ -199,8 +228,10 @@ class BillingController extends Controller
                 'amount' => $invoice->amount,
                 'currency' => $invoice->currency ?? 'ZMW',
                 'method' => 'lenco',
-                'provider' => 'lenco',
+                'provider' => $isTest ? 'lenco-test' : 'lenco',
                 'status' => 'completed',
+                'is_test' => $isTest,
+                'payment_mode' => $mode,
                 'payload' => $verification['payload'],
                 'paid_at' => now(),
             ]
@@ -208,15 +239,17 @@ class BillingController extends Controller
 
         $unlocker->unlock($invoice);
         $affiliates->recordForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
-            'channel' => 'lenco-verify',
+            'channel' => $isTest ? 'lenco-test-verify' : 'lenco-verify',
         ]);
         $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
-            'channel' => 'lenco-verify',
+            'channel' => $isTest ? 'lenco-test-verify' : 'lenco-verify',
         ]);
 
         return response()->json([
             'id' => $invoice->id,
             'status' => 'paid',
+            'testMode' => $isTest,
+            'paymentMode' => $mode,
             'message' => 'Payment confirmed and access activated.',
         ]);
     }
@@ -242,6 +275,8 @@ class BillingController extends Controller
                 'method' => $payment->method,
                 'provider' => $payment->provider ?? 'manual',
                 'status' => $payment->status,
+                'isTest' => (bool) $payment->is_test,
+                'paymentMode' => $payment->payment_mode ?? 'live',
                 'paidAt' => optional($payment->paid_at)->toISOString(),
             ]);
     }
