@@ -1,3 +1,26 @@
+export type PhysicsLevel =
+  | 'beginner'
+  | 'secondary'
+  | 'first_year_university'
+  | 'undergraduate'
+  | 'advanced_undergraduate'
+  | 'masters'
+  | 'phd';
+
+export type PhysicsDomain =
+  | 'mechanics'
+  | 'fluids'
+  | 'thermodynamics'
+  | 'electromagnetism'
+  | 'waves'
+  | 'optics'
+  | 'quantum'
+  | 'relativity'
+  | 'nuclear'
+  | 'particle_physics'
+  | 'mathematical_physics'
+  | 'laboratory';
+
 export type PhysicsCardType =
   | 'concept_card'
   | 'formula_card'
@@ -26,10 +49,31 @@ export type PhysicsCardType =
   | 'impulse_collision_card'
   | 'collision_graph_card'
   | 'collision_vector_diagram_card'
+  | 'angle_vector_resolution_card'
+  | 'hydraulic_press_card'
+  | 'fluid_pressure_card'
+  | 'pascal_principle_card'
+  | 'buoyancy_card'
+  | 'bernoulli_flow_card'
+  | 'continuity_equation_card'
+  | 'manometer_card'
+  | 'heat_engine_card'
+  | 'entropy_process_card'
+  | 'electric_field_card'
+  | 'magnetic_field_card'
+  | 'maxwell_equations_card'
+  | 'quantum_wavefunction_card'
+  | 'potential_well_card'
+  | 'quantum_tunneling_card'
+  | 'spacetime_diagram_card'
+  | 'lorentz_transformation_card'
+  | 'nuclear_decay_card'
+  | 'particle_interaction_card'
+  | 'tensor_field_card'
   | 'exam_question_card'
   | 'mistake_correction_card';
 
-export type PhysicsVisualType = 'diagram' | 'graph' | 'simulation' | 'annotated_image' | 'lab_setup';
+export type PhysicsVisualType = 'diagram' | 'graph' | 'simulation' | 'annotated_image' | 'lab_setup' | 'field_visualization' | 'derivation';
 
 export type PhysicsTemplate =
   | 'free_body'
@@ -43,6 +87,21 @@ export type PhysicsTemplate =
   | 'moments'
   | 'spring'
   | 'collision'
+  | 'angle_vector_resolution'
+  | 'hydraulic_press'
+  | 'fluid_pressure'
+  | 'bernoulli_flow'
+  | 'buoyancy'
+  | 'thermodynamic_cycle'
+  | 'electric_field'
+  | 'magnetic_field'
+  | 'maxwell_equations'
+  | 'quantum_wavefunction'
+  | 'potential_well'
+  | 'spacetime_diagram'
+  | 'nuclear_decay'
+  | 'particle_interaction'
+  | 'tensor_field'
   | 'custom';
 
 export type PhysicsObject = {
@@ -64,6 +123,25 @@ export type PhysicsObject = {
     | 'wave'
     | 'graph'
     | 'collision_object'
+    | 'angle_arc'
+    | 'fluid_container'
+    | 'piston'
+    | 'pipe'
+    | 'valve'
+    | 'fluid_streamline'
+    | 'field_line'
+    | 'charge'
+    | 'magnet'
+    | 'coil'
+    | 'heat_reservoir'
+    | 'engine_cycle'
+    | 'wavefunction'
+    | 'potential_barrier'
+    | 'spacetime_axis'
+    | 'worldline'
+    | 'decay_node'
+    | 'particle_track'
+    | 'tensor_grid'
     | 'image'
     | 'custom_svg';
   x: number;
@@ -89,7 +167,7 @@ export type PhysicsObject = {
 
 export type PhysicsArrow = {
   id: string;
-  type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse';
+  type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse' | 'pressure' | 'heat' | 'spin' | 'probability_current';
   from: { x: number; y: number };
   to: { x: number; y: number };
   label?: string;
@@ -97,7 +175,7 @@ export type PhysicsArrow = {
   unit?: string;
   direction?: number;
   dashed?: boolean;
-  colorRole?: 'force' | 'velocity' | 'acceleration' | 'tension' | 'weight' | 'normal' | 'friction' | 'momentum' | 'impulse' | 'ray';
+  colorRole?: 'force' | 'velocity' | 'acceleration' | 'tension' | 'weight' | 'normal' | 'friction' | 'momentum' | 'impulse' | 'ray' | 'pressure' | 'fluid' | 'electric' | 'magnetic' | 'heat' | 'quantum' | 'relativity';
   isInteractive?: boolean;
 };
 
@@ -149,7 +227,17 @@ export type PhysicsInteraction = {
     | 'calculate_impulse'
     | 'read_force_time_graph'
     | 'draw_velocity_vector_after_collision'
-    | 'choose_correct_after_collision_diagram';
+    | 'choose_correct_after_collision_diagram'
+    | 'calculate_pressure'
+    | 'calculate_hydraulic_force'
+    | 'identify_fluid_principle'
+    | 'calculate_field_strength'
+    | 'identify_field_direction'
+    | 'calculate_energy_level'
+    | 'interpret_wavefunction'
+    | 'read_spacetime_event'
+    | 'classify_decay_process'
+    | 'interpret_tensor_component';
   prompt: string;
   correctTargetId?: string;
   correctAnswer?: string | number | boolean;
@@ -179,6 +267,8 @@ export type PhysicsTeachingStep = {
 export type PhysicsVisual = {
   id: string;
   subject: 'physics';
+  physicsLevel?: PhysicsLevel;
+  physicsDomain?: PhysicsDomain;
   visualType: PhysicsVisualType;
   template: PhysicsTemplate;
   renderMode: 'svg' | 'canvas' | 'html_svg' | 'image_overlay';
