@@ -50,7 +50,7 @@ export type AdminBetaReportsResponse = {
 };
 
 export async function submitBetaReport(payload: BetaReportPayload): Promise<{ id: number; message: string }> {
-  return apiFetch('/students/me/beta-reports', {
+  return apiFetch('/beta-reports', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
