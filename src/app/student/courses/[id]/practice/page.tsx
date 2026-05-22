@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 
+import { PhysicsVisualRenderer } from '@/components/learning/blocks/physics/PhysicsVisualRenderer';
+import type { PhysicsVisual } from '@/components/learning/blocks/physics/types';
 import { CourseHelperBox } from '@/components/student/course-helper-box';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,9 +21,12 @@ import {
   type PracticeAnswer,
   type PracticeResult,
   type ShortCoursePracticePayload,
+  type ShortCourseQuestion,
 } from '@/lib/api/short-courses';
 
 type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
+
+type ArenaQuestion = ShortCourseQuestion & { sectionTitle?: string };
 
 const difficultyOptions: Array<{ key: Difficulty; label: string; description: string }> = [
   { key: 'easy', label: 'Quick Battle', description: 'Build confidence with lighter checks.' },
@@ -117,12 +122,7 @@ export default function CoursePracticePage() {
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
               {difficultyOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setDifficulty(option.key)}
-                  className={`rounded-2xl border p-4 text-left transition ${difficulty === option.key ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                >
+                <button key={option.key} type="button" onClick={() => setDifficulty(option.key)} className={`rounded-2xl border p-4 text-left transition ${difficulty === option.key ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}>
                   <p className="font-semibold">{option.label}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{option.description}</p>
                 </button>
@@ -167,8 +167,9 @@ export default function CoursePracticePage() {
               {questions.map((item, itemIndex) => {
                 const row = resultById.get(String(item.id));
                 return (
-                  <div key={item.id} className="rounded-2xl border p-4">
+                  <div key={item.id} className="space-y-3 rounded-2xl border p-4">
                     <p className="font-medium">{itemIndex + 1}. {item.question}</p>
+                    <ArenaQuestionVisual question={item} />
                     <p className={`mt-2 text-sm ${row?.correct ? 'text-primary' : 'text-destructive'}`}>{row?.correct ? 'Correct' : `Correct answer: ${row?.answer ?? 'Not available'}`}</p>
                     {row?.explanation ? <p className="mt-2 text-sm text-muted-foreground">{row.explanation}</p> : null}
                   </div>
@@ -191,8 +192,9 @@ export default function CoursePracticePage() {
             <div className="text-sm font-medium">{Math.round(((index + 1) / questions.length) * 100)}%</div>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="rounded-2xl border p-5">
+            <div className="space-y-4 rounded-2xl border p-5">
               <p className="text-lg font-semibold">{question.question}</p>
+              <ArenaQuestionVisual question={question} />
               {question.options?.length ? (
                 <RadioGroup value={answers[question.id] ?? ''} onValueChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))} className="mt-4">
                   {question.options.map((option) => (
@@ -227,6 +229,49 @@ export default function CoursePracticePage() {
       )}
     </main>
   );
+}
+
+function ArenaQuestionVisual({ question }: { question: ArenaQuestion }) {
+  const visual = resolveQuestionPhysicsVisual(question);
+  if (visual) return <PhysicsVisualRenderer visual={visual} mode="student" />;
+  if (question.imageUrl) {
+    return (
+      <figure className="overflow-hidden rounded-2xl border bg-muted/20">
+        <img src={question.imageUrl} alt={question.imageAlt || 'Question diagram'} className="h-auto w-full object-contain" />
+        {question.imageCaption ? <figcaption className="border-t px-3 py-2 text-xs text-muted-foreground">{question.imageCaption}</figcaption> : null}
+      </figure>
+    );
+  }
+  return null;
+}
+
+function resolveQuestionPhysicsVisual(question: ArenaQuestion): PhysicsVisual | null {
+  const candidate = question.physicsVisual ?? question.visual ?? question.diagram;
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  const visual = candidate as Partial<PhysicsVisual> & { subject?: unknown; canvas?: any };
+  const looksLikePhysics = visual.subject === 'physics' || visual.template === 'wave' || visual.template === 'free_body' || visual.template === 'pulley' || visual.template === 'collision' || Array.isArray(visual.objects);
+  if (!looksLikePhysics) return null;
+  return {
+    id: visual.id || `arena-physics-${question.id}`,
+    subject: 'physics',
+    visualType: visual.visualType || 'diagram',
+    template: visual.template || 'custom',
+    renderMode: visual.renderMode || 'svg',
+    canvas: {
+      width: Number(visual.canvas?.width || 800),
+      height: Number(visual.canvas?.height || 500),
+      background: visual.canvas?.background || 'plain',
+      unitScale: visual.canvas?.unitScale,
+    },
+    objects: Array.isArray(visual.objects) ? visual.objects : [],
+    labels: Array.isArray(visual.labels) ? visual.labels : [],
+    arrows: Array.isArray(visual.arrows) ? visual.arrows : [],
+    hotspots: Array.isArray(visual.hotspots) ? visual.hotspots : [],
+    steps: Array.isArray(visual.steps) ? visual.steps : [],
+    interactions: Array.isArray(visual.interactions) ? visual.interactions : [],
+    equations: Array.isArray(visual.equations) ? visual.equations : [],
+    metadata: visual.metadata || {},
+  } as PhysicsVisual;
 }
 
 function studentFriendlyError(cause: unknown) {
