@@ -26,7 +26,7 @@ export function CollisionSimulationRenderer({ visual }: Props) {
   const [phase, setPhase] = useState<'before' | 'during' | 'after'>('before');
   const [playing, setPlaying] = useState(false);
   const [slowMotion, setSlowMotion] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
