@@ -13,10 +13,13 @@ export function PhysicsObjectRenderer({ object, highlighted, onSelect }: Props) 
   const className = `${object.interactive ? 'cursor-pointer' : ''} ${highlighted ? 'drop-shadow-sm' : ''}`;
   const common = { onClick: () => onSelect(object.id), className, transform: object.rotation ? `rotate(${object.rotation} ${object.x} ${object.y})` : undefined };
 
-  if (object.type === 'wave') return <WaveObject object={object} highlighted={highlighted} onSelect={onSelect} />;
-  if (object.type === 'ray') return <RayObject object={object} highlighted={highlighted} onSelect={onSelect} />;
+  if (object.type === 'wave' || object.type === 'wavefunction') return <WaveObject object={object} highlighted={highlighted} onSelect={onSelect} />;
+  if (object.type === 'ray' || object.type === 'field_line' || object.type === 'fluid_streamline' || object.type === 'spacetime_axis' || object.type === 'worldline' || object.type === 'particle_track') return <RayObject object={object} highlighted={highlighted} onSelect={onSelect} />;
   if (object.type === 'circuit_component') return <CircuitComponent object={object} highlighted={highlighted} onSelect={onSelect} />;
   if (object.type === 'spring') return <SpringObject object={object} highlighted={highlighted} onSelect={onSelect} />;
+  if (object.type === 'angle_arc') return <AngleArcObject object={object} highlighted={highlighted} onSelect={onSelect} />;
+  if (object.type === 'fluid_container' || object.type === 'piston' || object.type === 'pipe' || object.type === 'valve' || object.type === 'potential_barrier' || object.type === 'tensor_grid' || object.type === 'heat_reservoir' || object.type === 'engine_cycle') return <AdvancedRectObject object={object} highlighted={highlighted} onSelect={onSelect} />;
+  if (object.type === 'charge' || object.type === 'magnet' || object.type === 'coil' || object.type === 'decay_node') return <AdvancedCircleObject object={object} highlighted={highlighted} onSelect={onSelect} />;
 
   if (object.type === 'circle' || object.type === 'pulley') {
     const radius = object.radius ?? Math.min(object.width ?? 80, object.height ?? 80) / 2;
@@ -74,7 +77,7 @@ function WaveObject({ object, highlighted, onSelect }: Props) {
   const width = object.width ?? 520;
   const height = object.height ?? 160;
   const amplitude = Number(object.physics?.amplitude ?? height / 3);
-  const cycles = Math.max(1, Number(object.physics?.cycles ?? 3));
+  const cycles = Math.max(1, Number(object.physics?.cycles ?? object.physics?.mode ?? 3));
   const points = Array.from({ length: 121 }, (_, index) => {
     const progress = index / 120;
     const x = object.x + progress * width;
@@ -106,6 +109,39 @@ function SpringObject({ object, highlighted, onSelect }: Props) {
     return `${x},${y}`;
   }).join(' ');
   return <g onClick={() => onSelect(object.id)} className={object.interactive ? 'cursor-pointer' : undefined}><polyline points={points} fill="none" stroke={object.style?.stroke || '#334155'} strokeWidth={highlighted ? 5 : object.style?.strokeWidth ?? 3} strokeLinecap="round" strokeLinejoin="round" />{object.label ? <SvgMultilineText text={object.label} x={object.x + width / 2} y={object.y + height + 22} /> : null}</g>;
+}
+
+function AngleArcObject({ object, highlighted, onSelect }: Props) {
+  const radius = object.radius ?? 60;
+  const startAngle = Number(object.physics?.startAngle ?? 0) * Math.PI / 180;
+  const endAngle = Number(object.physics?.endAngle ?? 35) * Math.PI / 180;
+  const startX = object.x + Math.cos(startAngle) * radius;
+  const startY = object.y - Math.sin(startAngle) * radius;
+  const endX = object.x + Math.cos(endAngle) * radius;
+  const endY = object.y - Math.sin(endAngle) * radius;
+  const largeArc = Math.abs(endAngle - startAngle) > Math.PI ? 1 : 0;
+  return <g onClick={() => onSelect(object.id)} className={object.interactive ? 'cursor-pointer' : undefined}><path d={`M${startX},${startY} A${radius},${radius} 0 ${largeArc} 0 ${endX},${endY}`} fill="none" stroke={object.style?.stroke || '#f97316'} strokeWidth={highlighted ? 6 : object.style?.strokeWidth ?? 4} /><line x1={object.x} y1={object.y} x2={startX} y2={startY} className="stroke-orange-500" strokeWidth="2" /><line x1={object.x} y1={object.y} x2={endX} y2={endY} className="stroke-orange-500" strokeWidth="2" />{object.label ? <SvgMultilineText text={object.label} x={object.x + radius * 0.75} y={object.y - radius * 0.35} /> : null}</g>;
+}
+
+function AdvancedRectObject({ object, highlighted, onSelect }: Props) {
+  const width = object.width ?? 140;
+  const height = object.height ?? 90;
+  const fill = object.style?.fill || (object.type.includes('fluid') ? '#bae6fd' : '#f8fafc');
+  const stroke = object.style?.stroke || '#0f172a';
+  const strokeWidth = highlighted ? 5 : object.style?.strokeWidth ?? 2;
+  const dash = object.type === 'tensor_grid' ? '8 8' : object.style?.strokeDasharray;
+  return <g onClick={() => onSelect(object.id)} className={object.interactive ? 'cursor-pointer' : undefined}><rect x={object.x} y={object.y} width={width} height={height} rx="16" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={dash} />{object.type === 'tensor_grid' ? <TensorGrid object={object} /> : null}{object.label ? <SvgMultilineText text={object.label} x={object.x + width / 2} y={object.y + height / 2 - 6} /> : null}</g>;
+}
+
+function TensorGrid({ object }: { object: PhysicsObject }) {
+  const width = object.width ?? 140;
+  const height = object.height ?? 90;
+  return <g>{Array.from({ length: 6 }, (_, i) => <line key={`tx-${i}`} x1={object.x + (i + 1) * width / 7} x2={object.x + (i + 1) * width / 7} y1={object.y} y2={object.y + height} className="stroke-muted-foreground" strokeWidth="1" />)}{Array.from({ length: 4 }, (_, i) => <line key={`ty-${i}`} x1={object.x} x2={object.x + width} y1={object.y + (i + 1) * height / 5} y2={object.y + (i + 1) * height / 5} className="stroke-muted-foreground" strokeWidth="1" />)}</g>;
+}
+
+function AdvancedCircleObject({ object, highlighted, onSelect }: Props) {
+  const radius = object.radius ?? 36;
+  return <g onClick={() => onSelect(object.id)} className={object.interactive ? 'cursor-pointer' : undefined}><circle cx={object.x} cy={object.y} r={radius} fill={object.style?.fill || '#f8fafc'} stroke={object.style?.stroke || '#0f172a'} strokeWidth={highlighted ? 5 : object.style?.strokeWidth ?? 2} />{object.type === 'coil' ? <circle cx={object.x} cy={object.y} r={Math.max(8, radius - 12)} fill="none" stroke={object.style?.stroke || '#0f172a'} strokeWidth="2" /> : null}{object.label ? <SvgMultilineText text={object.label} x={object.x} y={object.y + 5} /> : null}</g>;
 }
 
 function CircuitComponent({ object, highlighted, onSelect }: Props) {
