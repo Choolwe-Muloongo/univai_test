@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Bug, CheckCircle2, Lightbulb, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Bug, CheckCircle2, Download, Lightbulb, RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,14 @@ export default function AdminBetaReportsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const exportUrl = useMemo(() => {
+    const query = new URLSearchParams();
+    if (status) query.set('status', status);
+    if (type) query.set('type', type);
+    const qs = query.toString();
+    return `/api/admin/beta-reports/export.txt${qs ? `?${qs}` : ''}`;
+  }, [status, type]);
 
   async function load() {
     setError(null);
@@ -63,12 +71,19 @@ export default function AdminBetaReportsPage() {
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">Beta Control Room</p>
             <h1 className="text-3xl font-bold tracking-tight">Error reports & feature requests</h1>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Review student-submitted reports, feature requests, and automatically captured client-side errors from the beta platform.
+              Review student-submitted reports, feature requests, automatically captured client-side errors, and backend/API failures including SQL/database errors.
             </p>
           </div>
-          <Button onClick={refresh} disabled={refreshing} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild variant="outline" className="gap-2">
+              <a href={exportUrl} download>
+                <Download className="h-4 w-4" /> Download TXT
+              </a>
+            </Button>
+            <Button onClick={refresh} disabled={refreshing} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -82,7 +97,7 @@ export default function AdminBetaReportsPage() {
       <Card className="rounded-3xl">
         <CardHeader>
           <CardTitle>Filters</CardTitle>
-          <CardDescription>Focus on the reports that need attention first.</CardDescription>
+          <CardDescription>Focus on the reports that need attention first. The TXT download uses the same filters.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <label className="block space-y-2 text-sm font-medium">
