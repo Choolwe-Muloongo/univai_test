@@ -1,15 +1,7 @@
-import type { PhysicsObject, PhysicsVisual } from '../types';
-import { SvgDiagramRenderer } from './SvgDiagramRenderer';
+import type { PhysicsObject } from '../types';
+import type { SvgDiagramRendererProps } from './SvgDiagramRenderer';
 
-type Props = {
-  visual: PhysicsVisual;
-  highlightedIds: Set<string>;
-  hiddenIds: Set<string>;
-  selectedTargetId?: string | null;
-  onSelect: (id: string) => void;
-};
-
-export function CircuitPhysicsRenderer(props: Props) {
+export function CircuitPhysicsRenderer(props: SvgDiagramRendererProps) {
   const { visual, highlightedIds, selectedTargetId, onSelect } = props;
   const components = visual.objects ?? [];
   const battery = findComponent(components, 'battery') ?? components[0];
@@ -34,11 +26,10 @@ export function CircuitPhysicsRenderer(props: Props) {
           {ammeter ? <Meter object={ammeter} label="A" highlighted={highlightedIds.has(ammeter.id) || selectedTargetId === ammeter.id} onSelect={onSelect} /> : null}
           {voltmeter ? <Meter object={voltmeter} label="V" highlighted={highlightedIds.has(voltmeter.id) || selectedTargetId === voltmeter.id} onSelect={onSelect} /> : null}
           <g className="stroke-emerald-600 fill-emerald-600"><line x1="250" y1="340" x2="610" y2="340" strokeWidth="4" markerEnd="url(#circuit-arrow)" /><text x="405" y="365" className="fill-emerald-700 text-[14px] font-bold">conventional current</text></g>
-          <text x="235" y="62" className="fill-foreground text-[18px] font-semibold">Ohm's law circuit</text>
+          <text x="235" y="62" className="fill-foreground text-[18px] font-semibold">Ohm&apos;s law circuit</text>
           <text x="335" y="425" className="fill-muted-foreground text-[14px]">I = V/R · Ammeter series · Voltmeter parallel</text>
         </svg>
       </div>
-      <SvgDiagramRenderer {...props} />
     </div>
   );
 }
