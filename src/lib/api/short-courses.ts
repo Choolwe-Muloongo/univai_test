@@ -84,6 +84,7 @@ export type ShortCourseQuestion = {
   lessonId?: string | null;
   tags?: string[];
   visual?: Record<string, unknown> | null;
+  chemistryVisual?: Record<string, unknown> | null;
   physicsVisual?: Record<string, unknown> | null;
   diagram?: Record<string, unknown> | null;
   imageUrl?: string | null;
@@ -181,7 +182,14 @@ export async function getShortCourseExam(courseId: string): Promise<ShortCourseE
   return apiFetch(`/students/me/short-courses/${courseId}/exam`);
 }
 
-export async function getShortCoursePractice(courseId: string, payload: { difficulty?: string; count?: number; questionType?: string; lessonId?: string; sections?: PracticeSectionRequest[] }): Promise<ShortCoursePracticePayload> {
+export async function submitShortCourseExam(courseId: string, answers: ExamAnswer[]): Promise<{ score: number; passed: boolean }> {
+  return apiFetch(`/students/me/short-courses/${courseId}/exam/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ answers }),
+  });
+}
+
+export async function getShortCoursePractice(courseId: string, payload: PracticeSectionRequest | { sections: PracticeSectionRequest[] }): Promise<ShortCoursePracticePayload> {
   return apiFetch(`/students/me/short-courses/${courseId}/practice`, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -195,31 +203,14 @@ export async function submitShortCoursePractice(courseId: string, answers: Pract
   });
 }
 
-export async function submitShortCourseExam(courseId: string, answers: ExamAnswer[]): Promise<{ score: number; passed: boolean }> {
-  return apiFetch(`/students/me/short-courses/${courseId}/exam/submit`, {
-    method: 'POST',
-    body: JSON.stringify({ answers }),
-  });
-}
-
 export async function payShortCourseCertificate(courseId: string): Promise<PaymentInitiation> {
   return apiFetch(`/students/me/short-courses/${courseId}/certificate/pay`, { method: 'POST' });
 }
 
-export async function verifyStudentInvoicePayment(invoiceId: string | number): Promise<{ id: number; status: string; message?: string }> {
-  return apiFetch(`/students/me/invoices/${invoiceId}/verify`, { method: 'POST' });
-}
-
 export function getShortCourseCertificateUrl(courseId: string) {
-  return buildApiUrl(`/students/me/short-courses/${courseId}/certificate`);
+  return buildApiUrl(`/students/me/short-courses/${courseId}/certificate/download`);
 }
 
 export function paymentUrl(response: PaymentInitiation) {
-  return response.checkout_url || response.checkoutUrl || null;
-}
-
-export function formatMoney(amount?: string | number | null, currency = 'ZMW') {
-  const value = Number(amount ?? 0);
-  if (!Number.isFinite(value) || value <= 0) return 'Free';
-  return `${currency} ${value.toLocaleString()}`;
+  return response.checkout_url ?? response.checkoutUrl ?? null;
 }
