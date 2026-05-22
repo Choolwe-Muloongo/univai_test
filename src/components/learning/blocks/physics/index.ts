@@ -64,4 +64,15 @@ export const physicsBlockDefinitions: LearningBlockDefinition[] = [
   },
 ];
 
-export type * from './types';
+export type {
+  PhysicsArrow,
+  PhysicsCardType,
+  PhysicsHotspot,
+  PhysicsInteraction,
+  PhysicsLabel,
+  PhysicsObject,
+  PhysicsTeachingStep,
+  PhysicsTemplate,
+  PhysicsVisual,
+  PhysicsVisualType,
+} from './types';
