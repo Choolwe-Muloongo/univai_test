@@ -63,12 +63,7 @@ class BetaReportController extends Controller
         $status = $request->query('status');
         $type = $request->query('type');
 
-        $reports = BetaReport::query()
-            ->with('user:id,name,email,role')
-            ->when($status, fn ($query) => $query->where('status', $status))
-            ->when($type, fn ($query) => $query->where('type', $type))
-            ->orderByRaw("CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
-            ->orderByDesc('created_at')
+        $reports = $this->baseQuery($status, $type)
             ->limit(300)
             ->get()
             ->map(fn (BetaReport $report) => $this->mapReport($report));
@@ -81,6 +76,59 @@ class BetaReportController extends Controller
                 'features' => BetaReport::where('status', 'open')->where('type', 'feature')->count(),
             ],
             'reports' => $reports,
+        ]);
+    }
+
+    public function exportTxt(Request $request)
+    {
+        $status = $request->query('status');
+        $type = $request->query('type');
+
+        $reports = $this->baseQuery($status, $type)
+            ->limit(1000)
+            ->get();
+
+        $lines = [];
+        $lines[] = 'UNIVAI BETA REPORTS EXPORT';
+        $lines[] = 'Generated: ' . now()->toDateTimeString();
+        $lines[] = 'Filters: status=' . ($status ?: 'all') . ', type=' . ($type ?: 'all');
+        $lines[] = 'Total exported: ' . $reports->count();
+        $lines[] = str_repeat('=', 90);
+
+        foreach ($reports as $report) {
+            $lines[] = '';
+            $lines[] = 'REPORT #' . $report->id;
+            $lines[] = str_repeat('-', 90);
+            $lines[] = 'Title: ' . $report->title;
+            $lines[] = 'Type: ' . $report->type;
+            $lines[] = 'Source: ' . $report->source;
+            $lines[] = 'Severity: ' . $report->severity;
+            $lines[] = 'Status: ' . $report->status;
+            $lines[] = 'Created: ' . optional($report->created_at)->toDateTimeString();
+            $lines[] = 'Updated: ' . optional($report->updated_at)->toDateTimeString();
+            $lines[] = 'User: ' . ($report->user?->name ?? 'Unknown') . ' <' . ($report->user?->email ?? 'no-email') . '> ' . ($report->user?->role ? '[' . $report->user->role . ']' : '');
+            $lines[] = 'Page URL: ' . ($report->page_url ?: '-');
+            $lines[] = 'Browser: ' . ($report->browser ?: '-');
+            $lines[] = 'Device: ' . ($report->device ?: '-');
+            $lines[] = 'Error Name: ' . ($report->error_name ?: '-');
+            $lines[] = 'Error Message: ' . ($report->error_message ?: '-');
+            $lines[] = '';
+            $lines[] = 'Description:';
+            $lines[] = $report->description ?: '-';
+            $lines[] = '';
+            $lines[] = 'Context:';
+            $lines[] = json_encode($report->context ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
+            $lines[] = '';
+            $lines[] = 'Stack Trace:';
+            $lines[] = $report->stack_trace ?: '-';
+        }
+
+        $content = implode("\n", $lines) . "\n";
+        $filename = 'univai-beta-reports-' . now()->format('Ymd-His') . '.txt';
+
+        return response($content, 200, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
 
@@ -104,6 +152,16 @@ class BetaReportController extends Controller
         ]);
 
         return response()->json($this->mapReport($betaReport->fresh('user')));
+    }
+
+    private function baseQuery(?string $status, ?string $type)
+    {
+        return BetaReport::query()
+            ->with('user:id,name,email,role')
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($type, fn ($query) => $query->where('type', $type))
+            ->orderByRaw("CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
+            ->orderByDesc('created_at');
     }
 
     private function mapReport(BetaReport $report): array
