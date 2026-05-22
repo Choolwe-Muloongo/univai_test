@@ -1,6 +1,6 @@
 // src/components/dashboard/quick-links.tsx
 'use client';
-import { BookOpen, Lightbulb } from 'lucide-react';
+import { BookOpen, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -18,10 +18,10 @@ const aiTools = [
     icon: BookOpen,
   },
   {
-    title: 'AI Tutor',
-    description: 'Get instant answers to your questions.',
-    href: '/student/ai',
-    icon: Lightbulb,
+    title: 'Nova Mentor',
+    description: 'Ask Nova for study help, revision, and quick explanations.',
+    href: '/student/ai/chat',
+    icon: Sparkles,
   },
 ];
 
