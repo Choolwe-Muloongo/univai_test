@@ -65,12 +65,22 @@ export type ShortCourseEnrollmentSummary = {
 };
 
 export type PaymentInitiation = {
+  id?: number;
   invoiceId?: number;
   checkout_url?: string | null;
   checkoutUrl?: string | null;
   reference?: string;
   status?: string;
   testMode?: boolean;
+  paymentMode?: string;
+  message?: string;
+};
+
+export type PaymentVerification = {
+  id?: number;
+  status: string;
+  testMode?: boolean;
+  paymentMode?: string;
   message?: string;
 };
 
@@ -175,6 +185,10 @@ export async function getMyShortCourses(): Promise<ShortCourseEnrollmentSummary[
 
 export async function enrollShortCourse(courseId: string): Promise<PaymentInitiation> {
   return apiFetch(`/students/me/short-courses/${courseId}/enroll`, { method: 'POST' });
+}
+
+export async function verifyStudentInvoicePayment(invoiceId: string | number): Promise<PaymentVerification> {
+  return apiFetch<PaymentVerification>(`/students/me/invoices/${encodeURIComponent(String(invoiceId))}/verify`, { method: 'POST' });
 }
 
 export async function getShortCourseProgress(courseId: string): Promise<ShortCourseProgress> {
