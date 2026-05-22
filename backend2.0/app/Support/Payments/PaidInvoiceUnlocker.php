@@ -17,15 +17,19 @@ class PaidInvoiceUnlocker
     public function markPaidForTesting(Invoice $invoice, string $reason = 'Lenco collections are disabled for testing.'): Invoice
     {
         $reference = $invoice->transaction_reference ?: 'test-' . Str::orderedUuid();
+        $mode = PaymentSettings::mode();
 
         $invoice->forceFill([
             'paid_amount' => $invoice->amount,
             'status' => 'paid',
+            'is_test' => true,
+            'payment_mode' => $mode,
             'paid_at' => now(),
             'transaction_reference' => $reference,
             'checkout_url' => null,
             'metadata' => array_merge($invoice->metadata ?? [], [
                 'test_mode_payment' => true,
+                'payment_mode' => $mode,
                 'test_mode_reason' => $reason,
             ]),
         ])->save();
@@ -39,8 +43,11 @@ class PaidInvoiceUnlocker
                 'method' => 'test-mode',
                 'provider' => 'test-mode',
                 'status' => 'completed',
+                'is_test' => true,
+                'payment_mode' => $mode,
                 'payload' => [
                     'message' => $reason,
+                    'payment_mode' => $mode,
                     'lenco_collections_enabled' => false,
                 ],
                 'paid_at' => now(),
