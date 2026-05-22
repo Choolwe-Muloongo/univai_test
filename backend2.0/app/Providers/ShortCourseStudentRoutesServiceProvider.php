@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\AiController;
 use App\Http\Controllers\Api\ShortCourseAccessController;
 use App\Http\Controllers\Api\ShortCourseController;
@@ -16,6 +17,7 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
         Route::middleware(['api', 'session.auth', 'access:student.portal'])
             ->prefix('api/students/me')
             ->group(function () {
+                Route::get('/affiliate', [AffiliateController::class, 'me']);
                 Route::get('/gamification', [StudentGamificationController::class, 'state']);
                 Route::get('/daily-quests', [StudentGamificationController::class, 'dailyQuests']);
                 Route::post('/learning-events', [StudentGamificationController::class, 'recordEvent']);
