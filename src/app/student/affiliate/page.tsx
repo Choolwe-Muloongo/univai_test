@@ -71,8 +71,8 @@ export default function StudentAffiliatePage() {
 
       <div className="grid gap-5 md:grid-cols-3">
         <MetricCard title="Available to withdraw" value={money(affiliate.summary?.availableToWithdraw)} icon={Wallet} />
-        <MetricCard title="Lifetime commission" value={money(affiliate.summary?.lifetimeCommission)} icon={Wallet} />
-        <MetricCard title="Pending commission" value={money(affiliate.summary?.pendingCommission)} icon={Wallet} />
+        <MetricCard title="Commission earned" value={money(affiliate.summary?.commissionEarned)} icon={Wallet} />
+        <MetricCard title="Pending payouts" value={money(affiliate.summary?.pendingPayouts)} icon={Wallet} />
       </div>
 
       <Card className="rounded-3xl">
