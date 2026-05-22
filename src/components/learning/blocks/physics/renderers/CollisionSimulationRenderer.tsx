@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play, RotateCcw, Turtle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -26,22 +26,39 @@ export function CollisionSimulationRenderer({ visual }: Props) {
   const [phase, setPhase] = useState<'before' | 'during' | 'after'>('before');
   const [playing, setPlaying] = useState(false);
   const [slowMotion, setSlowMotion] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => () => clearPendingTimeout(), []);
 
   const totalInitialMomentum = objects.reduce((sum, object) => sum + momentum(object.mass, object.initialVelocity), 0);
   const totalFinalMomentum = objects.reduce((sum, object) => sum + momentum(object.mass, object.finalVelocity), 0);
   const totalInitialKe = objects.reduce((sum, object) => sum + kineticEnergy(object.mass, object.initialVelocity), 0);
   const totalFinalKe = objects.reduce((sum, object) => sum + kineticEnergy(object.mass, object.finalVelocity), 0);
+  const collisionType = String(visual.metadata?.collisionType ?? 'inelastic').replace(/_/g, ' ');
+
+  function clearPendingTimeout() {
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }
 
   function play() {
+    clearPendingTimeout();
     setPlaying(true);
     setPhase('during');
-    window.setTimeout(() => {
+    timeoutRef.current = window.setTimeout(() => {
       setPhase('after');
       setPlaying(false);
+      timeoutRef.current = null;
     }, slowMotion ? 1800 : 850);
   }
 
+  function pause() {
+    clearPendingTimeout();
+    setPlaying(false);
+  }
+
   function reset() {
+    clearPendingTimeout();
     setPlaying(false);
     setPhase('before');
   }
@@ -52,10 +69,11 @@ export function CollisionSimulationRenderer({ visual }: Props) {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Collision simulation</p>
           <h4 className="font-semibold">Before · During · After</h4>
+          <p className="mt-1 text-xs text-muted-foreground">Type: {collisionType}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" onClick={play} disabled={playing}><Play className="mr-2 size-4" />Play</Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => setPlaying(false)}><Pause className="mr-2 size-4" />Pause</Button>
+          <Button type="button" size="sm" variant="outline" onClick={pause}><Pause className="mr-2 size-4" />Pause</Button>
           <Button type="button" size="sm" variant="outline" onClick={reset}><RotateCcw className="mr-2 size-4" />Reset</Button>
           <Button type="button" size="sm" variant={slowMotion ? 'default' : 'outline'} onClick={() => setSlowMotion((value) => !value)}><Turtle className="mr-2 size-4" />Slow</Button>
         </div>
