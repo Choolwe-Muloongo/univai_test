@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 
+import { ChemistryVisualRenderer } from '@/components/learning/blocks/chemistry/ChemistryVisualRenderer';
+import type { ChemistryVisual } from '@/components/learning/blocks/chemistry/types';
 import { PhysicsVisualRenderer } from '@/components/learning/blocks/physics/PhysicsVisualRenderer';
 import type { PhysicsVisual } from '@/components/learning/blocks/physics/types';
 import { CourseHelperBox } from '@/components/student/course-helper-box';
@@ -232,8 +234,12 @@ export default function CoursePracticePage() {
 }
 
 function ArenaQuestionVisual({ question }: { question: ArenaQuestion }) {
-  const visual = resolveQuestionPhysicsVisual(question);
-  if (visual) return <PhysicsVisualRenderer visual={visual} mode="student" />;
+  const chemistryVisual = resolveQuestionChemistryVisual(question);
+  if (chemistryVisual) return <ChemistryVisualRenderer visual={chemistryVisual} mode="student" />;
+
+  const physicsVisual = resolveQuestionPhysicsVisual(question);
+  if (physicsVisual) return <PhysicsVisualRenderer visual={physicsVisual} mode="student" />;
+
   if (question.imageUrl) {
     return (
       <figure className="overflow-hidden rounded-2xl border bg-muted/20">
@@ -243,6 +249,30 @@ function ArenaQuestionVisual({ question }: { question: ArenaQuestion }) {
     );
   }
   return null;
+}
+
+function resolveQuestionChemistryVisual(question: ArenaQuestion): ChemistryVisual | null {
+  const candidate = question.chemistryVisual ?? question.visual ?? question.diagram;
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  const visual = candidate as Partial<ChemistryVisual> & { subject?: unknown };
+  const looksLikeChemistry = visual.subject === 'chemistry' || visual.visualType === 'equation_balancer' || visual.visualType === 'chemical_equation' || visual.visualType === 'stoichiometry' || visual.visualType === 'atom_structure' || visual.visualType === 'lab_observation' || Boolean(visual.equation);
+  if (!looksLikeChemistry) return null;
+  return {
+    id: visual.id || `arena-chemistry-${question.id}`,
+    subject: 'chemistry',
+    level: visual.level,
+    visualType: visual.visualType || 'chemical_equation',
+    template: visual.template || 'custom',
+    title: visual.title,
+    body: visual.body,
+    equation: visual.equation,
+    species: Array.isArray(visual.species) ? visual.species : [],
+    particles: Array.isArray(visual.particles) ? visual.particles : [],
+    steps: Array.isArray(visual.steps) ? visual.steps : [],
+    tables: Array.isArray(visual.tables) ? visual.tables : [],
+    interactions: Array.isArray(visual.interactions) ? visual.interactions : [],
+    metadata: visual.metadata || {},
+  };
 }
 
 function resolveQuestionPhysicsVisual(question: ArenaQuestion): PhysicsVisual | null {
