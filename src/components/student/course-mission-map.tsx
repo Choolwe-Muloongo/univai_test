@@ -44,9 +44,9 @@ export function CourseMissionMap({
   return (
     <Card className="rounded-3xl border-primary/20 shadow-sm">
       <CardHeader>
-        <CardTitle>Learning Path</CardTitle>
+        <CardTitle>Mission Map</CardTitle>
         <CardDescription>
-          Follow the next mission first. Details stay tucked away until you need them.
+          Command your Journey stage by stage. Your next mission stays highlighted while deeper objectives remain tucked away until needed.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -59,7 +59,7 @@ export function CourseMissionMap({
               return total + parentDone + childDone;
             }, 0);
             const stageProgress = stageTotal > 0 ? Math.round((stageCompleted / stageTotal) * 100) : 0;
-            const stageStatus = stageProgress >= 100 ? 'Completed' : stageProgress > 0 ? 'In progress' : 'Ready';
+            const stageStatus = stageProgress >= 100 ? 'Stage cleared' : stageProgress > 0 ? 'Active run' : 'Ready';
             const hasNextLesson = module.items.some((lesson) => {
               if (lesson.id === nextLessonId) return true;
               return lesson.subLessons.some((sub) => sub.id === nextLessonId);
@@ -71,10 +71,10 @@ export function CourseMissionMap({
                 <summary className="cursor-pointer list-none border-b bg-primary/5 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-primary">Module {moduleIdx + 1}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary">Stage {moduleIdx + 1}</p>
                       <h3 className="mt-1 text-xl font-bold">{module.title}</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {stageCompleted} of {stageTotal} activities complete
+                        {stageCompleted} of {stageTotal} objectives cleared
                       </p>
                     </div>
                     <span className="w-fit rounded-full border bg-background px-3 py-1 text-xs font-semibold text-primary">
@@ -83,7 +83,7 @@ export function CourseMissionMap({
                   </div>
                   <div className="mt-4 space-y-2">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Module progress</span>
+                      <span>Stage progress</span>
                       <strong>{stageProgress}%</strong>
                     </div>
                     <Progress value={stageProgress} className="h-2" />
@@ -97,7 +97,7 @@ export function CourseMissionMap({
                     const totalInGroup = 1 + lesson.subLessons.length;
                     const completedInGroup = (parentDone ? 1 : 0) + completedChildren;
                     const missionProgress = totalInGroup > 0 ? Math.round((completedInGroup / totalInGroup) * 100) : 0;
-                    const missionState = completedInGroup === totalInGroup ? 'Done' : completedInGroup > 0 ? 'Continue' : 'Ready';
+                    const missionState = completedInGroup === totalInGroup ? 'Cleared' : completedInGroup > 0 ? 'Active' : 'Ready';
                     const isNextMission = nextLessonId === lesson.id || lesson.subLessons.some((sub) => sub.id === nextLessonId);
 
                     return (
@@ -109,9 +109,9 @@ export function CourseMissionMap({
                             </div>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <h4 className="font-semibold">{lesson.title}</h4>
+                                <h4 className="font-semibold">Mission {index + 1}: {lesson.title}</h4>
                                 <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                                  {isNextMission && !parentDone ? 'Next' : missionState}
+                                  {isNextMission && !parentDone ? 'Next mission' : missionState}
                                 </span>
                               </div>
                               {lesson.summary ? (
@@ -119,13 +119,14 @@ export function CourseMissionMap({
                               ) : null}
                               <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 <span className="rounded-full bg-muted px-2 py-1">
-                                  {completedInGroup} / {totalInGroup} done
+                                  {completedInGroup} / {totalInGroup} objectives
                                 </span>
                                 {lesson.subLessons.length ? (
                                   <span className="rounded-full bg-muted px-2 py-1">
-                                    {lesson.subLessons.length} sub-lesson{lesson.subLessons.length === 1 ? '' : 's'}
+                                    {lesson.subLessons.length} side mission{lesson.subLessons.length === 1 ? '' : 's'}
                                   </span>
                                 ) : null}
+                                <span className="rounded-full bg-muted px-2 py-1">XP reward</span>
                               </div>
                               {totalInGroup > 1 ? (
                                 <div className="mt-3 max-w-xs">
@@ -138,18 +139,18 @@ export function CourseMissionMap({
                           {hasActiveAccess ? (
                             <Button asChild variant={parentDone ? 'outline' : 'default'} className="w-full sm:w-auto">
                               <Link href={`/student/courses/${courseId}/lessons/${lesson.id}`}>
-                                {parentDone ? 'Replay' : nextLessonId === lesson.id ? 'Continue' : 'Start'}
+                                {parentDone ? 'Replay Mission' : nextLessonId === lesson.id ? 'Continue Mission' : 'Start Mission'}
                               </Link>
                             </Button>
                           ) : (
-                            <Button disabled className="w-full sm:w-auto">Locked</Button>
+                            <Button disabled className="w-full sm:w-auto">Mission Locked</Button>
                           )}
                         </div>
 
                         {lesson.subLessons.length ? (
                           <details className="mt-4 border-t pt-4">
                             <summary className="cursor-pointer list-none text-sm font-medium text-primary">
-                              View sub-lessons
+                              View side missions
                             </summary>
                             <div className="mt-3 space-y-2">
                               {lesson.subLessons.map((sub, subIndex) => {
@@ -157,13 +158,13 @@ export function CourseMissionMap({
                                 return (
                                   <div key={`${lesson.id}-${sub.id}-${subIndex}`} className="flex flex-col gap-2 rounded-2xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="min-w-0">
-                                      <p className="text-sm font-medium">{subIndex + 1}. {sub.title}</p>
+                                      <p className="text-sm font-medium">Side Mission {index + 1}.{subIndex + 1}: {sub.title}</p>
                                       {sub.summary ? <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{sub.summary}</p> : null}
                                     </div>
                                     {hasActiveAccess ? (
                                       <Button asChild size="sm" variant={subDone ? 'outline' : 'secondary'}>
                                         <Link href={`/student/courses/${courseId}/lessons/${sub.id}`}>
-                                          {subDone ? 'Replay' : nextLessonId === sub.id ? 'Continue' : 'Open'}
+                                          {subDone ? 'Replay' : nextLessonId === sub.id ? 'Continue' : 'Enter'}
                                         </Link>
                                       </Button>
                                     ) : (
@@ -183,7 +184,7 @@ export function CourseMissionMap({
             );
           })
         ) : (
-          <EmptyMissionMap title="No lessons have been published for this Journey yet." />
+          <EmptyMissionMap title="No missions have been published for this Journey yet." />
         )}
       </CardContent>
     </Card>
