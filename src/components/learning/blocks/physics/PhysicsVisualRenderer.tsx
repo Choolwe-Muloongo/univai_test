@@ -5,10 +5,14 @@ import { RotateCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { PhysicsVisual } from './types';
+import { CircuitPhysicsRenderer } from './renderers/CircuitPhysicsRenderer';
 import { CollisionSimulationRenderer } from './renderers/CollisionSimulationRenderer';
+import { GraphPhysicsRenderer } from './renderers/GraphPhysicsRenderer';
+import { OpticsPhysicsRenderer } from './renderers/OpticsPhysicsRenderer';
 import { PhysicsInteractionPanel } from './renderers/PhysicsInteractionPanel';
 import { PhysicsStepPanel } from './renderers/PhysicsStepPanel';
 import { SvgDiagramRenderer } from './renderers/SvgDiagramRenderer';
+import { WavePhysicsRenderer } from './renderers/WavePhysicsRenderer';
 import { evaluatePhysicsInteraction, type PhysicsFeedbackState } from './renderers/physicsRuntime';
 
 type Props = {
@@ -39,6 +43,8 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
     setFeedback(null);
   }
 
+  const rendererProps = { visual, highlightedIds, hiddenIds, selectedTargetId, onSelect: handleTarget };
+
   return (
     <div className="space-y-4 rounded-3xl border bg-background p-3 shadow-sm sm:p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -54,14 +60,27 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
         </div>
       </div>
 
-      {visual.template === 'collision' ? (
-        <CollisionSimulationRenderer visual={visual} />
-      ) : (
-        <SvgDiagramRenderer visual={visual} highlightedIds={highlightedIds} hiddenIds={hiddenIds} selectedTargetId={selectedTargetId} onSelect={handleTarget} />
-      )}
+      {renderPhysicsVisual(visual, rendererProps)}
 
       <PhysicsStepPanel step={activeStep} stepIndex={stepIndex} totalSteps={steps.length} onStepIndexChange={setStepIndex} onFeedbackReset={() => setFeedback(null)} />
       <PhysicsInteractionPanel interaction={activeInteraction} feedback={feedback} onFeedback={setFeedback} />
     </div>
   );
+}
+
+function renderPhysicsVisual(visual: PhysicsVisual, props: Parameters<typeof SvgDiagramRenderer>[0]) {
+  switch (visual.template) {
+    case 'collision':
+      return <CollisionSimulationRenderer visual={visual} />;
+    case 'kinematics_graph':
+      return <GraphPhysicsRenderer {...props} />;
+    case 'circuit':
+      return <CircuitPhysicsRenderer {...props} />;
+    case 'ray_diagram':
+      return <OpticsPhysicsRenderer {...props} />;
+    case 'wave':
+      return <WavePhysicsRenderer {...props} />;
+    default:
+      return <SvgDiagramRenderer {...props} />;
+  }
 }
