@@ -140,6 +140,18 @@ function apiErrorMessage(status: number, details: unknown): string {
   return exception ? `${message} - ${exception}${location}` : message;
 }
 
+function normalizeArrayEndpointPayload(path: string, payload: unknown): unknown {
+  const isArrayEndpoint = path === '/schools' || path === '/courses' || path === 'schools' || path === 'courses';
+  if (!isArrayEndpoint) return payload;
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+
+  const record = payload as Record<string, unknown>;
+  const candidates = [record.data, record.items, record.results, record.schools, record.courses];
+  const match = candidates.find(Array.isArray);
+  return match ?? [];
+}
+
 export async function apiFetch<T>(
   path: string,
   { parseJson = true, headers, body, ...options }: FetchOptions = {}
@@ -174,5 +186,6 @@ export async function apiFetch<T>(
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const payload = await response.json();
+  return normalizeArrayEndpointPayload(path, payload) as T;
 }
