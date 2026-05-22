@@ -8,18 +8,23 @@ export default function JsonBuilderPage() {
   return (
     <ShortCourseShell
       title="JSON course builder"
-      description="Build courses faster by selecting modules and lessons with buttons, then editing the selected content as JSON."
+      description="Paste, upload, edit, preview, save, and publish short courses from JSON. The full manual now lives on its own page."
     >
       <div className="mb-4 flex flex-col gap-3 rounded-3xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold">Start fresh any time</p>
+          <p className="text-sm font-semibold">JSON Builder is back</p>
           <p className="text-sm text-muted-foreground">
-            Use this after editing an existing course when you want a clean new JSON course.
+            Use this page for the actual JSON workflow. Open the manual only when you need reference examples.
           </p>
         </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/admin/short-courses/json-builder">New JSON Course</Link>
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href="/admin/short-courses/json-builder/manual">Open JSON Manual</Link>
+          </Button>
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/admin/short-courses/json-builder">New JSON Course</Link>
+          </Button>
+        </div>
       </div>
       <JsonCourseBuilderClient />
     </ShortCourseShell>
