@@ -83,6 +83,12 @@ export type ShortCourseQuestion = {
   timeSeconds?: number;
   lessonId?: string | null;
   tags?: string[];
+  visual?: Record<string, unknown> | null;
+  physicsVisual?: Record<string, unknown> | null;
+  diagram?: Record<string, unknown> | null;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  imageCaption?: string | null;
 };
 
 export type ShortCourseExamPayload = {
