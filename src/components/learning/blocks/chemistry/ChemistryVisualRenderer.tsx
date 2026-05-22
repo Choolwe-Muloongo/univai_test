@@ -216,7 +216,7 @@ function InteractionPanel({ interactions, species, particles, mode }: { interact
     );
   }
 
-  return <InteractionShell prompt={interaction.prompt} feedback={null}><p className="mt-2 text-sm text-muted-foreground">Interaction UI registered for: {interaction.type}</p></InteractionShell>;
+  return null;
 }
 
 function InteractionShell({ prompt, feedback, hints, children }: { prompt: string; feedback: string | null; hints?: string[]; children: ReactNode }) {
