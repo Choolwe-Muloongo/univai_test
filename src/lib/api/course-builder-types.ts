@@ -1,4 +1,4 @@
-import type { ChemistryVisual } from '@/components/learning/blocks/chemistry';
+import type { ChemistryVisual } from '@/components/learning/blocks/chemistry/types';
 
 export type GraphFunction = {
   expression: string;
