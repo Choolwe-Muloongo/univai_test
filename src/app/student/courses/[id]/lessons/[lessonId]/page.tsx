@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
+import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { CourseHelperBox } from '@/components/student/course-helper-box';
 import { Button } from '@/components/ui/button';
@@ -150,6 +151,31 @@ export default function FocusedLessonPage() {
           completeLabel="Claim Mission Reward"
           onCardCompleted={handleCardCompleted}
           onCheckpointAnswered={handleCheckpointAnswered}
+        />
+        <NovaInlineActions
+          title="Nova lesson help"
+          description="Use Nova when a card, checkpoint, formula, code block, or diagram needs a clearer explanation. No AI runs until you send the prompt."
+          courseId={params.id}
+          lessonId={params.lessonId}
+          actions={[
+            { label: 'Explain this card', mode: 'explain', intent: 'explain_current_card', description: 'Break down the current idea.' },
+            { label: 'Give simpler example', mode: 'explain', intent: 'simpler_example', description: 'Make it easier to remember.' },
+            { label: 'Quiz me on this', mode: 'quiz', intent: 'quiz_current_card', description: 'Practice one question at a time.' },
+            { label: 'Summarize mission', mode: 'summarize', intent: 'summarize_mission', description: 'Turn this mission into notes.' },
+          ]}
+        />
+        <NovaInlineActions
+          title="Checkpoint rescue"
+          description="Use this after a difficult or wrong answer. Nova opens with the right mode and lesson context attached."
+          courseId={params.id}
+          lessonId={params.lessonId}
+          compact
+          actions={[
+            { label: 'Give me a hint', mode: 'tutor', intent: 'hint_current_question' },
+            { label: 'Why was I wrong?', mode: 'explain', intent: 'explain_wrong_answer' },
+            { label: 'Explain correct answer', mode: 'explain', intent: 'explain_correct_answer' },
+            { label: 'Give harder question', mode: 'quiz', intent: 'harder_question' },
+          ]}
         />
         <CourseHelperBox courseId={params.id} courseTitle={course.title} lessonId={params.lessonId} lessonTitle={lesson.title} />
         {completeError ? <div className="mx-auto mt-4 max-w-3xl rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{completeError}</div> : null}
