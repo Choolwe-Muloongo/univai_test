@@ -1,24 +1,18 @@
-import type { PhysicsVisual } from '../types';
-import { SvgDiagramRenderer } from './SvgDiagramRenderer';
+import type { SvgDiagramRendererProps } from './SvgDiagramRenderer';
 
-type Props = {
-  visual: PhysicsVisual;
-  highlightedIds: Set<string>;
-  hiddenIds: Set<string>;
-  selectedTargetId?: string | null;
-  onSelect: (id: string) => void;
-};
-
-export function GraphPhysicsRenderer(props: Props) {
+export function GraphPhysicsRenderer(props: SvgDiagramRendererProps) {
   const { visual, onSelect } = props;
   const width = visual.canvas?.width || 900;
   const height = visual.canvas?.height || 520;
   const graph = (visual.metadata?.graph ?? {}) as Record<string, unknown>;
-  const points = Array.isArray(graph.points) ? graph.points as Array<[number, number]> : [[0, 0], [4, 20], [8, 20], [12, 0]];
+  const points = Array.isArray(graph.points) && graph.points.length ? graph.points as Array<[number, number]> : [[0, 0], [4, 20], [8, 20], [12, 0]];
   const xMax = Number(graph.xMax ?? 12);
   const yMax = Number(graph.yMax ?? 30);
-  const plot = points.map(([x, y]) => `${130 + (x / xMax) * 580},${390 - (y / yMax) * 300}`).join(' ');
-  const areaPoints = `130,390 ${plot} ${130 + (points[points.length - 1][0] / xMax) * 580},390`;
+  const safeXMax = Number.isFinite(xMax) && xMax > 0 ? xMax : 12;
+  const safeYMax = Number.isFinite(yMax) && yMax > 0 ? yMax : 30;
+  const plot = points.map(([x, y]) => `${130 + (x / safeXMax) * 580},${390 - (y / safeYMax) * 300}`).join(' ');
+  const lastPoint = points[points.length - 1] ?? [0, 0];
+  const areaPoints = `130,390 ${plot} ${130 + (lastPoint[0] / safeXMax) * 580},390`;
 
   return (
     <div className="space-y-3 rounded-2xl border bg-muted/10 p-3">
@@ -38,17 +32,16 @@ export function GraphPhysicsRenderer(props: Props) {
             <line x1="130" y1="390" x2="750" y2="390" strokeWidth="3" markerEnd="url(#graph-arrow)" />
             <line x1="130" y1="390" x2="130" y2="60" strokeWidth="3" markerEnd="url(#graph-arrow)" />
           </g>
-          <polygon points={areaPoints} className="fill-primary/10 stroke-primary/20" onClick={() => onSelect('graph-area')} />
+          <polygon points={areaPoints} className="fill-primary/10 stroke-primary/20 cursor-pointer" onClick={() => onSelect('graph-area')} />
           <polyline points={plot} fill="none" className="stroke-primary" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-          {points.map(([x, y]) => <circle key={`${x}-${y}`} cx={130 + (x / xMax) * 580} cy={390 - (y / yMax) * 300} r="6" className="fill-primary" />)}
-          <path d="M210,330 L330,330 L330,210" fill="none" className="stroke-amber-600" strokeWidth="4" strokeDasharray="8 6" onClick={() => onSelect('gradient-triangle')} />
+          {points.map(([x, y]) => <circle key={`${x}-${y}`} cx={130 + (x / safeXMax) * 580} cy={390 - (y / safeYMax) * 300} r="6" className="fill-primary" />)}
+          <path d="M210,330 L330,330 L330,210" fill="none" className="stroke-amber-600 cursor-pointer" strokeWidth="4" strokeDasharray="8 6" onClick={() => onSelect('gradient-triangle')} />
           <text x="360" y="225" className="fill-amber-700 text-[15px] font-bold">gradient = acceleration</text>
           <text x="325" y="455" textAnchor="middle" className="fill-foreground text-[16px] font-semibold">time / s</text>
           <text x="60" y="230" textAnchor="middle" className="fill-foreground text-[16px] font-semibold" transform="rotate(-90 60 230)">velocity / m s⁻¹</text>
           <text x="255" y="425" className="fill-primary text-[14px] font-semibold">area = displacement</text>
         </svg>
       </div>
-      <SvgDiagramRenderer {...props} />
     </div>
   );
 }
