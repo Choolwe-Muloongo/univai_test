@@ -1,15 +1,6 @@
-import type { PhysicsVisual } from '../types';
-import { SvgDiagramRenderer } from './SvgDiagramRenderer';
+import type { SvgDiagramRendererProps } from './SvgDiagramRenderer';
 
-type Props = {
-  visual: PhysicsVisual;
-  highlightedIds: Set<string>;
-  hiddenIds: Set<string>;
-  selectedTargetId?: string | null;
-  onSelect: (id: string) => void;
-};
-
-export function WavePhysicsRenderer(props: Props) {
+export function WavePhysicsRenderer(props: SvgDiagramRendererProps) {
   const { visual, highlightedIds, selectedTargetId, onSelect } = props;
   const wave = (visual.objects ?? []).find((object) => object.type === 'wave');
   const amplitude = Number(wave?.physics?.amplitude ?? 55);
@@ -39,7 +30,7 @@ export function WavePhysicsRenderer(props: Props) {
           {Array.from({ length: 18 }, (_, i) => <line key={`wvx-${i}`} x1={70 + i * 45} x2={70 + i * 45} y1="65" y2="360" className="stroke-muted" />)}
           {Array.from({ length: 8 }, (_, i) => <line key={`wvy-${i}`} x1="70" x2="810" y1={80 + i * 40} y2={80 + i * 40} className="stroke-muted" />)}
           <line x1={startX} x2={startX + width} y1={midY} y2={midY} className="stroke-muted-foreground" strokeWidth="3" strokeDasharray="8 8" />
-          <polyline points={points} fill="none" className={`stroke-blue-600 ${highlightedIds.has('main-wave') || selectedTargetId === 'main-wave' ? 'stroke-[7]' : 'stroke-[5]'}`} strokeLinecap="round" strokeLinejoin="round" onClick={() => onSelect('main-wave')} />
+          <polyline points={points} fill="none" className={`stroke-blue-600 cursor-pointer ${highlightedIds.has('main-wave') || selectedTargetId === 'main-wave' ? 'stroke-[7]' : 'stroke-[5]'}`} strokeLinecap="round" strokeLinejoin="round" onClick={() => onSelect('main-wave')} />
           <g className="stroke-emerald-600 fill-emerald-600 cursor-pointer" onClick={() => onSelect('amplitude-arrow')}>
             <line x1="225" y1={midY} x2="225" y2={midY - amplitude} strokeWidth={highlightedIds.has('amplitude-arrow') || selectedTargetId === 'amplitude-arrow' ? 6 : 4} markerEnd="url(#wave-arrow)" />
             <text x="238" y={midY - amplitude / 2} className="fill-emerald-700 text-[14px] font-bold">Amplitude</text>
@@ -54,7 +45,6 @@ export function WavePhysicsRenderer(props: Props) {
           <text x="620" y={midY - 10} className="fill-muted-foreground text-[13px]">rest position</text>
         </svg>
       </div>
-      <SvgDiagramRenderer {...props} />
     </div>
   );
 }
