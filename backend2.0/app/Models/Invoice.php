@@ -18,6 +18,8 @@ class Invoice extends Model
         'currency',
         'paid_amount',
         'status',
+        'is_test',
+        'payment_mode',
         'type',
         'transaction_reference',
         'checkout_url',
@@ -29,6 +31,7 @@ class Invoice extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'is_test' => 'boolean',
         'due_date' => 'date',
         'paid_at' => 'datetime',
         'metadata' => 'array',
