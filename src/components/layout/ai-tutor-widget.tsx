@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -12,7 +12,8 @@ import { ArrowUpRight, Bot, MessageCircle, Sparkles, X, Zap } from 'lucide-react
 
 export function AiTutorWidget() {
   const pathname = usePathname();
-  const context = getNovaRouteContext(pathname ?? '/student');
+  const searchParams = useSearchParams();
+  const context = getNovaRouteContext(pathname ?? '/student', searchParams);
   const actions = getNovaQuickActions(context.page);
   const fullChatHref = buildNovaChatHref({ label: 'Open full Nova Chat', mode: 'tutor', intent: 'current_page_help' }, context);
 
@@ -55,6 +56,8 @@ export function AiTutorWidget() {
               </Badge>
               {context.courseId ? <Badge variant="outline">Journey attached</Badge> : null}
               {context.lessonId ? <Badge variant="outline">Mission attached</Badge> : null}
+              {context.cardId ? <Badge variant="outline">Card attached</Badge> : null}
+              {context.mistakeId ? <Badge variant="outline">Mistake attached</Badge> : null}
             </div>
           </div>
 
