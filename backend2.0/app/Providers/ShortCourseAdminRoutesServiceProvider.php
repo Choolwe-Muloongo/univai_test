@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminPaymentsController;
 use App\Http\Controllers\Api\AdminShortCourseInsightsController;
 use App\Http\Controllers\Api\AdminShortCoursePlansController;
 use App\Http\Controllers\Api\AiController;
+use App\Http\Controllers\Api\BetaReportController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -32,6 +33,8 @@ class ShortCourseAdminRoutesServiceProvider extends ServiceProvider
             ->prefix('api/admin')
             ->group(function () {
                 Route::get('/payments', [AdminPaymentsController::class, 'index']);
+                Route::get('/beta-reports', [BetaReportController::class, 'index']);
+                Route::patch('/beta-reports/{betaReport}', [BetaReportController::class, 'update']);
             });
     }
 }
