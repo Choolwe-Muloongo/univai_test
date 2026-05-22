@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BadgeCheck, Lock, Timer } from 'lucide-react';
 
+import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -144,6 +145,17 @@ export default function CourseExamPage() {
               <p className="text-4xl font-bold">{result.score}%</p>
               <p className="text-sm text-muted-foreground">Pass mark: 50%</p>
             </div>
+            <NovaInlineActions
+              title="Nova Exam Review"
+              description="Use Nova to understand the result and turn this attempt into a stronger next plan."
+              courseId={courseId}
+              attemptId={`exam-${Date.now()}`}
+              actions={[
+                { label: 'Explain my result', mode: 'explain', intent: 'explain_exam_result' },
+                { label: 'What should I revise?', mode: 'explain', intent: 'explain_weak_topics' },
+                { label: 'Create improvement plan', mode: 'study_plan', intent: 'exam_improvement_plan' },
+              ]}
+            />
             <div className="flex flex-col gap-3 sm:flex-row">
               {result.passed ? (
                 <Button onClick={openCertificate} disabled={submitting} className="gap-2"><BadgeCheck className="h-4 w-4" /> Skill Proof Next Step</Button>
@@ -169,6 +181,18 @@ export default function CourseExamPage() {
         <h1 className="text-3xl font-bold tracking-tight">Final Trial</h1>
         <p className="mt-2 text-sm text-muted-foreground">{exam.questions.length} questions. Pass mark is 50%. Save each answer before submitting.</p>
       </section>
+
+      <NovaInlineActions
+        title="Nova Final Prep"
+        description="Prepare before you submit. Nova opens with Final Trial context but does not spend tokens until you send."
+        courseId={courseId}
+        actions={[
+          { label: 'Am I ready?', mode: 'exam_prep', intent: 'readiness_check' },
+          { label: 'Final revision plan', mode: 'exam_prep', intent: 'final_revision_plan' },
+          { label: 'Quiz me before exam', mode: 'quiz', intent: 'pre_exam_quiz' },
+          { label: 'Explain weak topics', mode: 'explain', intent: 'explain_weak_topics' },
+        ]}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
         <Card className="rounded-3xl">
@@ -206,6 +230,19 @@ export default function CourseExamPage() {
                   </div>
                 ))}
               </RadioGroup>
+            ) : null}
+            {question ? (
+              <NovaInlineActions
+                title="Need exam help?"
+                description="Ask for a hint or explanation for this question without auto-sending to Nova."
+                courseId={courseId}
+                questionId={String(question.id)}
+                compact
+                actions={[
+                  { label: 'Give me a hint', mode: 'tutor', intent: 'hint_current_question' },
+                  { label: 'Explain this question', mode: 'explain', intent: 'explain_current_card' },
+                ]}
+              />
             ) : null}
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
               <div className="flex gap-2">
