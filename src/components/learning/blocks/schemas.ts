@@ -12,6 +12,7 @@ export type LearningBlockCategory =
   | 'web'
   | 'business'
   | 'science'
+  | 'physics'
   | 'cybersecurity'
   | 'ai-data'
   | 'media'
