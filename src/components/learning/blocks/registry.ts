@@ -2,6 +2,7 @@ import { accountingBlockDefinitions } from './accounting';
 import { aiDataBlockDefinitions } from './ai-data';
 import { businessBlockDefinitions } from './business';
 import { certificateBlockDefinitions } from './certificate';
+import { chemistryBlockDefinitions } from './chemistry';
 import { codingBlockDefinitions } from './coding';
 import { cybersecurityBlockDefinitions } from './cybersecurity';
 import { dragDropBlockDefinitions } from './drag-drop';
@@ -32,6 +33,7 @@ const rawDefinitions = [
   ...webBlockDefinitions,
   ...businessBlockDefinitions,
   ...scienceBlockDefinitions,
+  ...chemistryBlockDefinitions,
   ...physicsBlockDefinitions,
   ...cybersecurityBlockDefinitions,
   ...aiDataBlockDefinitions,
@@ -111,6 +113,7 @@ export function recommendedBlocksForCourseType(courseType?: string | null) {
   if (normalized.includes('programming') || normalized.includes('coding')) categories.push('coding');
   if (normalized.includes('web')) categories.push('web', 'coding');
   if (normalized.includes('accounting') || normalized.includes('finance')) categories.push('accounting', 'spreadsheet', 'business');
+  if (normalized.includes('chemistry')) categories.push('science', 'simulations');
   if (normalized.includes('physics')) categories.push('physics', 'science', 'simulations', 'graphing');
   if (normalized.includes('math') || normalized.includes('science')) categories.push('classroom_board', 'math', 'graphing', 'science', 'physics');
   if (normalized.includes('business') || normalized.includes('entrepreneur')) categories.push('business', 'spreadsheet');
@@ -129,6 +132,16 @@ export function normalizeBlockType(type: string) {
   if (normalized === 'fill_in_the_blank') return 'fill_blank';
   if (normalized === 'truefalse' || normalized === 'true_or_false') return 'true_false';
   if (normalized === 'physics_card' || normalized === 'physics_diagram' || normalized === 'physics_simulation') return 'physics_visual';
+  if ([
+    'chemistry_card',
+    'chemistry_diagram',
+    'chemistry_simulation',
+    'chemical_equation_balancer',
+    'periodic_table_activity',
+    'molecule_builder',
+    'atom_structure_activity',
+    'reaction_type_activity',
+  ].includes(normalized)) return 'chemistry_visual';
   if (normalized === 'chart' || normalized === 'plot') return 'graph';
   if (normalized === 'mini_project') return 'code_mini_project';
   return normalized || 'explanation';
