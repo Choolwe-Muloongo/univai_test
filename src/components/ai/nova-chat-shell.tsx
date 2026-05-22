@@ -1,5 +1,6 @@
 'use client';
 
+import type { RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,7 +24,7 @@ type NovaChatShellProps = {
   courseId?: string | null;
   lessonId?: string | null;
   chatEnabled: boolean;
-  listRef?: React.RefObject<HTMLDivElement>;
+  listRef?: RefObject<HTMLDivElement>;
   onModeChange: (mode: NovaMode) => void;
   onInputChange: (value: string) => void;
   onSend: () => void;
