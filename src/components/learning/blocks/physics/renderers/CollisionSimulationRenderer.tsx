@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play, RotateCcw, Turtle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import type { PhysicsVisual } from '../types';
+import type { PhysicsObject, PhysicsVisual } from '../types';
 import { kineticEnergy, momentum } from './physicsRuntime';
 
 type Props = {
@@ -26,9 +26,14 @@ export function CollisionSimulationRenderer({ visual }: Props) {
   const [phase, setPhase] = useState<'before' | 'during' | 'after'>('before');
   const [playing, setPlaying] = useState(false);
   const [slowMotion, setSlowMotion] = useState(false);
-  const timeoutRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
-  useEffect(() => () => clearPendingTimeout(), []);
+  useEffect(() => {
+    const timeoutId = timeoutRef.current;
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   const totalInitialMomentum = objects.reduce((sum, object) => sum + momentum(object.mass, object.initialVelocity), 0);
   const totalFinalMomentum = objects.reduce((sum, object) => sum + momentum(object.mass, object.finalVelocity), 0);
@@ -140,11 +145,13 @@ function MomentumTable({ title, before, after, unit }: { title: string; before: 
 
 function collisionObjectsFromVisual(visual: PhysicsVisual): CollisionObjectState[] {
   const collisionObjects = (visual.objects ?? []).filter((object) => object.type === 'collision_object');
-  const fallback = collisionObjects.length >= 2 ? collisionObjects : [
-    { id: 'cart-a', type: 'collision_object', label: 'Cart A', physics: { massKg: 2, initialVelocity: 6, finalVelocity: 2 }, style: { fill: '#dbeafe', stroke: '#1d4ed8' } },
-    { id: 'cart-b', type: 'collision_object', label: 'Cart B', physics: { massKg: 3, initialVelocity: 0, finalVelocity: 2.67 }, style: { fill: '#dcfce7', stroke: '#15803d' } },
-  ] as any[];
-  return fallback.slice(0, 2).map((object, index) => ({
+  const fallbackObjects: PhysicsObject[] = [
+    { id: 'cart-a', type: 'collision_object', x: 0, y: 0, label: 'Cart A', physics: { massKg: 2, initialVelocity: 6, finalVelocity: 2 }, style: { fill: '#dbeafe', stroke: '#1d4ed8' } },
+    { id: 'cart-b', type: 'collision_object', x: 0, y: 0, label: 'Cart B', physics: { massKg: 3, initialVelocity: 0, finalVelocity: 2.67 }, style: { fill: '#dcfce7', stroke: '#15803d' } },
+  ];
+  const sourceObjects = collisionObjects.length >= 2 ? collisionObjects : fallbackObjects;
+
+  return sourceObjects.slice(0, 2).map((object, index) => ({
     id: object.id || `cart-${index}`,
     label: object.label || `Cart ${index + 1}`,
     mass: Number(object.physics?.massKg ?? object.physics?.mass ?? 1),
