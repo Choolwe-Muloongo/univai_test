@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 
+import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
 import { ChemistryVisualRenderer } from '@/components/learning/blocks/chemistry/ChemistryVisualRenderer';
 import type { ChemistryVisual } from '@/components/learning/blocks/chemistry/types';
 import { PhysicsVisualRenderer } from '@/components/learning/blocks/physics/PhysicsVisualRenderer';
@@ -165,6 +166,18 @@ export default function CoursePracticePage() {
               <p className="text-4xl font-bold">{result.score}%</p>
               <p className="text-sm text-muted-foreground">{result.score >= 50 ? '+60 XP and reward progress recorded.' : 'Weak area detected. Start a rescue battle after review.'}</p>
             </div>
+            <NovaInlineActions
+              title="Nova Analysis"
+              description="Turn this Arena result into a rescue plan, extra practice, or mistake explanation."
+              courseId={courseId}
+              attemptId={`practice-${Date.now()}`}
+              actions={[
+                { label: 'Explain my score', mode: 'explain', intent: 'explain_practice_score' },
+                { label: 'Create rescue drill', mode: 'quiz', intent: 'create_rescue_drill' },
+                { label: 'Give similar questions', mode: 'quiz', intent: 'similar_questions' },
+                { label: 'Explain mistakes', mode: 'explain', intent: 'explain_practice_mistakes' },
+              ]}
+            />
             <div className="space-y-3">
               {questions.map((item, itemIndex) => {
                 const row = resultById.get(String(item.id));
@@ -174,6 +187,17 @@ export default function CoursePracticePage() {
                     <ArenaQuestionVisual question={item} />
                     <p className={`mt-2 text-sm ${row?.correct ? 'text-primary' : 'text-destructive'}`}>{row?.correct ? 'Correct' : `Correct answer: ${row?.answer ?? 'Not available'}`}</p>
                     {row?.explanation ? <p className="mt-2 text-sm text-muted-foreground">{row.explanation}</p> : null}
+                    <NovaInlineActions
+                      title="Ask Nova about this question"
+                      description="Get targeted help for this Arena question."
+                      courseId={courseId}
+                      questionId={String(item.id)}
+                      compact
+                      actions={[
+                        { label: row?.correct ? 'Explain why correct' : 'Why was I wrong?', mode: 'explain', intent: row?.correct ? 'explain_correct_answer' : 'explain_wrong_answer' },
+                        { label: 'Give similar question', mode: 'quiz', intent: 'similar_questions' },
+                      ]}
+                    />
                   </div>
                 );
               })}
@@ -210,6 +234,18 @@ export default function CoursePracticePage() {
                 <Input className="mt-4" value={answers[question.id] ?? ''} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))} placeholder="Type your answer" />
               )}
             </div>
+
+            <NovaInlineActions
+              title="Need a nudge?"
+              description="Ask Nova for a hint or explanation before you move on."
+              courseId={courseId}
+              questionId={String(question.id)}
+              compact
+              actions={[
+                { label: 'Give me a hint', mode: 'tutor', intent: 'hint_current_question' },
+                { label: 'Explain this question', mode: 'explain', intent: 'explain_current_card' },
+              ]}
+            />
 
             {checked[question.id] ? (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
