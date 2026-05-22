@@ -25,7 +25,12 @@ class PaymentReceiptMailer
 
         $payment ??= $invoice->payments->sortByDesc('paid_at')->first() ?? $invoice->payments->sortByDesc('created_at')->first();
 
-        Mail::to($email)->send(new PaymentReceiptMail($invoice->fresh() ?? $invoice, $payment, $extra));
+        try {
+            Mail::to($email)->send(new PaymentReceiptMail($invoice->fresh() ?? $invoice, $payment, $extra));
+        } catch (\Throwable $exception) {
+            report($exception);
+            return;
+        }
 
         $invoice->forceFill([
             'metadata' => array_merge($metadata, [
