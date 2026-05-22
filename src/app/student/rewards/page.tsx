@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Gift, History, ShieldCheck, Sparkles } from 'lucide-react';
 
+import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
@@ -69,6 +70,17 @@ export default function StudentRewardsPage() {
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Reward points are separate from XP. XP shows status; points unlock helpful platform tools like AI boosts, streak shields, and access-day support.</p>
         {notice ? <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm">{notice}</div> : null}
       </section>
+
+      <NovaInlineActions
+        title="Nova Reward Advisor"
+        description="Ask Nova whether to redeem now, save points, or choose a Journey reward."
+        courseId={selectedCourseId || null}
+        actions={[
+          { label: 'Which reward should I redeem?', mode: 'explain', intent: 'reward_advice' },
+          { label: 'Should I save points?', mode: 'explain', intent: 'save_or_redeem' },
+          { label: 'Explain my rewards', mode: 'explain', intent: 'explain_rewards' },
+        ]}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
