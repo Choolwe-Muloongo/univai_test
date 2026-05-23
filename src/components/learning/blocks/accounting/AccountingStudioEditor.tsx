@@ -34,6 +34,14 @@ const accountingTypes = [
   'budgeting',
   'variance_analysis',
   'research_case',
+  'research_article_critique',
+  'theory_comparison',
+  'literature_gap_analysis',
+  'hypothesis_builder',
+  'methodology_design',
+  'empirical_model',
+  'variable_measurement',
+  'doctoral_proposal',
 ];
 
 const difficulties = ['beginner', 'intermediate', 'advanced', 'professional', 'phd'];
@@ -69,7 +77,7 @@ export function AccountingStudioEditor({ payload, definition, onChange }: BlockE
     <div className="min-w-0 space-y-5">
       <div className="rounded-2xl border bg-muted/30 p-4">
         <div className="flex items-center gap-2 font-semibold"><Sparkles className="size-4" /> {definition.label}</div>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">Create renderable accounting course content: scenario cards, journals, ledgers, statements, reconciliations, IFRS cases, audit cases, tax cases, budgeting, variance analysis, and research critique.</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">Create renderable accounting course content: scenario cards, journals, ledgers, statements, reconciliations, IFRS cases, audit cases, tax cases, budgeting, variance analysis, doctoral research critique, methodology design, empirical models, and thesis proposal work.</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -110,34 +118,34 @@ export function AccountingStudioEditor({ payload, definition, onChange }: BlockE
         <JsonPanel
           icon={<Database className="size-4" />}
           title="Renderable card data JSON"
-          description="This is the content that the Accounting Studio renderer turns into tables, T-accounts, statements, calculations, simulations, cases, and workspaces."
+          description="This is the content that the Accounting Studio renderer turns into tables, T-accounts, statements, calculations, simulations, cases, and research workspaces."
           value={String(payload.accountingStudioDraftJson ?? JSON.stringify(content.data, null, 2))}
           onChange={setDataJson}
         />
         <JsonPanel
           icon={<GraduationCap className="size-4" />}
           title="Expected answer JSON"
-          description="Correct rows or answer shape used by auto-marking and feedback."
+          description="Correct rows, calculated values, keywords, or answer shape used by auto-marking and feedback."
           value={String(payload.accountingStudioExpectedDraftJson ?? JSON.stringify(content.expectedAnswer ?? {}, null, 2))}
           onChange={setExpectedJson}
         />
         <JsonPanel
           icon={<BookOpen className="size-4" />}
           title="Marking scheme JSON"
-          description="Professional marks allocation for exam-style accounting work."
+          description="Professional marks allocation. For PhD cards, include theory, gap, methodology, measurement, validity, contribution, and limitations criteria."
           value={String(payload.accountingStudioMarkingDraftJson ?? JSON.stringify(content.markingScheme ?? { totalMarks: 0, items: [] }, null, 2))}
           onChange={setMarkingJson}
         />
       </div>
 
       <div className={`rounded-2xl border p-4 text-sm ${validation.valid ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-destructive/10 border-destructive/30'}`}>
-        <div className="font-semibold">{validation.valid ? 'Accounting content is renderable.' : 'Fix these rendering issues:'}</div>
+        <div className="font-semibold">{validation.valid ? 'Accounting content passed renderability and academic-depth checks.' : 'Fix these rendering or academic-depth issues:'}</div>
         {!validation.valid ? <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">{validation.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : null}
       </div>
 
       <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
         <div className="mb-2 font-semibold text-foreground">Renderable accounting course templates</div>
-        <p className="mb-3 text-xs leading-5">Pick any template and it creates structured data that the student lesson player can render immediately.</p>
+        <p className="mb-3 text-xs leading-5">Pick any template and it creates structured data that the student lesson player can render immediately. PhD templates include doctoral-level validation requirements.</p>
         <div className="flex flex-wrap gap-2">
           {accountingRenderableTemplates.map((template) => (
             <Button key={template} type="button" size="sm" variant="outline" onClick={() => onChange(applyAccountingTemplate(template, payload))}>{template}</Button>
