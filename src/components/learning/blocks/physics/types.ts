@@ -102,6 +102,7 @@ export type PhysicsTemplate =
   | 'manometer'
   | 'hydraulic_cylinder'
   | 'hydraulic_brake'
+  | 'brake_hydraulics'
   | 'pump_valve_circuit'
   | 'fluid_flow'
   | 'thermodynamic_cycle'
@@ -186,7 +187,7 @@ export type PhysicsObject = {
 
 export type PhysicsArrow = {
   id: string;
-  type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse' | 'pressure' | 'heat' | 'spin' | 'probability_current' | 'flow' | 'pressure_loss' | 'return_flow';
+   type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse' | 'pressure' | 'heat' | 'spin' | 'probability_current' | 'flow' | 'pressure_loss' | 'return_flow';
   from: { x: number; y: number };
   to: { x: number; y: number };
   label?: string;
