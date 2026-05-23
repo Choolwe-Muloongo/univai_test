@@ -137,5 +137,11 @@ export type {
   TrialBalanceAccount,
 } from './engine';
 
+export type { AccountingLearningMode } from './learner-experience';
+export type { AccountingTeachingFlow, AccountingTeachingStep } from './teaching-flows';
 export { chartOfAccounts } from './engine';
 export { accountingCourseLevels, accountingLessonPattern, accountingTemplateKinds } from './course-blueprints';
+export { buildAccountingHints } from './hint-engine';
+export { buildAccountingMistakeFeedback } from './mistake-feedback';
+export { accountingLearningModes, modeInstruction } from './learner-experience';
+export { buildAccountingTeachingFlow } from './teaching-flows';
