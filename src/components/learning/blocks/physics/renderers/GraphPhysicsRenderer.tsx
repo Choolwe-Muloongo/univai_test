@@ -15,13 +15,13 @@ export function GraphPhysicsRenderer(props: SvgDiagramRendererProps) {
   const areaPoints = `130,390 ${plot} ${130 + (lastPoint[0] / safeXMax) * 580},390`;
 
   return (
-    <div className="space-y-3 rounded-2xl border bg-muted/10 p-3">
-      <div>
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border bg-muted/10 p-3">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Graph renderer</p>
         <p className="text-sm text-muted-foreground">Read gradient, area under graph, and axis values.</p>
       </div>
-      <div className="overflow-auto rounded-2xl border bg-background p-2">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full min-w-[640px]">
+      <div className="min-w-0 overflow-hidden rounded-2xl border bg-background p-2">
+        <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full max-w-full" preserveAspectRatio="xMidYMid meet">
           <defs>
             <marker id="graph-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M2,2 L10,6 L2,10 z" className="fill-current" /></marker>
           </defs>
