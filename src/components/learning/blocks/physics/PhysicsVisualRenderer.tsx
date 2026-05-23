@@ -59,7 +59,7 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
       {renderPhysicsVisual(visual, rendererProps)}
 
       <PhysicsStepPanel step={activeStep} stepIndex={stepIndex} totalSteps={steps.length} onStepIndexChange={setStepIndex} onFeedbackReset={() => setFeedback(null)} />
-      <PhysicsInteractionPanel interaction={activeInteraction} feedback={feedback} onFeedback={setFeedback} />
+      <PhysicsInteractionPanel interaction={activeInteraction} feedback={feedback} onFeedback={setFeedback} visual={visual} />
     </div>
   );
 }
