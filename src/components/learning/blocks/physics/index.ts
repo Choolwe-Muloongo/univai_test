@@ -2,6 +2,7 @@ import type { LearningBlockDefinition, LearningBlockPayload } from '../schemas';
 import { PhysicsBlockEditor } from './PhysicsBlockEditor';
 import { PhysicsBlockPreviewRenderer, PhysicsBlockRenderer } from './PhysicsBlockRenderer';
 import { clonePhysicsVisual } from './defaults';
+import { autoMarkHydraulicsInteraction } from './hydraulicsAssessment';
 
 const defaultPayload: LearningBlockPayload = {
   type: 'physics_visual',
@@ -19,7 +20,7 @@ export const physicsBlockDefinitions: LearningBlockDefinition[] = [
     label: 'Physics Visual Engine',
     category: 'physics',
     family: 'physics-engine',
-    description: 'Interactive physics diagram, graph, simulation, collision, circuit, wave, optics, or lab visual using the shared Physics Visual Renderer.',
+    description: 'Interactive physics diagram, graph, simulation, collision, circuit, wave, optics, hydraulics, or lab visual using the shared Physics Visual Renderer.',
     defaultPayload,
     payloadSchema: {
       type: 'object',
@@ -46,7 +47,12 @@ export const physicsBlockDefinitions: LearningBlockDefinition[] = [
     },
     completion: { required: true },
     certificate: { canRequire: true, defaultRequired: true, label: 'Complete physics visual interaction' },
-    aiInstructions: 'Use type physics_visual. Put all diagram data inside visual as structured JSON: canvas, objects, arrows, labels, hotspots, steps, and interactions. Never store physics diagrams as image-only cards.',
+    autoMark: (payload, answer) => {
+      const hydraulicsResult = autoMarkHydraulicsInteraction(payload, answer);
+      if (hydraulicsResult) return hydraulicsResult;
+      return { correct: true, score: 1, feedback: 'Physics visual interaction recorded.' };
+    },
+    aiInstructions: 'Use type physics_visual. Put all diagram data inside visual as structured JSON: canvas, objects, arrows, labels, hotspots, steps, and interactions. Never store physics diagrams as image-only cards. For hydraulics, use supported templates such as hydraulic_press, pipe_flow, manometer, hydraulic_cylinder, hydraulic_brake, and pump_valve_circuit with metadata parameters for real calculations.',
     difficulty: 'medium',
     bestUsedFor: [
       'free-body diagrams',
@@ -58,6 +64,10 @@ export const physicsBlockDefinitions: LearningBlockDefinition[] = [
       'waves',
       'collisions',
       'momentum',
+      'hydraulic pressure',
+      'pipe flow',
+      'hydraulic circuit reading',
+      'fault diagnosis',
       'lab experiments',
     ],
     autoMarked: true,
