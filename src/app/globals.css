@@ -193,6 +193,63 @@
 }
 
 @layer utilities {
+  .univai-lesson-render-safe,
+  .univai-lesson-render-safe * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .univai-lesson-render-safe {
+    overflow-x: hidden !important;
+  }
+
+  .univai-lesson-render-safe svg,
+  .univai-lesson-render-safe canvas,
+  .univai-lesson-render-safe iframe,
+  .univai-lesson-render-safe img,
+  .univai-lesson-render-safe video {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .univai-lesson-render-safe svg {
+    height: auto;
+  }
+
+  .univai-lesson-render-safe table {
+    width: 100% !important;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  .univai-lesson-render-safe th,
+  .univai-lesson-render-safe td,
+  .univai-lesson-render-safe p,
+  .univai-lesson-render-safe span,
+  .univai-lesson-render-safe li,
+  .univai-lesson-render-safe div {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .univai-lesson-render-safe pre,
+  .univai-lesson-render-safe code {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .univai-lesson-render-safe .plot-container,
+  .univai-lesson-render-safe .js-plotly-plot,
+  .univai-lesson-render-safe .plotly,
+  .univai-lesson-render-safe .svg-container,
+  .univai-lesson-render-safe .main-svg {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
   div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"],
   div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] {
     grid-template-columns: minmax(0, 1fr) !important;
