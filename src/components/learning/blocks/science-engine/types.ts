@@ -134,7 +134,7 @@ export type TeachingStep = PhysicsTeachingStep;
 
 export type ScientificTemplateKey = PhysicsTemplate | string;
 
-export type ScientificVisual = Omit<PhysicsVisual, 'subject' | 'visualType' | 'renderMode' | 'objects' | 'arrows' | 'labels' | 'hotspots' | 'equations'> & {
+export type ScientificVisual = Omit<PhysicsVisual, 'subject' | 'visualType' | 'template' | 'renderMode' | 'objects' | 'arrows' | 'labels' | 'hotspots' | 'equations'> & {
   subject: ScientificSubject;
   discipline?: EngineeringDiscipline;
   physicsDomain?: PhysicsDomain;
