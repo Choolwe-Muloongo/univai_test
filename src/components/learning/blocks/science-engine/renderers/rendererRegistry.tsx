@@ -5,6 +5,7 @@ import type { ComponentType } from 'react';
 import type { PhysicsVisual } from '../../physics/types';
 import { FieldVisualizationRenderer } from '../../physics/advanced/FieldVisualizationRenderer';
 import { FluidFlowRenderer } from '../../physics/advanced/FluidFlowRenderer';
+import { HydraulicsRenderer } from '../../physics/advanced/HydraulicsRenderer';
 import { PotentialWellRenderer } from '../../physics/advanced/PotentialWellRenderer';
 import { QuantumWavefunctionRenderer } from '../../physics/advanced/QuantumWavefunctionRenderer';
 import { SpacetimeDiagramRenderer } from '../../physics/advanced/SpacetimeDiagramRenderer';
@@ -47,6 +48,8 @@ function EngineeringSvgRenderer(props: ScientificRendererProps) {
   );
 }
 
+const hydraulicsRenderer = visualOnly(HydraulicsRenderer);
+
 export const rendererRegistry: Record<string, ScientificRenderer> = {
   free_body: svgFallback,
   pulley: svgFallback,
@@ -62,11 +65,20 @@ export const rendererRegistry: Record<string, ScientificRenderer> = {
   ray_diagram: OpticsPhysicsRenderer,
   wave: WavePhysicsRenderer,
 
-  hydraulic_press: visualOnly(FluidFlowRenderer),
-  fluid_pressure: visualOnly(FluidFlowRenderer),
-  bernoulli_flow: visualOnly(FluidFlowRenderer),
-  buoyancy: visualOnly(FluidFlowRenderer),
-  pipe_flow: visualOnly(FluidFlowRenderer),
+  hydraulic_press: hydraulicsRenderer,
+  fluid_pressure: hydraulicsRenderer,
+  pascal_principle: hydraulicsRenderer,
+  bernoulli_flow: hydraulicsRenderer,
+  continuity_equation: hydraulicsRenderer,
+  buoyancy: hydraulicsRenderer,
+  pipe_flow: hydraulicsRenderer,
+  manometer: hydraulicsRenderer,
+  hydraulic_cylinder: hydraulicsRenderer,
+  hydraulic_brake: hydraulicsRenderer,
+  brake_hydraulics: hydraulicsRenderer,
+  pump_valve_circuit: hydraulicsRenderer,
+
+  fluid_flow: visualOnly(FluidFlowRenderer),
 
   thermodynamic_cycle: visualOnly(ThermodynamicCycleRenderer),
   heat_engine: visualOnly(ThermodynamicCycleRenderer),
@@ -101,7 +113,6 @@ export const rendererRegistry: Record<string, ScientificRenderer> = {
   rock_stress: EngineeringSvgRenderer,
   ventilation_flow: EngineeringSvgRenderer,
   water_treatment: EngineeringSvgRenderer,
-  brake_hydraulics: EngineeringSvgRenderer,
 };
 
 export function getScientificRenderer(template: string): ScientificRenderer {
