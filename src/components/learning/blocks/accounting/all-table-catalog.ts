@@ -6,6 +6,7 @@ import { auditAccountingTables } from './audit-table-catalog';
 import { managementDecisionAccountingTables } from './management-decision-table-catalog';
 import { publicSectorAccountingTables } from './public-sector-table-catalog';
 import { aisControlAccountingTables } from './ais-control-table-catalog';
+import { errorSuspenseAccountingTables } from './error-suspense-table-catalog';
 
 export type { AccountingTableLevel, AccountingTableTemplate } from './table-catalog';
 
@@ -18,6 +19,7 @@ export const accountingTableCatalog: AccountingTableTemplate[] = [
   ...managementDecisionAccountingTables,
   ...publicSectorAccountingTables,
   ...aisControlAccountingTables,
+  ...errorSuspenseAccountingTables,
 ];
 
 export const accountingTableTemplateLabels = accountingTableCatalog.map((template) => template.label);
