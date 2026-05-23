@@ -40,7 +40,7 @@ export function AppShell({ children, role, showAiTutor }: AppShellProps) {
         <SidebarInset>
           <div className={`${fullWidthWorkspace ? 'w-full px-3 sm:px-4 lg:px-5' : focusedLesson ? 'flex min-h-svh w-full flex-col overflow-hidden px-0 py-0' : 'page-shell'} flex h-full flex-col ${focusedLesson ? 'gap-0' : 'gap-4 py-3 sm:gap-6 sm:py-4'}`}>
             {!focusedLesson ? <AppHeader role={resolvedRole ?? undefined} hideSidebarTrigger={fullWidthWorkspace} /> : null}
-            <main className={`${fullWidthWorkspace ? 'flex-1 overflow-y-auto rounded-2xl border bg-background/70 p-3 shadow-sm sm:p-4 lg:p-5' : focusedLesson ? 'min-h-0 flex-1 overflow-y-auto bg-background' : 'section-shell flex-1 overflow-y-auto'}`}>{children}</main>
+            <main className={`${fullWidthWorkspace ? 'flex-1 overflow-y-auto rounded-2xl border bg-background/70 p-3 shadow-sm sm:p-4 lg:p-5' : focusedLesson ? 'univai-lesson-render-safe min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-background' : 'section-shell flex-1 overflow-y-auto'}`}>{children}</main>
             {shouldShowAiTutor && <AiTutorWidget />}
           </div>
         </SidebarInset>
