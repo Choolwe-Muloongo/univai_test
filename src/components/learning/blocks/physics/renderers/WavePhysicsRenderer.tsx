@@ -18,13 +18,13 @@ export function WavePhysicsRenderer(props: SvgDiagramRendererProps) {
   }).join(' ');
 
   return (
-    <div className="space-y-3 rounded-2xl border bg-muted/10 p-3">
-      <div>
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border bg-muted/10 p-3">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Wave renderer</p>
         <p className="text-sm text-muted-foreground">Identify rest position, crest, trough, amplitude, and wavelength.</p>
       </div>
-      <div className="overflow-auto rounded-2xl border bg-background p-2">
-        <svg viewBox="0 0 900 420" className="h-auto w-full min-w-[640px]">
+      <div className="min-w-0 overflow-hidden rounded-2xl border bg-background p-2">
+        <svg viewBox="0 0 900 420" className="block h-auto w-full max-w-full" preserveAspectRatio="xMidYMid meet">
           <defs><marker id="wave-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M2,2 L10,6 L2,10 z" className="fill-current" /></marker></defs>
           <rect width="900" height="420" className="fill-background" />
           {Array.from({ length: 18 }, (_, i) => <line key={`wvx-${i}`} x1={70 + i * 45} x2={70 + i * 45} y1="65" y2="360" className="stroke-muted" />)}
