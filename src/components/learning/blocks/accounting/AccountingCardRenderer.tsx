@@ -23,6 +23,18 @@ import {
   normalizeTrialBalanceAccounts,
 } from './engine';
 
+const doctoralResearchTypes = new Set([
+  'research_case',
+  'research_article_critique',
+  'theory_comparison',
+  'literature_gap_analysis',
+  'hypothesis_builder',
+  'methodology_design',
+  'empirical_model',
+  'variable_measurement',
+  'doctoral_proposal',
+]);
+
 export function AccountingCardRenderer({ payload, definition }: BlockRendererProps) {
   const content = getAccountingContent(payload);
   const data = content.data;
@@ -47,10 +59,8 @@ export function AccountingCardRenderer({ payload, definition }: BlockRendererPro
 
       {content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : null}
 
-      <div className="flex flex-wrap gap-2 border-t pt-3">
-        <Button type="button" size="sm" variant="outline" className="gap-2"><Calculator className="size-4" /> Formula helper</Button>
-        <Button type="button" size="sm" variant="outline" className="gap-2"><BookOpen className="size-4" /> Show professional format</Button>
-        <Button type="button" size="sm" variant="outline" className="gap-2"><RotateCcw className="size-4" /> Try again</Button>
+      <div className="rounded-2xl border border-dashed bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+        Formula helper, professional format, and retry flows are handled by the card data, workspace feedback, and marking scheme. Use the attempt area above for active practice.
       </div>
     </div>
   );
@@ -66,6 +76,8 @@ export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
 }
 
 function renderAccountingBody(type: string, data: Record<string, unknown>, currency: string) {
+  if (doctoralResearchTypes.has(type)) return <DoctoralResearchCase data={data} type={type} />;
+
   switch (type) {
     case 'transaction':
       return <TransactionScenario data={data} currency={currency} />;
@@ -94,7 +106,6 @@ function renderAccountingBody(type: string, data: Record<string, unknown>, curre
     case 'tax_computation':
     case 'budgeting':
     case 'variance_analysis':
-    case 'research_case':
     case 'exam_practice':
       return <ProfessionalCase data={data} />;
     case 'case_study':
@@ -243,6 +254,38 @@ function ProfessionalCase({ data }: { data: Record<string, unknown> }) {
       <div className="mb-2 font-semibold">{String(data.caseTitle ?? data.businessName ?? 'Professional accounting case')}</div>
       {data.scenario ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.scenario)} /></p> : null}
       {prompts.length ? <ol className="mt-3 space-y-2 text-sm text-muted-foreground">{prompts.map((prompt, index) => <li key={prompt} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={prompt} /></li>)}</ol> : null}
+    </div>
+  );
+}
+
+function DoctoralResearchCase({ data, type }: { data: Record<string, unknown>; type: string }) {
+  const prompts = normalizeTextList(data.required ?? data.prompts ?? data.tasks);
+  const lenses = normalizeTextList(data.theoreticalLens ?? data.theories);
+  const variables = normalizeTextList(data.variables ?? data.constructs);
+  const validity = normalizeTextList(data.validityThreats ?? data.biasThreats ?? data.limitations);
+  return (
+    <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-primary">Doctoral accounting research studio · {type.replace(/_/g, ' ')}</div>
+        <h4 className="mt-1 text-base font-semibold"><MathText text={String(data.caseTitle ?? data.researchProblem ?? 'Doctoral research case')} /></h4>
+      </div>
+      {data.scenario ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.scenario)} /></p> : null}
+      <div className="grid gap-3 md:grid-cols-2">
+        <ResearchPanel title="Theory / lens" items={lenses} fallback={String(data.theory ?? 'State the theory or theoretical lens.')} />
+        <ResearchPanel title="Variables / constructs" items={variables} fallback={String(data.measurement ?? 'Define constructs, proxies, and measurement logic.')} />
+        <ResearchPanel title="Methodology" items={normalizeTextList(data.methodology ?? data.methods)} fallback={String(data.methodology ?? 'Explain research design, sample, data, and analysis method.')} />
+        <ResearchPanel title="Validity and limitations" items={validity} fallback={String(data.limitations ?? 'Discuss validity, reliability, bias, endogeneity, ethics, and limitations.')} />
+      </div>
+      {prompts.length ? <ol className="space-y-2 text-sm text-muted-foreground">{prompts.map((prompt, index) => <li key={prompt} className="rounded-xl bg-background/70 p-3">{index + 1}. <MathText text={prompt} /></li>)}</ol> : null}
+    </div>
+  );
+}
+
+function ResearchPanel({ title, items, fallback }: { title: string; items: string[]; fallback: string }) {
+  return (
+    <div className="rounded-xl border bg-background/70 p-3">
+      <div className="mb-2 text-sm font-semibold">{title}</div>
+      {items.length ? <ul className="space-y-1 text-xs leading-5 text-muted-foreground">{items.map((item) => <li key={item}>• <MathText text={item} /></li>)}</ul> : <p className="text-xs leading-5 text-muted-foreground"><MathText text={fallback} /></p>}
     </div>
   );
 }
