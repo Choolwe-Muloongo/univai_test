@@ -1,6 +1,6 @@
 import type { BlockAutoMarkResult, LearningBlockPayload } from '../schemas';
 
-export type AccountingDifficulty = 'beginner' | 'intermediate' | 'advanced' | 'professional';
+export type AccountingDifficulty = 'beginner' | 'intermediate' | 'advanced' | 'professional' | 'phd';
 
 export type AccountingCardType =
   | 'concept'
@@ -17,7 +17,15 @@ export type AccountingCardType =
   | 'case_study'
   | 'exam_practice'
   | 'marking_scheme'
-  | 'business_simulation';
+  | 'business_simulation'
+  | 'consolidation'
+  | 'cash_flow_statement'
+  | 'ifrs_treatment'
+  | 'audit_risk'
+  | 'tax_computation'
+  | 'budgeting'
+  | 'variance_analysis'
+  | 'research_case';
 
 export type NormalBalance = 'debit' | 'credit';
 
@@ -254,6 +262,12 @@ export function normalizeStatementSections(value: unknown): StatementSection[] {
   }));
 }
 
+export function normalizeTextList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value === 'string') return value.split('\n').map((line) => line.trim()).filter(Boolean);
+  return [];
+}
+
 export function formatMoney(amount: unknown, currency = 'ZMW') {
   const value = money(amount);
   return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: value % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
@@ -287,13 +301,13 @@ function collectLegacyData(payload: LearningBlockPayload): Record<string, unknow
 
 function normalizeAccountingType(value: unknown): AccountingCardType {
   const normalized = String(value ?? 'concept').trim().toLowerCase().replace(/[\s-]+/g, '_');
-  const allowed: AccountingCardType[] = ['concept', 'transaction', 'journal_entry', 'ledger', 'trial_balance', 'financial_statement', 'bank_reconciliation', 'depreciation', 'inventory', 'ratio_analysis', 'error_correction', 'case_study', 'exam_practice', 'marking_scheme', 'business_simulation'];
+  const allowed: AccountingCardType[] = ['concept', 'transaction', 'journal_entry', 'ledger', 'trial_balance', 'financial_statement', 'bank_reconciliation', 'depreciation', 'inventory', 'ratio_analysis', 'error_correction', 'case_study', 'exam_practice', 'marking_scheme', 'business_simulation', 'consolidation', 'cash_flow_statement', 'ifrs_treatment', 'audit_risk', 'tax_computation', 'budgeting', 'variance_analysis', 'research_case'];
   return allowed.includes(normalized as AccountingCardType) ? normalized as AccountingCardType : 'concept';
 }
 
 function normalizeDifficulty(value: unknown): AccountingDifficulty {
   const normalized = String(value ?? 'beginner');
-  return ['beginner', 'intermediate', 'advanced', 'professional'].includes(normalized) ? normalized as AccountingDifficulty : 'beginner';
+  return ['beginner', 'intermediate', 'advanced', 'professional', 'phd'].includes(normalized) ? normalized as AccountingDifficulty : 'beginner';
 }
 
 function isMarkingScheme(value: unknown): AccountingCardContent['markingScheme'] | undefined {
