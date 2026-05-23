@@ -5,6 +5,7 @@ import type { ComponentType } from 'react';
 import type { PhysicsVisual } from '../../physics/types';
 import { FieldVisualizationRenderer } from '../../physics/advanced/FieldVisualizationRenderer';
 import { FluidFlowRenderer } from '../../physics/advanced/FluidFlowRenderer';
+import { HydraulicCircuitRenderer } from '../../physics/advanced/HydraulicCircuitRenderer';
 import { HydraulicsRenderer } from '../../physics/advanced/HydraulicsRenderer';
 import { PotentialWellRenderer } from '../../physics/advanced/PotentialWellRenderer';
 import { QuantumWavefunctionRenderer } from '../../physics/advanced/QuantumWavefunctionRenderer';
@@ -76,7 +77,7 @@ export const rendererRegistry: Record<string, ScientificRenderer> = {
   hydraulic_cylinder: hydraulicsRenderer,
   hydraulic_brake: hydraulicsRenderer,
   brake_hydraulics: hydraulicsRenderer,
-  pump_valve_circuit: hydraulicsRenderer,
+  pump_valve_circuit: visualOnly(HydraulicCircuitRenderer),
 
   fluid_flow: visualOnly(FluidFlowRenderer),
 
