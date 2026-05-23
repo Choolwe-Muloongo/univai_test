@@ -15,6 +15,58 @@ export function hydraulicForce(inputForceN: number, inputAreaM2: number, outputA
   return inputForceN * (outputAreaM2 / inputAreaM2);
 }
 
+export function pipeCrossSectionArea(diameterM: number) {
+  return Math.PI * (diameterM / 2) ** 2;
+}
+
+export function hydrostaticPressure(densityKgM3: number, depthM: number, gravityMs2 = 9.81) {
+  return densityKgM3 * gravityMs2 * depthM;
+}
+
+export function absoluteHydrostaticPressure(densityKgM3: number, depthM: number, atmosphericPressurePa = 101_325, gravityMs2 = 9.81) {
+  return atmosphericPressurePa + hydrostaticPressure(densityKgM3, depthM, gravityMs2);
+}
+
+export function flowRate(areaM2: number, velocityMs: number) {
+  return areaM2 * velocityMs;
+}
+
+export function continuityVelocity(area1M2: number, velocity1Ms: number, area2M2: number) {
+  if (area2M2 === 0) return 0;
+  return (area1M2 * velocity1Ms) / area2M2;
+}
+
+export function bernoulliTotalPressure(staticPressurePa: number, densityKgM3: number, velocityMs: number, heightM = 0, gravityMs2 = 9.81) {
+  return staticPressurePa + 0.5 * densityKgM3 * velocityMs ** 2 + densityKgM3 * gravityMs2 * heightM;
+}
+
+export function dynamicPressure(densityKgM3: number, velocityMs: number) {
+  return 0.5 * densityKgM3 * velocityMs ** 2;
+}
+
+export function buoyantForce(densityKgM3: number, displacedVolumeM3: number, gravityMs2 = 9.81) {
+  return densityKgM3 * gravityMs2 * displacedVolumeM3;
+}
+
+export function reynoldsNumber(densityKgM3: number, velocityMs: number, diameterM: number, dynamicViscosityPas = 0.001) {
+  if (dynamicViscosityPas === 0) return Infinity;
+  return (densityKgM3 * velocityMs * diameterM) / dynamicViscosityPas;
+}
+
+export function darcyWeisbachPressureDrop(frictionFactor: number, pipeLengthM: number, diameterM: number, densityKgM3: number, velocityMs: number) {
+  if (diameterM === 0) return 0;
+  return frictionFactor * (pipeLengthM / diameterM) * dynamicPressure(densityKgM3, velocityMs);
+}
+
+export function hydraulicPower(pressurePa: number, flowRateM3s: number) {
+  return pressurePa * flowRateM3s;
+}
+
+export function cylinderExtensionSpeed(flowRateM3s: number, pistonAreaM2: number) {
+  if (pistonAreaM2 === 0) return 0;
+  return flowRateM3s / pistonAreaM2;
+}
+
 export function electricFieldStrength(chargeC: number, radiusM: number) {
   const k = 8.9875517923e9;
   if (radiusM === 0) return 0;
