@@ -5,21 +5,11 @@ import { RotateCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { PhysicsVisual } from './types';
-import { FieldVisualizationRenderer } from './advanced/FieldVisualizationRenderer';
-import { FluidFlowRenderer } from './advanced/FluidFlowRenderer';
-import { PotentialWellRenderer } from './advanced/PotentialWellRenderer';
-import { QuantumWavefunctionRenderer } from './advanced/QuantumWavefunctionRenderer';
-import { SpacetimeDiagramRenderer } from './advanced/SpacetimeDiagramRenderer';
-import { ThermodynamicCycleRenderer } from './advanced/ThermodynamicCycleRenderer';
-import { CircuitPhysicsRenderer } from './renderers/CircuitPhysicsRenderer';
-import { CollisionSimulationRenderer } from './renderers/CollisionSimulationRenderer';
-import { GraphPhysicsRenderer } from './renderers/GraphPhysicsRenderer';
-import { OpticsPhysicsRenderer } from './renderers/OpticsPhysicsRenderer';
 import { PhysicsInteractionPanel } from './renderers/PhysicsInteractionPanel';
 import { PhysicsStepPanel } from './renderers/PhysicsStepPanel';
 import { SvgDiagramRenderer } from './renderers/SvgDiagramRenderer';
-import { WavePhysicsRenderer } from './renderers/WavePhysicsRenderer';
 import { evaluatePhysicsInteraction, type PhysicsFeedbackState } from './renderers/physicsRuntime';
+import { getScientificRenderer } from '../science-engine/renderers/rendererRegistry';
 
 type Props = {
   visual: PhysicsVisual;
@@ -49,13 +39,13 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
     setFeedback(null);
   }
 
-  const rendererProps = { visual, highlightedIds, hiddenIds, selectedTargetId, onSelect: handleTarget };
+  const rendererProps: Parameters<typeof SvgDiagramRenderer>[0] = { visual, highlightedIds, hiddenIds, selectedTargetId, onSelect: handleTarget };
 
   return (
     <div className="space-y-4 rounded-3xl border bg-background p-3 shadow-sm sm:p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Physics visual engine</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Scientific & Engineering Visual Engine</p>
           <p className="text-sm text-muted-foreground">{visual.template.replace(/_/g, ' ')} · {visual.visualType}{visual.physicsLevel ? ` · ${visual.physicsLevel.replace(/_/g, ' ')}` : ''}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -75,31 +65,6 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
 }
 
 function renderPhysicsVisual(visual: PhysicsVisual, props: Parameters<typeof SvgDiagramRenderer>[0]) {
-  switch (visual.template) {
-    case 'collision':
-      return <CollisionSimulationRenderer visual={visual} />;
-    case 'kinematics_graph':
-      return <GraphPhysicsRenderer {...props} />;
-    case 'circuit':
-      return <CircuitPhysicsRenderer {...props} />;
-    case 'ray_diagram':
-      return <OpticsPhysicsRenderer {...props} />;
-    case 'wave':
-      return <WavePhysicsRenderer {...props} />;
-    case 'quantum_wavefunction':
-      return <QuantumWavefunctionRenderer visual={visual} />;
-    case 'potential_well':
-      return <PotentialWellRenderer visual={visual} />;
-    case 'spacetime_diagram':
-      return <SpacetimeDiagramRenderer visual={visual} />;
-    case 'electric_field':
-    case 'magnetic_field':
-      return <FieldVisualizationRenderer visual={visual} />;
-    case 'thermodynamic_cycle':
-      return <ThermodynamicCycleRenderer visual={visual} />;
-    case 'bernoulli_flow':
-      return <FluidFlowRenderer visual={visual} />;
-    default:
-      return <SvgDiagramRenderer {...props} />;
-  }
+  const Renderer = getScientificRenderer(visual.template);
+  return <Renderer {...props} visual={visual} />;
 }
