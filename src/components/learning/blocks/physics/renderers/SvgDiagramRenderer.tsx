@@ -15,8 +15,8 @@ export function SvgDiagramRenderer({ visual, highlightedIds, hiddenIds, selected
   const width = visual.canvas?.width || 800;
   const height = visual.canvas?.height || 500;
   return (
-    <div className="overflow-auto rounded-2xl border bg-muted/20 p-2">
-      <svg role="img" aria-label="Interactive physics diagram" viewBox={`0 0 ${width} ${height}`} className="h-auto w-full min-w-[620px] rounded-xl bg-background">
+    <div className="min-w-0 overflow-hidden rounded-2xl border bg-muted/20 p-2">
+      <svg role="img" aria-label="Interactive physics diagram" viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full max-w-full rounded-xl bg-background" preserveAspectRatio="xMidYMid meet">
         <defs>
           <marker id="physics-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
             <path d="M2,2 L10,6 L2,10 z" className="fill-current" />
