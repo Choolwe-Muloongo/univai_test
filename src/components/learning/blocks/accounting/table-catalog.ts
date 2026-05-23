@@ -1,3 +1,5 @@
+import { advancedSpecialistAccountingTables } from './advanced-specialist-table-catalog';
+import { coreLedgerAccountingTables } from './core-ledger-table-catalog';
 import { supplementalAccountingTables } from './supplemental-table-catalog';
 
 export type AccountingTableLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional';
@@ -77,7 +79,15 @@ export const professionalAccountingTables: AccountingTableTemplate[] = [
   table('tax_computation_schedule', 'Tax computation schedule', 'professional', 'Taxation', 'tax_computation', 'Accounting profit, add-backs, deductions, capital allowances, taxable profit, credits, and tax payable.', { jurisdiction: 'Zambia', taxYear: '2026', evidenceStandard: 'Jurisdiction-specific computation with clear assumptions.', tableKind: 'tax_computation_schedule', columns: ['Item', 'Amount'], rows: [['Accounting profit', '180,000'], ['Add: disallowable expenses', '20,000'], ['Less: capital allowances', '(35,000)'], ['Taxable profit', '165,000'], ['Less: withholding tax credits', '(5,000)']], required: ['Compute taxable profit', 'Compute tax payable', 'Explain treatment of adjustments'] }),
 ];
 
-export const accountingTableCatalog = [...beginnerAccountingTables, ...intermediateAccountingTables, ...advancedAccountingTables, ...professionalAccountingTables, ...supplementalAccountingTables];
+export const accountingTableCatalog = [
+  ...beginnerAccountingTables,
+  ...intermediateAccountingTables,
+  ...advancedAccountingTables,
+  ...professionalAccountingTables,
+  ...supplementalAccountingTables,
+  ...coreLedgerAccountingTables,
+  ...advancedSpecialistAccountingTables,
+];
 export const accountingTableTemplateLabels = accountingTableCatalog.map((template) => template.label);
 export function applyAccountingTableTemplate(label: string) { return accountingTableCatalog.find((template) => template.label === label); }
 
