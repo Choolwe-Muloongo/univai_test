@@ -16,26 +16,31 @@ type AppShellProps = {
   showAiTutor?: boolean;
 };
 
+function isFocusedLessonPath(pathname?: string | null) {
+  return Boolean(pathname?.startsWith('/student/courses/') && pathname.includes('/lessons/'));
+}
+
 export function AppShell({ children, role, showAiTutor }: AppShellProps) {
   const { session } = useSession();
   const pathname = usePathname();
   const resolvedRole = useMemo(() => role ?? session?.user?.role ?? null, [role, session]);
   const isStudent = isStudentRole(resolvedRole);
-  const shouldShowAiTutor = showAiTutor ?? Boolean(isStudent);
   const fullWidthWorkspace = pathname?.startsWith('/admin/short-courses/manual') ?? false;
+  const focusedLesson = isFocusedLessonPath(pathname);
+  const shouldShowAiTutor = showAiTutor ?? Boolean(isStudent && !focusedLesson);
 
   return (
     <SidebarProvider>
       <div className="flex min-h-svh bg-transparent text-foreground">
-        {!fullWidthWorkspace ? (
+        {!fullWidthWorkspace && !focusedLesson ? (
           <Sidebar>
             <AppSidebar role={resolvedRole ?? undefined} />
           </Sidebar>
         ) : null}
         <SidebarInset>
-          <div className={`${fullWidthWorkspace ? 'w-full px-3 sm:px-4 lg:px-5' : 'page-shell'} flex h-full flex-col gap-4 py-3 sm:gap-6 sm:py-4`}>
-            <AppHeader role={resolvedRole ?? undefined} hideSidebarTrigger={fullWidthWorkspace} />
-            <main className={`${fullWidthWorkspace ? 'flex-1 overflow-y-auto rounded-2xl border bg-background/70 p-3 shadow-sm sm:p-4 lg:p-5' : 'section-shell flex-1 overflow-y-auto'}`}>{children}</main>
+          <div className={`${fullWidthWorkspace ? 'w-full px-3 sm:px-4 lg:px-5' : focusedLesson ? 'flex min-h-svh w-full flex-col overflow-hidden px-0 py-0' : 'page-shell'} flex h-full flex-col ${focusedLesson ? 'gap-0' : 'gap-4 py-3 sm:gap-6 sm:py-4'}`}>
+            {!focusedLesson ? <AppHeader role={resolvedRole ?? undefined} hideSidebarTrigger={fullWidthWorkspace} /> : null}
+            <main className={`${fullWidthWorkspace ? 'flex-1 overflow-y-auto rounded-2xl border bg-background/70 p-3 shadow-sm sm:p-4 lg:p-5' : focusedLesson ? 'min-h-0 flex-1 overflow-y-auto bg-background' : 'section-shell flex-1 overflow-y-auto'}`}>{children}</main>
             {shouldShowAiTutor && <AiTutorWidget />}
           </div>
         </SidebarInset>
