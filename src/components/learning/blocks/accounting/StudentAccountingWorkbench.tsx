@@ -35,7 +35,7 @@ export function StudentAccountingWorkbench({ content, currency }: { content: Acc
     return <NumericWorkbench content={content} fields={['cogs', 'closingInventory']} />;
   }
   if (content.accountingType === 'ratio_analysis') {
-    return <NumericWorkbench content={content} fields={['current_ratio', 'quick_ratio', 'gross_profit_margin', 'net_profit_margin']} />;
+    return <NumericWorkbench content={content} fields={['current_ratio', 'quick_ratio', 'gross_profit_margin', 'net_profit_margin', 'return_on_assets', 'debt_to_equity']} />;
   }
   return <ProfessionalResponseWorkbench content={content} />;
 }
@@ -118,12 +118,18 @@ function NumericWorkbench({ content, fields }: { content: AccountingCardContent;
 
 function ProfessionalResponseWorkbench({ content }: { content: AccountingCardContent }) {
   const [response, setResponse] = useState('');
+  const [result, setResult] = useState<BlockAutoMarkResult | null>(null);
+  const isPhd = content.difficulty === 'phd' || String(content.accountingType).includes('research') || ['theory_comparison', 'literature_gap_analysis', 'hypothesis_builder', 'methodology_design', 'empirical_model', 'variable_measurement', 'doctoral_proposal'].includes(content.accountingType);
   return (
     <div className="space-y-3 rounded-2xl border bg-muted/10 p-4">
-      <div className="text-sm font-semibold">Professional response workspace</div>
-      <textarea value={response} onChange={(event) => setResponse(event.target.value)} className="min-h-32 w-full rounded-xl border bg-background p-3 text-sm" placeholder="Write the treatment, recommendation, report paragraph, or research critique here." />
-      <div className="rounded-xl bg-background p-3 text-xs text-muted-foreground">This card is manual/professional judgment style. Compare your answer with the marking scheme and the professional format.</div>
+      <div className="text-sm font-semibold">{isPhd ? 'Doctoral research response workspace' : 'Professional response workspace'}</div>
+      <textarea value={response} onChange={(event) => setResponse(event.target.value)} className="min-h-40 w-full rounded-xl border bg-background p-3 text-sm" placeholder={isPhd ? 'Write a doctoral response using theory, literature gap, methodology, variables, validity, evidence, contribution, limitations, and conclusion.' : 'Write the treatment, recommendation, report paragraph, or research critique here.'} />
+      <div className="rounded-xl bg-background p-3 text-xs text-muted-foreground">
+        {isPhd ? 'Your response is assessed against doctoral keywords and the PhD rubric. Strong answers connect theory, method, evidence, and contribution.' : 'Your response is assessed against the professional marking scheme and expected keywords.'}
+      </div>
       {content.markingScheme ? <div className="text-xs text-muted-foreground">Total marks available: {content.markingScheme.totalMarks}</div> : null}
+      <Button type="button" size="sm" onClick={() => setResult(autoMarkAccounting({ type: 'accounting_studio', content }, { response }))}>Check response</Button>
+      {result ? <Feedback result={result} /> : null}
     </div>
   );
 }
