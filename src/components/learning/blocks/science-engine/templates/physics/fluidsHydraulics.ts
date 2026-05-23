@@ -1,39 +1,308 @@
-import type { ScientificTemplateDefinition } from '../../types';
+import type { ScientificParameter, ScientificTemplateDefinition } from '../../types';
 import { createDefaultScientificVisual } from '../createDefaultVisual';
+
+const HYDRAULICS_RENDERER = 'HydraulicsRenderer';
+
+function params(items: ScientificParameter[]): ScientificParameter[] {
+  return items;
+}
+
+function hydraulicVisual(options: {
+  id: string;
+  template: string;
+  title: string;
+  objective: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const visual = createDefaultScientificVisual({
+    id: options.id,
+    subject: 'physics',
+    physicsDomain: 'fluids',
+    template: options.template,
+    title: options.title,
+    objective: options.objective,
+  });
+
+  return {
+    ...visual,
+    level: 'advanced_undergraduate' as const,
+    visualType: 'simulation' as const,
+    metadata: {
+      ...visual.metadata,
+      title: options.title,
+      objective: options.objective,
+      ...options.metadata,
+    },
+  };
+}
 
 export const fluidsHydraulicsTemplates: ScientificTemplateDefinition[] = [
   {
     key: 'fluid_pressure',
-    label: 'Fluid Pressure',
+    label: 'Fluid Pressure / Hydrostatic Pressure',
     subject: 'physics',
     domain: 'fluids',
     level: 'first_year_university',
-    renderer: 'FluidFlowRenderer',
+    renderer: HYDRAULICS_RENDERER,
     cardType: 'fluid_pressure_card',
-    description: 'Visual card for density, depth, and pressure relationships.',
-    defaultVisual: createDefaultScientificVisual({ id: 'fluid-pressure-template', subject: 'physics', physicsDomain: 'fluids', template: 'fluid_pressure', title: 'Fluid pressure', objective: 'Explore how liquid depth and density affect pressure.' }),
-    requiredParameters: [
-      { id: 'density', symbol: 'rho', label: 'Fluid density', unit: 'kg/m3' },
-      { id: 'depth', symbol: 'h', label: 'Depth', unit: 'm' }
-    ],
-    commonMistakes: ['wrong_unit', 'forgot_density_in_pressure'],
-    recommendedInteractions: ['calculate_pressure', 'enter_numeric_answer']
+    description: 'Hydrostatic pressure visual showing how density and depth control gauge pressure inside a liquid.',
+    defaultVisual: hydraulicVisual({
+      id: 'fluid-pressure-template',
+      template: 'fluid_pressure',
+      title: 'Fluid pressure',
+      objective: 'Explore how liquid depth and density affect pressure.',
+      metadata: { densityKgM3: 1000, depthM: 4 },
+    }),
+    requiredParameters: params([
+      { id: 'densityKgM3', symbol: 'ρ', label: 'Fluid density', value: 1000, unit: 'kg/m³', min: 1 },
+      { id: 'depthM', symbol: 'h', label: 'Depth below surface', value: 4, unit: 'm', min: 0 },
+      { id: 'gravityMs2', symbol: 'g', label: 'Gravity', value: 9.81, unit: 'm/s²' },
+    ]),
+    commonMistakes: ['wrong_unit', 'forgot_density_in_pressure', 'using_mass_instead_of_density'],
+    recommendedInteractions: ['calculate_hydrostatic_pressure', 'enter_numeric_answer', 'click_hotspot'],
+  },
+  {
+    key: 'hydraulic_press',
+    label: 'Hydraulic Press / Force Multiplication',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'first_year_university',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'hydraulic_press_card',
+    description: 'Pascal principle visual for input force, piston areas, pressure transmission, and output force.',
+    defaultVisual: hydraulicVisual({
+      id: 'hydraulic-press-template',
+      template: 'hydraulic_press',
+      title: 'Hydraulic press',
+      objective: 'Show how a small input force can create a larger output force through area ratio.',
+      metadata: { inputForceN: 150, inputAreaM2: 0.003, outputAreaM2: 0.06 },
+    }),
+    requiredParameters: params([
+      { id: 'inputForceN', symbol: 'F₁', label: 'Input force', value: 150, unit: 'N', min: 0 },
+      { id: 'inputAreaM2', symbol: 'A₁', label: 'Input piston area', value: 0.003, unit: 'm²', min: 0.000001 },
+      { id: 'outputAreaM2', symbol: 'A₂', label: 'Output piston area', value: 0.06, unit: 'm²', min: 0.000001 },
+    ]),
+    commonMistakes: ['confused_pressure_with_force', 'inverted_area_ratio', 'wrong_unit'],
+    recommendedInteractions: ['calculate_hydraulic_force', 'calculate_pressure', 'identify_fluid_principle'],
+  },
+  {
+    key: 'pascal_principle',
+    label: 'Pascal’s Principle',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'first_year_university',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'pascal_principle_card',
+    description: 'Conceptual Pascal principle card showing pressure transmission through an enclosed fluid.',
+    defaultVisual: hydraulicVisual({
+      id: 'pascal-principle-template',
+      template: 'pascal_principle',
+      title: 'Pascal’s principle',
+      objective: 'Understand that pressure applied to an enclosed fluid is transmitted throughout the fluid.',
+      metadata: { inputForceN: 120, inputAreaM2: 0.004, outputAreaM2: 0.04 },
+    }),
+    requiredParameters: params([
+      { id: 'inputForceN', symbol: 'F₁', label: 'Applied force', value: 120, unit: 'N', min: 0 },
+      { id: 'inputAreaM2', symbol: 'A₁', label: 'Input area', value: 0.004, unit: 'm²', min: 0.000001 },
+      { id: 'outputAreaM2', symbol: 'A₂', label: 'Output area', value: 0.04, unit: 'm²', min: 0.000001 },
+    ]),
+    commonMistakes: ['thinking_force_is_transmitted_directly', 'confused_pressure_with_force'],
+    recommendedInteractions: ['identify_fluid_principle', 'calculate_pressure', 'click_hotspot'],
   },
   {
     key: 'bernoulli_flow',
-    label: 'Bernoulli Flow',
+    label: 'Bernoulli Flow Restriction',
     subject: 'physics',
     domain: 'fluids',
     level: 'advanced_undergraduate',
-    renderer: 'FluidFlowRenderer',
+    renderer: HYDRAULICS_RENDERER,
     cardType: 'bernoulli_flow_card',
-    description: 'Visual card for pressure, speed, and height along a streamline.',
-    defaultVisual: createDefaultScientificVisual({ id: 'bernoulli-template', subject: 'physics', physicsDomain: 'fluids', template: 'bernoulli_flow', title: 'Bernoulli flow', objective: 'Compare pressure, velocity, and height along a pipe.' }),
-    requiredParameters: [
-      { id: 'pressure', symbol: 'P', label: 'Pressure', unit: 'Pa' },
-      { id: 'velocity', symbol: 'v', label: 'Flow speed', unit: 'm/s' }
-    ],
-    commonMistakes: ['wrong_unit', 'confused_pressure_with_force'],
-    recommendedInteractions: ['calculate_pressure', 'read_graph_value']
-  }
+    description: 'Advanced visual for pressure, speed, and energy changes through a restricted pipe section.',
+    defaultVisual: hydraulicVisual({
+      id: 'bernoulli-template',
+      template: 'bernoulli_flow',
+      title: 'Bernoulli flow',
+      objective: 'Compare pressure, velocity, and energy along a pipe restriction.',
+      metadata: { densityKgM3: 1000, pressure1Pa: 120000, pressure2Pa: 85000, velocity1Ms: 2, velocity2Ms: 5 },
+    }),
+    requiredParameters: params([
+      { id: 'densityKgM3', symbol: 'ρ', label: 'Fluid density', value: 1000, unit: 'kg/m³' },
+      { id: 'pressure1Pa', symbol: 'P₁', label: 'Section 1 pressure', value: 120000, unit: 'Pa' },
+      { id: 'pressure2Pa', symbol: 'P₂', label: 'Section 2 pressure', value: 85000, unit: 'Pa' },
+      { id: 'velocity1Ms', symbol: 'v₁', label: 'Section 1 velocity', value: 2, unit: 'm/s' },
+      { id: 'velocity2Ms', symbol: 'v₂', label: 'Section 2 velocity', value: 5, unit: 'm/s' },
+    ]),
+    commonMistakes: ['confused_pressure_with_force', 'forgot_dynamic_pressure', 'wrong_unit'],
+    recommendedInteractions: ['calculate_pressure', 'read_graph_value', 'calculate_from_diagram'],
+  },
+  {
+    key: 'continuity_equation',
+    label: 'Continuity Equation',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'undergraduate',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'continuity_equation_card',
+    description: 'Flow conservation visual for connecting pipe area, velocity, and flow rate.',
+    defaultVisual: hydraulicVisual({
+      id: 'continuity-equation-template',
+      template: 'bernoulli_flow',
+      title: 'Continuity equation',
+      objective: 'Use A₁v₁ = A₂v₂ to reason about speed changes in narrow and wide pipe sections.',
+      metadata: { densityKgM3: 1000, pressure1Pa: 110000, pressure2Pa: 90000, velocity1Ms: 2, velocity2Ms: 4 },
+    }),
+    requiredParameters: params([
+      { id: 'area1M2', symbol: 'A₁', label: 'Section 1 area', value: 0.04, unit: 'm²', min: 0.000001 },
+      { id: 'velocity1Ms', symbol: 'v₁', label: 'Section 1 velocity', value: 2, unit: 'm/s', min: 0 },
+      { id: 'area2M2', symbol: 'A₂', label: 'Section 2 area', value: 0.02, unit: 'm²', min: 0.000001 },
+    ]),
+    commonMistakes: ['using_diameter_as_area', 'forgetting_flow_conservation', 'wrong_unit'],
+    recommendedInteractions: ['calculate_flow_rate', 'enter_numeric_answer', 'calculate_from_diagram'],
+  },
+  {
+    key: 'pipe_flow',
+    label: 'Pipe Flow / Pressure Loss',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'advanced_undergraduate',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'pipe_flow_card',
+    description: 'Engineering hydraulics visual for flow rate, Reynolds number, and Darcy-Weisbach pressure loss.',
+    defaultVisual: hydraulicVisual({
+      id: 'pipe-flow-template',
+      template: 'pipe_flow',
+      title: 'Pipe flow and losses',
+      objective: 'Analyze flow rate, flow regime, and pressure drop in a pipe.',
+      metadata: { densityKgM3: 1000, pipeDiameterM: 0.08, velocityMs: 3, pipeLengthM: 12, frictionFactor: 0.025 },
+    }),
+    requiredParameters: params([
+      { id: 'densityKgM3', symbol: 'ρ', label: 'Fluid density', value: 1000, unit: 'kg/m³' },
+      { id: 'pipeDiameterM', symbol: 'D', label: 'Pipe diameter', value: 0.08, unit: 'm', min: 0.000001 },
+      { id: 'velocityMs', symbol: 'v', label: 'Flow velocity', value: 3, unit: 'm/s', min: 0 },
+      { id: 'pipeLengthM', symbol: 'L', label: 'Pipe length', value: 12, unit: 'm', min: 0 },
+      { id: 'frictionFactor', symbol: 'f', label: 'Darcy friction factor', value: 0.025, min: 0 },
+    ]),
+    commonMistakes: ['using_diameter_as_area', 'ignoring_pressure_loss', 'confusing_laminar_and_turbulent_flow'],
+    recommendedInteractions: ['calculate_flow_rate', 'calculate_reynolds_number', 'calculate_pressure_loss'],
+  },
+  {
+    key: 'buoyancy',
+    label: 'Buoyancy / Archimedes Principle',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'first_year_university',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'buoyancy_card',
+    description: 'Visual for displaced volume, fluid density, and upward buoyant force.',
+    defaultVisual: hydraulicVisual({
+      id: 'buoyancy-template',
+      template: 'buoyancy',
+      title: 'Buoyancy',
+      objective: 'Relate displaced fluid volume to the upward buoyant force on an object.',
+      metadata: { densityKgM3: 1000, displacedVolumeM3: 0.045 },
+    }),
+    requiredParameters: params([
+      { id: 'densityKgM3', symbol: 'ρ', label: 'Fluid density', value: 1000, unit: 'kg/m³' },
+      { id: 'displacedVolumeM3', symbol: 'V', label: 'Displaced volume', value: 0.045, unit: 'm³', min: 0 },
+      { id: 'gravityMs2', symbol: 'g', label: 'Gravity', value: 9.81, unit: 'm/s²' },
+    ]),
+    commonMistakes: ['using_object_volume_instead_of_displaced_volume', 'forgot_gravity', 'wrong_unit'],
+    recommendedInteractions: ['identify_fluid_principle', 'calculate_from_diagram', 'enter_numeric_answer'],
+  },
+  {
+    key: 'manometer',
+    label: 'U-Tube Manometer',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'undergraduate',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'manometer_card',
+    description: 'Pressure-difference visual using manometer fluid density and height difference.',
+    defaultVisual: hydraulicVisual({
+      id: 'manometer-template',
+      template: 'manometer',
+      title: 'U-tube manometer',
+      objective: 'Read pressure difference from the height difference between two liquid columns.',
+      metadata: { manometerFluidDensityKgM3: 13600, heightDifferenceM: 0.18 },
+    }),
+    requiredParameters: params([
+      { id: 'manometerFluidDensityKgM3', symbol: 'ρₘ', label: 'Manometer fluid density', value: 13600, unit: 'kg/m³' },
+      { id: 'heightDifferenceM', symbol: 'Δh', label: 'Column height difference', value: 0.18, unit: 'm', min: 0 },
+      { id: 'gravityMs2', symbol: 'g', label: 'Gravity', value: 9.81, unit: 'm/s²' },
+    ]),
+    commonMistakes: ['reading_wrong_height_difference', 'wrong_density', 'wrong_unit'],
+    recommendedInteractions: ['read_manometer', 'calculate_pressure', 'enter_numeric_answer'],
+  },
+  {
+    key: 'hydraulic_cylinder',
+    label: 'Hydraulic Cylinder',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'advanced_undergraduate',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'hydraulic_cylinder_card',
+    description: 'Actuator visual for pressure, piston area, extension speed, and hydraulic power.',
+    defaultVisual: hydraulicVisual({
+      id: 'hydraulic-cylinder-template',
+      template: 'hydraulic_cylinder',
+      title: 'Hydraulic cylinder',
+      objective: 'Connect pressure, flow rate, piston area, force, speed, and power in a hydraulic actuator.',
+      metadata: { pressurePa: 7000000, pistonAreaM2: 0.012, flowRateM3s: 0.0018 },
+    }),
+    requiredParameters: params([
+      { id: 'pressurePa', symbol: 'P', label: 'Supply pressure', value: 7000000, unit: 'Pa', min: 0 },
+      { id: 'pistonAreaM2', symbol: 'A', label: 'Piston area', value: 0.012, unit: 'm²', min: 0.000001 },
+      { id: 'flowRateM3s', symbol: 'Q', label: 'Flow rate', value: 0.0018, unit: 'm³/s', min: 0 },
+    ]),
+    commonMistakes: ['confusing_force_and_pressure', 'confusing_flow_rate_and_speed', 'wrong_unit'],
+    recommendedInteractions: ['calculate_hydraulic_force', 'calculate_cylinder_speed', 'calculate_flow_rate'],
+  },
+  {
+    key: 'hydraulic_brake',
+    label: 'Hydraulic Brake System',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'undergraduate',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'hydraulic_brake_card',
+    description: 'Brake hydraulics visual for pedal force, master cylinder pressure, and caliper clamp force.',
+    defaultVisual: hydraulicVisual({
+      id: 'hydraulic-brake-template',
+      template: 'hydraulic_brake',
+      title: 'Hydraulic brake system',
+      objective: 'Trace how pedal force becomes brake line pressure and caliper force.',
+      metadata: { pedalForceN: 180, masterCylinderAreaM2: 0.00045, caliperPistonAreaM2: 0.0032 },
+    }),
+    requiredParameters: params([
+      { id: 'pedalForceN', symbol: 'Fₚ', label: 'Pedal/master force', value: 180, unit: 'N', min: 0 },
+      { id: 'masterCylinderAreaM2', symbol: 'Aₘ', label: 'Master cylinder area', value: 0.00045, unit: 'm²', min: 0.000001 },
+      { id: 'caliperPistonAreaM2', symbol: 'A꜀', label: 'Caliper piston area', value: 0.0032, unit: 'm²', min: 0.000001 },
+    ]),
+    commonMistakes: ['inverted_area_ratio', 'confused_pressure_with_force', 'ignoring_line_pressure'],
+    recommendedInteractions: ['trace_hydraulic_flow_path', 'calculate_pressure', 'calculate_hydraulic_force'],
+  },
+  {
+    key: 'pump_valve_circuit',
+    label: 'Pump, Valve & Actuator Circuit',
+    subject: 'physics',
+    domain: 'fluids',
+    level: 'advanced_undergraduate',
+    renderer: HYDRAULICS_RENDERER,
+    cardType: 'pump_valve_circuit_card',
+    description: 'Complete hydraulic circuit visual with tank, pump, directional valve, relief path, and actuator.',
+    defaultVisual: hydraulicVisual({
+      id: 'pump-valve-circuit-template',
+      template: 'pump_valve_circuit',
+      title: 'Pump valve circuit',
+      objective: 'Read a hydraulic circuit and trace supply, work, relief, and return flow paths.',
+      metadata: { pumpPressurePa: 6500000, flowRateM3s: 0.002, valveState: 'open' },
+    }),
+    requiredParameters: params([
+      { id: 'pumpPressurePa', symbol: 'Pₚ', label: 'Pump pressure', value: 6500000, unit: 'Pa', min: 0 },
+      { id: 'flowRateM3s', symbol: 'Q', label: 'Pump flow rate', value: 0.002, unit: 'm³/s', min: 0 },
+      { id: 'valveState', symbol: 'state', label: 'Valve state', value: 'open', unit: '' },
+    ]),
+    commonMistakes: ['wrong_flow_path', 'confusing_relief_and_directional_valves', 'ignoring_return_line'],
+    recommendedInteractions: ['trace_hydraulic_flow_path', 'identify_valve_state', 'click_hotspot'],
+  },
 ];
