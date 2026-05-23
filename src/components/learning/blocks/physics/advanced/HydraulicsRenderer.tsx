@@ -37,9 +37,9 @@ function kpa(value: number) {
 
 function metric(label: string, value: string, note?: string) {
   return (
-    <div className="rounded-2xl border bg-background/80 p-3 shadow-sm">
+    <div className="min-w-0 rounded-2xl border bg-background/80 p-3 shadow-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-bold text-foreground">{value}</p>
+      <p className="mt-1 break-words text-lg font-bold text-foreground">{value}</p>
       {note ? <p className="mt-1 text-xs text-muted-foreground">{note}</p> : null}
     </div>
   );
@@ -62,24 +62,26 @@ export function HydraulicsRenderer({ visual }: HydraulicsProps) {
 
 function HydraulicShell({ visual, title, subtitle, children, metrics }: { visual: PhysicsVisual; title: string; subtitle: string; children: React.ReactNode; metrics: React.ReactNode }) {
   return (
-    <div className="space-y-4 rounded-3xl border bg-gradient-to-br from-sky-50 via-background to-cyan-50 p-4 shadow-sm dark:from-sky-950/20 dark:via-background dark:to-cyan-950/20">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-gradient-to-br from-sky-50 via-background to-cyan-50 p-3 shadow-sm dark:from-sky-950/20 dark:via-background dark:to-cyan-950/20 sm:rounded-3xl sm:p-4">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Advanced hydraulics renderer</p>
-          <h4 className="text-lg font-bold">{title}</h4>
+          <h4 className="break-words text-base font-bold sm:text-lg">{title}</h4>
           <p className="max-w-3xl text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <span className="rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">{visual.template.replace(/_/g, ' ')}</span>
+        <span className="max-w-full truncate rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">{visual.template.replace(/_/g, ' ')}</span>
       </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="overflow-auto rounded-3xl border bg-background p-2 shadow-inner">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 overflow-hidden rounded-2xl border bg-background p-1 shadow-inner sm:rounded-3xl sm:p-2">
           {children}
         </div>
-        <div className="grid content-start gap-3 sm:grid-cols-2 xl:grid-cols-1">{metrics}</div>
+        <div className="grid min-w-0 content-start gap-3 sm:grid-cols-2 xl:grid-cols-1">{metrics}</div>
       </div>
     </div>
   );
 }
+
+const responsiveSvgClass = 'h-auto w-full max-w-full';
 
 function HydraulicPressScene({ visual }: HydraulicsProps) {
   const inputForce = n(visual.metadata?.inputForceN ?? visual.metadata?.forceN, 150);
@@ -102,7 +104,7 @@ function HydraulicPressScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 980 520" className="h-auto w-full min-w-[760px]">
+      <svg viewBox="0 0 980 520" className={responsiveSvgClass}>
         <defs>
           <linearGradient id="hydraulic-fluid" x1="0" x2="1"><stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" /><stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.45" /></linearGradient>
           <marker id="pressure-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10 z" fill="currentColor" /></marker>
@@ -143,7 +145,7 @@ function FluidPressureScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 900 520" className="h-auto w-full min-w-[700px]">
+      <svg viewBox="0 0 900 520" className={responsiveSvgClass}>
         <rect x="210" y="70" width="440" height="380" rx="28" fill="none" stroke="currentColor" strokeWidth="8" opacity="0.75" />
         <rect x="220" y="125" width="420" height="315" rx="18" fill="#38bdf8" opacity="0.45" />
         <line x1="680" y1="125" x2="680" y2="440" stroke="currentColor" strokeWidth="3" strokeDasharray="8 8" />
@@ -185,7 +187,7 @@ function BernoulliFlowScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 980 500" className="h-auto w-full min-w-[760px]">
+      <svg viewBox="0 0 980 500" className={responsiveSvgClass}>
         <defs><marker id="flow-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10 z" fill="#059669" /></marker></defs>
         <path d="M80,160 C270,160 300,230 470,230 C640,230 670,160 900,160" fill="none" stroke="#0369a1" strokeWidth="8" />
         <path d="M80,340 C270,340 300,270 470,270 C640,270 670,340 900,340" fill="none" stroke="#0369a1" strokeWidth="8" />
@@ -222,7 +224,7 @@ function PipeFlowScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 980 500" className="h-auto w-full min-w-[760px]">
+      <svg viewBox="0 0 980 500" className={responsiveSvgClass}>
         <rect x="110" y="185" width="740" height="130" rx="65" fill="#38bdf8" opacity="0.32" stroke="#0369a1" strokeWidth="8" />
         {[170, 280, 390, 500, 610, 720].map((x) => <line key={x} x1={x} y1="250" x2={x + 70} y2="250" stroke="#059669" strokeWidth="6" markerEnd="url(#pressure-arrow)" />)}
         <path d="M140 175 C240 125 360 125 460 175" fill="none" stroke="#f97316" strokeWidth="4" strokeDasharray="8 8" />
@@ -253,7 +255,7 @@ function BuoyancyScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 900 500" className="h-auto w-full min-w-[700px]">
+      <svg viewBox="0 0 900 500" className={responsiveSvgClass}>
         <rect x="170" y="130" width="560" height="300" rx="26" fill="none" stroke="currentColor" strokeWidth="8" opacity="0.75" />
         <rect x="180" y="210" width="540" height="210" rx="18" fill="#38bdf8" opacity="0.38" />
         <rect x="390" y="245" width="120" height="120" rx="18" fill="#94a3b8" stroke="currentColor" strokeWidth="5" />
@@ -287,7 +289,7 @@ function HydraulicCylinderScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 980 500" className="h-auto w-full min-w-[760px]">
+      <svg viewBox="0 0 980 500" className={responsiveSvgClass}>
         <rect x="180" y="205" width="430" height="110" rx="28" fill="#38bdf8" opacity="0.38" stroke="#0369a1" strokeWidth="8" />
         <rect x="510" y="195" width="60" height="130" rx="14" fill="#64748b" />
         <rect x="565" y="240" width="240" height="38" rx="18" fill="#94a3b8" />
@@ -318,7 +320,7 @@ function ManometerScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 900 500" className="h-auto w-full min-w-[700px]">
+      <svg viewBox="0 0 900 500" className={responsiveSvgClass}>
         <path d="M320 100 V350 Q320 420 390 420 H510 Q580 420 580 350 V170" fill="none" stroke="currentColor" strokeWidth="34" strokeLinecap="round" />
         <path d="M320 225 V350 Q320 420 390 420 H510 Q580 420 580 350 V285" fill="none" stroke="#0ea5e9" strokeWidth="24" strokeLinecap="round" />
         <line x1="630" y1="225" x2="630" y2="285" stroke="#ef4444" strokeWidth="4" />
@@ -350,7 +352,7 @@ function HydraulicBrakeScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 980 500" className="h-auto w-full min-w-[760px]">
+      <svg viewBox="0 0 980 500" className={responsiveSvgClass}>
         <rect x="115" y="210" width="140" height="80" rx="18" fill="#94a3b8" stroke="currentColor" strokeWidth="5" />
         <path d="M255 250 H650" stroke="#0284c7" strokeWidth="26" strokeLinecap="round" />
         <circle cx="760" cy="250" r="95" fill="none" stroke="currentColor" strokeWidth="8" />
@@ -383,7 +385,7 @@ function PumpValveCircuitScene({ visual }: HydraulicsProps) {
         </>
       }
     >
-      <svg viewBox="0 0 980 520" className="h-auto w-full min-w-[760px]">
+      <svg viewBox="0 0 980 520" className={responsiveSvgClass}>
         <rect x="90" y="335" width="160" height="85" rx="18" fill="#38bdf8" opacity="0.35" stroke="#0369a1" strokeWidth="6" />
         <circle cx="170" cy="235" r="54" fill="none" stroke="currentColor" strokeWidth="7" />
         <path d="M145 250 L185 215 L195 260 Z" fill="#0ea5e9" opacity="0.8" />
