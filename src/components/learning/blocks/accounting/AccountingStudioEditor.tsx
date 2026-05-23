@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { BlockEditorProps } from '../schemas';
 import { getAccountingContent, validateAccountingPayload } from './engine';
 import { accountingRenderableTemplates, applyAccountingTemplate } from './template-factory';
+import { accountingTableCatalog } from './table-catalog';
 
 const accountingTypes = [
   'concept',
@@ -51,6 +52,25 @@ export function AccountingStudioEditor({ payload, definition, onChange }: BlockE
   const validation = useMemo(() => validateAccountingPayload(payload), [payload]);
   const setPayload = (patch: Partial<typeof payload>) => onChange({ ...payload, ...patch });
   const setContent = (patch: Record<string, unknown>) => setPayload({ content: { ...content, ...patch } });
+  const applyTableTemplate = (label: string) => {
+    const template = accountingTableCatalog.find((item) => item.label === label);
+    if (!template) return;
+    onChange({
+      ...payload,
+      title: template.label,
+      body: template.description,
+      accountingStudioDraftJson: undefined,
+      accountingStudioExpectedDraftJson: undefined,
+      accountingStudioMarkingDraftJson: undefined,
+      content: {
+        ...content,
+        accountingType: template.accountingType,
+        difficulty: template.level,
+        data: template.data,
+        expectedAnswer: template.expectedAnswer,
+      },
+    });
+  };
   const setDataJson = (value: string) => {
     try {
       setContent({ data: JSON.parse(value) });
@@ -149,6 +169,23 @@ export function AccountingStudioEditor({ payload, definition, onChange }: BlockE
         <div className="flex flex-wrap gap-2">
           {accountingRenderableTemplates.map((template) => (
             <Button key={template} type="button" size="sm" variant="outline" onClick={() => onChange(applyAccountingTemplate(template, payload))}>{template}</Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+        <div className="mb-2 font-semibold text-foreground">Beginner → advanced accounting table/workpaper catalog</div>
+        <p className="mb-3 text-xs leading-5">Use these when a course needs real accounting tables, not just notes: cash books, day books, control accounts, adjustment schedules, worksheets, manufacturing accounts, partnership accounts, company accounts, budgets, variances, IFRS matrices, audit matrices, and tax schedules.</p>
+        <div className="grid gap-3 lg:grid-cols-4">
+          {(['beginner', 'intermediate', 'advanced', 'professional'] as const).map((level) => (
+            <div key={level} className="rounded-xl border bg-background/70 p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">{level}</div>
+              <div className="flex flex-wrap gap-2">
+                {accountingTableCatalog.filter((template) => template.level === level).map((template) => (
+                  <Button key={template.id} type="button" size="sm" variant="outline" onClick={() => applyTableTemplate(template.label)}>{template.label}</Button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
