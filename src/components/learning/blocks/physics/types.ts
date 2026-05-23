@@ -56,7 +56,11 @@ export type PhysicsCardType =
   | 'buoyancy_card'
   | 'bernoulli_flow_card'
   | 'continuity_equation_card'
+  | 'pipe_flow_card'
   | 'manometer_card'
+  | 'hydraulic_cylinder_card'
+  | 'hydraulic_brake_card'
+  | 'pump_valve_circuit_card'
   | 'heat_engine_card'
   | 'entropy_process_card'
   | 'electric_field_card'
@@ -90,8 +94,16 @@ export type PhysicsTemplate =
   | 'angle_vector_resolution'
   | 'hydraulic_press'
   | 'fluid_pressure'
+  | 'pascal_principle'
   | 'bernoulli_flow'
+  | 'continuity_equation'
   | 'buoyancy'
+  | 'pipe_flow'
+  | 'manometer'
+  | 'hydraulic_cylinder'
+  | 'hydraulic_brake'
+  | 'pump_valve_circuit'
+  | 'fluid_flow'
   | 'thermodynamic_cycle'
   | 'electric_field'
   | 'magnetic_field'
@@ -128,6 +140,13 @@ export type PhysicsObject = {
     | 'piston'
     | 'pipe'
     | 'valve'
+    | 'pump'
+    | 'reservoir'
+    | 'manometer_tube'
+    | 'hydraulic_cylinder'
+    | 'brake_caliper'
+    | 'relief_valve'
+    | 'directional_valve'
     | 'fluid_streamline'
     | 'field_line'
     | 'charge'
@@ -167,7 +186,7 @@ export type PhysicsObject = {
 
 export type PhysicsArrow = {
   id: string;
-  type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse' | 'pressure' | 'heat' | 'spin' | 'probability_current';
+  type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse' | 'pressure' | 'heat' | 'spin' | 'probability_current' | 'flow' | 'pressure_loss' | 'return_flow';
   from: { x: number; y: number };
   to: { x: number; y: number };
   label?: string;
@@ -175,7 +194,7 @@ export type PhysicsArrow = {
   unit?: string;
   direction?: number;
   dashed?: boolean;
-  colorRole?: 'force' | 'velocity' | 'acceleration' | 'tension' | 'weight' | 'normal' | 'friction' | 'momentum' | 'impulse' | 'ray' | 'pressure' | 'fluid' | 'electric' | 'magnetic' | 'heat' | 'quantum' | 'relativity';
+  colorRole?: 'force' | 'velocity' | 'acceleration' | 'tension' | 'weight' | 'normal' | 'friction' | 'momentum' | 'impulse' | 'ray' | 'pressure' | 'fluid' | 'electric' | 'magnetic' | 'heat' | 'quantum' | 'relativity' | 'flow' | 'loss';
   isInteractive?: boolean;
 };
 
@@ -229,7 +248,15 @@ export type PhysicsInteraction = {
     | 'draw_velocity_vector_after_collision'
     | 'choose_correct_after_collision_diagram'
     | 'calculate_pressure'
+    | 'calculate_hydrostatic_pressure'
     | 'calculate_hydraulic_force'
+    | 'calculate_flow_rate'
+    | 'calculate_pressure_loss'
+    | 'calculate_reynolds_number'
+    | 'calculate_cylinder_speed'
+    | 'read_manometer'
+    | 'identify_valve_state'
+    | 'trace_hydraulic_flow_path'
     | 'identify_fluid_principle'
     | 'calculate_field_strength'
     | 'identify_field_direction'
