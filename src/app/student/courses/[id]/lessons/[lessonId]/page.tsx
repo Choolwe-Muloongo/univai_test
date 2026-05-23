@@ -4,9 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
 import { LessonPlayer } from '@/components/learning/lesson-player';
-import { CourseHelperBox } from '@/components/student/course-helper-box';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
@@ -68,9 +66,9 @@ export default function FocusedLessonPage() {
     };
   }, [params.id, params.lessonId]);
 
-  if (loading) return <main className="min-h-screen bg-background px-4 py-6"><PageLoading message="Opening mission..." /></main>;
-  if (error) return <main className="min-h-screen bg-background px-4 py-6"><PageError message={error} actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
-  if (!course || !lesson) return <main className="min-h-screen bg-background px-4 py-6"><PageError title="Mission unavailable" message="This mission could not be opened." actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
+  if (loading) return <main className="min-h-screen overflow-x-hidden bg-background px-3 py-4 sm:px-4"><PageLoading message="Opening mission..." /></main>;
+  if (error) return <main className="min-h-screen overflow-x-hidden bg-background px-3 py-4 sm:px-4"><PageError message={error} actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
+  if (!course || !lesson) return <main className="min-h-screen overflow-x-hidden bg-background px-3 py-4 sm:px-4"><PageError title="Mission unavailable" message="This mission could not be opened." actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
 
   const currentIndex = lessons.findIndex((item) => String(item.id) === String(params.lessonId));
   const nextLesson = currentIndex >= 0 ? lessons[currentIndex + 1] : null;
@@ -140,8 +138,8 @@ export default function FocusedLessonPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl space-y-4">
+    <main className="min-h-screen w-full overflow-x-hidden bg-background px-2 py-3 sm:px-4 lg:px-6">
+      <div className="mx-auto w-full max-w-5xl space-y-4 overflow-x-hidden">
         <LessonPlayer
           lesson={lesson as any}
           courseTitle={course.title}
@@ -152,32 +150,6 @@ export default function FocusedLessonPage() {
           onCardCompleted={handleCardCompleted}
           onCheckpointAnswered={handleCheckpointAnswered}
         />
-        <NovaInlineActions
-          title="Nova lesson help"
-          description="Use Nova when a card, checkpoint, formula, code block, or diagram needs a clearer explanation. No AI runs until you send the prompt."
-          courseId={params.id}
-          lessonId={params.lessonId}
-          actions={[
-            { label: 'Explain this card', mode: 'explain', intent: 'explain_current_card', description: 'Break down the current idea.' },
-            { label: 'Give simpler example', mode: 'explain', intent: 'simpler_example', description: 'Make it easier to remember.' },
-            { label: 'Quiz me on this', mode: 'quiz', intent: 'quiz_current_card', description: 'Practice one question at a time.' },
-            { label: 'Summarize mission', mode: 'summarize', intent: 'summarize_mission', description: 'Turn this mission into notes.' },
-          ]}
-        />
-        <NovaInlineActions
-          title="Checkpoint rescue"
-          description="Use this after a difficult or wrong answer. Nova opens with the right mode and lesson context attached."
-          courseId={params.id}
-          lessonId={params.lessonId}
-          compact
-          actions={[
-            { label: 'Give me a hint', mode: 'tutor', intent: 'hint_current_question' },
-            { label: 'Why was I wrong?', mode: 'explain', intent: 'explain_wrong_answer' },
-            { label: 'Explain correct answer', mode: 'explain', intent: 'explain_correct_answer' },
-            { label: 'Give harder question', mode: 'quiz', intent: 'harder_question' },
-          ]}
-        />
-        <CourseHelperBox courseId={params.id} courseTitle={course.title} lessonId={params.lessonId} lessonTitle={lesson.title} />
         {completeError ? <div className="mx-auto mt-4 max-w-3xl rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{completeError}</div> : null}
         {completed ? (
           <Card className="mx-auto mt-4 max-w-3xl rounded-2xl">
