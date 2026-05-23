@@ -31,7 +31,7 @@ export function GenericBlockAdminEditor({ payload, definition, onChange }: Block
   const set = (key: string, value: unknown) => onChange({ ...payload, [key]: value });
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="rounded-xl border bg-muted/30 p-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-2 font-medium text-foreground">
           <Pencil className="size-4" />
@@ -88,8 +88,8 @@ export function GenericBlockStudentRenderer({ payload, definition, state, onStat
   }, [answer, definition, payload, runtimeState.completed]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="min-w-0 space-y-4 overflow-hidden">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Badge variant="secondary" className="rounded-full capitalize">{definition.category.replace(/-/g, ' ')}</Badge>
         {definition.certificate.canRequire ? (
           <Badge variant="outline" className="gap-1 rounded-full"><ShieldCheck className="size-3" /> certificate capable</Badge>
@@ -112,7 +112,7 @@ export function GenericBlockStudentRenderer({ payload, definition, state, onStat
       <SubjectActivity payload={payload} definition={definition} />
       <GenericList payload={payload} />
       <GenericTable payload={payload} />
-      {typeof payload.code === 'string' && payload.code ? <pre className="overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{payload.code}</code></pre> : null}
+      {typeof payload.code === 'string' && payload.code ? <pre className="whitespace-pre-wrap break-words rounded-2xl bg-muted p-4 text-sm"><code>{payload.code}</code></pre> : null}
       {definition.completion.requiresReveal ? (
         <div className="rounded-2xl border p-4">
           {runtimeState.revealed ? (
@@ -158,7 +158,7 @@ export function GenericBlockStudentRenderer({ payload, definition, state, onStat
 
 export function GenericBlockPreviewRenderer(props: BlockRendererProps) {
   return (
-    <div className="rounded-2xl border bg-background p-4">
+    <div className="min-w-0 overflow-hidden rounded-2xl border bg-background p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <Eye className="size-4" />
         Student preview
@@ -171,7 +171,7 @@ export function GenericBlockPreviewRenderer(props: BlockRendererProps) {
 export function BoardBlockStudentRenderer(props: BlockRendererProps) {
   const { payload, definition } = props;
   return (
-    <div className="space-y-4 rounded-2xl border bg-[#12231c] p-5 text-white shadow-sm">
+    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-[#12231c] p-5 text-white shadow-sm">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/60">
         <FileText className="size-4" />
         Classroom board
@@ -203,15 +203,15 @@ function GenericTable({ payload }: { payload: LearningBlockPayload }) {
   const rows = Array.isArray(payload.rows) ? payload.rows : [];
   if (!columns.length || !rows.length) return null;
   return (
-    <div className="overflow-x-auto rounded-2xl border">
-      <table className="w-full min-w-[420px] text-sm">
+    <div className="min-w-0 overflow-hidden rounded-2xl border">
+      <table className="w-full table-fixed text-[11px] sm:text-sm">
         <thead className="bg-muted/50">
-          <tr>{columns.map((column) => <th key={column} className="px-3 py-2 text-left font-semibold">{column}</th>)}</tr>
+          <tr>{columns.map((column) => <th key={column} className="break-words px-2 py-2 text-left align-top font-semibold sm:px-3">{column}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, rowIndex) => (
             <tr key={rowIndex} className="border-t">
-              {(Array.isArray(row) ? row : [row]).map((cell, cellIndex) => <td key={cellIndex} className="px-3 py-2 text-muted-foreground">{String(cell ?? '')}</td>)}
+              {(Array.isArray(row) ? row : [row]).map((cell, cellIndex) => <td key={cellIndex} className="break-words px-2 py-2 align-top text-muted-foreground sm:px-3">{String(cell ?? '')}</td>)}
             </tr>
           ))}
         </tbody>
@@ -239,13 +239,13 @@ function WorkbookActivity({ payload, category }: { payload: LearningBlockPayload
     category === 'accounting' ? ['Cash', '', '', 'Explain placement'] : ['A1', '', '', 'Explain formula'],
   ];
   return (
-    <div className="space-y-3 rounded-2xl border p-4">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border p-4">
       <div className="flex items-center gap-2 text-sm font-semibold"><Table2 className="size-4 text-primary" /> Workbook board</div>
       <p className="text-sm text-muted-foreground">Use this table step by step. The instructor can add rows across cards while the source question stays visible.</p>
-      <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full min-w-[520px] text-sm">
-          <thead className="bg-muted/50"><tr>{columns.map((column) => <th key={column} className="px-3 py-2 text-left">{column}</th>)}</tr></thead>
-          <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex} className="border-t">{(Array.isArray(row) ? row : [row]).map((cell, cellIndex) => <td key={cellIndex} className="px-3 py-2 text-muted-foreground"><MathText text={String(cell ?? '')} /></td>)}</tr>)}</tbody>
+      <div className="min-w-0 overflow-hidden rounded-xl border">
+        <table className="w-full table-fixed text-[11px] sm:text-sm">
+          <thead className="bg-muted/50"><tr>{columns.map((column) => <th key={column} className="break-words px-2 py-2 text-left align-top sm:px-3">{column}</th>)}</tr></thead>
+          <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex} className="border-t">{(Array.isArray(row) ? row : [row]).map((cell, cellIndex) => <td key={cellIndex} className="break-words px-2 py-2 align-top text-muted-foreground sm:px-3"><MathText text={String(cell ?? '')} /></td>)}</tr>)}</tbody>
         </table>
       </div>
     </div>
@@ -256,7 +256,7 @@ function CodeAndSecurityActivity({ payload, category }: { payload: LearningBlock
   const [code, setCode] = useState(stringValue(payload.code) || stringValue(payload.body));
   const isWebPreview = payload.type.includes('html') || payload.type.includes('web') || payload.type.includes('component') || payload.type.includes('ui_');
   return (
-    <div className="space-y-3 rounded-2xl border p-4">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border p-4">
       <div className="flex items-center gap-2 text-sm font-semibold"><Code2 className="size-4 text-primary" /> {category === 'cybersecurity' ? 'Security lab' : 'Code lab'}</div>
       <Textarea value={code} onChange={(event) => setCode(event.target.value)} className="min-h-36 font-mono text-sm" placeholder="Write, inspect, fix, trace, or explain code here." />
       {isWebPreview ? (
@@ -272,10 +272,10 @@ function CodeAndSecurityActivity({ payload, category }: { payload: LearningBlock
 function BusinessActivity({ payload }: { payload: LearningBlockPayload }) {
   const headings = payload.type.includes('swot') ? ['Strengths', 'Weaknesses', 'Opportunities', 'Threats'] : ['Problem', 'Customer', 'Value', 'Evidence'];
   return (
-    <div className="rounded-2xl border p-4">
+    <div className="min-w-0 overflow-hidden rounded-2xl border p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><BriefcaseBusiness className="size-4 text-primary" /> Business canvas</div>
       <div className="grid gap-3 sm:grid-cols-2">
-        {headings.map((heading) => <div key={heading} className="min-h-24 rounded-xl border bg-muted/20 p-3"><p className="text-sm font-medium">{heading}</p><p className="mt-2 text-xs text-muted-foreground">Add case evidence, decisions, calculations, or reflection.</p></div>)}
+        {headings.map((heading) => <div key={heading} className="min-h-24 min-w-0 rounded-xl border bg-muted/20 p-3"><p className="text-sm font-medium">{heading}</p><p className="mt-2 text-xs text-muted-foreground">Add case evidence, decisions, calculations, or reflection.</p></div>)}
       </div>
     </div>
   );
@@ -284,11 +284,11 @@ function BusinessActivity({ payload }: { payload: LearningBlockPayload }) {
 function ScienceActivity({ payload, category }: { payload: LearningBlockPayload; category: string }) {
   const observations = normalizeList(payload.observations ?? payload.items);
   return (
-    <div className="space-y-3 rounded-2xl border p-4">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border p-4">
       <div className="flex items-center gap-2 text-sm font-semibold"><FlaskConical className="size-4 text-primary" /> {category === 'simulations' ? 'Simulation board' : 'Experiment board'}</div>
-      <div className="grid gap-3 md:grid-cols-[220px_1fr]">
-        <div className="rounded-xl border bg-muted/20 p-3">
-          <svg viewBox="0 0 180 140" className="h-auto w-full">
+      <div className="grid min-w-0 gap-3 md:grid-cols-[220px_1fr]">
+        <div className="min-w-0 rounded-xl border bg-muted/20 p-3">
+          <svg viewBox="0 0 180 140" className="h-auto w-full max-w-full">
             <rect x="35" y="25" width="110" height="75" rx="12" fill="none" className="stroke-primary" strokeWidth="3" />
             <line x1="20" y1="115" x2="160" y2="115" className="stroke-muted-foreground" strokeWidth="2" />
             <circle cx="70" cy="65" r="8" className="fill-primary" />
@@ -296,7 +296,7 @@ function ScienceActivity({ payload, category }: { payload: LearningBlockPayload;
             <text x="90" y="132" textAnchor="middle" className="fill-muted-foreground text-[10px]">diagram workspace</text>
           </svg>
         </div>
-        <div className="rounded-xl border bg-muted/20 p-3">
+        <div className="min-w-0 rounded-xl border bg-muted/20 p-3">
           <p className="text-sm font-medium">Observations / known values</p>
           <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
             {(observations.length ? observations : ['List variables, forces, components, observations, or safety checks.']).map((item, index) => <li key={`${item}-${index}`}><MathText text={`- ${item}`} /></li>)}
@@ -310,13 +310,13 @@ function ScienceActivity({ payload, category }: { payload: LearningBlockPayload;
 function SortingActivity({ payload }: { payload: LearningBlockPayload }) {
   const [items, setItems] = useState(() => normalizeList(payload.items).length ? normalizeList(payload.items) : ['Step 1', 'Step 2', 'Step 3']);
   return (
-    <div className="space-y-3 rounded-2xl border p-4">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border p-4">
       <div className="flex items-center gap-2 text-sm font-semibold"><GripVertical className="size-4 text-primary" /> Drag/drop style activity</div>
       <div className="grid gap-2">
         {items.map((item, index) => (
-          <div key={`${item}-${index}`} className="flex items-center gap-2 rounded-xl border p-3 text-sm">
-            <GripVertical className="size-4 text-muted-foreground" />
-            <span className="flex-1"><MathText text={item} /></span>
+          <div key={`${item}-${index}`} className="flex min-w-0 items-center gap-2 rounded-xl border p-3 text-sm">
+            <GripVertical className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1"><MathText text={item} /></span>
             <Button type="button" size="sm" variant="ghost" onClick={() => setItems(move(items, index, -1))} disabled={index === 0}>Up</Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setItems(move(items, index, 1))} disabled={index === items.length - 1}>Down</Button>
           </div>
@@ -329,10 +329,10 @@ function SortingActivity({ payload }: { payload: LearningBlockPayload }) {
 function ProjectActivity({ payload }: { payload: LearningBlockPayload }) {
   const tasks = normalizeList(payload.items ?? payload.criteria).length ? normalizeList(payload.items ?? payload.criteria) : ['Understand the task', 'Build the evidence', 'Check against rubric'];
   return (
-    <div className="rounded-2xl border p-4">
+    <div className="min-w-0 overflow-hidden rounded-2xl border p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><ClipboardCheck className="size-4 text-primary" /> Project stage</div>
       <div className="grid gap-2">
-        {tasks.map((task, index) => <label key={`${task}-${index}`} className="flex items-center gap-2 rounded-xl border p-3 text-sm"><input type="checkbox" /> <MathText text={task} /></label>)}
+        {tasks.map((task, index) => <label key={`${task}-${index}`} className="flex min-w-0 items-center gap-2 rounded-xl border p-3 text-sm"><input type="checkbox" /> <MathText text={task} /></label>)}
       </div>
     </div>
   );
@@ -341,10 +341,10 @@ function ProjectActivity({ payload }: { payload: LearningBlockPayload }) {
 function CheckpointActivity({ payload, category }: { payload: LearningBlockPayload; category: string }) {
   const requirements = normalizeList(payload.items ?? payload.criteria).length ? normalizeList(payload.items ?? payload.criteria) : ['Required lesson complete', 'Required practice/project complete', 'Exam or checkpoint passed'];
   return (
-    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><BadgeCheck className="size-4 text-primary" /> {category === 'certificate' ? 'Certificate checkpoint' : 'Learning reward'}</div>
       <div className="grid gap-2">
-        {requirements.map((item, index) => <div key={`${item}-${index}`} className="flex items-center gap-2 rounded-xl bg-background/70 p-3 text-sm"><CheckCircle2 className="size-4 text-primary" /><MathText text={item} /></div>)}
+        {requirements.map((item, index) => <div key={`${item}-${index}`} className="flex min-w-0 items-center gap-2 rounded-xl bg-background/70 p-3 text-sm"><CheckCircle2 className="size-4 shrink-0 text-primary" /><MathText text={item} /></div>)}
       </div>
     </div>
   );
@@ -353,7 +353,7 @@ function CheckpointActivity({ payload, category }: { payload: LearningBlockPaylo
 function WritingActivity({ payload }: { payload: LearningBlockPayload }) {
   const [draft, setDraft] = useState(stringValue(payload.answer));
   return (
-    <div className="space-y-3 rounded-2xl border p-4">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border p-4">
       <div className="flex items-center gap-2 text-sm font-semibold"><Pencil className="size-4 text-primary" /> Writing workspace</div>
       <Textarea value={draft} onChange={(event) => setDraft(event.target.value)} className="min-h-36" placeholder="Draft, rewrite, translate, summarize, or plan your response." />
     </div>
