@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { BookOpen, Database, GraduationCap, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -138,7 +138,7 @@ export function AccountingStudioEditor({ payload, definition, onChange }: BlockE
   );
 }
 
-function JsonPanel({ icon, title, description, value, onChange }: { icon: React.ReactNode; title: string; description: string; value: string; onChange: (value: string) => void }) {
+function JsonPanel({ icon, title, description, value, onChange }: { icon: ReactNode; title: string; description: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="block space-y-2 text-sm font-medium">
       <span className="flex items-center gap-2">{icon}{title}</span>
