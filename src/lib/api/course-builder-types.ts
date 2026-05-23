@@ -160,6 +160,7 @@ export type CodeCardTest = {
   value?: string;
   command?: string;
   description?: string;
+  points?: number;
 };
 
 export type CodeCardType =
@@ -169,7 +170,88 @@ export type CodeCardType =
   | 'predict_output'
   | 'code_explanation'
   | 'code_mini_project'
+  | 'coding_concept'
+  | 'syntax_lab'
+  | 'code_trace'
+  | 'debugging_lab'
+  | 'algorithm_lab'
+  | 'data_structure_lab'
+  | 'web_component_lab'
+  | 'api_lab'
+  | 'database_lab'
+  | 'terminal_lab'
+  | 'git_lab'
+  | 'security_review'
+  | 'refactor_lab'
+  | 'unit_test_lab'
+  | 'project_build'
+  | 'deployment_lab'
+  | 'portfolio_project'
   | 'mini_project';
+
+export type CodeLearningMode =
+  | 'concept'
+  | 'syntax'
+  | 'trace'
+  | 'debug'
+  | 'build'
+  | 'algorithm'
+  | 'terminal'
+  | 'database'
+  | 'api'
+  | 'security'
+  | 'project'
+  | 'deployment';
+
+export type CodeLearningConcept = {
+  name: string;
+  explanation?: string;
+  example?: string;
+};
+
+export type CodeTraceStep = {
+  line?: number;
+  code?: string;
+  memory?: string;
+  output?: string;
+  explanation?: string;
+};
+
+export type CodeTerminalCommand = {
+  command: string;
+  output?: string;
+  explanation?: string;
+};
+
+export type CodeCheckpoint = {
+  question: string;
+  answer: string;
+  explanation?: string;
+};
+
+export type CodeTask = {
+  title: string;
+  description: string;
+  acceptanceCriteria?: string[];
+};
+
+export type CodeBugNote = {
+  symptom: string;
+  cause?: string;
+  fix?: string;
+};
+
+export type CodeEvaluationCriterion = {
+  label: string;
+  points?: number;
+  description?: string;
+};
+
+export type CodeResourceLink = {
+  label: string;
+  url?: string;
+  note?: string;
+};
 
 export type CodeCardBlock = CardImageFields & {
   type: CodeCardType;
@@ -185,6 +267,26 @@ export type CodeCardBlock = CardImageFields & {
   previewMode?: 'html' | 'console' | 'terminal' | 'none';
   aiHelpEnabled?: boolean;
   explanation?: string;
+  skillArea?: string;
+  learningMode?: CodeLearningMode;
+  objectives?: string[];
+  concepts?: CodeLearningConcept[];
+  theory?: string;
+  walkthrough?: LessonStep[];
+  codeTrace?: CodeTraceStep[];
+  terminalCommands?: CodeTerminalCommand[];
+  checkpoints?: CodeCheckpoint[];
+  tasks?: CodeTask[];
+  bugNotes?: CodeBugNote[];
+  evaluationRubric?: CodeEvaluationCriterion[];
+  masteryCriteria?: string[];
+  projectBrief?: string;
+  constraints?: string[];
+  resources?: CodeResourceLink[];
+  learnerDeliverables?: string[];
+  outputPrediction?: string;
+  expectedResult?: string;
+  runnerStatus?: 'browser_preview' | 'simulated_terminal' | 'external_sandbox_required';
 };
 
 export type ChemistryVisualBlock = CardImageFields & {
