@@ -10,13 +10,13 @@ export function CircuitPhysicsRenderer(props: SvgDiagramRendererProps) {
   const voltmeter = components.find((object) => object.id === 'voltmeter');
 
   return (
-    <div className="space-y-3 rounded-2xl border bg-muted/10 p-3">
-      <div>
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border bg-muted/10 p-3">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Circuit renderer</p>
         <p className="text-sm text-muted-foreground">Ammeter in series. Voltmeter in parallel. Tap components to answer questions.</p>
       </div>
-      <div className="overflow-auto rounded-2xl border bg-background p-2">
-        <svg viewBox="0 0 900 480" className="h-auto w-full min-w-[640px]">
+      <div className="min-w-0 overflow-hidden rounded-2xl border bg-background p-2">
+        <svg viewBox="0 0 900 480" className="block h-auto w-full max-w-full" preserveAspectRatio="xMidYMid meet">
           <defs><marker id="circuit-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M2,2 L10,6 L2,10 z" className="fill-current" /></marker></defs>
           <rect x="0" y="0" width="900" height="480" className="fill-background" />
           <path d="M170,240 L285,240 M335,240 L430,240 M550,240 L690,240 L690,340 L170,340 Z" fill="none" className="stroke-slate-800 dark:stroke-slate-100" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
