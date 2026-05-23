@@ -5,6 +5,7 @@ import { AlertTriangle, BadgeCheck, BriefcaseBusiness, CheckCircle2, Landmark } 
 import { Badge } from '@/components/ui/badge';
 import { MathText } from '@/components/learning/math-text';
 import type { BlockRendererProps } from '../schemas';
+import { AnimatedAccountingTable } from './AnimatedAccountingTable';
 import { StudentAccountingWorkbench } from './StudentAccountingWorkbench';
 import {
   calculateDepreciation,
@@ -107,7 +108,7 @@ function GenericWorkpaperTable({ data }: { data: Record<string, unknown> }) {
   return (
     <div className="space-y-2">
       {data.tableKind ? <div className="text-xs font-semibold uppercase tracking-wide text-primary">{String(data.tableKind).replace(/_/g, ' ')}</div> : null}
-      <AccountingTable columns={data.columns.map(String)} rows={(data.rows as unknown[]).map((row) => Array.isArray(row) ? row : [row])} />
+      <AccountingTable title={String(data.tableKind ?? 'Accounting workpaper')} columns={data.columns.map(String)} rows={(data.rows as unknown[]).map((row) => Array.isArray(row) ? row : [row])} />
     </div>
   );
 }
@@ -147,19 +148,19 @@ function TransactionScenario({ data, currency }: { data: Record<string, unknown>
 function JournalEntryTable({ rows, currency }: { rows: ReturnType<typeof normalizeJournalRows>; currency: string }) {
   const totals = calculateJournalTotals(rows);
   const balanced = totals.debit === totals.credit && totals.debit > 0;
-  return <div className="space-y-3"><AccountingTable columns={['Professional account', 'Debit', 'Credit']} rows={rows.map((row) => [row.account, row.debit ? formatMoney(row.debit, currency) : '', row.credit ? formatMoney(row.credit, currency) : ''])} /><BalanceBanner balanced={balanced} debit={totals.debit} credit={totals.credit} currency={currency} /></div>;
+  return <div className="space-y-3"><AccountingTable title="Journal entry" columns={['Professional account', 'Debit', 'Credit']} rows={rows.map((row) => [row.account, row.debit ? formatMoney(row.debit, currency) : '', row.credit ? formatMoney(row.credit, currency) : ''])} /><BalanceBanner balanced={balanced} debit={totals.debit} credit={totals.credit} currency={currency} /></div>;
 }
 
 function LedgerAccount({ data, currency }: { data: Record<string, unknown>; currency: string }) {
   const debitEntries = normalizeLedgerEntries(data.debitEntries);
   const creditEntries = normalizeLedgerEntries(data.creditEntries);
   const rows = Array.from({ length: Math.max(debitEntries.length, creditEntries.length, 1) }).map((_, index) => [debitEntries[index]?.details ?? '', debitEntries[index]?.amount ? formatMoney(debitEntries[index]?.amount, currency) : '', creditEntries[index]?.details ?? '', creditEntries[index]?.amount ? formatMoney(creditEntries[index]?.amount, currency) : '']);
-  return <div className="rounded-2xl border p-4"><div className="mb-3 text-center font-semibold">{String(data.accountName ?? 'Ledger Account')}</div><AccountingTable columns={['Debit details', 'Debit amount', 'Credit details', 'Credit amount']} rows={rows} /></div>;
+  return <div className="rounded-2xl border p-4"><div className="mb-3 text-center font-semibold">{String(data.accountName ?? 'Ledger Account')}</div><AccountingTable title={String(data.accountName ?? 'Ledger Account')} columns={['Debit details', 'Debit amount', 'Credit details', 'Credit amount']} rows={rows} /></div>;
 }
 
 function TrialBalance({ accounts, currency, title }: { accounts: ReturnType<typeof normalizeTrialBalanceAccounts>; currency: string; title: string }) {
   const totals = calculateTrialBalanceTotals(accounts);
-  return <div className="space-y-3"><AccountingTable columns={['Account', 'Debit', 'Credit']} rows={accounts.map((account) => [account.name, account.debit ? formatMoney(account.debit, currency) : '', account.credit ? formatMoney(account.credit, currency) : '']).concat([[`${title} totals`, formatMoney(totals.debit, currency), formatMoney(totals.credit, currency)]])} /><BalanceBanner balanced={totals.debit === totals.credit && totals.debit > 0} debit={totals.debit} credit={totals.credit} currency={currency} /></div>;
+  return <div className="space-y-3"><AccountingTable title={title} columns={['Account', 'Debit', 'Credit']} rows={accounts.map((account) => [account.name, account.debit ? formatMoney(account.debit, currency) : '', account.credit ? formatMoney(account.credit, currency) : '']).concat([[`${title} totals`, formatMoney(totals.debit, currency), formatMoney(totals.credit, currency)]])} /><BalanceBanner balanced={totals.debit === totals.credit && totals.debit > 0} debit={totals.debit} credit={totals.credit} currency={currency} /></div>;
 }
 
 function FinancialStatement({ data, currency }: { data: Record<string, unknown>; currency: string }) {
@@ -170,7 +171,7 @@ function FinancialStatement({ data, currency }: { data: Record<string, unknown>;
   return (
     <div className="space-y-4 rounded-2xl border p-4">
       <div className="text-center"><div className="font-semibold">{String(data.businessName ?? 'Business')}</div><div className="text-sm text-muted-foreground">{String(data.statementType ?? 'Financial statement').replace(/_/g, ' ')}</div><div className="text-xs text-muted-foreground">{String(data.period ?? '')}</div></div>
-      {sections.map((section) => <div key={section.title}><div className="mb-2 font-semibold">{section.title}</div><AccountingTable columns={['Item', 'Amount']} rows={section.items.map((item) => [item.name, formatMoney(item.amount, currency)])} /></div>)}
+      {sections.map((section) => <div key={section.title}><div className="mb-2 font-semibold">{section.title}</div><AccountingTable title={section.title} columns={['Item', 'Amount']} rows={section.items.map((item) => [item.name, formatMoney(item.amount, currency)])} /></div>)}
       <GenericWorkpaperTable data={data} />
       <div className="rounded-xl bg-muted/30 p-3 text-sm font-semibold">Estimated result: {formatMoney(revenue - expenses, currency)}</div>
     </div>
@@ -186,8 +187,8 @@ function BankReconciliation({ data, currency }: { data: Record<string, unknown>;
 }
 
 function Depreciation({ data, currency }: { data: Record<string, unknown>; currency: string }) { return <FormulaResult title={`${String(data.asset ?? 'Asset')} depreciation`} formula={String(data.method ?? 'straight_line').replace(/_/g, ' ')} result={formatMoney(calculateDepreciation(data), currency)} />; }
-function InventoryValuation({ data, currency }: { data: Record<string, unknown>; currency: string }) { const result = calculateInventory(data); return <AccountingTable columns={['Measure', 'Amount']} rows={[[`Cost of goods sold (${String(data.method ?? 'FIFO')})`, formatMoney(result.cogs, currency)], ['Closing inventory', formatMoney(result.closingInventory, currency)]]} />; }
-function RatioAnalysis({ data }: { data: Record<string, unknown> }) { const ratios = calculateRatios(data.financialData && typeof data.financialData === 'object' ? data.financialData as Record<string, unknown> : data); return <AccountingTable columns={['Ratio', 'Result', 'Interpretation']} rows={Object.entries(ratios).filter(([, value]) => value > 0).map(([key, value]) => [key.replace(/_/g, ' '), String(value), key.includes('margin') ? `${value}%` : `${value}:1`])} />; }
+function InventoryValuation({ data, currency }: { data: Record<string, unknown>; currency: string }) { const result = calculateInventory(data); return <AccountingTable title="Inventory valuation" columns={['Measure', 'Amount']} rows={[[`Cost of goods sold (${String(data.method ?? 'FIFO')})`, formatMoney(result.cogs, currency)], ['Closing inventory', formatMoney(result.closingInventory, currency)]]} />; }
+function RatioAnalysis({ data }: { data: Record<string, unknown> }) { const ratios = calculateRatios(data.financialData && typeof data.financialData === 'object' ? data.financialData as Record<string, unknown> : data); return <AccountingTable title="Ratio analysis" columns={['Ratio', 'Result', 'Interpretation']} rows={Object.entries(ratios).filter(([, value]) => value > 0).map(([key, value]) => [key.replace(/_/g, ' '), String(value), key.includes('margin') ? `${value}%` : `${value}:1`])} />; }
 
 function ErrorCorrection({ data, currency }: { data: Record<string, unknown>; currency: string }) { const rows = normalizeJournalRows(data.correctionRows ?? data.rows); return <div className="space-y-3"><div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm"><AlertTriangle className="mb-2 size-4" />{String(data.errorDescription ?? 'Describe the accounting error.')}</div><JournalEntryTable rows={rows} currency={currency} /></div>; }
 
@@ -209,9 +210,9 @@ function BusinessSimulation({ data, currency }: { data: Record<string, unknown>;
   return <div className="space-y-3 rounded-2xl border p-4"><div className="flex items-center gap-2 font-semibold"><BriefcaseBusiness className="size-4" /> {String(data.businessName ?? 'Accounting business simulator')}</div><GenericWorkpaperTable data={data} /><div className="grid gap-3 lg:grid-cols-[1.2fr_.8fr]"><ol className="space-y-2 text-sm text-muted-foreground">{transactions.map((transaction, index) => <li key={transaction} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={transaction.replace(/K([0-9,]+)/g, `${currency} $1`)} /></li>)}</ol><div className="rounded-xl border bg-background p-3"><div className="mb-2 text-sm font-semibold">Simulation stages</div><ol className="space-y-2 text-xs text-muted-foreground">{stages.map((stage, index) => <li key={stage}>{index + 1}. {stage}</li>)}</ol></div></div></div>;
 }
 
-function MarkingScheme({ totalMarks, items }: { totalMarks: number; items: { description: string; marks: number }[] }) { return <AccountingTable columns={['Marking point', 'Marks']} rows={items.map((item) => [item.description, String(item.marks)]).concat([['Total', String(totalMarks)]])} />; }
+function MarkingScheme({ totalMarks, items }: { totalMarks: number; items: { description: string; marks: number }[] }) { return <AccountingTable title="Marking scheme" columns={['Marking point', 'Marks']} rows={items.map((item) => [item.description, String(item.marks)]).concat([['Total', String(totalMarks)]])} />; }
 function BalanceBanner({ balanced, debit, credit, currency }: { balanced: boolean; debit: number; credit: number; currency: string }) { return <div className={`rounded-xl border p-3 text-sm ${balanced ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-destructive/30 bg-destructive/10'}`}><div className="flex items-center gap-2 font-medium">{balanced ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />} {balanced ? 'Balanced' : 'Not balanced'}</div><p className="mt-1 text-muted-foreground">Debit: {formatMoney(debit, currency)} · Credit: {formatMoney(credit, currency)}</p></div>; }
 function FormulaResult({ title, formula, result }: { title: string; formula: string; result: string }) { return <div className="rounded-2xl border p-4"><div className="font-semibold">{title}</div><div className="mt-2 rounded-xl bg-muted/30 p-3 text-sm">{formula}</div><div className="mt-3 text-lg font-semibold">{result}</div></div>; }
-function AccountingTable({ columns, rows }: { columns: string[]; rows: unknown[][] }) { return <div className="min-w-0 overflow-hidden rounded-2xl border"><table className="w-full table-fixed text-[11px] sm:text-sm"><thead className="bg-muted/50"><tr>{columns.map((column) => <th key={column} className="break-words px-2 py-2 text-left align-top font-semibold sm:px-3">{column}</th>)}</tr></thead><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex} className="border-t">{row.map((cell, cellIndex) => <td key={cellIndex} className="break-words px-2 py-2 align-top text-muted-foreground sm:px-3">{String(cell ?? '')}</td>)}</tr>)}</tbody></table></div>; }
+function AccountingTable({ columns, rows, title = 'Accounting table' }: { columns: string[]; rows: unknown[][]; title?: string }) { return <AnimatedAccountingTable title={title} columns={columns} rows={rows} />; }
 function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-muted/30 p-3"><div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div><div className="font-medium">{value}</div></div>; }
 function sumAmounts(value: unknown) { if (!Array.isArray(value)) return 0; return value.reduce((sum, item) => sum + Number((typeof item === 'object' && item !== null ? (item as Record<string, unknown>).amount : item) ?? 0), 0); }
