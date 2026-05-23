@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MathText } from '@/components/learning/math-text';
 import type { BlockRendererProps } from '../schemas';
+import { StudentAccountingWorkbench } from './StudentAccountingWorkbench';
 import {
   calculateDepreciation,
   calculateInventory,
@@ -18,6 +19,7 @@ import {
   normalizeJournalRows,
   normalizeLedgerEntries,
   normalizeStatementSections,
+  normalizeTextList,
   normalizeTrialBalanceAccounts,
 } from './engine';
 
@@ -41,6 +43,7 @@ export function AccountingCardRenderer({ payload, definition }: BlockRendererPro
       </div>
 
       {renderAccountingBody(content.accountingType, data, currency)}
+      <StudentAccountingWorkbench content={content} currency={currency} />
 
       {content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : null}
 
@@ -73,6 +76,8 @@ function renderAccountingBody(type: string, data: Record<string, unknown>, curre
     case 'trial_balance':
       return <TrialBalance accounts={normalizeTrialBalanceAccounts(data.accounts)} currency={currency} title={String(data.title ?? 'Trial Balance')} />;
     case 'financial_statement':
+    case 'cash_flow_statement':
+    case 'consolidation':
       return <FinancialStatement data={data} currency={currency} />;
     case 'bank_reconciliation':
       return <BankReconciliation data={data} currency={currency} />;
@@ -84,6 +89,14 @@ function renderAccountingBody(type: string, data: Record<string, unknown>, curre
       return <RatioAnalysis data={data} />;
     case 'error_correction':
       return <ErrorCorrection data={data} currency={currency} />;
+    case 'ifrs_treatment':
+    case 'audit_risk':
+    case 'tax_computation':
+    case 'budgeting':
+    case 'variance_analysis':
+    case 'research_case':
+    case 'exam_practice':
+      return <ProfessionalCase data={data} />;
     case 'case_study':
     case 'business_simulation':
       return <BusinessSimulation data={data} currency={currency} />;
@@ -128,7 +141,7 @@ function JournalEntryTable({ rows, currency }: { rows: ReturnType<typeof normali
   const balanced = totals.debit === totals.credit && totals.debit > 0;
   return (
     <div className="space-y-3">
-      <AccountingTable columns={['Account', 'Debit', 'Credit']} rows={rows.map((row) => [row.account, row.debit ? formatMoney(row.debit, currency) : '', row.credit ? formatMoney(row.credit, currency) : ''])} />
+      <AccountingTable columns={['Professional account', 'Debit', 'Credit']} rows={rows.map((row) => [row.account, row.debit ? formatMoney(row.debit, currency) : '', row.credit ? formatMoney(row.credit, currency) : ''])} />
       <BalanceBanner balanced={balanced} debit={totals.debit} credit={totals.credit} currency={currency} />
     </div>
   );
@@ -181,7 +194,7 @@ function FinancialStatement({ data, currency }: { data: Record<string, unknown>;
           </div>
         ))}
       </div>
-      <div className="mt-4 rounded-xl bg-muted/30 p-3 text-sm font-semibold">Estimated profit: {formatMoney(revenue - expenses, currency)}</div>
+      <div className="mt-4 rounded-xl bg-muted/30 p-3 text-sm font-semibold">Estimated result: {formatMoney(revenue - expenses, currency)}</div>
     </div>
   );
 }
@@ -200,7 +213,7 @@ function BankReconciliation({ data, currency }: { data: Record<string, unknown>;
 
 function Depreciation({ data, currency }: { data: Record<string, unknown>; currency: string }) {
   const depreciation = calculateDepreciation(data);
-  return <FormulaResult title={`${String(data.asset ?? 'Asset')} depreciation`} formula="(Cost - Residual Value) / Useful Life" result={formatMoney(depreciation, currency)} />;
+  return <FormulaResult title={`${String(data.asset ?? 'Asset')} depreciation`} formula={String(data.method ?? 'straight_line').replace(/_/g, ' ')} result={formatMoney(depreciation, currency)} />;
 }
 
 function InventoryValuation({ data, currency }: { data: Record<string, unknown>; currency: string }) {
@@ -223,12 +236,27 @@ function ErrorCorrection({ data, currency }: { data: Record<string, unknown>; cu
   );
 }
 
+function ProfessionalCase({ data }: { data: Record<string, unknown> }) {
+  const prompts = normalizeTextList(data.required ?? data.prompts ?? data.tasks);
+  return (
+    <div className="rounded-2xl border p-4">
+      <div className="mb-2 font-semibold">{String(data.caseTitle ?? data.businessName ?? 'Professional accounting case')}</div>
+      {data.scenario ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.scenario)} /></p> : null}
+      {prompts.length ? <ol className="mt-3 space-y-2 text-sm text-muted-foreground">{prompts.map((prompt, index) => <li key={prompt} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={prompt} /></li>)}</ol> : null}
+    </div>
+  );
+}
+
 function BusinessSimulation({ data, currency }: { data: Record<string, unknown>; currency: string }) {
   const transactions = Array.isArray(data.transactions) ? data.transactions.map(String) : [];
+  const stages = normalizeTextList(data.stages).length ? normalizeTextList(data.stages) : ['Record journals', 'Post ledgers', 'Prepare trial balance', 'Make adjustments', 'Prepare statements', 'Interpret performance'];
   return (
     <div className="rounded-2xl border p-4">
       <div className="mb-3 flex items-center gap-2 font-semibold"><BriefcaseBusiness className="size-4" /> {String(data.businessName ?? 'Accounting business simulator')}</div>
-      <ol className="space-y-2 text-sm text-muted-foreground">{transactions.map((transaction, index) => <li key={transaction} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={transaction.replace(/K([0-9,]+)/g, `${currency} $1`)} /></li>)}</ol>
+      <div className="grid gap-3 lg:grid-cols-[1.2fr_.8fr]">
+        <ol className="space-y-2 text-sm text-muted-foreground">{transactions.map((transaction, index) => <li key={transaction} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={transaction.replace(/K([0-9,]+)/g, `${currency} $1`)} /></li>)}</ol>
+        <div className="rounded-xl border bg-background p-3"><div className="mb-2 text-sm font-semibold">Simulation stages</div><ol className="space-y-2 text-xs text-muted-foreground">{stages.map((stage, index) => <li key={stage}>{index + 1}. {stage}</li>)}</ol></div>
+      </div>
     </div>
   );
 }
