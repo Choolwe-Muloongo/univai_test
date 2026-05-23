@@ -73,21 +73,33 @@ export function AccountingStudioEditor({ payload, definition, onChange }: BlockE
   };
   const setDataJson = (value: string) => {
     try {
-      setContent({ data: JSON.parse(value) });
+      onChange({
+        ...payload,
+        accountingStudioDraftJson: undefined,
+        content: { ...content, data: JSON.parse(value) },
+      });
     } catch {
       setPayload({ accountingStudioDraftJson: value });
     }
   };
   const setExpectedJson = (value: string) => {
     try {
-      setContent({ expectedAnswer: JSON.parse(value) });
+      onChange({
+        ...payload,
+        accountingStudioExpectedDraftJson: undefined,
+        content: { ...content, expectedAnswer: JSON.parse(value) },
+      });
     } catch {
       setPayload({ accountingStudioExpectedDraftJson: value });
     }
   };
   const setMarkingJson = (value: string) => {
     try {
-      setContent({ markingScheme: JSON.parse(value) });
+      onChange({
+        ...payload,
+        accountingStudioMarkingDraftJson: undefined,
+        content: { ...content, markingScheme: JSON.parse(value) },
+      });
     } catch {
       setPayload({ accountingStudioMarkingDraftJson: value });
     }
