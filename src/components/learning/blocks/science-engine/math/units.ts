@@ -7,6 +7,8 @@ export type ParsedQuantity = {
 
 type UnitDefinition = { factor: number; dimension: Dimension; canonical: string };
 
+type UnitToken = { symbol: string; power: number; sign: 1 | -1 };
+
 const unitTable: Record<string, UnitDefinition> = {
   N: { factor: 1, dimension: { M: 1, L: 1, T: -2 }, canonical: 'N' },
   kN: { factor: 1000, dimension: { M: 1, L: 1, T: -2 }, canonical: 'N' },
@@ -41,6 +43,7 @@ const compoundAliases: Record<string, string> = {
   'm3': 'm^3',
   'm³': 'm^3',
   'N/m2': 'N/m^2',
+  'N/m²': 'N/m^2',
   'Pa.s': 'Pa*s',
   'W/mK': 'W/(m*K)',
 };
@@ -67,25 +70,52 @@ function parseUnitPower(raw: string) {
   return { symbol: normaliseUnit(match[1]), power: Number(match[2] ?? 1) };
 }
 
+function tokenizeCompoundUnit(cleaned: string): UnitToken[] | null {
+  const tokens: UnitToken[] = [];
+  let buffer = '';
+  let sign: 1 | -1 = 1;
+
+  function flush() {
+    const value = buffer.trim().replace(/[()]/g, '');
+    buffer = '';
+    if (!value) return true;
+    const parsed = parseUnitPower(value);
+    if (!parsed) return false;
+    tokens.push({ ...parsed, sign });
+    return true;
+  }
+
+  for (const char of cleaned) {
+    if (char === '*' || char === '/') {
+      if (!flush()) return null;
+      sign = char === '/' ? -1 : 1;
+    } else {
+      buffer += char;
+    }
+  }
+
+  if (!flush()) return null;
+  return tokens.length ? tokens : null;
+}
+
 export function getUnitDefinition(unit: string): UnitDefinition | null {
   const cleaned = normaliseUnit(unit);
   if (!cleaned || cleaned === '1') return { factor: 1, dimension: {}, canonical: '1' };
   if (unitTable[cleaned]) return unitTable[cleaned];
 
-  const parts = cleaned.replace(/\*/g, '/').split('/').filter(Boolean);
-  if (!parts.length) return null;
+  const tokens = tokenizeCompoundUnit(cleaned);
+  if (!tokens?.length) return null;
 
   let factor = 1;
   let dimension: Dimension = {};
-  parts.forEach((part, index) => {
-    const parsed = parseUnitPower(part);
-    if (!parsed) return;
-    const definition = unitTable[parsed.symbol];
-    if (!definition) return;
-    const sign = index === 0 ? 1 : -1;
-    factor *= definition.factor ** (parsed.power * sign);
-    dimension = addDimensions(dimension, definition.dimension, parsed.power * sign);
-  });
+
+  for (const token of tokens) {
+    const definition = unitTable[token.symbol];
+    if (!definition) return null;
+    const signedPower = token.power * token.sign;
+    factor *= definition.factor ** signedPower;
+    dimension = addDimensions(dimension, definition.dimension, signedPower);
+  }
 
   return { factor, dimension, canonical: cleaned };
 }
