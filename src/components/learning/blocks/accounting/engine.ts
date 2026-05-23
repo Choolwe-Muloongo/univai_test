@@ -389,7 +389,12 @@ function validateProfessionalMetadata(content: AccountingCardContent, issues: st
 function markJournalEntry(content: AccountingCardContent, answer: unknown): BlockAutoMarkResult {
   const expected = normalizeJournalRows(content.expectedAnswer?.rows ?? content.data.rows ?? content.data.correctionRows);
   const actual = normalizeJournalRows(isRecord(answer) ? answer.rows : answer);
-  const actualTotals = calculateJournalTotals(actual.length ? actual : expected);
+
+  if (!actual.length) {
+    return { correct: false, score: 0, feedback: 'No journal rows were submitted. Enter the debit and credit lines before checking your work.' };
+  }
+
+  const actualTotals = calculateJournalTotals(actual);
 
   if (actualTotals.debit !== actualTotals.credit) {
     return { correct: false, score: 0, feedback: 'Your journal entry is not balanced. In double entry, total debit must equal total credit.' };
@@ -411,15 +416,22 @@ function markJournalEntry(content: AccountingCardContent, answer: unknown): Bloc
 function markTrialBalance(content: AccountingCardContent, answer: unknown): BlockAutoMarkResult {
   const expected = normalizeTrialBalanceAccounts(content.expectedAnswer?.accounts ?? content.data.accounts);
   const actual = normalizeTrialBalanceAccounts(isRecord(answer) ? answer.accounts : answer);
-  const rows = actual.length ? actual : expected;
-  const totals = calculateTrialBalanceTotals(rows);
+
+  if (!actual.length) {
+    return { correct: false, score: 0, feedback: 'No trial balance rows were submitted. Enter the account balances before checking your work.' };
+  }
+
+  const totals = calculateTrialBalanceTotals(actual);
   if (totals.debit !== totals.credit || totals.debit <= 0) {
     return { correct: false, score: 0, feedback: 'Your trial balance does not agree. Check side placement, omissions, and amounts.' };
   }
   if (!expected.length) return { correct: true, score: 1, feedback: 'Balanced. The trial balance agrees.' };
-  const matched = expected.filter((row) => rows.some((actualRow) => sameAccount(actualRow.name, row.name) && money(actualRow.debit) === money(row.debit) && money(actualRow.credit) === money(row.credit))).length;
+
+  const matched = expected.filter((row) => actual.some((actualRow) => sameAccount(actualRow.name, row.name) && money(actualRow.debit) === money(row.debit) && money(actualRow.credit) === money(row.credit))).length;
+  const missing = expected.filter((row) => !actual.some((actualRow) => sameAccount(actualRow.name, row.name)));
   const score = round2(matched / expected.length);
-  return { correct: score >= 0.95, score, feedback: score >= 0.95 ? 'Excellent. The trial balance is balanced and accounts are correctly placed.' : `The trial balance balances, but only ${matched}/${expected.length} accounts match the professional answer.` };
+  const missingText = missing.length ? ` Missing or renamed accounts: ${missing.slice(0, 4).map((row) => row.name).join(', ')}.` : '';
+  return { correct: score >= 0.95, score, feedback: score >= 0.95 ? 'Excellent. The trial balance is balanced and accounts are correctly placed.' : `The trial balance balances, but only ${matched}/${expected.length} accounts match the professional answer.${missingText}` };
 }
 
 function markNumericAnswer(content: AccountingCardContent, answer: unknown, expected: Record<string, number>, fields: string[]): BlockAutoMarkResult {
