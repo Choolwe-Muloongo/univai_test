@@ -109,18 +109,49 @@ export type AccountingReadinessReview = {
 };
 
 const allowedAccountingTypes: AccountingCardType[] = [
-  'concept', 'transaction', 'journal_entry', 'ledger', 'trial_balance', 'financial_statement',
-  'bank_reconciliation', 'depreciation', 'inventory', 'ratio_analysis', 'error_correction',
-  'case_study', 'exam_practice', 'marking_scheme', 'business_simulation', 'consolidation',
-  'cash_flow_statement', 'ifrs_treatment', 'audit_risk', 'tax_computation', 'budgeting',
-  'variance_analysis', 'research_case', 'research_article_critique', 'theory_comparison',
-  'literature_gap_analysis', 'hypothesis_builder', 'methodology_design', 'empirical_model',
-  'variable_measurement', 'doctoral_proposal',
+  'concept',
+  'transaction',
+  'journal_entry',
+  'ledger',
+  'trial_balance',
+  'financial_statement',
+  'bank_reconciliation',
+  'depreciation',
+  'inventory',
+  'ratio_analysis',
+  'error_correction',
+  'case_study',
+  'exam_practice',
+  'marking_scheme',
+  'business_simulation',
+  'consolidation',
+  'cash_flow_statement',
+  'ifrs_treatment',
+  'audit_risk',
+  'tax_computation',
+  'budgeting',
+  'variance_analysis',
+  'research_case',
+  'research_article_critique',
+  'theory_comparison',
+  'literature_gap_analysis',
+  'hypothesis_builder',
+  'methodology_design',
+  'empirical_model',
+  'variable_measurement',
+  'doctoral_proposal',
 ];
 
 const phdAccountingTypes: AccountingCardType[] = [
-  'research_case', 'research_article_critique', 'theory_comparison', 'literature_gap_analysis',
-  'hypothesis_builder', 'methodology_design', 'empirical_model', 'variable_measurement', 'doctoral_proposal',
+  'research_case',
+  'research_article_critique',
+  'theory_comparison',
+  'literature_gap_analysis',
+  'hypothesis_builder',
+  'methodology_design',
+  'empirical_model',
+  'variable_measurement',
+  'doctoral_proposal',
 ];
 
 export const chartOfAccounts = [
@@ -158,12 +189,15 @@ export const phdReadinessChecklist = [
 
 export function getAccountingContent(payload: LearningBlockPayload): AccountingCardContent {
   const content = isRecord(payload.content) ? payload.content : {};
+  const contentMarkingScheme = parseMarkingScheme(content.markingScheme);
+  const legacyMarkingScheme = parseMarkingScheme(payload.markingScheme);
+
   return {
     accountingType: normalizeAccountingType(content.accountingType ?? payload.accountingType),
     difficulty: normalizeDifficulty(content.difficulty ?? payload.difficulty),
     data: isRecord(content.data) ? content.data : collectLegacyData(payload),
     expectedAnswer: isRecord(content.expectedAnswer) ? content.expectedAnswer : isRecord(payload.expectedAnswer) ? payload.expectedAnswer : undefined,
-    markingScheme: isMarkingScheme(content.markingScheme) ? content.markingScheme : isMarkingScheme(payload.markingScheme) ? payload.markingScheme : undefined,
+    markingScheme: contentMarkingScheme ?? legacyMarkingScheme,
   };
 }
 
@@ -562,7 +596,7 @@ function normalizeDifficulty(value: unknown): AccountingDifficulty {
   return ['beginner', 'intermediate', 'advanced', 'professional', 'phd'].includes(normalized) ? normalized as AccountingDifficulty : 'beginner';
 }
 
-function isMarkingScheme(value: unknown): AccountingMarkingScheme | undefined {
+function parseMarkingScheme(value: unknown): AccountingMarkingScheme | undefined {
   if (!isRecord(value)) return undefined;
   const totalMarks = money(value.totalMarks);
   const items = Array.isArray(value.items) ? value.items.filter(isRecord).map((item) => ({
