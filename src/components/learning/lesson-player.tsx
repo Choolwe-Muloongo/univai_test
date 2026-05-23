@@ -202,115 +202,117 @@ export function LessonPlayer({
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-6xl flex-col gap-5 px-2 py-2 sm:px-0">
-      <div className="flex items-center justify-between gap-3">
+    <div className="mx-auto flex min-h-[100svh] w-full max-w-6xl flex-col overflow-hidden px-2 py-2 sm:min-h-[calc(100vh-4rem)] sm:px-4 sm:py-4 lg:px-6">
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2 sm:mb-4">
         {backHref ? (
-          <Button variant="ghost" size="sm" asChild className="gap-2 px-2">
+          <Button variant="ghost" size="sm" asChild className="h-9 gap-2 rounded-full px-2 sm:px-3">
             <Link href={backHref}>
               <ArrowLeft className="h-4 w-4" />
-              Back
+              <span className="hidden xs:inline sm:inline">Back</span>
             </Link>
           </Button>
         ) : <span />}
-        <Badge variant="secondary" className="rounded-full px-3 py-1">
+        <div className="min-w-0 flex-1 px-1 text-center sm:px-3">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-primary sm:text-xs"><MathText text={courseTitle || 'Study mode'} /></p>
+          <h1 className="truncate text-sm font-semibold tracking-tight sm:text-xl"><MathText text={lesson.title} /></h1>
+        </div>
+        <Badge variant="secondary" className="shrink-0 rounded-full px-2 py-1 text-[11px] sm:px-3 sm:text-xs">
           {lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min` : 'Self-paced'}
         </Badge>
       </div>
 
-      <div className="space-y-2">
-        {courseTitle ? <p className="text-sm font-medium text-primary"><MathText text={courseTitle} /></p> : null}
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl"><MathText text={lesson.title} /></h1>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Card {index + 1} of {blocks.length}</span>
-            <span>{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
+      <div className="mb-2 shrink-0 space-y-1 sm:mb-4 sm:space-y-2">
+        <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground sm:text-xs">
+          <span>Card {index + 1} of {blocks.length}</span>
+          <span>{progress}%</span>
         </div>
+        <Progress value={progress} className="h-1.5 sm:h-2" />
       </div>
 
-      <div className="grid flex-1 min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <Card className="flex min-h-[390px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border-primary/10 shadow-sm sm:rounded-3xl">
-        <CardHeader className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge className="rounded-full capitalize" variant={isInteractive ? 'default' : 'secondary'}>
-              {labelForBlock(block)}
-            </Badge>
-            {typeof block.subLessonTitle === 'string' && block.type !== 'sub_lesson' ? <Badge variant="outline" className="max-w-[220px] truncate rounded-full"><MathText text={block.subLessonTitle} /></Badge> : null}
-          </div>
-          <CardTitle className="text-xl sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
-        </CardHeader>
-
-        <CardContent className="flex-1 min-w-0 space-y-5">
-          <BlockContent block={block} revealed={Boolean(revealed[index])} onReveal={() => setRevealed((current) => ({ ...current, [index]: true }))} />
-
-          {block.type === 'question' ? (
-            <div className="grid gap-3">
-              {(block.options ?? []).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  disabled={Boolean(answered)}
-                  onClick={() => setChoice(option)}
-                  className={`rounded-2xl border p-4 text-left text-sm transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
-                >
-                  <MathText text={option} />
-                </button>
-              ))}
+      <div className="grid min-h-0 flex-1 min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <Card className="flex min-h-[75svh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border-primary/10 shadow-sm sm:min-h-[calc(100vh-12rem)] sm:rounded-3xl">
+          <CardHeader className="shrink-0 space-y-2 px-4 py-3 sm:space-y-3 sm:px-6 sm:py-5">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+              <Badge className="rounded-full capitalize" variant={isInteractive ? 'default' : 'secondary'}>
+                {labelForBlock(block)}
+              </Badge>
+              {typeof block.subLessonTitle === 'string' && block.type !== 'sub_lesson' ? <Badge variant="outline" className="max-w-[180px] truncate rounded-full sm:max-w-[260px]"><MathText text={block.subLessonTitle} /></Badge> : null}
             </div>
-          ) : null}
+            <CardTitle className="text-lg leading-tight sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
+          </CardHeader>
 
-          {block.type === 'fill_blank' ? <Input value={textAnswer} disabled={Boolean(answered)} onChange={(event) => setTextAnswer(event.target.value)} placeholder="Type your answer..." /> : null}
+          <CardContent className="min-h-0 flex-1 min-w-0 space-y-4 overflow-y-auto px-4 pb-4 sm:space-y-5 sm:px-6">
+            <BlockContent block={block} revealed={Boolean(revealed[index])} onReveal={() => setRevealed((current) => ({ ...current, [index]: true }))} />
 
-          {block.type === 'true_false' ? (
-            <div className="grid grid-cols-2 gap-3">
-              {['true', 'false'].map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  disabled={Boolean(answered)}
-                  onClick={() => setChoice(option)}
-                  className={`rounded-2xl border p-4 text-center text-sm font-medium capitalize transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {answered ? (
-            <div className={`rounded-2xl border p-4 text-sm ${answered.isCorrect ? 'border-primary/30 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
-              <div className="mb-1 flex items-center gap-2 font-semibold">
-                {answered.isCorrect ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                {answered.isCorrect ? 'Correct' : 'Not quite'}
+            {block.type === 'question' ? (
+              <div className="grid gap-3">
+                {(block.options ?? []).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    disabled={Boolean(answered)}
+                    onClick={() => setChoice(option)}
+                    className={`rounded-2xl border p-4 text-left text-sm transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
+                  >
+                    <MathText text={option} />
+                  </button>
+                ))}
               </div>
-              <p className="text-muted-foreground"><MathText text={answered.message} /></p>
+            ) : null}
+
+            {block.type === 'fill_blank' ? <Input value={textAnswer} disabled={Boolean(answered)} onChange={(event) => setTextAnswer(event.target.value)} placeholder="Type your answer..." /> : null}
+
+            {block.type === 'true_false' ? (
+              <div className="grid grid-cols-2 gap-3">
+                {['true', 'false'].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    disabled={Boolean(answered)}
+                    onClick={() => setChoice(option)}
+                    className={`rounded-2xl border p-4 text-center text-sm font-medium capitalize transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {answered ? (
+              <div className={`rounded-2xl border p-4 text-sm ${answered.isCorrect ? 'border-primary/30 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
+                <div className="mb-1 flex items-center gap-2 font-semibold">
+                  {answered.isCorrect ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                  {answered.isCorrect ? 'Correct' : 'Not quite'}
+                </div>
+                <p className="text-muted-foreground"><MathText text={answered.message} /></p>
+              </div>
+            ) : null}
+          </CardContent>
+
+          <CardFooter className="shrink-0 border-t bg-background/95 p-3 backdrop-blur sm:p-4">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:justify-between">
+              <Button variant="outline" onClick={goPrevious} disabled={index === 0} className="w-full gap-2 sm:w-auto">
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+
+              {isInteractive && !answered ? (
+                <Button onClick={checkAnswer} disabled={!choice && !textAnswer.trim()} className="w-full sm:w-auto">Check answer</Button>
+              ) : isLast ? (
+                <Button onClick={completeLesson} disabled={!onComplete || completed || saving} className="w-full gap-2 bg-[#00694E] hover:bg-[#00563f] sm:w-auto">
+                  <Sparkles className="h-4 w-4" />
+                  {completed ? 'Lesson completed' : saving ? 'Saving...' : completeLabel}
+                </Button>
+              ) : (
+                <Button onClick={goNext} disabled={!canContinue} className="w-full gap-2 sm:w-auto">
+                  Continue
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          ) : null}
-        </CardContent>
-
-        <CardFooter className="sticky bottom-0 z-10 flex flex-col gap-3 border-t bg-background/95 pt-4 backdrop-blur sm:static sm:flex-row sm:justify-between">
-          <Button variant="outline" onClick={goPrevious} disabled={index === 0} className="w-full gap-2 sm:w-auto">
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-
-          {isInteractive && !answered ? (
-            <Button onClick={checkAnswer} disabled={!choice && !textAnswer.trim()} className="w-full sm:w-auto">Check answer</Button>
-          ) : isLast ? (
-            <Button onClick={completeLesson} disabled={!onComplete || completed || saving} className="w-full gap-2 bg-[#00694E] hover:bg-[#00563f] sm:w-auto">
-              <Sparkles className="h-4 w-4" />
-              {completed ? 'Lesson completed' : saving ? 'Saving...' : completeLabel}
-            </Button>
-          ) : (
-            <Button onClick={goNext} disabled={!canContinue} className="w-full gap-2 sm:w-auto">
-              Continue
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
-      <SideContextPanel block={block} lessonDifficulty={lesson.difficulty} />
+          </CardFooter>
+        </Card>
+        <SideContextPanel block={block} lessonDifficulty={lesson.difficulty} />
       </div>
     </div>
   );
