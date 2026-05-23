@@ -91,6 +91,14 @@ export type PhysicsTemplate =
   | 'moments'
   | 'spring'
   | 'collision'
+  | 'momentum_conservation'
+  | 'elastic_collision'
+  | 'inelastic_collision'
+  | 'perfectly_inelastic_collision'
+  | 'explosion_separation'
+  | 'impulse_collision'
+  | 'collision_graph'
+  | 'collision_vector_diagram'
   | 'angle_vector_resolution'
   | 'hydraulic_press'
   | 'fluid_pressure'
@@ -106,12 +114,16 @@ export type PhysicsTemplate =
   | 'pump_valve_circuit'
   | 'fluid_flow'
   | 'thermodynamic_cycle'
+  | 'heat_engine'
+  | 'entropy_process'
   | 'electric_field'
   | 'magnetic_field'
   | 'maxwell_equations'
   | 'quantum_wavefunction'
   | 'potential_well'
+  | 'quantum_tunneling'
   | 'spacetime_diagram'
+  | 'lorentz_transformation'
   | 'nuclear_decay'
   | 'particle_interaction'
   | 'tensor_field'
@@ -187,7 +199,7 @@ export type PhysicsObject = {
 
 export type PhysicsArrow = {
   id: string;
-   type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse' | 'pressure' | 'heat' | 'spin' | 'probability_current' | 'flow' | 'pressure_loss' | 'return_flow';
+  type: 'force' | 'velocity' | 'acceleration' | 'displacement' | 'ray' | 'field' | 'normal' | 'momentum' | 'impulse' | 'pressure' | 'heat' | 'spin' | 'probability_current' | 'flow' | 'pressure_loss' | 'return_flow';
   from: { x: number; y: number };
   to: { x: number; y: number };
   label?: string;
