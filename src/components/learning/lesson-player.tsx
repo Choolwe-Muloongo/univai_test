@@ -208,7 +208,7 @@ export function LessonPlayer({
           <Button variant="ghost" size="sm" asChild className="h-9 gap-2 rounded-full px-2 sm:px-3">
             <Link href={backHref}>
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden xs:inline sm:inline">Back</span>
+              <span className="hidden sm:inline">Back</span>
             </Link>
           </Button>
         ) : <span />}
