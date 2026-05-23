@@ -2,6 +2,7 @@ import type { LearningBlockDefinition, LearningBlockPayload } from '../schemas';
 import { AccountingCardPreviewRenderer, AccountingCardRenderer } from './AccountingCardRenderer';
 import { autoMarkAccounting, validateAccountingPayload } from './engine';
 import { AccountingStudioEditor } from './AccountingStudioEditor';
+import { accountingCourseLevels, accountingLessonPattern, accountingTemplateKinds } from './course-blueprints';
 
 const defaultPayload: LearningBlockPayload = {
   type: 'accounting_studio',
@@ -45,7 +46,7 @@ export const accountingBlockDefinitions: LearningBlockDefinition[] = [
     label: 'Accounting Studio Engine',
     category: 'accounting',
     family: 'accounting-engine',
-    description: 'Professional accounting workflow block for scenarios, journals, ledgers, trial balances, statements, bank reconciliation, depreciation, inventory valuation, ratios, errors, case studies, and business simulations.',
+    description: 'Complete professional accounting workflow block for beginner, intermediate, advanced, professional, and PhD-level courses. Supports scenarios, journals, ledgers, trial balances, statements, bank reconciliation, depreciation, inventory valuation, ratios, errors, IFRS treatment, audit risk, tax, budgeting, variance analysis, research critique, and business simulations.',
     defaultPayload,
     payloadSchema: {
       type: 'object',
@@ -66,6 +67,11 @@ export const accountingBlockDefinitions: LearningBlockDefinition[] = [
           },
         },
       },
+      metadata: {
+        supportedLevels: Object.keys(accountingCourseLevels),
+        lessonPattern: accountingLessonPattern,
+        templates: accountingTemplateKinds.map((template) => template.kind),
+      },
       additionalProperties: true,
     },
     AdminEditor: AccountingStudioEditor,
@@ -81,13 +87,22 @@ export const accountingBlockDefinitions: LearningBlockDefinition[] = [
     },
     aiInstructions: [
       'Use type accounting_studio for all accounting lessons.',
+      'Build from beginner to PhD level using structured accounting cards, never plain notes only.',
       'Store structured content inside content.accountingType, content.difficulty, content.data, content.expectedAnswer, and content.markingScheme.',
-      'Do not generate plain accounting paragraphs when a workflow card is better.',
-      'Prefer scenario → transaction → journal entry → ledger → trial balance → statements → analysis → exam practice.',
-      'For beginner cards, use simple ZMW examples. For professional cards, include IFRS treatment, report writing, marking schemes, and scenario-based judgment.',
+      'Every serious lesson should follow scenario, concept, account effect, journal entry, ledger posting, student attempt, instant correction, exam question, and marking scheme.',
+      'For beginner cards, use simple ZMW business examples and show account effects.',
+      'For intermediate cards, force students to prepare full accounts, reconciliations, adjustments, control accounts, depreciation, inventory, and error corrections.',
+      'For advanced cards, include IFRS principles, financial statements, cash flows, consolidation, ratio interpretation, costing, budgeting, and variance analysis.',
+      'For professional cards, include long cases, report writing, audit risks, tax computations, ethics, governance, and ACCA-style marking schemes.',
+      'For PhD cards, include accounting theory, research critique, literature gaps, methodology, measurement debates, and evidence-based argumentation.',
     ].join(' '),
     difficulty: 'advanced',
     bestUsedFor: [
+      'beginner accounting courses',
+      'intermediate exam preparation',
+      'advanced university accounting',
+      'professional ACCA-style accounting',
+      'PhD accounting research critique',
       'double-entry practice',
       'transaction analysis',
       'journal entry building',
@@ -99,7 +114,10 @@ export const accountingBlockDefinitions: LearningBlockDefinition[] = [
       'inventory valuation',
       'suspense accounts and error correction',
       'ratio analysis',
-      'ACCA-style case studies',
+      'IFRS treatment',
+      'audit risk and controls',
+      'tax computation',
+      'budgeting and variance analysis',
       'business accounting simulations',
     ],
     autoMarked: true,
@@ -120,3 +138,4 @@ export type {
 } from './engine';
 
 export { chartOfAccounts } from './engine';
+export { accountingCourseLevels, accountingLessonPattern, accountingTemplateKinds } from './course-blueprints';
