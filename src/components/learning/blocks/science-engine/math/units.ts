@@ -5,7 +5,9 @@ export type ParsedQuantity = {
   unit: string;
 };
 
-const unitTable: Record<string, { factor: number; dimension: Dimension; canonical: string }> = {
+type UnitDefinition = { factor: number; dimension: Dimension; canonical: string };
+
+const unitTable: Record<string, UnitDefinition> = {
   N: { factor: 1, dimension: { M: 1, L: 1, T: -2 }, canonical: 'N' },
   kN: { factor: 1000, dimension: { M: 1, L: 1, T: -2 }, canonical: 'N' },
   Pa: { factor: 1, dimension: { M: 1, L: -1, T: -2 }, canonical: 'Pa' },
@@ -22,39 +24,93 @@ const unitTable: Record<string, { factor: number; dimension: Dimension; canonica
   min: { factor: 60, dimension: { T: 1 }, canonical: 's' },
   h: { factor: 3600, dimension: { T: 1 }, canonical: 's' },
   A: { factor: 1, dimension: { I: 1 }, canonical: 'A' },
+  K: { factor: 1, dimension: { Theta: 1 }, canonical: 'K' },
+  mol: { factor: 1, dimension: { N: 1 }, canonical: 'mol' },
   V: { factor: 1, dimension: { M: 1, L: 2, T: -3, I: -1 }, canonical: 'V' },
   ohm: { factor: 1, dimension: { M: 1, L: 2, T: -3, I: -2 }, canonical: 'ohm' },
   Hz: { factor: 1, dimension: { T: -1 }, canonical: 'Hz' },
 };
 
+const compoundAliases: Record<string, string> = {
+  'm/s2': 'm/s^2',
+  'm/s²': 'm/s^2',
+  'kg/m3': 'kg/m^3',
+  'kg/m³': 'kg/m^3',
+  'm2': 'm^2',
+  'm²': 'm^2',
+  'm3': 'm^3',
+  'm³': 'm^3',
+  'N/m2': 'N/m^2',
+  'Pa.s': 'Pa*s',
+  'W/mK': 'W/(m*K)',
+};
+
+function addDimensions(a: Dimension, b: Dimension, multiplier = 1): Dimension {
+  const next: Dimension = { ...a };
+  for (const [key, value] of Object.entries(b) as Array<[keyof Dimension, number]>) {
+    next[key] = (next[key] ?? 0) + value * multiplier;
+    if (next[key] === 0) delete next[key];
+  }
+  return next;
+}
+
 function sameDimension(a: Dimension, b: Dimension) {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)] as Array<keyof Dimension>);
-  for (const key of keys) {
-    if ((a[key] ?? 0) !== (b[key] ?? 0)) return false;
-  }
+  for (const key of keys) if ((a[key] ?? 0) !== (b[key] ?? 0)) return false;
   return true;
 }
 
+function parseUnitPower(raw: string) {
+  const unit = raw.trim().replace(/[()]/g, '');
+  const match = unit.match(/^([a-zA-Z]+)(?:\^(-?\d+))?$/);
+  if (!match) return null;
+  return { symbol: normaliseUnit(match[1]), power: Number(match[2] ?? 1) };
+}
+
+export function getUnitDefinition(unit: string): UnitDefinition | null {
+  const cleaned = normaliseUnit(unit);
+  if (!cleaned || cleaned === '1') return { factor: 1, dimension: {}, canonical: '1' };
+  if (unitTable[cleaned]) return unitTable[cleaned];
+
+  const parts = cleaned.replace(/\*/g, '/').split('/').filter(Boolean);
+  if (!parts.length) return null;
+
+  let factor = 1;
+  let dimension: Dimension = {};
+  parts.forEach((part, index) => {
+    const parsed = parseUnitPower(part);
+    if (!parsed) return;
+    const definition = unitTable[parsed.symbol];
+    if (!definition) return;
+    const sign = index === 0 ? 1 : -1;
+    factor *= definition.factor ** (parsed.power * sign);
+    dimension = addDimensions(dimension, definition.dimension, parsed.power * sign);
+  });
+
+  return { factor, dimension, canonical: cleaned };
+}
+
 export function parseQuantity(input: string): ParsedQuantity | null {
-  const match = input.trim().match(/^(-?\d+(?:\.\d+)?)\s*([a-zA-ZΩ/\^0-9\-]*)$/);
+  const match = input.trim().match(/^(-?\d+(?:\.\d+)?)\s*([a-zA-ZΩ/\^0-9\-.*()²³]*)$/);
   if (!match) return null;
   return { value: Number(match[1]), unit: normaliseUnit(match[2] || '') };
 }
 
 export function normaliseUnit(unit: string) {
-  return unit.replace('Ω', 'ohm').trim();
+  const cleaned = unit.replace('Ω', 'ohm').replace(/\s+/g, '').trim();
+  return compoundAliases[cleaned] ?? cleaned;
 }
 
 export function checkUnitCompatibility(expectedUnit: string, submittedUnit: string) {
-  const expected = unitTable[normaliseUnit(expectedUnit)];
-  const submitted = unitTable[normaliseUnit(submittedUnit)];
-  if (!expected || !submitted) return expectedUnit === submittedUnit;
+  const expected = getUnitDefinition(expectedUnit);
+  const submitted = getUnitDefinition(submittedUnit);
+  if (!expected || !submitted) return normaliseUnit(expectedUnit) === normaliseUnit(submittedUnit);
   return sameDimension(expected.dimension, submitted.dimension);
 }
 
 export function convertUnit(value: number, fromUnit: string, toUnit: string) {
-  const from = unitTable[normaliseUnit(fromUnit)];
-  const to = unitTable[normaliseUnit(toUnit)];
+  const from = getUnitDefinition(fromUnit);
+  const to = getUnitDefinition(toUnit);
   if (!from || !to) throw new Error(`Unsupported unit conversion: ${fromUnit} to ${toUnit}`);
   if (!sameDimension(from.dimension, to.dimension)) throw new Error(`Incompatible units: ${fromUnit} and ${toUnit}`);
   return (value * from.factor) / to.factor;
