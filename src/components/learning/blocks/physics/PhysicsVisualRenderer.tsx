@@ -5,6 +5,12 @@ import { RotateCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { PhysicsVisual } from './types';
+import { FieldVisualizationRenderer } from './advanced/FieldVisualizationRenderer';
+import { FluidFlowRenderer } from './advanced/FluidFlowRenderer';
+import { PotentialWellRenderer } from './advanced/PotentialWellRenderer';
+import { QuantumWavefunctionRenderer } from './advanced/QuantumWavefunctionRenderer';
+import { SpacetimeDiagramRenderer } from './advanced/SpacetimeDiagramRenderer';
+import { ThermodynamicCycleRenderer } from './advanced/ThermodynamicCycleRenderer';
 import { CircuitPhysicsRenderer } from './renderers/CircuitPhysicsRenderer';
 import { CollisionSimulationRenderer } from './renderers/CollisionSimulationRenderer';
 import { GraphPhysicsRenderer } from './renderers/GraphPhysicsRenderer';
@@ -50,7 +56,7 @@ export function PhysicsVisualRenderer({ visual, mode = 'student' }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Physics visual engine</p>
-          <p className="text-sm text-muted-foreground">{visual.template.replace(/_/g, ' ')} · {visual.visualType}</p>
+          <p className="text-sm text-muted-foreground">{visual.template.replace(/_/g, ' ')} · {visual.visualType}{visual.physicsLevel ? ` · ${visual.physicsLevel.replace(/_/g, ' ')}` : ''}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {mode === 'builder' ? <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">Builder preview</span> : null}
@@ -80,6 +86,19 @@ function renderPhysicsVisual(visual: PhysicsVisual, props: Parameters<typeof Svg
       return <OpticsPhysicsRenderer {...props} />;
     case 'wave':
       return <WavePhysicsRenderer {...props} />;
+    case 'quantum_wavefunction':
+      return <QuantumWavefunctionRenderer visual={visual} />;
+    case 'potential_well':
+      return <PotentialWellRenderer visual={visual} />;
+    case 'spacetime_diagram':
+      return <SpacetimeDiagramRenderer visual={visual} />;
+    case 'electric_field':
+    case 'magnetic_field':
+      return <FieldVisualizationRenderer visual={visual} />;
+    case 'thermodynamic_cycle':
+      return <ThermodynamicCycleRenderer visual={visual} />;
+    case 'bernoulli_flow':
+      return <FluidFlowRenderer visual={visual} />;
     default:
       return <SvgDiagramRenderer {...props} />;
   }
