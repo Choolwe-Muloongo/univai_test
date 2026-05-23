@@ -5,6 +5,7 @@ import { AlertTriangle, BadgeCheck, BriefcaseBusiness, CheckCircle2, Landmark } 
 import { Badge } from '@/components/ui/badge';
 import { MathText } from '@/components/learning/math-text';
 import type { BlockRendererProps } from '../schemas';
+import { AccountingTeachingPlayer } from './AccountingTeachingPlayer';
 import { AnimatedAccountingTable } from './AnimatedAccountingTable';
 import { StudentAccountingWorkbench } from './StudentAccountingWorkbench';
 import {
@@ -40,6 +41,7 @@ export function AccountingCardRenderer({ payload, definition }: BlockRendererPro
   const data = content.data;
   const title = String(payload.title ?? data.title ?? definition.label);
   const currency = String(data.currency ?? 'ZMW');
+  const body = renderAccountingBody(content.accountingType, data, currency);
 
   return (
     <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-background p-4 shadow-sm">
@@ -54,7 +56,7 @@ export function AccountingCardRenderer({ payload, definition }: BlockRendererPro
         {payload.body ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
       </div>
 
-      {renderAccountingBody(content.accountingType, data, currency)}
+      <AccountingTeachingPlayer content={content} title={title}>{body}</AccountingTeachingPlayer>
       <StudentAccountingWorkbench content={content} currency={currency} />
 
       {content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : null}
