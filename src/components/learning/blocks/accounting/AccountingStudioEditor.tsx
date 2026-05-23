@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { BlockEditorProps } from '../schemas';
 import { getAccountingContent, validateAccountingPayload } from './engine';
 import { accountingRenderableTemplates, applyAccountingTemplate } from './template-factory';
-import { accountingTableCatalog } from './table-catalog';
+import { accountingTableCatalog } from './all-table-catalog';
 
 const accountingTypes = [
   'concept',
@@ -175,12 +175,12 @@ export function AccountingStudioEditor({ payload, definition, onChange }: BlockE
 
       <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
         <div className="mb-2 font-semibold text-foreground">Beginner → advanced accounting table/workpaper catalog</div>
-        <p className="mb-3 text-xs leading-5">Use these when a course needs real accounting tables, not just notes: cash books, day books, control accounts, adjustment schedules, worksheets, manufacturing accounts, partnership accounts, company accounts, budgets, variances, IFRS matrices, audit matrices, and tax schedules.</p>
+        <p className="mb-3 text-xs leading-5">Use these when a course needs real accounting tables, not just notes: cash books, day books, control accounts, adjustment schedules, worksheets, manufacturing accounts, partnership accounts, company accounts, budgets, variances, IFRS matrices, audit matrices, tax schedules, public sector schedules, and AIS control tables.</p>
         <div className="grid gap-3 lg:grid-cols-4">
           {(['beginner', 'intermediate', 'advanced', 'professional'] as const).map((level) => (
             <div key={level} className="rounded-xl border bg-background/70 p-3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">{level}</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex max-h-80 flex-wrap gap-2 overflow-y-auto pr-1">
                 {accountingTableCatalog.filter((template) => template.level === level).map((template) => (
                   <Button key={template.id} type="button" size="sm" variant="outline" onClick={() => applyTableTemplate(template.label)}>{template.label}</Button>
                 ))}
