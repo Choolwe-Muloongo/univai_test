@@ -6,10 +6,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 
 import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
-import { ChemistryVisualRenderer } from '@/components/learning/blocks/chemistry/ChemistryVisualRenderer';
-import type { ChemistryVisual } from '@/components/learning/blocks/chemistry/types';
-import { PhysicsVisualRenderer } from '@/components/learning/blocks/physics/PhysicsVisualRenderer';
-import type { PhysicsVisual } from '@/components/learning/blocks/physics/types';
+import { QuestionVisualRenderer } from '@/components/learning/question-visual-renderer';
 import { CourseHelperBox } from '@/components/student/course-helper-box';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +47,7 @@ export default function CoursePracticePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const questions = useMemo(() => payload?.sections.flatMap((section) => section.questions.map((question) => ({ ...question, sectionTitle: section.title }))) ?? [], [payload]);
+  const questions = useMemo<ArenaQuestion[]>(() => payload?.sections.flatMap((section) => section.questions.map((question) => ({ ...question, sectionTitle: section.title }))) ?? [], [payload]);
   const question = questions[index];
   const resultById = useMemo(() => new Map(result?.results.map((row) => [String(row.questionId), row]) ?? []), [result]);
 
@@ -184,7 +181,7 @@ export default function CoursePracticePage() {
                 return (
                   <div key={item.id} className="space-y-3 rounded-2xl border p-4">
                     <p className="font-medium">{itemIndex + 1}. {item.question}</p>
-                    <ArenaQuestionVisual question={item} />
+                    <QuestionVisualRenderer question={item} />
                     <p className={`mt-2 text-sm ${row?.correct ? 'text-primary' : 'text-destructive'}`}>{row?.correct ? 'Correct' : `Correct answer: ${row?.answer ?? 'Not available'}`}</p>
                     {row?.explanation ? <p className="mt-2 text-sm text-muted-foreground">{row.explanation}</p> : null}
                     <NovaInlineActions
@@ -220,7 +217,7 @@ export default function CoursePracticePage() {
           <CardContent className="space-y-5">
             <div className="space-y-4 rounded-2xl border p-5">
               <p className="text-lg font-semibold">{question.question}</p>
-              <ArenaQuestionVisual question={question} />
+              <QuestionVisualRenderer question={question} />
               {question.options?.length ? (
                 <RadioGroup value={answers[question.id] ?? ''} onValueChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))} className="mt-4">
                   {question.options.map((option) => (
@@ -255,7 +252,7 @@ export default function CoursePracticePage() {
             ) : null}
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button onClick={() => setChecked((current) => ({ ...current, [question.id]: true }))} disabled={!answers[question.id]}>Check Answer</Button>
+              <Button onClick={() => setChecked((current) => ({ ...current, [question.id]: true }))} disabled={!answers[question.id]}>Save Answer</Button>
               {index < questions.length - 1 ? (
                 <Button variant="outline" onClick={() => setIndex((value) => value + 1)} disabled={!checked[question.id]}>Next Question</Button>
               ) : (
@@ -267,77 +264,6 @@ export default function CoursePracticePage() {
       )}
     </main>
   );
-}
-
-function ArenaQuestionVisual({ question }: { question: ArenaQuestion }) {
-  const chemistryVisual = resolveQuestionChemistryVisual(question);
-  if (chemistryVisual) return <ChemistryVisualRenderer visual={chemistryVisual} mode="student" />;
-
-  const physicsVisual = resolveQuestionPhysicsVisual(question);
-  if (physicsVisual) return <PhysicsVisualRenderer visual={physicsVisual} mode="student" />;
-
-  if (question.imageUrl) {
-    return (
-      <figure className="overflow-hidden rounded-2xl border bg-muted/20">
-        <img src={question.imageUrl} alt={question.imageAlt || 'Question diagram'} className="h-auto w-full object-contain" />
-        {question.imageCaption ? <figcaption className="border-t px-3 py-2 text-xs text-muted-foreground">{question.imageCaption}</figcaption> : null}
-      </figure>
-    );
-  }
-  return null;
-}
-
-function resolveQuestionChemistryVisual(question: ArenaQuestion): ChemistryVisual | null {
-  const candidate = question.chemistryVisual ?? question.visual ?? question.diagram;
-  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
-  const visual = candidate as Partial<ChemistryVisual> & { subject?: unknown };
-  const looksLikeChemistry = visual.subject === 'chemistry' || visual.visualType === 'equation_balancer' || visual.visualType === 'chemical_equation' || visual.visualType === 'stoichiometry' || visual.visualType === 'atom_structure' || visual.visualType === 'lab_observation' || Boolean(visual.equation);
-  if (!looksLikeChemistry) return null;
-  return {
-    id: visual.id || `arena-chemistry-${question.id}`,
-    subject: 'chemistry',
-    level: visual.level,
-    visualType: visual.visualType || 'chemical_equation',
-    template: visual.template || 'custom',
-    title: visual.title,
-    body: visual.body,
-    equation: visual.equation,
-    species: Array.isArray(visual.species) ? visual.species : [],
-    particles: Array.isArray(visual.particles) ? visual.particles : [],
-    steps: Array.isArray(visual.steps) ? visual.steps : [],
-    tables: Array.isArray(visual.tables) ? visual.tables : [],
-    interactions: Array.isArray(visual.interactions) ? visual.interactions : [],
-    metadata: visual.metadata || {},
-  };
-}
-
-function resolveQuestionPhysicsVisual(question: ArenaQuestion): PhysicsVisual | null {
-  const candidate = question.physicsVisual ?? question.visual ?? question.diagram;
-  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
-  const visual = candidate as Partial<PhysicsVisual> & { subject?: unknown; canvas?: any };
-  const looksLikePhysics = visual.subject === 'physics' || visual.template === 'wave' || visual.template === 'free_body' || visual.template === 'pulley' || visual.template === 'collision' || Array.isArray(visual.objects);
-  if (!looksLikePhysics) return null;
-  return {
-    id: visual.id || `arena-physics-${question.id}`,
-    subject: 'physics',
-    visualType: visual.visualType || 'diagram',
-    template: visual.template || 'custom',
-    renderMode: visual.renderMode || 'svg',
-    canvas: {
-      width: Number(visual.canvas?.width || 800),
-      height: Number(visual.canvas?.height || 500),
-      background: visual.canvas?.background || 'plain',
-      unitScale: visual.canvas?.unitScale,
-    },
-    objects: Array.isArray(visual.objects) ? visual.objects : [],
-    labels: Array.isArray(visual.labels) ? visual.labels : [],
-    arrows: Array.isArray(visual.arrows) ? visual.arrows : [],
-    hotspots: Array.isArray(visual.hotspots) ? visual.hotspots : [],
-    steps: Array.isArray(visual.steps) ? visual.steps : [],
-    interactions: Array.isArray(visual.interactions) ? visual.interactions : [],
-    equations: Array.isArray(visual.equations) ? visual.equations : [],
-    metadata: visual.metadata || {},
-  } as PhysicsVisual;
 }
 
 function studentFriendlyError(cause: unknown) {
