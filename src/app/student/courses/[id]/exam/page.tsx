@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BadgeCheck, Lock, Timer } from 'lucide-react';
 
 import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
+import { QuestionVisualRenderer } from '@/components/learning/question-visual-renderer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -221,6 +222,7 @@ export default function CourseExamPage() {
           </CardHeader>
           <CardContent className="space-y-5">
             <p className="text-lg font-semibold">{question?.question}</p>
+            {question ? <QuestionVisualRenderer question={question} /> : null}
             {question ? (
               <RadioGroup value={answers[current] ?? ''} onValueChange={(value) => setAnswers((previous) => { const next = [...previous]; next[current] = value; return next; })}>
                 {question.options.map((option) => (
