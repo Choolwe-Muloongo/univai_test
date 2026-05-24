@@ -11,6 +11,7 @@ export function AnimatedAccountingTable({ columns, rows, title = 'Accounting wor
   const [step, setStep] = useState(() => Math.max(safeRows.length - 1, 0));
   const maxStep = Math.max(safeRows.length - 1, 0);
   const visibleRows = safeRows.slice(0, step + 1);
+  const currentRow = visibleRows[visibleRows.length - 1] ?? [];
 
   useEffect(() => {
     setStep(maxStep);
@@ -38,14 +39,14 @@ export function AnimatedAccountingTable({ columns, rows, title = 'Accounting wor
   };
 
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       {safeRows.length > 1 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex flex-col gap-2 rounded-xl border bg-muted/20 px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl">
           <div className="flex min-w-0 items-center gap-2">
             <Sparkles className="size-4 shrink-0 text-primary" />
-            <span className="truncate">Animated walkthrough · {title} · row {Math.min(step + 1, safeRows.length)} of {safeRows.length}</span>
+            <span className="min-w-0 truncate">Animated walkthrough · {title} · row {Math.min(step + 1, safeRows.length)} of {safeRows.length}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-end gap-1">
             <Button type="button" size="icon" variant="ghost" className="size-8" onClick={() => setStep((current) => Math.max(0, current - 1))} aria-label="Previous accounting row">
               <ChevronLeft className="size-4" />
             </Button>
@@ -62,12 +63,41 @@ export function AnimatedAccountingTable({ columns, rows, title = 'Accounting wor
         </div>
       ) : null}
 
-      <div className="min-w-0 overflow-hidden rounded-2xl border">
-        <table className="w-full table-fixed text-[11px] sm:text-sm">
+      {currentRow.length ? (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground sm:hidden">
+          Showing row {Math.min(step + 1, safeRows.length)} of {safeRows.length || 1}. Review each field, then move to the next row when ready.
+        </div>
+      ) : null}
+
+      <div className="space-y-3 sm:hidden">
+        {visibleRows.map((row, rowIndex) => {
+          const isFinalRow = rowIndex === visibleRows.length - 1 && visibleRows.length === safeRows.length;
+          return (
+            <div key={`${rowIndex}-${row.join('|')}`} className={`rounded-xl border bg-background p-3 text-sm shadow-sm ${isFinalRow ? 'border-primary/30 bg-primary/5' : ''}`}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">{title} · row {rowIndex + 1}</p>
+              <div className="space-y-2">
+                {columns.map((column, cellIndex) => {
+                  const cell = row[cellIndex] || '—';
+                  const isMoneyLike = /(^\(?-?K?\d)|\d\.\d|\d,%|\)$/.test(cell.trim());
+                  return (
+                    <div key={`${column}-${cellIndex}`} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 border-t pt-2 first:border-t-0 first:pt-0">
+                      <span className="text-xs text-muted-foreground">{column}</span>
+                      <strong className={`min-w-0 break-words text-right text-sm ${isMoneyLike ? 'tabular-nums text-foreground' : 'font-medium text-foreground'}`}>{cell}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden min-w-0 overflow-hidden rounded-xl border sm:block sm:rounded-2xl">
+        <table className="w-full table-fixed text-sm">
           <thead className="bg-muted/50">
             <tr>
               {columns.map((column, columnIndex) => (
-                <th key={`${column}-${columnIndex}`} className="break-words px-2 py-2 text-left align-top font-semibold sm:px-3">
+                <th key={`${column}-${columnIndex}`} className="break-words px-3 py-2 text-left align-top font-semibold">
                   {column}
                 </th>
               ))}
@@ -86,9 +116,9 @@ export function AnimatedAccountingTable({ columns, rows, title = 'Accounting wor
                   return (
                     <td
                       key={`${rowIndex}-${cellIndex}`}
-                      className={`break-words px-2 py-2 align-top text-muted-foreground transition-colors duration-500 sm:px-3 ${isMoneyLike ? 'font-medium tabular-nums text-foreground' : ''} ${isFinalRow ? 'bg-primary/5' : ''}`}
+                      className={`break-words px-3 py-2 align-top text-muted-foreground transition-colors duration-500 ${isMoneyLike ? 'font-medium tabular-nums text-foreground' : ''} ${isFinalRow ? 'bg-primary/5' : ''}`}
                     >
-                      {cell}
+                      {cell || '—'}
                     </td>
                   );
                 })}
