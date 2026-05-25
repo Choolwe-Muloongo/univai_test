@@ -91,7 +91,7 @@ export default function CoursesPage() {
   const filteredCourses = useMemo(() => {
     const query = courseQuery.trim().toLowerCase();
     return browseCourses.filter((course) => {
-      const matchesQuery = !query || `${course.title} ${course.description ?? ''} ${course.level ?? ''}`.toLowerCase().includes(query);
+      const matchesQuery = !query || `${course.title} ${course.description ?? ''} ${course.level ?? ''} ${(course.outcomes ?? []).join(' ')}`.toLowerCase().includes(query);
       const matchesLevel = levelFilter === 'all' || (course.level ?? 'beginner') === levelFilter;
       return matchesQuery && matchesLevel;
     });
@@ -226,12 +226,12 @@ export default function CoursesPage() {
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Choose New Journey</p>
                 <h2 className="break-words text-xl font-semibold sm:text-2xl">Pick one course first. Plans come after.</h2>
-                <p className="mt-1 break-words text-sm text-muted-foreground">This keeps the flow simple: choose course → open Mission Control → choose access → start.</p>
+                <p className="mt-1 break-words text-sm text-muted-foreground">{filteredCourses.length} of {browseCourses.length} available Journey{browseCourses.length === 1 ? '' : 's'} shown.</p>
               </div>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px] lg:w-[560px]">
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input className="min-h-11 w-full rounded-2xl border bg-background pl-9 pr-3 text-sm" placeholder="Search courses..." value={courseQuery} onChange={(event) => setCourseQuery(event.target.value)} />
+                  <input className="min-h-11 w-full rounded-2xl border bg-background pl-9 pr-3 text-sm" placeholder="Search by title, skill, or topic..." value={courseQuery} onChange={(event) => setCourseQuery(event.target.value)} />
                 </label>
                 <select className="min-h-11 w-full rounded-2xl border bg-background px-3 text-sm capitalize" value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)}>
                   {levels.map((level) => <option key={level} value={level}>{level === 'all' ? 'All levels' : level}</option>)}
@@ -247,7 +247,7 @@ export default function CoursesPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="No matching Journeys found." description="Try another search term or level filter." />
+            <EmptyState title="No matching Journeys found." description="Try another search term or level filter." action={<Button variant="outline" onClick={() => { setCourseQuery(''); setLevelFilter('all'); }}>Clear filters</Button>} />
           )}
         </section>
       ) : null}
@@ -291,24 +291,26 @@ export default function CoursesPage() {
 }
 
 function CourseDiscoveryCard({ course, busy, onEnroll }: { course: PublicShortCourse; busy: boolean; onEnroll: () => void }) {
+  const isFree = Number(course.price ?? 0) <= 0;
   return (
-    <Card className="flex h-full min-w-0 flex-col overflow-hidden rounded-3xl">
-      <CardHeader className="p-4 sm:p-5">
+    <Card className="flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border-primary/10 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <CardHeader className="min-w-0 p-4 sm:p-5">
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
           <span className="rounded-full bg-muted px-2 py-1 capitalize">{course.level ?? 'beginner'}</span>
           <span className="rounded-full bg-muted px-2 py-1">{course.durationHours ?? 0} hours</span>
+          <span className="rounded-full bg-primary/10 px-2 py-1 font-semibold text-primary">{formatMoney(course.price, course.currency || 'ZMW')}</span>
         </div>
         <CardTitle className="break-words text-lg sm:text-xl">{course.title}</CardTitle>
         <CardDescription className="line-clamp-3 break-words">{course.description}</CardDescription>
       </CardHeader>
       <CardContent className="min-w-0 flex-1 space-y-3 px-4 pb-4 text-sm sm:px-5">
-        <Info icon={CreditCard} label={formatMoney(course.price, course.currency || 'ZMW') === 'Free' ? 'Free Journey access' : 'Starter Access from ZMW 30 for 14 days'} />
-        <Info icon={Gift} label="Rewards, XP, badges, and Skill Proof path" />
-        <Info icon={Sparkles} label="Nova-guided missions and practice" />
+        <Info icon={CreditCard} label={isFree ? 'Free Journey access' : 'Pay entry from inside your student dashboard'} />
+        <Info icon={Gift} label="XP, badges, rewards, and Skill Proof path" />
+        <Info icon={Sparkles} label="Nova-guided missions and Training Arena" />
       </CardContent>
       <CardFooter className="grid gap-2 p-4 pt-0 sm:px-5 sm:pb-5">
+        <Button className="min-h-11 w-full font-semibold" onClick={onEnroll} disabled={busy}>{busy ? 'Opening payment...' : isFree ? 'Start Free Journey' : 'Pay Entry / Start Journey'}</Button>
         <Button asChild variant="outline" className="min-h-11 w-full"><Link href={`/student/courses/${course.id}`}>Preview Mission Control</Link></Button>
-        <Button className="min-h-11 w-full" onClick={onEnroll} disabled={busy}>{busy ? 'Working...' : Number(course.price ?? 0) <= 0 ? 'Start Free Journey' : 'Enroll / Pay'}</Button>
       </CardFooter>
     </Card>
   );
