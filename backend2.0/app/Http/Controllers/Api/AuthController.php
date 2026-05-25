@@ -136,7 +136,7 @@ class AuthController extends Controller
             'country' => ['nullable', 'string', 'max:100'],
             'timezone' => ['nullable', 'string', 'max:100'],
             'bio' => ['nullable', 'string', 'max:2000'],
-            'avatar' => ['nullable', 'string', 'max:1000000'],
+            'avatar' => ['nullable', 'string'],
         ]);
 
         if (!$userId || !is_numeric($userId)) {
