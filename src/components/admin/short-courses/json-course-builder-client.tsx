@@ -1,5 +1,5 @@
-import { JsonCourseBuilderStudio } from './json-course-builder-studio';
+import { JsonCourseBuilderFlexStudio } from './json-course-builder-flex-studio';
 
 export function JsonCourseBuilderClient() {
-  return <JsonCourseBuilderStudio />;
+  return <JsonCourseBuilderFlexStudio />;
 }
