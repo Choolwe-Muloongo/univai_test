@@ -14,14 +14,14 @@ export function PotentialWellRenderer({ visual }: { visual: PhysicsVisual }) {
   const belowBarrier = energy < barrierHeight;
 
   return (
-    <div className="space-y-4 rounded-2xl border bg-muted/10 p-4">
-      <div>
+    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Advanced quantum renderer</p>
-        <h4 className="font-semibold">Potential well and barrier</h4>
-        <p className="text-sm text-muted-foreground">Compares total energy with a potential barrier and marks the region requiring quantum interpretation.</p>
+        <h4 className="break-words font-semibold">Potential well and barrier</h4>
+        <p className="break-words text-sm text-muted-foreground">Compares total energy with a potential barrier and marks the region requiring quantum interpretation.</p>
       </div>
-      <div className="overflow-auto rounded-2xl border bg-background p-2">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full min-w-[680px]">
+      <div className="max-w-full overflow-x-auto rounded-2xl border bg-background p-1 sm:p-2">
+        <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto max-h-[70vh] w-full min-w-[320px] max-w-full" preserveAspectRatio="xMidYMid meet">
           <line x1="90" y1="360" x2="810" y2="360" className="stroke-muted-foreground" strokeWidth="3" />
           <line x1="90" y1="80" x2="90" y2="360" className="stroke-muted-foreground" strokeWidth="3" />
           <text x="94" y="65" className="fill-muted-foreground text-[13px]">Energy / eV</text>
