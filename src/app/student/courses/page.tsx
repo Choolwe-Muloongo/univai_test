@@ -166,7 +166,7 @@ export default function CoursesPage() {
   if (error) return <PageError message={error} actionHref="/student" actionLabel="Back to student home" />;
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 overflow-hidden px-3 py-4 sm:px-5 lg:px-6">
+    <div className="mx-auto w-full max-w-7xl space-y-5 px-3 py-4 sm:px-5 lg:px-6">
       <section className="overflow-hidden rounded-3xl border bg-card p-4 shadow-sm sm:p-5">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary sm:text-sm">Journey Command</p>
