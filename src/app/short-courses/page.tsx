@@ -102,7 +102,7 @@ function PublicCourseCard({ course }: { course: PublicShortCourse }) {
         <p className="text-sm text-muted-foreground">Interactive lessons, missions, practice, and certificate path.</p>
         <div className="mt-auto grid gap-2">
           <Button asChild className="min-h-11 w-full"><Link href={`/short-courses/${course.id}`}>View course details <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
-          <Button asChild variant="outline" className="min-h-11 w-full"><Link href="/student/courses">Start in student dashboard</Link></Button>
+          <Button asChild variant="outline" className="min-h-11 w-full"><Link href={`/student/courses/${course.id}`}>Start this course in dashboard</Link></Button>
         </div>
       </CardContent>
     </Card>
