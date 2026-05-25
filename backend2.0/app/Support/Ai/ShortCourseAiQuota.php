@@ -10,8 +10,8 @@ class ShortCourseAiQuota
     public static function check(int $studentId, ?string $courseId = null): array
     {
         $limits = self::limitsFor($studentId, $courseId);
-        $hourKey = self::hourKey($studentId);
-        $dayKey = self::dayKey($studentId);
+        $hourKey = self::hourKey($studentId, $courseId);
+        $dayKey = self::dayKey($studentId, $courseId);
         $cooldownKey = self::cooldownKey($studentId, $courseId);
 
         if (Cache::has($cooldownKey)) {
@@ -38,8 +38,8 @@ class ShortCourseAiQuota
             return $check;
         }
 
-        $hourKey = self::hourKey($studentId);
-        $dayKey = self::dayKey($studentId);
+        $hourKey = self::hourKey($studentId, $courseId);
+        $dayKey = self::dayKey($studentId, $courseId);
         $hourUsed = (int) Cache::get($hourKey, 0) + 1;
         $dayUsed = (int) Cache::get($dayKey, 0) + 1;
 
@@ -90,14 +90,14 @@ class ShortCourseAiQuota
         ];
     }
 
-    private static function hourKey(int $studentId): string
+    private static function hourKey(int $studentId, ?string $courseId = null): string
     {
-        return 'short_course_ai_hour:' . $studentId . ':' . now()->format('YmdH');
+        return 'short_course_ai_hour:' . $studentId . ':' . ($courseId ?: 'general') . ':' . now()->format('YmdH');
     }
 
-    private static function dayKey(int $studentId): string
+    private static function dayKey(int $studentId, ?string $courseId = null): string
     {
-        return 'short_course_ai_day:' . $studentId . ':' . now()->format('Ymd');
+        return 'short_course_ai_day:' . $studentId . ':' . ($courseId ?: 'general') . ':' . now()->format('Ymd');
     }
 
     private static function cooldownKey(int $studentId, ?string $courseId = null): string
