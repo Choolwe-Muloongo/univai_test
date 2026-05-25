@@ -12,14 +12,14 @@ export function SpacetimeDiagramRenderer({ visual }: { visual: PhysicsVisual }) 
   const worldlineTilt = beta * scale;
 
   return (
-    <div className="space-y-4 rounded-2xl border bg-muted/10 p-4">
-      <div>
+    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Advanced relativity renderer</p>
-        <h4 className="font-semibold">Minkowski spacetime diagram</h4>
-        <p className="text-sm text-muted-foreground">Shows ct and x axes, light cone, a moving observer worldline, and Lorentz factor.</p>
+        <h4 className="break-words font-semibold">Minkowski spacetime diagram</h4>
+        <p className="break-words text-sm text-muted-foreground">Shows ct and x axes, light cone, a moving observer worldline, and Lorentz factor.</p>
       </div>
-      <div className="overflow-auto rounded-2xl border bg-background p-2">
-        <svg viewBox="0 0 900 520" className="h-auto w-full min-w-[680px]">
+      <div className="max-w-full overflow-x-auto rounded-2xl border bg-background p-1 sm:p-2">
+        <svg viewBox="0 0 900 520" className="block h-auto max-h-[70vh] w-full min-w-[320px] max-w-full" preserveAspectRatio="xMidYMid meet">
           <defs><marker id="rel-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M2,2 L10,6 L2,10 z" className="fill-current" /></marker></defs>
           <line x1="80" y1={centerY} x2="820" y2={centerY} className="stroke-muted-foreground" strokeWidth="3" markerEnd="url(#rel-arrow)" />
           <line x1={centerX} y1="470" x2={centerX} y2="55" className="stroke-muted-foreground" strokeWidth="3" markerEnd="url(#rel-arrow)" />
