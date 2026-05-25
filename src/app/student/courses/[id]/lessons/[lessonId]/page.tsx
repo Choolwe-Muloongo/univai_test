@@ -66,9 +66,9 @@ export default function FocusedLessonPage() {
     };
   }, [params.id, params.lessonId]);
 
-  if (loading) return <main className="min-h-screen overflow-x-hidden bg-background px-3 py-4 sm:px-4"><PageLoading message="Opening mission..." /></main>;
-  if (error) return <main className="min-h-screen overflow-x-hidden bg-background px-3 py-4 sm:px-4"><PageError message={error} actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
-  if (!course || !lesson) return <main className="min-h-screen overflow-x-hidden bg-background px-3 py-4 sm:px-4"><PageError title="Mission unavailable" message="This mission could not be opened." actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
+  if (loading) return <main className="min-h-screen bg-background px-3 py-4 sm:px-4"><PageLoading message="Opening mission..." /></main>;
+  if (error) return <main className="min-h-screen bg-background px-3 py-4 sm:px-4"><PageError message={error} actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
+  if (!course || !lesson) return <main className="min-h-screen bg-background px-3 py-4 sm:px-4"><PageError title="Mission unavailable" message="This mission could not be opened." actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
 
   const currentIndex = lessons.findIndex((item) => String(item.id) === String(params.lessonId));
   const nextLesson = currentIndex >= 0 ? lessons[currentIndex + 1] : null;
@@ -138,8 +138,8 @@ export default function FocusedLessonPage() {
   }
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-background px-2 py-3 sm:px-4 lg:px-6">
-      <div className="mx-auto w-full max-w-5xl space-y-4 overflow-x-hidden">
+    <main className="min-h-screen w-full bg-background px-2 py-3 sm:px-4 lg:px-6">
+      <div className="mx-auto w-full max-w-5xl space-y-4">
         <LessonPlayer
           lesson={lesson as any}
           courseTitle={course.title}
