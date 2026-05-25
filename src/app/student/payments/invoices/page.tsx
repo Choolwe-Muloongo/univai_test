@@ -1,17 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getInvoices, payInvoice, verifyInvoicePayment } from '@/lib/api';
 import type { Invoice } from '@/lib/api/types';
-import { useSearchParams } from 'next/navigation';
 
 export default function StudentInvoicesPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading invoices...</p>}>
+      <StudentInvoicesPageInner />
+    </Suspense>
+  );
+}
+
+function StudentInvoicesPageInner() {
   const searchParams = useSearchParams();
+  const paymentStatus = searchParams.get('payment');
+  const invoiceId = Number(searchParams.get('invoice') || 0);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<number | null>(null);
@@ -20,9 +30,8 @@ export default function StudentInvoicesPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const invoice = Number(searchParams.get('invoice'));
-      if (searchParams.get('payment') === 'success' && Number.isFinite(invoice)) {
-        const verification = await verifyInvoicePayment(invoice).catch(() => null);
+      if (paymentStatus === 'success' && invoiceId > 0) {
+        const verification = await verifyInvoicePayment(invoiceId).catch(() => null);
         setNotice(verification?.message ?? 'Payment is being confirmed. Refresh if the invoice still shows pending.');
       }
       const data = await getInvoices();
@@ -30,7 +39,7 @@ export default function StudentInvoicesPage() {
       setLoading(false);
     };
     load();
-  }, [searchParams]);
+  }, [paymentStatus, invoiceId]);
 
   const handlePay = async (invoiceId: number) => {
     setPayingId(invoiceId);
