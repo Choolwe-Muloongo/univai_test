@@ -29,20 +29,30 @@ const mathVisualTypes = new Set([
 ]);
 
 export function QuestionVisualRenderer({ question, className }: QuestionVisualRendererProps) {
+  const visualShell = className ?? 'max-w-full overflow-x-auto rounded-2xl border bg-muted/20 p-3';
+
   const chemistryVisual = resolveQuestionChemistryVisual(question);
   if (chemistryVisual) {
-    return <div className={className}><ChemistryVisualRenderer visual={chemistryVisual} mode="student" /></div>;
+    return (
+      <div className={visualShell}>
+        <ChemistryVisualRenderer visual={chemistryVisual} mode="student" />
+      </div>
+    );
   }
 
   const physicsVisual = resolveQuestionPhysicsVisual(question);
   if (physicsVisual) {
-    return <div className={className}><PhysicsVisualRenderer visual={physicsVisual} mode="student" /></div>;
+    return (
+      <div className={visualShell}>
+        <PhysicsVisualRenderer visual={physicsVisual} mode="student" />
+      </div>
+    );
   }
 
   const mathVisual = resolveQuestionMathVisual(question);
   if (mathVisual) {
     return (
-      <div className={className ?? 'rounded-2xl border bg-muted/20 p-3'}>
+      <div className={visualShell}>
         <MathVisualBlock block={mathVisual} />
       </div>
     );
@@ -50,7 +60,7 @@ export function QuestionVisualRenderer({ question, className }: QuestionVisualRe
 
   if (question.imageUrl) {
     return (
-      <figure className={className ?? 'overflow-hidden rounded-2xl border bg-muted/20'}>
+      <figure className={className ?? 'max-w-full overflow-hidden rounded-2xl border bg-muted/20'}>
         <img src={question.imageUrl} alt={question.imageAlt || 'Question diagram'} className="h-auto w-full object-contain" />
         {question.imageCaption ? <figcaption className="border-t px-3 py-2 text-xs text-muted-foreground">{question.imageCaption}</figcaption> : null}
       </figure>
