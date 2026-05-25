@@ -8,9 +8,11 @@ import type { PhysicsVisual } from './types';
 export function PhysicsBlockRenderer({ payload }: BlockRendererProps) {
   const visual = resolveVisual(payload);
   return (
-    <div className="space-y-4">
-      {payload.body ? <p className="text-sm leading-6 text-muted-foreground">{String(payload.body)}</p> : null}
-      <PhysicsVisualRenderer visual={visual} mode="student" />
+    <div className="min-w-0 max-w-full space-y-4 overflow-hidden break-words">
+      {payload.body ? <p className="break-words text-sm leading-6 text-muted-foreground">{String(payload.body)}</p> : null}
+      <div className="min-w-0 max-w-full overflow-hidden">
+        <PhysicsVisualRenderer visual={visual} mode="student" />
+      </div>
     </div>
   );
 }
