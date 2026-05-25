@@ -54,7 +54,7 @@ function LencoCheckoutClient() {
   const [mode, setMode] = useState<PayMode>('mobile-money');
 
   const checkout = useMemo(() => {
-    const invoice = Number(searchParams.get('invoice'));
+    const invoice = Number(searchParams.get('invoice') || 0);
     return {
       invoice,
       reference: searchParams.get('reference') || '',
@@ -75,10 +75,14 @@ function LencoCheckoutClient() {
       checkout.reference &&
       checkout.amount > 0 &&
       checkout.email &&
-      Number.isFinite(checkout.invoice),
+      checkout.invoice > 0,
   );
 
   async function verifyAndReturn() {
+    if (checkout.invoice <= 0) {
+      setMessage('Invalid invoice. Please return and start checkout again.');
+      return;
+    }
     const result = await verifyInvoicePayment(checkout.invoice);
     setMessage(result.message ?? 'Payment confirmed.');
     window.location.href = checkout.returnUrl;
