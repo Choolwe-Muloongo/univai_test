@@ -5,7 +5,6 @@ import type { ComponentType } from 'react';
 import type { PhysicsVisual } from '../../physics/types';
 import { FieldVisualizationRenderer } from '../../physics/advanced/FieldVisualizationRenderer';
 import { FluidFlowRenderer } from '../../physics/advanced/FluidFlowRenderer';
-import { HydraulicCircuitRenderer } from '../../physics/advanced/HydraulicCircuitRenderer';
 import { HydraulicsRenderer } from '../../physics/advanced/HydraulicsRenderer';
 import { PotentialWellRenderer } from '../../physics/advanced/PotentialWellRenderer';
 import { QuantumWavefunctionRenderer } from '../../physics/advanced/QuantumWavefunctionRenderer';
@@ -40,7 +39,7 @@ function EngineeringSvgRenderer(props: ScientificRendererProps) {
   const { visual } = props;
   const discipline = String(visual.metadata?.discipline ?? visual.metadata?.engineeringDiscipline ?? 'engineering');
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <div className="rounded-2xl border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
         Engineering visual · {discipline.replace(/_/g, ' ')} · {visual.template.replace(/_/g, ' ')}. This template uses the shared scientific SVG renderer until a specialist simulation is attached.
       </div>
@@ -77,7 +76,7 @@ export const rendererRegistry: Record<string, ScientificRenderer> = {
   hydraulic_cylinder: hydraulicsRenderer,
   hydraulic_brake: hydraulicsRenderer,
   brake_hydraulics: hydraulicsRenderer,
-  pump_valve_circuit: visualOnly(HydraulicCircuitRenderer),
+  pump_valve_circuit: hydraulicsRenderer,
 
   fluid_flow: visualOnly(FluidFlowRenderer),
 
