@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { BookOpen, CreditCard, Gift, Search, Sparkles, type LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,17 @@ const tabs: Array<{ key: CourseTab; label: string; description: string }> = [
 ];
 
 export default function CoursesPage() {
+  return (
+    <Suspense fallback={<PageLoading message="Loading your Journeys..." />}>
+      <CoursesPageInner />
+    </Suspense>
+  );
+}
+
+function CoursesPageInner() {
   const searchParams = useSearchParams();
+  const paymentStatus = searchParams.get('payment');
+  const invoiceId = searchParams.get('invoice');
   const [enrollments, setEnrollments] = useState<ShortCourseEnrollmentSummary[]>([]);
   const [courses, setCourses] = useState<PublicShortCourse[]>([]);
   const [bundles, setBundles] = useState<ShortCourseAccessPlan[]>([]);
@@ -51,9 +61,8 @@ export default function CoursesPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    const invoice = searchParams.get('invoice');
-    if (searchParams.get('payment') === 'success' && invoice) {
-      const verification = await verifyStudentInvoicePayment(invoice).catch(() => null);
+    if (paymentStatus === 'success' && invoiceId) {
+      const verification = await verifyStudentInvoicePayment(invoiceId).catch(() => null);
       setNotice(verification?.status === 'paid' ? verification.message ?? 'Payment confirmed and access activated.' : 'Payment is being confirmed. If access does not update immediately, refresh this page in a moment.');
     }
     const [mine, publicCourses, bundlePlans] = await Promise.all([
@@ -74,12 +83,12 @@ export default function CoursesPage() {
       .catch((cause) => { if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load Journeys.'); })
       .finally(() => {
         if (mounted) {
-          if (searchParams.get('payment') === 'success' && !searchParams.get('invoice')) setNotice('Payment completed. Your Journey access is being refreshed.');
+          if (paymentStatus === 'success' && !invoiceId) setNotice('Payment completed. Your Journey access is being refreshed.');
           setLoading(false);
         }
       });
     return () => { mounted = false; };
-  }, [searchParams]);
+  }, [paymentStatus, invoiceId]);
 
   useEffect(() => {
     if (!enrollments.length) setActiveTab('choose');
