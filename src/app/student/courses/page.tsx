@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, CreditCard, Gift, Layers3, Search, Sparkles, type LucideIcon } from 'lucide-react';
+import { BookOpen, CreditCard, Gift, Search, Sparkles, type LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -163,18 +163,15 @@ export default function CoursesPage() {
   }
 
   if (loading) return <PageLoading message="Loading your Journeys..." />;
-  if (error) return <PageError message={error} actionHref="/short-courses" actionLabel="Browse public catalogue" />;
+  if (error) return <PageError message={error} actionHref="/student" actionLabel="Back to student home" />;
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 overflow-hidden px-3 py-4 sm:px-5 lg:px-6">
       <section className="overflow-hidden rounded-3xl border bg-card p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary sm:text-sm">Journey Command</p>
-            <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Choose your next mission path</h1>
-            <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-muted-foreground">Continue your active Journeys, choose a new short course, or buy a bundle without getting lost in one long page.</p>
-          </div>
-          <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto"><Link href="/short-courses">Public catalogue</Link></Button>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary sm:text-sm">Journey Command</p>
+          <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Choose your next mission path</h1>
+          <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-muted-foreground">Continue your active Journeys, choose a new short course, or buy a bundle without leaving the student dashboard.</p>
         </div>
         {notice ? <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">{notice}</div> : null}
       </section>
