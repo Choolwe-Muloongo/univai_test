@@ -23,10 +23,18 @@ export default function StudentCertificatesPage() {
     return () => { mounted = false; };
   }, []);
 
-  async function openCertificate(courseId: string) {
+  async function openCertificate(item: ShortCourseEnrollmentSummary) {
+    const courseId = item.course?.id;
+    if (!courseId) return;
+
     setWorkingId(courseId);
     setError(null);
     try {
+      if (item.certificateFeePaid || item.certificateIncluded || item.certificateIssuedAt) {
+        window.location.href = getShortCourseCertificateUrl(courseId);
+        return;
+      }
+
       const response = await payShortCourseCertificate(courseId);
       const url = paymentUrl(response);
       window.location.href = url || getShortCourseCertificateUrl(courseId);
@@ -40,7 +48,7 @@ export default function StudentCertificatesPage() {
   if (loading) return <PageLoading message="Loading certificates..." />;
   if (error) return <PageError message={error} actionHref="/student/courses" actionLabel="Back to short courses" />;
 
-  const completed = items.filter((item) => item.completedAt && item.course);
+  const completed = items.filter((item) => item.course && (item.completedAt || item.certificateIssuedAt || Number(item.examScore ?? 0) >= 50));
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -59,8 +67,9 @@ export default function StudentCertificatesPage() {
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <span className="rounded-full bg-muted px-2 py-1">Score: {item.examScore ?? '-'}</span>
                   <span className="rounded-full bg-muted px-2 py-1">{item.certificateIssuedAt ? 'Issued' : 'Ready'}</span>
+                  {(item.certificateFeePaid || item.certificateIncluded) ? <span className="rounded-full bg-muted px-2 py-1">Certificate paid</span> : null}
                 </div>
-                <Button onClick={() => openCertificate(item.course!.id)} disabled={workingId === item.course.id}>
+                <Button className="w-full sm:w-auto" onClick={() => openCertificate(item)} disabled={workingId === item.course.id}>
                   {workingId === item.course.id ? 'Opening...' : 'Open certificate'}
                 </Button>
               </CardContent>
