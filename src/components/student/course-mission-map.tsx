@@ -42,14 +42,14 @@ export function CourseMissionMap({
   nextLessonId: string | null;
 }) {
   return (
-    <Card id="mission-map" className="rounded-3xl border-primary/20 shadow-sm">
-      <CardHeader>
-        <CardTitle>Learning Path</CardTitle>
-        <CardDescription>
-          Move through the course stage by stage. Your next lesson stays highlighted while deeper objectives remain tucked away until needed.
+    <Card id="mission-map" className="min-w-0 rounded-3xl border-primary/20 shadow-sm">
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle>Mission Map</CardTitle>
+        <CardDescription className="break-words">
+          Command your Journey stage by stage. Your next mission stays highlighted while deeper objectives remain tucked away until needed.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="min-w-0 space-y-4 p-4 pt-0 sm:space-y-5 sm:p-6 sm:pt-0">
         {moduleGroups.length ? (
           moduleGroups.map((module, moduleIdx) => {
             const stageTotal = module.items.reduce((total, lesson) => total + 1 + lesson.subLessons.length, 0);
@@ -59,7 +59,7 @@ export function CourseMissionMap({
               return total + parentDone + childDone;
             }, 0);
             const stageProgress = stageTotal > 0 ? Math.round((stageCompleted / stageTotal) * 100) : 0;
-            const stageStatus = stageProgress >= 100 ? 'Stage cleared' : stageProgress > 0 ? 'In progress' : 'Ready';
+            const stageStatus = stageProgress >= 100 ? 'Stage cleared' : stageProgress > 0 ? 'Active run' : 'Ready';
             const hasNextLesson = module.items.some((lesson) => {
               if (lesson.id === nextLessonId) return true;
               return lesson.subLessons.some((sub) => sub.id === nextLessonId);
@@ -67,17 +67,17 @@ export function CourseMissionMap({
             const shouldOpenStage = hasNextLesson || moduleIdx === 0;
 
             return (
-              <details key={`${module.title}-${moduleIdx}`} open={shouldOpenStage} className="overflow-hidden rounded-3xl border bg-card shadow-sm">
+              <details key={`${module.title}-${moduleIdx}`} open={shouldOpenStage} className="min-w-0 overflow-hidden rounded-3xl border bg-card shadow-sm">
                 <summary className="cursor-pointer list-none border-b bg-primary/5 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-primary">Stage {moduleIdx + 1}</p>
-                      <h3 className="mt-1 text-xl font-bold">{module.title}</h3>
+                      <h3 className="mt-1 break-words text-lg font-bold sm:text-xl">{module.title}</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {stageCompleted} of {stageTotal} objectives completed
+                        {stageCompleted} of {stageTotal} objectives cleared
                       </p>
                     </div>
-                    <span className="w-fit rounded-full border bg-background px-3 py-1 text-xs font-semibold text-primary">
+                    <span className="w-fit shrink-0 rounded-full border bg-background px-3 py-1 text-xs font-semibold text-primary">
                       {stageStatus}
                     </span>
                   </div>
@@ -90,32 +90,32 @@ export function CourseMissionMap({
                   </div>
                 </summary>
 
-                <div className="space-y-3 p-4">
+                <div className="min-w-0 space-y-3 p-3 sm:p-4">
                   {module.items.map((lesson, index) => {
                     const parentDone = completedLessonIds.has(String(lesson.id));
                     const completedChildren = lesson.subLessons.filter((sub) => completedLessonIds.has(String(sub.id))).length;
                     const totalInGroup = 1 + lesson.subLessons.length;
                     const completedInGroup = (parentDone ? 1 : 0) + completedChildren;
                     const missionProgress = totalInGroup > 0 ? Math.round((completedInGroup / totalInGroup) * 100) : 0;
-                    const missionState = completedInGroup === totalInGroup ? 'Completed' : completedInGroup > 0 ? 'In progress' : 'Ready';
+                    const missionState = completedInGroup === totalInGroup ? 'Cleared' : completedInGroup > 0 ? 'Active' : 'Ready';
                     const isNextMission = nextLessonId === lesson.id || lesson.subLessons.some((sub) => sub.id === nextLessonId);
 
                     return (
-                      <div key={lesson.id} className={`rounded-2xl border bg-background p-4 transition ${isNextMission ? 'border-primary/50 bg-primary/5' : 'hover:border-primary/30'}`}>
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div key={lesson.id} className={`min-w-0 rounded-2xl border bg-background p-3 transition sm:p-4 ${isNextMission ? 'border-primary/50 bg-primary/5' : 'hover:border-primary/30'}`}>
+                        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex min-w-0 gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 font-bold text-primary">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-sm font-bold text-primary sm:h-11 sm:w-11">
                               {moduleIdx + 1}.{index + 1}
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h4 className="font-semibold">Lesson {index + 1}: {lesson.title}</h4>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                <h4 className="break-words font-semibold">Mission {index + 1}: {lesson.title}</h4>
                                 <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                                  {isNextMission && !parentDone ? 'Next lesson' : missionState}
+                                  {isNextMission && !parentDone ? 'Next mission' : missionState}
                                 </span>
                               </div>
                               {lesson.summary ? (
-                                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{lesson.summary}</p>
+                                <p className="mt-1 line-clamp-2 break-words text-sm text-muted-foreground">{lesson.summary}</p>
                               ) : null}
                               <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 <span className="rounded-full bg-muted px-2 py-1">
@@ -123,10 +123,10 @@ export function CourseMissionMap({
                                 </span>
                                 {lesson.subLessons.length ? (
                                   <span className="rounded-full bg-muted px-2 py-1">
-                                    {lesson.subLessons.length} sub-lesson{lesson.subLessons.length === 1 ? '' : 's'}
+                                    {lesson.subLessons.length} side mission{lesson.subLessons.length === 1 ? '' : 's'}
                                   </span>
                                 ) : null}
-                                <span className="rounded-full bg-muted px-2 py-1">Practice-ready</span>
+                                <span className="rounded-full bg-muted px-2 py-1">XP reward</span>
                               </div>
                               {totalInGroup > 1 ? (
                                 <div className="mt-3 max-w-xs">
@@ -137,34 +137,34 @@ export function CourseMissionMap({
                           </div>
 
                           {hasActiveAccess ? (
-                            <Button asChild variant={parentDone ? 'outline' : 'default'} className="w-full sm:w-auto">
+                            <Button asChild variant={parentDone ? 'outline' : 'default'} className="min-h-10 w-full sm:w-auto">
                               <Link href={`/student/courses/${courseId}/lessons/${lesson.id}`}>
-                                {parentDone ? 'Review Lesson' : nextLessonId === lesson.id ? 'Continue Lesson' : 'Start Lesson'}
+                                {parentDone ? 'Replay Mission' : nextLessonId === lesson.id ? 'Continue Mission' : 'Start Mission'}
                               </Link>
                             </Button>
                           ) : (
-                            <Button disabled className="w-full sm:w-auto">Lesson Locked</Button>
+                            <Button disabled className="min-h-10 w-full sm:w-auto">Mission Locked</Button>
                           )}
                         </div>
 
                         {lesson.subLessons.length ? (
                           <details className="mt-4 border-t pt-4">
                             <summary className="cursor-pointer list-none text-sm font-medium text-primary">
-                              View sub-lessons
+                              View side missions
                             </summary>
                             <div className="mt-3 space-y-2">
                               {lesson.subLessons.map((sub, subIndex) => {
                                 const subDone = completedLessonIds.has(String(sub.id));
                                 return (
-                                  <div key={`${lesson.id}-${sub.id}-${subIndex}`} className="flex flex-col gap-2 rounded-2xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div key={`${lesson.id}-${sub.id}-${subIndex}`} className="flex min-w-0 flex-col gap-2 rounded-2xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="min-w-0">
-                                      <p className="text-sm font-medium">Sub-lesson {index + 1}.{subIndex + 1}: {sub.title}</p>
-                                      {sub.summary ? <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{sub.summary}</p> : null}
+                                      <p className="break-words text-sm font-medium">Side Mission {index + 1}.{subIndex + 1}: {sub.title}</p>
+                                      {sub.summary ? <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">{sub.summary}</p> : null}
                                     </div>
                                     {hasActiveAccess ? (
-                                      <Button asChild size="sm" variant={subDone ? 'outline' : 'secondary'}>
+                                      <Button asChild size="sm" variant={subDone ? 'outline' : 'secondary'} className="min-h-9 w-full sm:w-auto">
                                         <Link href={`/student/courses/${courseId}/lessons/${sub.id}`}>
-                                          {subDone ? 'Review' : nextLessonId === sub.id ? 'Continue' : 'Enter'}
+                                          {subDone ? 'Replay' : nextLessonId === sub.id ? 'Continue' : 'Enter'}
                                         </Link>
                                       </Button>
                                     ) : (
@@ -184,7 +184,7 @@ export function CourseMissionMap({
             );
           })
         ) : (
-          <EmptyMissionMap title="No lessons have been published for this Journey yet." />
+          <EmptyMissionMap title="No missions have been published for this Journey yet." />
         )}
       </CardContent>
     </Card>
