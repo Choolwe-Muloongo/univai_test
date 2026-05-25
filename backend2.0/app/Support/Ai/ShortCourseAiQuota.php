@@ -7,7 +7,58 @@ use Illuminate\Support\Facades\Cache;
 
 class ShortCourseAiQuota
 {
+    public static function check(int $studentId, ?string $courseId = null): array
+    {
+        $limits = self::limitsFor($studentId, $courseId);
+        $hourKey = self::hourKey($studentId);
+        $dayKey = self::dayKey($studentId);
+        $cooldownKey = self::cooldownKey($studentId, $courseId);
+
+        if (Cache::has($cooldownKey)) {
+            return self::payload(false, 30, $limits['hourlyLimit'], $limits['dailyLimit'], (int) Cache::get($hourKey, 0), (int) Cache::get($dayKey, 0));
+        }
+
+        $hourUsed = (int) Cache::get($hourKey, 0);
+        $dayUsed = (int) Cache::get($dayKey, 0);
+
+        if ($limits['hourlyLimit'] <= 0 || $limits['dailyLimit'] <= 0 || $hourUsed >= $limits['hourlyLimit'] || $dayUsed >= $limits['dailyLimit']) {
+            if ($limits['hourlyLimit'] > 0 && $hourUsed >= $limits['hourlyLimit'] && $dayUsed < $limits['dailyLimit']) {
+                Cache::put($cooldownKey, true, now()->addMinutes(30));
+            }
+            return self::payload(false, ($limits['hourlyLimit'] > 0 && $hourUsed >= $limits['hourlyLimit'] && $dayUsed < $limits['dailyLimit']) ? 30 : 0, $limits['hourlyLimit'], $limits['dailyLimit'], $hourUsed, $dayUsed);
+        }
+
+        return self::payload(true, 0, $limits['hourlyLimit'], $limits['dailyLimit'], $hourUsed, $dayUsed);
+    }
+
+    public static function consume(int $studentId, ?string $courseId = null): array
+    {
+        $check = self::check($studentId, $courseId);
+        if (!$check['allowed']) {
+            return $check;
+        }
+
+        $hourKey = self::hourKey($studentId);
+        $dayKey = self::dayKey($studentId);
+        $hourUsed = (int) Cache::get($hourKey, 0) + 1;
+        $dayUsed = (int) Cache::get($dayKey, 0) + 1;
+
+        Cache::put($hourKey, $hourUsed, now()->addHour());
+        Cache::put($dayKey, $dayUsed, now()->endOfDay());
+
+        return [
+            ...$check,
+            'hourlyUsed' => $hourUsed,
+            'dailyUsed' => $dayUsed,
+        ];
+    }
+
     public static function checkAndIncrement(int $studentId, ?string $courseId = null): array
+    {
+        return self::consume($studentId, $courseId);
+    }
+
+    private static function limitsFor(int $studentId, ?string $courseId = null): array
     {
         $enrollment = null;
         if ($courseId) {
@@ -24,47 +75,33 @@ class ShortCourseAiQuota
             $dailyLimit = 0;
         }
 
-        $hourKey = 'short_course_ai_hour:' . $studentId . ':' . now()->format('YmdH');
-        $dayKey = 'short_course_ai_day:' . $studentId . ':' . now()->format('Ymd');
-        $cooldownKey = 'short_course_ai_cooldown:' . $studentId . ':' . ($courseId ?: 'general');
+        return ['hourlyLimit' => $hourlyLimit, 'dailyLimit' => $dailyLimit];
+    }
 
-        if (Cache::has($cooldownKey)) {
-            return [
-                'allowed' => false,
-                'cooldownMinutes' => 30,
-                'hourlyLimit' => $hourlyLimit,
-                'dailyLimit' => $dailyLimit,
-                'hourlyUsed' => (int) Cache::get($hourKey, 0),
-                'dailyUsed' => (int) Cache::get($dayKey, 0),
-            ];
-        }
-
-        $hourUsed = (int) Cache::get($hourKey, 0);
-        $dayUsed = (int) Cache::get($dayKey, 0);
-
-        if ($hourlyLimit <= 0 || $dailyLimit <= 0 || $hourUsed >= $hourlyLimit || $dayUsed >= $dailyLimit) {
-            if ($hourlyLimit > 0 && $hourUsed >= $hourlyLimit && $dayUsed < $dailyLimit) {
-                Cache::put($cooldownKey, true, now()->addMinutes(30));
-            }
-            return [
-                'allowed' => false,
-                'cooldownMinutes' => ($hourlyLimit > 0 && $hourUsed >= $hourlyLimit && $dayUsed < $dailyLimit) ? 30 : 0,
-                'hourlyLimit' => $hourlyLimit,
-                'dailyLimit' => $dailyLimit,
-                'hourlyUsed' => $hourUsed,
-                'dailyUsed' => $dayUsed,
-            ];
-        }
-
-        Cache::put($hourKey, $hourUsed + 1, now()->addHour());
-        Cache::put($dayKey, $dayUsed + 1, now()->endOfDay());
-
+    private static function payload(bool $allowed, int $cooldownMinutes, int $hourlyLimit, int $dailyLimit, int $hourlyUsed, int $dailyUsed): array
+    {
         return [
-            'allowed' => true,
+            'allowed' => $allowed,
+            'cooldownMinutes' => $cooldownMinutes,
             'hourlyLimit' => $hourlyLimit,
             'dailyLimit' => $dailyLimit,
-            'hourlyUsed' => $hourUsed + 1,
-            'dailyUsed' => $dayUsed + 1,
+            'hourlyUsed' => $hourlyUsed,
+            'dailyUsed' => $dailyUsed,
         ];
+    }
+
+    private static function hourKey(int $studentId): string
+    {
+        return 'short_course_ai_hour:' . $studentId . ':' . now()->format('YmdH');
+    }
+
+    private static function dayKey(int $studentId): string
+    {
+        return 'short_course_ai_day:' . $studentId . ':' . now()->format('Ymd');
+    }
+
+    private static function cooldownKey(int $studentId, ?string $courseId = null): string
+    {
+        return 'short_course_ai_cooldown:' . $studentId . ':' . ($courseId ?: 'general');
     }
 }
