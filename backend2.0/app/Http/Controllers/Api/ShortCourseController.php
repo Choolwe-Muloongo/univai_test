@@ -15,6 +15,7 @@ use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentSettings;
 use App\Support\Pricing\LaunchFeeSchedule;
 use App\Support\Pricing\ShortCourseAccessPlans;
+use App\Support\ShortCourses\EmbeddedShortCourseQuestionSyncer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -196,6 +197,8 @@ class ShortCourseController extends Controller
             'sections.*.timeMinutes' => ['nullable', 'integer', 'min:1', 'max:240'],
         ]);
 
+        $this->syncEmbeddedQuestions($course);
+
         $sections = $payload['sections'] ?? [[
             'title' => ucfirst(str_replace('_', ' ', $payload['difficulty'] ?? 'easy')) . ' practice',
             'difficulty' => $payload['difficulty'] ?? 'easy',
@@ -207,7 +210,11 @@ class ShortCourseController extends Controller
         $builtSections = collect($sections)->map(function (array $section, int $index) use ($courseId, $payload) {
             $query = ExamQuestion::where('course_id', $courseId);
             if (!empty($section['difficulty'])) {
-                $query->where('difficulty', $section['difficulty']);
+                $query->where(function ($inner) use ($section) {
+                    $inner->where('difficulty', $section['difficulty'])
+                        ->orWhere('difficulty', 'professional')
+                        ->orWhere('difficulty', 'professional_foundation');
+                });
             }
             if (!empty($section['questionType'])) {
                 $query->where('question_type', $section['questionType']);
@@ -249,6 +256,8 @@ class ShortCourseController extends Controller
             return response()->json(['message' => 'Active course access is required before submitting practice.'], 402);
         }
 
+        $this->syncEmbeddedQuestions($course);
+
         $payload = $request->validate([
             'answers' => ['required', 'array'],
             'answers.*.questionId' => ['required'],
@@ -260,7 +269,7 @@ class ShortCourseController extends Controller
         $correct = 0;
         $results = collect($payload['answers'])->map(function (array $answer) use ($questions, &$correct) {
             $question = $questions->get($answer['questionId']);
-            $isCorrect = $question && trim((string) ($answer['answer'] ?? '')) === trim((string) $question->answer);
+            $isCorrect = $question && $this->normalizeAnswer($answer['answer'] ?? null) === $this->normalizeAnswer($question->answer);
             if ($isCorrect) {
                 $correct++;
             }
@@ -303,6 +312,7 @@ class ShortCourseController extends Controller
             ], 423);
         }
 
+        $this->syncEmbeddedQuestions($course);
         $questions = ExamQuestion::where('course_id', $courseId)->inRandomOrder()->take(25)->get();
 
         return response()->json([
@@ -336,6 +346,7 @@ class ShortCourseController extends Controller
             return response()->json(['message' => 'Complete all required lessons before submitting the final exam.'], 423);
         }
 
+        $this->syncEmbeddedQuestions($course);
         $allQuestions = ExamQuestion::where('course_id', $courseId)->get();
         if ($allQuestions->count() < 25) {
             return response()->json(['message' => 'This lesson/course needs at least 25 assessment questions before exam submission is enabled.'], 422);
@@ -476,6 +487,11 @@ class ShortCourseController extends Controller
             'certificate_included' => (bool) ($plan['certificateIncluded'] ?? false),
             'certificate_fee_paid' => (bool) ($plan['certificateIncluded'] ?? false) || $enrollment->certificate_fee_paid,
         ]);
+    }
+
+    private function syncEmbeddedQuestions(Course $course): void
+    {
+        EmbeddedShortCourseQuestionSyncer::sync($course);
     }
 
     private function studentId(Request $request): int
