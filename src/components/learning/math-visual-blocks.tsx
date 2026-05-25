@@ -1,10 +1,20 @@
 import { MathText } from '@/components/learning/math-text';
 import { PlotlyGraph } from '@/components/learning/plotly-graph';
 import { ProfessionalVennBlock } from '@/components/learning/professional-venn-block';
+import { ChemistryVisualRenderer } from '@/components/learning/blocks/chemistry/ChemistryVisualRenderer';
+import type { ChemistryVisual } from '@/components/learning/blocks/chemistry/types';
+import { PhysicsVisualRenderer } from '@/components/learning/blocks/physics/PhysicsVisualRenderer';
+import type { PhysicsVisual } from '@/components/learning/blocks/physics/types';
 
 type AnyBlock = Record<string, any>;
 
 export function MathVisualBlock({ block }: { block: AnyBlock }) {
+  const chemistryVisual = resolveChemistryVisual(block);
+  if (chemistryVisual) return <ChemistryVisualRenderer visual={chemistryVisual} mode="student" />;
+
+  const physicsVisual = resolvePhysicsVisual(block);
+  if (physicsVisual) return <PhysicsVisualRenderer visual={physicsVisual} mode="student" />;
+
   if (block.type === 'equation' || block.type === 'formula') return <EquationBlock block={block} />;
   if (block.type === 'graph') return <GraphBlock block={block} />;
   if (block.type === 'table') return <TableBlock block={block} />;
@@ -128,6 +138,67 @@ function GeometryBlock({ block }: { block: AnyBlock }) {
       </div>
     </div>
   );
+}
+
+function resolveChemistryVisual(block: AnyBlock): ChemistryVisual | null {
+  const looksLikeChemistry = block.subject === 'chemistry'
+    || block.visualType === 'equation_balancer'
+    || block.visualType === 'chemical_equation'
+    || block.visualType === 'stoichiometry'
+    || block.visualType === 'atom_structure'
+    || block.visualType === 'lab_observation'
+    || block.type === 'chemistry_visual'
+    || block.type === 'chemical_equation'
+    || block.type === 'equation_balancer';
+  if (!looksLikeChemistry) return null;
+  return {
+    id: block.id || 'lesson-chemistry-visual',
+    subject: 'chemistry',
+    level: block.level,
+    visualType: block.visualType || 'chemical_equation',
+    template: block.template || 'custom',
+    title: block.title,
+    body: block.body,
+    equation: block.equation,
+    species: Array.isArray(block.species) ? block.species : [],
+    particles: Array.isArray(block.particles) ? block.particles : [],
+    steps: Array.isArray(block.steps) ? block.steps : [],
+    tables: Array.isArray(block.tables) ? block.tables : [],
+    interactions: Array.isArray(block.interactions) ? block.interactions : [],
+    metadata: block.metadata || {},
+  };
+}
+
+function resolvePhysicsVisual(block: AnyBlock): PhysicsVisual | null {
+  const looksLikePhysics = block.subject === 'physics'
+    || block.type === 'physics_visual'
+    || block.template === 'wave'
+    || block.template === 'free_body'
+    || block.template === 'pulley'
+    || block.template === 'collision'
+    || Array.isArray(block.objects);
+  if (!looksLikePhysics) return null;
+  return {
+    id: block.id || 'lesson-physics-visual',
+    subject: 'physics',
+    visualType: block.visualType || 'diagram',
+    template: block.template || 'custom',
+    renderMode: block.renderMode || 'svg',
+    canvas: {
+      width: Number(block.canvas?.width || 800),
+      height: Number(block.canvas?.height || 500),
+      background: block.canvas?.background || 'plain',
+      unitScale: block.canvas?.unitScale,
+    },
+    objects: Array.isArray(block.objects) ? block.objects : [],
+    labels: Array.isArray(block.labels) ? block.labels : [],
+    arrows: Array.isArray(block.arrows) ? block.arrows : [],
+    hotspots: Array.isArray(block.hotspots) ? block.hotspots : [],
+    steps: Array.isArray(block.steps) ? block.steps : [],
+    interactions: Array.isArray(block.interactions) ? block.interactions : [],
+    equations: Array.isArray(block.equations) ? block.equations : [],
+    metadata: block.metadata || {},
+  } as PhysicsVisual;
 }
 
 function ticks(min: number, max: number) {
