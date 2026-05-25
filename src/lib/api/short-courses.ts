@@ -238,7 +238,7 @@ export async function payShortCourseCertificate(courseId: string): Promise<Payme
 }
 
 export function getShortCourseCertificateUrl(courseId: string) {
-  return buildApiUrl(`/students/me/short-courses/${courseId}/certificate/download`);
+  return buildApiUrl(`/students/me/short-courses/${courseId}/certificate`);
 }
 
 export function paymentUrl(response: PaymentInitiation) {
