@@ -57,6 +57,10 @@ class ShortCourseEnrollment extends Model
 
     public function hasActiveAiAccess(): bool
     {
-        return $this->hasActiveCourseAccess() && (!$this->ai_access_expires_at || $this->ai_access_expires_at->isFuture());
+        return $this->hasActiveCourseAccess()
+            && (string) $this->ai_plan !== 'none'
+            && (int) $this->hourly_ai_quota > 0
+            && (int) $this->daily_ai_quota > 0
+            && (!$this->ai_access_expires_at || $this->ai_access_expires_at->isFuture());
     }
 }
