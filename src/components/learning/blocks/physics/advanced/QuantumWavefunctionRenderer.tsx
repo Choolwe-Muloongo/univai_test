@@ -27,14 +27,14 @@ export function QuantumWavefunctionRenderer({ visual }: Props) {
   const nodes = Array.from({ length: quantumNumber + 1 }, (_, index) => index / quantumNumber).filter((value) => value > 0 && value < 1);
 
   return (
-    <div className="space-y-4 rounded-2xl border bg-muted/10 p-4">
-      <div>
+    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Advanced quantum renderer</p>
-        <h4 className="font-semibold">Wavefunction and probability density</h4>
-        <p className="text-sm text-muted-foreground">Plots ψ(x), |ψ|², nodes, and a numerical normalization estimate.</p>
+        <h4 className="break-words font-semibold">Wavefunction and probability density</h4>
+        <p className="break-words text-sm text-muted-foreground">Plots ψ(x), |ψ|², nodes, and a numerical normalization estimate.</p>
       </div>
-      <div className="overflow-auto rounded-2xl border bg-background p-2">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full min-w-[680px]">
+      <div className="max-w-full overflow-x-auto rounded-2xl border bg-background p-1 sm:p-2">
+        <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto max-h-[70vh] w-full min-w-[320px] max-w-full" preserveAspectRatio="xMidYMid meet">
           <line x1="90" y1="175" x2="790" y2="175" className="stroke-muted-foreground" strokeDasharray="8 8" />
           <line x1="90" y1="365" x2="790" y2="365" className="stroke-muted-foreground" strokeDasharray="8 8" />
           <text x="95" y="45" className="fill-foreground text-[17px] font-semibold">Particle in a 1D box: n={quantumNumber}</text>
