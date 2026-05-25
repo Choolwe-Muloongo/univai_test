@@ -19,6 +19,24 @@
     min-width: 0 !important;
     max-width: 100% !important;
   }
+
+  /* The top Mission Control summary used to show a disabled
+     "Activate access" button before the real payment card.
+     On mobile this made students think payment was impossible.
+     Hide that summary-only disabled button and let the moved Access card
+     become the first real payment action. */
+  section.rounded-3xl > div[class*="lg:grid-cols-[1fr_280px]"] button:disabled,
+  section.rounded-3xl > div[class*="lg:grid-cols-\[1fr_280px\]"] button:disabled {
+    display: none !important;
+  }
+
+  /* Keep the payment/access card visually dominant once moved to the top. */
+  div[class*="xl:grid-cols-[1fr_360px]"] > aside > div:first-child,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] > aside > div:first-child {
+    border-color: hsl(var(--primary) / 0.45) !important;
+    background: hsl(var(--primary) / 0.06) !important;
+    box-shadow: 0 18px 42px -34px hsl(var(--primary) / 0.95) !important;
+  }
 }
 
 @media (max-width: 767px) {
@@ -43,5 +61,11 @@
     min-width: 0 !important;
     max-width: 100% !important;
     overflow-wrap: anywhere;
+  }
+
+  div[class*="xl:grid-cols-[1fr_360px]"] aside button,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] aside button {
+    width: 100% !important;
+    font-weight: 700 !important;
   }
 }
