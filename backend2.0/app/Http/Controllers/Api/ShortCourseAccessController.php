@@ -8,11 +8,11 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\ShortCourseEnrollment;
 use App\Services\LencoPaymentService;
+use App\Support\Affiliates\AffiliateService;
 use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentReceiptMailer;
 use App\Support\Payments\PaymentSettings;
 use App\Support\Pricing\ShortCourseAccessPlans;
-use App\Support\Affiliates\AffiliateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -46,18 +46,24 @@ class ShortCourseAccessController extends Controller
             return response()->json(['status' => 'active', 'checkout_url' => null, 'plan' => $plan]);
         }
 
-        $invoice = Invoice::firstOrCreate(
-            ['student_id' => $studentId, 'type' => 'short_course_access_plan', 'title' => $plan['name'] . ': ' . $course->title],
+        $invoice = $this->freshInvoice(
+            $studentId,
+            'short_course_access_plan',
+            $plan['name'] . ': ' . $course->title,
+            $plan['name'] . ' for ' . $course->title,
+            (float) $plan['amount'],
+            strtoupper($plan['currency'] ?? $course->currency ?? 'ZMW'),
             [
-                'uuid' => (string) Str::uuid(),
-                'description' => $plan['name'] . ' for ' . $course->title,
-                'amount' => $plan['amount'],
-                'currency' => $plan['currency'],
-                'status' => 'pending',
-                'metadata' => ['short_course_id' => $course->id, 'access_plan' => $plan['code'], 'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code')],
-                'due_date' => now()->addDays(7),
+                'short_course_id' => $course->id,
+                'short_course_title' => $course->title,
+                'access_plan' => $plan['code'],
+                'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code'),
             ]
         );
+
+        if ($invoice->status === 'paid') {
+            return response()->json(['status' => 'active', 'checkout_url' => null, 'invoiceId' => $invoice->id, 'plan' => $plan]);
+        }
 
         if (!PaymentSettings::lencoCollectionsEnabled()) {
             $settings = PaymentSettings::current();
@@ -138,19 +144,26 @@ class ShortCourseAccessController extends Controller
             ]);
         }
 
-        $bundleTitle = $plan['name'] . ': ' . $courseIds->implode(', ');
-        $invoice = Invoice::firstOrCreate(
-            ['student_id' => $studentId, 'type' => 'short_course_bundle', 'title' => $bundleTitle],
+        $courseTitles = $courses->pluck('title')->values();
+        $bundleTitle = $plan['name'] . ': ' . $courseTitles->take(2)->implode(' + ') . ($courseTitles->count() > 2 ? ' +' . ($courseTitles->count() - 2) . ' more' : '');
+        $invoice = $this->freshInvoice(
+            $studentId,
+            'short_course_bundle',
+            $bundleTitle,
+            $plan['name'] . ' for ' . $courseTitles->implode(', '),
+            (float) $plan['amount'],
+            strtoupper($plan['currency'] ?? 'ZMW'),
             [
-                'uuid' => (string) Str::uuid(),
-                'description' => $bundleTitle,
-                'amount' => $plan['amount'],
-                'currency' => $plan['currency'],
-                'status' => 'pending',
-                'metadata' => ['short_course_ids' => $courseIds->all(), 'bundle_plan' => $plan['code'], 'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code')],
-                'due_date' => now()->addDays(7),
+                'short_course_ids' => $courseIds->all(),
+                'short_course_titles' => $courseTitles->all(),
+                'bundle_plan' => $plan['code'],
+                'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code'),
             ]
         );
+
+        if ($invoice->status === 'paid') {
+            return response()->json(['status' => 'active', 'checkout_url' => null, 'invoiceId' => $invoice->id, 'plan' => $plan]);
+        }
 
         if (!PaymentSettings::lencoCollectionsEnabled()) {
             $settings = PaymentSettings::current();
@@ -190,6 +203,35 @@ class ShortCourseAccessController extends Controller
             'certificate_included' => (bool) ($plan['certificateIncluded'] ?? false),
             'certificate_fee_paid' => (bool) ($plan['certificateIncluded'] ?? false) || $enrollment->certificate_fee_paid,
         ]);
+    }
+
+    private function freshInvoice(int $studentId, string $type, string $title, string $description, float $amount, string $currency, array $metadata): Invoice
+    {
+        $invoice = Invoice::firstOrNew([
+            'student_id' => $studentId,
+            'type' => $type,
+            'title' => $title,
+        ]);
+
+        if ($invoice->exists && $invoice->status === 'paid') {
+            return $invoice;
+        }
+
+        $invoice->forceFill([
+            'uuid' => $invoice->uuid ?: (string) Str::uuid(),
+            'description' => $description,
+            'amount' => $amount,
+            'currency' => $currency,
+            'status' => 'pending',
+            'paid_amount' => 0,
+            'paid_at' => null,
+            'transaction_reference' => null,
+            'checkout_url' => null,
+            'metadata' => $metadata,
+            'due_date' => now()->addDays(7),
+        ])->save();
+
+        return $invoice;
     }
 
     private function studentId(Request $request): int
