@@ -9,6 +9,7 @@ import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
 import { QuestionVisualRenderer } from '@/components/learning/question-visual-renderer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -40,26 +41,45 @@ export default function CourseExamPage() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([
-      getShortCourseExam(courseId),
-      getShortCourseProgress(courseId).catch(() => null),
-      getLessonsByCourse(courseId).catch(() => []),
-    ])
-      .then(([examData, progressData, lessonData]) => {
+
+    async function loadExamGate() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [progressData, lessonData] = await Promise.all([
+          getShortCourseProgress(courseId).catch(() => null),
+          getLessonsByCourse(courseId).catch(() => []),
+        ]);
+
         if (!mounted) return;
-        setExam(examData);
         setProgress(progressData);
         setLessonCount(lessonData.length);
-      })
-      .catch((cause) => { if (mounted) setError(studentFriendlyError(cause)); })
-      .finally(() => { if (mounted) setLoading(false); });
+
+        const complete = lessonData.length === 0 || (progressData?.completedLessons?.length ?? 0) >= lessonData.length;
+        if (!complete) {
+          setExam(null);
+          return;
+        }
+
+        const examData = await getShortCourseExam(courseId);
+        if (!mounted) return;
+        setExam(examData);
+        setAnswers(Array.from({ length: examData.questions.length }, () => ''));
+      } catch (cause) {
+        if (mounted) setError(studentFriendlyError(cause));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadExamGate();
     return () => { mounted = false; };
   }, [courseId]);
 
   const allLessonsComplete = lessonCount === 0 || (progress?.completedLessons?.length ?? 0) >= lessonCount;
   const locked = !allLessonsComplete;
   const question = exam?.questions[current];
-  const answeredCount = useMemo(() => answers.filter(Boolean).length, [answers]);
+  const answeredCount = useMemo(() => answers.filter((answer) => answer.trim().length > 0).length, [answers]);
 
   async function submit() {
     if (!exam) return;
@@ -67,7 +87,7 @@ export default function CourseExamPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const rows: ExamAnswer[] = exam.questions.map((question, index) => ({ questionId: question.id, answer: answers[index] }));
+      const rows: ExamAnswer[] = exam.questions.map((question, index) => ({ questionId: question.id, answer: answers[index] ?? '' }));
       const nextResult = await submitShortCourseExam(courseId, rows);
       setResult(nextResult);
       if (nextResult.passed) {
@@ -94,9 +114,16 @@ export default function CourseExamPage() {
     }
   }
 
+  function updateAnswer(value: string) {
+    setAnswers((previous) => {
+      const next = [...previous];
+      next[current] = value;
+      return next;
+    });
+  }
+
   if (loading) return <PageLoading message="Loading Final Trial..." />;
   if (error) return <PageError message={error} actionHref={`/student/courses/${courseId}`} actionLabel="Back to Mission Control" />;
-  if (!exam) return <PageError title="Final Trial unavailable" message="This Final Trial is not available yet." actionHref={`/student/courses/${courseId}`} actionLabel="Back to Mission Control" />;
 
   if (locked) {
     return (
@@ -107,7 +134,7 @@ export default function CourseExamPage() {
             <Lock className="mx-auto h-10 w-10 text-primary" />
             <div>
               <CardTitle>Final Trial Locked</CardTitle>
-              <CardDescription className="mt-2">Complete all required missions first.</CardDescription>
+              <CardDescription className="mt-2">Complete all required missions first. You have completed {progress?.completedLessons?.length ?? 0} of {lessonCount}.</CardDescription>
             </div>
             <Button asChild><Link href={`/student/courses/${courseId}`}>Back to Mission Control</Link></Button>
           </CardContent>
@@ -115,6 +142,8 @@ export default function CourseExamPage() {
       </main>
     );
   }
+
+  if (!exam) return <PageError title="Final Trial unavailable" message="This Final Trial is not available yet." actionHref={`/student/courses/${courseId}`} actionLabel="Back to Mission Control" />;
 
   if (!exam.ready) {
     return (
@@ -163,7 +192,7 @@ export default function CourseExamPage() {
               ) : (
                 <>
                   <Button asChild><Link href={`/student/courses/${courseId}/practice`}>Enter Training Arena</Link></Button>
-                  <Button variant="outline" onClick={() => { setResult(null); setAnswers([]); setCurrent(0); }}>Retake Final Trial</Button>
+                  <Button variant="outline" onClick={() => { setResult(null); setAnswers(Array.from({ length: exam.questions.length }, () => '')); setCurrent(0); }}>Retake Final Trial</Button>
                 </>
               )}
               <Button asChild variant="outline"><Link href={`/student/courses/${courseId}`}>Back to Mission Control</Link></Button>
@@ -179,8 +208,8 @@ export default function CourseExamPage() {
       <Button variant="ghost" asChild className="gap-2 px-2"><Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Mission Control</Link></Button>
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-primary">Final Trial Ready</p>
-        <h1 className="text-3xl font-bold tracking-tight">Final Trial</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{exam.questions.length} questions. Pass mark is 50%. Save each answer before submitting.</p>
+        <h1 className="break-words text-3xl font-bold tracking-tight">Final Trial</h1>
+        <p className="mt-2 break-words text-sm text-muted-foreground">{exam.questions.length} questions. Pass mark is 50%. Save each answer before submitting.</p>
       </section>
 
       <NovaInlineActions
@@ -218,20 +247,22 @@ export default function CourseExamPage() {
         <Card className="rounded-3xl">
           <CardHeader>
             <CardTitle>Question {current + 1}</CardTitle>
-            <CardDescription>{question?.difficulty ?? 'mixed'} · {question?.questionType ?? 'mcq'}</CardDescription>
+            <CardDescription>{question?.difficulty ?? 'mixed'} · {question?.questionType ?? 'question'}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <p className="text-lg font-semibold">{question?.question}</p>
+            <p className="break-words text-lg font-semibold">{question?.question}</p>
             {question ? <QuestionVisualRenderer question={question} /> : null}
-            {question ? (
-              <RadioGroup value={answers[current] ?? ''} onValueChange={(value) => setAnswers((previous) => { const next = [...previous]; next[current] = value; return next; })}>
+            {question?.options?.length ? (
+              <RadioGroup value={answers[current] ?? ''} onValueChange={updateAnswer}>
                 {question.options.map((option) => (
-                  <div key={option} className="flex items-center gap-2 rounded-xl border p-3">
+                  <div key={option} className="flex min-w-0 items-center gap-2 rounded-xl border p-3">
                     <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-                    <Label htmlFor={`${question.id}-${option}`} className="flex-1 cursor-pointer">{option}</Label>
+                    <Label htmlFor={`${question.id}-${option}`} className="min-w-0 flex-1 cursor-pointer break-words">{option}</Label>
                   </div>
                 ))}
               </RadioGroup>
+            ) : question ? (
+              <Input className="min-h-11" value={answers[current] ?? ''} onChange={(event) => updateAnswer(event.target.value)} placeholder="Type your answer" />
             ) : null}
             {question ? (
               <NovaInlineActions
