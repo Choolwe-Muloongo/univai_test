@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api/client';
 import { useAiContext } from '@/lib/ai-context';
@@ -46,6 +46,14 @@ async function requestAiResponse(prompt: string, context: string, accessTier: st
 }
 
 export default function AiChatPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Opening Nova...</div>}>
+      <AiChatPageInner />
+    </Suspense>
+  );
+}
+
+function AiChatPageInner() {
   const searchParams = useSearchParams();
   const courseId = searchParams.get('courseId');
   const lessonId = searchParams.get('lessonId');
