@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ShortCourseController extends Controller
-{\n    public function mine(Request $request)
+{
+    public function mine(Request $request)
     {
         $studentId = $this->studentId($request);
         $enrollments = ShortCourseEnrollment::with(['course.lessons'])
@@ -97,11 +98,11 @@ class ShortCourseController extends Controller
         }
 
         $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
-        $completed = ShortCourseLessonProgress::where('student_id', $studentId)->where('short_course_id', $course->id)->pluck('lesson_id');
+        $completed = ShortCourseLessonProgress::where('student_id', $studentId)
+            ->where('short_course_id', $course->id)
+            ->pluck('lesson_id');
 
-        return response()->json($this->enrollmentPayload($enrollment) + [
-            'completedLessons' => $completed,
-        ]);
+        return response()->json($this->enrollmentPayload($enrollment) + ['completedLessons' => $completed]);
     }
 
     public function accessPlans(Request $request, string $courseId)
@@ -377,9 +378,7 @@ class ShortCourseController extends Controller
             }
 
             $correct = $answerRows->filter(function ($answer) use ($selectedQuestions) {
-                if (!is_array($answer)) {
-                    return false;
-                }
+                if (!is_array($answer)) return false;
                 $question = $selectedQuestions->get($answer['questionId'] ?? null);
                 return $question && $this->normalizeAnswer($answer['answer'] ?? null) === $this->normalizeAnswer($question->answer);
             })->count();
@@ -453,10 +452,7 @@ class ShortCourseController extends Controller
 
     private function courseEntryFee(Course $course): float
     {
-        if ($this->courseIsFree($course)) {
-            return 0;
-        }
-
+        if ($this->courseIsFree($course)) return 0;
         return max(0, (float) ($course->price ?? 0));
     }
 
@@ -471,7 +467,6 @@ class ShortCourseController extends Controller
             $this->applyInitialEntryAccess($enrollment, $course);
             $enrollment->refresh();
         }
-
         return $enrollment;
     }
 
@@ -514,15 +509,8 @@ class ShortCourseController extends Controller
 
     private function invoiceFor(int $studentId, Course $course, string $type, string $title, array $fee, array $metadata = []): Invoice
     {
-        $invoice = Invoice::firstOrNew([
-            'student_id' => $studentId,
-            'type' => $type,
-            'title' => $title,
-        ]);
-
-        if ($invoice->exists && $invoice->status === 'paid') {
-            return $invoice;
-        }
+        $invoice = Invoice::firstOrNew(['student_id' => $studentId, 'type' => $type, 'title' => $title]);
+        if ($invoice->exists && $invoice->status === 'paid') return $invoice;
 
         $invoice->forceFill([
             'uuid' => $invoice->uuid ?: (string) Str::uuid(),
@@ -586,10 +574,7 @@ class ShortCourseController extends Controller
 
     private function coursePayload(?Course $course): ?array
     {
-        if (!$course) {
-            return null;
-        }
-
+        if (!$course) return null;
         return [
             'id' => $course->id,
             'title' => $course->title,
@@ -604,11 +589,7 @@ class ShortCourseController extends Controller
             'durationHours' => $course->duration_hours,
             'level' => $course->level,
             'status' => $course->status,
-            'lessons' => $course->lessons?->map(fn ($lesson) => [
-                'id' => $lesson->id,
-                'title' => $lesson->title,
-                'summary' => $lesson->summary ?? null,
-            ])->values(),
+            'lessons' => $course->lessons?->map(fn ($lesson) => ['id' => $lesson->id, 'title' => $lesson->title, 'summary' => $lesson->summary ?? null])->values(),
         ];
     }
 
