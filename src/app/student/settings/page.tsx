@@ -95,10 +95,6 @@ export default function SettingsPage() {
       setError('Choose an image file for your profile photo.');
       return;
     }
-    if (file.size > 600_000) {
-      setError('Profile photo must be smaller than 600 KB.');
-      return;
-    }
 
     const reader = new FileReader();
     reader.onload = () => update({ avatar: String(reader.result || '') });
@@ -185,7 +181,7 @@ export default function SettingsPage() {
           <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Profile Photo</CardTitle>
-              <CardDescription>Use a clear square image under 600 KB.</CardDescription>
+              <CardDescription>Use a clear square image for the best display across UnivAI.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
