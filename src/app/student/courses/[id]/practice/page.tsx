@@ -45,6 +45,15 @@ const questionTypeOptions: Array<{ key: PracticeQuestionType; label: string; des
   { key: 'matching', label: 'Matching / sorting', description: 'Good for lists, accounts, and categories.' },
 ];
 
+function mixedCounts(total: number) {
+  if (total <= 1) return { easy: 1, medium: 0, hard: 0 };
+  if (total === 2) return { easy: 1, medium: 1, hard: 0 };
+  const easy = Math.max(1, Math.floor(total / 3));
+  const medium = Math.max(1, Math.floor(total / 3));
+  const hard = Math.max(1, total - easy - medium);
+  return { easy, medium, hard };
+}
+
 export default function CoursePracticePage() {
   const { id: courseId } = useParams<{ id: string }>();
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
@@ -71,13 +80,14 @@ export default function CoursePracticePage() {
     setChecked({});
     setIndex(0);
     try {
+      const split = mixedCounts(count);
       const next = nextDifficulty === 'mixed'
         ? await getShortCoursePractice(courseId, {
           sections: [
-            { title: 'Easy rescue', difficulty: 'easy', questionType: selectedType, count: Math.ceil(count / 3), timeMinutes: 10 },
-            { title: 'Medium rescue', difficulty: 'medium', questionType: selectedType, count: Math.ceil(count / 3), timeMinutes: 15 },
-            { title: 'Hard rescue', difficulty: 'hard', questionType: selectedType, count: Math.max(1, count - Math.ceil(count / 3) * 2), timeMinutes: 20 },
-          ],
+            split.easy > 0 ? { title: 'Easy rescue', difficulty: 'easy', questionType: selectedType, count: split.easy, timeMinutes: 10 } : null,
+            split.medium > 0 ? { title: 'Medium rescue', difficulty: 'medium', questionType: selectedType, count: split.medium, timeMinutes: 15 } : null,
+            split.hard > 0 ? { title: 'Hard rescue', difficulty: 'hard', questionType: selectedType, count: split.hard, timeMinutes: 20 } : null,
+          ].filter(Boolean) as Array<{ title: string; difficulty: string; questionType?: string; count: number; timeMinutes: number }>,
         })
         : await getShortCoursePractice(courseId, { difficulty: nextDifficulty, count, questionType: selectedType });
       setPayload(next);
