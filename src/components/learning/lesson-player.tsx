@@ -9,7 +9,6 @@ import { MathVisualBlock } from '@/components/learning/math-visual-blocks';
 import { getBlockDefinition, normalizeBlockType as normalizeRegisteredBlockType, type LearningBlockPayload } from '@/components/learning/blocks/registry';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import type { LessonWithCourseId } from '@/lib/api/types';
@@ -202,26 +201,26 @@ export function LessonPlayer({
   }
 
   return (
-    <div className="mx-auto flex min-h-[100svh] w-full max-w-6xl flex-col overflow-hidden px-2 py-2 sm:min-h-[calc(100vh-4rem)] sm:px-4 sm:py-4 lg:px-6">
-      <div className="mb-2 flex shrink-0 items-center justify-between gap-2 sm:mb-4">
+    <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-2 sm:mb-4">
         {backHref ? (
-          <Button variant="ghost" size="sm" asChild className="h-9 gap-2 rounded-full px-2 sm:px-3">
+          <Button variant="ghost" size="sm" asChild className="h-9 shrink-0 gap-2 rounded-full px-2 sm:px-3">
             <Link href={backHref}>
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Back</span>
             </Link>
           </Button>
-        ) : <span />}
+        ) : <span className="h-9 w-9 shrink-0" />}
         <div className="min-w-0 flex-1 px-1 text-center sm:px-3">
           <p className="truncate text-[11px] font-medium uppercase tracking-wide text-primary sm:text-xs"><MathText text={courseTitle || 'Study mode'} /></p>
           <h1 className="truncate text-sm font-semibold tracking-tight sm:text-xl"><MathText text={lesson.title} /></h1>
         </div>
-        <Badge variant="secondary" className="shrink-0 rounded-full px-2 py-1 text-[11px] sm:px-3 sm:text-xs">
+        <Badge variant="secondary" className="max-w-[96px] shrink-0 truncate rounded-full px-2 py-1 text-[11px] sm:max-w-[160px] sm:px-3 sm:text-xs">
           {lesson.estimatedMinutes ? `${lesson.estimatedMinutes} min` : 'Self-paced'}
         </Badge>
       </div>
 
-      <div className="mb-2 shrink-0 space-y-1 sm:mb-4 sm:space-y-2">
+      <div className="mb-3 shrink-0 space-y-1 sm:mb-4 sm:space-y-2">
         <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground sm:text-xs">
           <span>Card {index + 1} of {blocks.length}</span>
           <span>{progress}%</span>
@@ -229,92 +228,158 @@ export function LessonPlayer({
         <Progress value={progress} className="h-1.5 sm:h-2" />
       </div>
 
-      <div className="grid min-h-0 flex-1 min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <Card className="flex min-h-[75svh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border-primary/10 shadow-sm sm:min-h-[calc(100vh-12rem)] sm:rounded-3xl">
-          <CardHeader className="shrink-0 space-y-2 px-4 py-3 sm:space-y-3 sm:px-6 sm:py-5">
-            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
-              <Badge className="rounded-full capitalize" variant={isInteractive ? 'default' : 'secondary'}>
-                {labelForBlock(block)}
-              </Badge>
-              {typeof block.subLessonTitle === 'string' && block.type !== 'sub_lesson' ? <Badge variant="outline" className="max-w-[180px] truncate rounded-full sm:max-w-[260px]"><MathText text={block.subLessonTitle} /></Badge> : null}
+      <main className="grid w-full min-w-0 flex-1 gap-4 pb-28 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <LessonCardShell
+          label={labelForBlock(block)}
+          title={titleForBlock(block)}
+          subLessonTitle={typeof block.subLessonTitle === 'string' && block.type !== 'sub_lesson' ? block.subLessonTitle : undefined}
+          isInteractive={isInteractive}
+        >
+          <BlockContent block={block} revealed={Boolean(revealed[index])} onReveal={() => setRevealed((current) => ({ ...current, [index]: true }))} />
+
+          {block.type === 'question' ? (
+            <div className="grid min-w-0 gap-3">
+              {(block.options ?? []).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  disabled={Boolean(answered)}
+                  onClick={() => setChoice(option)}
+                  className={`min-w-0 rounded-2xl border p-4 text-left text-sm transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
+                >
+                  <span className="block min-w-0 break-words"><MathText text={option} /></span>
+                </button>
+              ))}
             </div>
-            <CardTitle className="text-lg leading-tight sm:text-2xl"><MathText text={titleForBlock(block)} /></CardTitle>
-          </CardHeader>
+          ) : null}
 
-          <CardContent className="min-h-0 flex-1 min-w-0 space-y-4 overflow-y-auto px-4 pb-4 sm:space-y-5 sm:px-6">
-            <BlockContent block={block} revealed={Boolean(revealed[index])} onReveal={() => setRevealed((current) => ({ ...current, [index]: true }))} />
+          {block.type === 'fill_blank' ? <Input value={textAnswer} disabled={Boolean(answered)} onChange={(event) => setTextAnswer(event.target.value)} placeholder="Type your answer..." className="w-full min-w-0" /> : null}
 
-            {block.type === 'question' ? (
-              <div className="grid gap-3">
-                {(block.options ?? []).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    disabled={Boolean(answered)}
-                    onClick={() => setChoice(option)}
-                    className={`rounded-2xl border p-4 text-left text-sm transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
-                  >
-                    <MathText text={option} />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {block.type === 'fill_blank' ? <Input value={textAnswer} disabled={Boolean(answered)} onChange={(event) => setTextAnswer(event.target.value)} placeholder="Type your answer..." /> : null}
-
-            {block.type === 'true_false' ? (
-              <div className="grid grid-cols-2 gap-3">
-                {['true', 'false'].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    disabled={Boolean(answered)}
-                    onClick={() => setChoice(option)}
-                    className={`rounded-2xl border p-4 text-center text-sm font-medium capitalize transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {answered ? (
-              <div className={`rounded-2xl border p-4 text-sm ${answered.isCorrect ? 'border-primary/30 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
-                <div className="mb-1 flex items-center gap-2 font-semibold">
-                  {answered.isCorrect ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                  {answered.isCorrect ? 'Correct' : 'Not quite'}
-                </div>
-                <p className="text-muted-foreground"><MathText text={answered.message} /></p>
-              </div>
-            ) : null}
-          </CardContent>
-
-          <CardFooter className="shrink-0 border-t bg-background/95 p-3 backdrop-blur sm:p-4">
-            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:justify-between">
-              <Button variant="outline" onClick={goPrevious} disabled={index === 0} className="w-full gap-2 sm:w-auto">
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-
-              {isInteractive && !answered ? (
-                <Button onClick={checkAnswer} disabled={!choice && !textAnswer.trim()} className="w-full sm:w-auto">Check answer</Button>
-              ) : isLast ? (
-                <Button onClick={completeLesson} disabled={!onComplete || completed || saving} className="w-full gap-2 bg-[#00694E] hover:bg-[#00563f] sm:w-auto">
-                  <Sparkles className="h-4 w-4" />
-                  {completed ? 'Lesson completed' : saving ? 'Saving...' : completeLabel}
-                </Button>
-              ) : (
-                <Button onClick={goNext} disabled={!canContinue} className="w-full gap-2 sm:w-auto">
-                  Continue
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
+          {block.type === 'true_false' ? (
+            <div className="grid min-w-0 grid-cols-2 gap-3">
+              {['true', 'false'].map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  disabled={Boolean(answered)}
+                  onClick={() => setChoice(option)}
+                  className={`min-w-0 rounded-2xl border p-4 text-center text-sm font-medium capitalize transition ${choice === option ? 'border-primary bg-primary/5' : 'hover:border-primary/50'} ${answered ? 'cursor-default' : ''}`}
+                >
+                  {option}
+                </button>
+              ))}
             </div>
-          </CardFooter>
-        </Card>
+          ) : null}
+
+          {answered ? (
+            <div className={`min-w-0 rounded-2xl border p-4 text-sm ${answered.isCorrect ? 'border-primary/30 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
+              <div className="mb-1 flex min-w-0 items-center gap-2 font-semibold">
+                {answered.isCorrect ? <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" /> : <XCircle className="h-4 w-4 shrink-0 text-destructive" />}
+                <span>{answered.isCorrect ? 'Correct' : 'Not quite'}</span>
+              </div>
+              <p className="break-words text-muted-foreground"><MathText text={answered.message} /></p>
+            </div>
+          ) : null}
+        </LessonCardShell>
         <SideContextPanel block={block} lessonDifficulty={lesson.difficulty} />
-      </div>
+      </main>
+
+      <LessonBottomNavigation
+        index={index}
+        isInteractive={isInteractive}
+        answered={Boolean(answered)}
+        isLast={isLast}
+        canContinue={canContinue}
+        choice={choice}
+        textAnswer={textAnswer}
+        completed={completed}
+        saving={saving}
+        completeLabel={completeLabel}
+        onComplete={onComplete}
+        onPrevious={goPrevious}
+        onNext={goNext}
+        onCheckAnswer={checkAnswer}
+        onCompleteLesson={completeLesson}
+      />
     </div>
+  );
+}
+
+function LessonCardShell({ label, title, subLessonTitle, isInteractive, children }: { label: string; title: string; subLessonTitle?: string; isInteractive: boolean; children: ReactNode }) {
+  return (
+    <article className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-primary/10 bg-background shadow-sm sm:rounded-3xl">
+      <header className="space-y-2 px-4 py-3 sm:space-y-3 sm:px-6 sm:py-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+          <Badge className="max-w-full truncate rounded-full capitalize" variant={isInteractive ? 'default' : 'secondary'}>
+            {label}
+          </Badge>
+          {subLessonTitle ? <Badge variant="outline" className="max-w-[180px] truncate rounded-full sm:max-w-[260px]"><MathText text={subLessonTitle} /></Badge> : null}
+        </div>
+        <h2 className="min-w-0 break-words text-lg font-semibold leading-tight tracking-tight sm:text-2xl"><MathText text={title} /></h2>
+      </header>
+      <div className="min-w-0 max-w-full space-y-4 overflow-hidden px-4 pb-5 sm:space-y-5 sm:px-6 sm:pb-6">
+        {children}
+      </div>
+    </article>
+  );
+}
+
+function LessonBottomNavigation({
+  index,
+  isInteractive,
+  answered,
+  isLast,
+  canContinue,
+  choice,
+  textAnswer,
+  completed,
+  saving,
+  completeLabel,
+  onComplete,
+  onPrevious,
+  onNext,
+  onCheckAnswer,
+  onCompleteLesson,
+}: {
+  index: number;
+  isInteractive: boolean;
+  answered: boolean;
+  isLast: boolean;
+  canContinue: boolean;
+  choice: string;
+  textAnswer: string;
+  completed: boolean;
+  saving: boolean;
+  completeLabel: string;
+  onComplete?: () => Promise<void> | void;
+  onPrevious: () => void;
+  onNext: () => void;
+  onCheckAnswer: () => void;
+  onCompleteLesson: () => void;
+}) {
+  return (
+    <footer className="sticky bottom-0 z-20 -mx-3 mt-auto border-t bg-background/95 p-3 backdrop-blur sm:-mx-4 sm:p-4 lg:-mx-6">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-between">
+        <Button variant="outline" onClick={onPrevious} disabled={index === 0} className="w-full gap-2 sm:w-auto">
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+
+        {isInteractive && !answered ? (
+          <Button onClick={onCheckAnswer} disabled={!choice && !textAnswer.trim()} className="w-full sm:w-auto">Check answer</Button>
+        ) : isLast ? (
+          <Button onClick={onCompleteLesson} disabled={!onComplete || completed || saving} className="w-full gap-2 bg-[#00694E] hover:bg-[#00563f] sm:w-auto">
+            <Sparkles className="h-4 w-4" />
+            <span className="truncate">{completed ? 'Lesson completed' : saving ? 'Saving...' : completeLabel}</span>
+          </Button>
+        ) : (
+          <Button onClick={onNext} disabled={!canContinue} className="w-full gap-2 sm:w-auto">
+            Continue
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </footer>
   );
 }
 
@@ -327,37 +392,37 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
   const registryDefinition = getBlockDefinition(block.type);
   if (registryDefinition && shouldUseBlockEngineRenderer(block)) {
     const Renderer = registryDefinition.StudentRenderer;
-    return <div className="space-y-4"><Renderer payload={block as LearningBlockPayload} definition={registryDefinition} state={{ revealed }} />{context}</div>;
+    return <div className="min-w-0 max-w-full space-y-4 overflow-hidden break-words"><Renderer payload={block as LearningBlockPayload} definition={registryDefinition} state={{ revealed }} />{context}</div>;
   }
 
   if (visualBlockTypes.has(block.type)) {
-    return <div className="space-y-4"><CardImage block={block} /><MathVisualBlock block={block} />{context}</div>;
+    return <div className="min-w-0 max-w-full space-y-4 overflow-hidden"><CardImage block={block} /><MathVisualBlock block={block} />{context}</div>;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-4">
-      <CardImage block={block} />
-      {block.term || block.definition ? (
-        <div className="rounded-2xl border bg-muted/20 p-4">
-          {block.term ? <p className="text-sm font-semibold"><MathText text={block.term} /></p> : null}
-          {block.definition ? <p className="mt-2 text-sm leading-6 text-muted-foreground"><MathText text={block.definition} /></p> : null}
-        </div>
-      ) : null}
-      {text ? <p className="text-base leading-7 text-muted-foreground"><MathText text={text} /></p> : null}
-      {block.description && !text ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.description} /></p> : null}
-      {block.prompt ? (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-          <p className="text-sm font-semibold">Prompt</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground"><MathText text={block.prompt} /></p>
-        </div>
-      ) : null}
+    <div className="min-w-0 max-w-full space-y-4 overflow-hidden break-words">
+      <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
+        <CardImage block={block} />
+        {block.term || block.definition ? (
+          <div className="min-w-0 rounded-2xl border bg-muted/20 p-4">
+            {block.term ? <p className="break-words text-sm font-semibold"><MathText text={block.term} /></p> : null}
+            {block.definition ? <p className="mt-2 break-words text-sm leading-6 text-muted-foreground"><MathText text={block.definition} /></p> : null}
+          </div>
+        ) : null}
+        {text ? <p className="break-words text-base leading-7 text-muted-foreground"><MathText text={text} /></p> : null}
+        {block.description && !text ? <p className="break-words text-base leading-7 text-muted-foreground"><MathText text={block.description} /></p> : null}
+        {block.prompt ? (
+          <div className="min-w-0 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm font-semibold">Prompt</p>
+            <p className="mt-2 break-words text-sm leading-6 text-muted-foreground"><MathText text={block.prompt} /></p>
+          </div>
+        ) : null}
       </div>
       {revealTypes.has(block.type) || block.front || block.back ? (
-        <div className="space-y-3 rounded-2xl border p-4">
-          {block.front ? <p className="text-base font-semibold"><MathText text={block.front} /></p> : null}
+        <div className="min-w-0 space-y-3 rounded-2xl border p-4">
+          {block.front ? <p className="break-words text-base font-semibold"><MathText text={block.front} /></p> : null}
           {revealed ? (
-            <div className="rounded-xl bg-muted/50 p-3 text-sm leading-6 text-muted-foreground">
+            <div className="min-w-0 rounded-xl bg-muted/50 p-3 text-sm leading-6 text-muted-foreground">
               <MathText text={block.back || block.explanation || 'Review the previous idea, then explain it in your own words.'} />
             </div>
           ) : (
@@ -367,9 +432,9 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
       ) : null}
       {items.length ? (
         <GuidedSection title={block.type === 'summary' ? 'Key takeaways' : 'Supporting points'}>
-          <ul className="grid gap-2">
+          <ul className="grid min-w-0 gap-2">
             {items.map((item, itemIndex) => (
-              <li key={`${item}-${itemIndex}`} className="rounded-xl border bg-background p-3 text-sm leading-6 text-muted-foreground">
+              <li key={`${item}-${itemIndex}`} className="min-w-0 rounded-xl border bg-background p-3 text-sm leading-6 text-muted-foreground">
                 <MathText text={item} />
               </li>
             ))}
@@ -379,64 +444,64 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
 
       {block.type === 'worked_solution' ? (
         <GuidedSection title="Worked solution">
-          <div className="space-y-2 rounded-xl border bg-muted/20 p-3 text-sm">
-            {block.problem ? <p><strong>Problem:</strong> <MathText text={String(block.problem)} /></p> : null}
-            {block.given ? <p><strong>Given:</strong> <MathText text={String(block.given)} /></p> : null}
-            {block.required ? <p><strong>Required:</strong> <MathText text={String(block.required)} /></p> : null}
-            {block.formula ? <p><strong>Formula:</strong> <MathText text={`$${String(block.formula)}$`} /></p> : null}
-            {block.steps ? <p><strong>Steps:</strong> <MathText text={String(block.steps)} /></p> : null}
-            {block.finalAnswer ? <p><strong>Final answer:</strong> <MathText text={String(block.finalAnswer)} /></p> : null}
-            {block.commonMistake ? <p><strong>Common mistake:</strong> <MathText text={String(block.commonMistake)} /></p> : null}
+          <div className="min-w-0 space-y-2 rounded-xl border bg-muted/20 p-3 text-sm">
+            {block.problem ? <p className="break-words"><strong>Problem:</strong> <MathText text={String(block.problem)} /></p> : null}
+            {block.given ? <p className="break-words"><strong>Given:</strong> <MathText text={String(block.given)} /></p> : null}
+            {block.required ? <p className="break-words"><strong>Required:</strong> <MathText text={String(block.required)} /></p> : null}
+            {block.formula ? <p className="break-words"><strong>Formula:</strong> <MathText text={`$${String(block.formula)}$`} /></p> : null}
+            {block.steps ? <p className="break-words"><strong>Steps:</strong> <MathText text={String(block.steps)} /></p> : null}
+            {block.finalAnswer ? <p className="break-words"><strong>Final answer:</strong> <MathText text={String(block.finalAnswer)} /></p> : null}
+            {block.commonMistake ? <p className="break-words"><strong>Common mistake:</strong> <MathText text={String(block.commonMistake)} /></p> : null}
           </div>
         </GuidedSection>
       ) : null}
       {block.type === 'proof' ? (
         <GuidedSection title="Proof / reasoning">
-          <div className="space-y-2 rounded-xl border bg-muted/20 p-3 text-sm">
-            {block.statement ? <p><strong>Statement:</strong> <MathText text={String(block.statement)} /></p> : null}
-            {block.assumption ? <p><strong>Assumption:</strong> <MathText text={String(block.assumption)} /></p> : null}
-            {block.reasoning ? <p><strong>Reasoning:</strong> <MathText text={String(block.reasoning)} /></p> : null}
-            {block.contradiction ? <p><strong>Contradiction:</strong> <MathText text={String(block.contradiction)} /></p> : null}
-            {block.conclusion ? <p><strong>Conclusion:</strong> <MathText text={String(block.conclusion)} /></p> : null}
+          <div className="min-w-0 space-y-2 rounded-xl border bg-muted/20 p-3 text-sm">
+            {block.statement ? <p className="break-words"><strong>Statement:</strong> <MathText text={String(block.statement)} /></p> : null}
+            {block.assumption ? <p className="break-words"><strong>Assumption:</strong> <MathText text={String(block.assumption)} /></p> : null}
+            {block.reasoning ? <p className="break-words"><strong>Reasoning:</strong> <MathText text={String(block.reasoning)} /></p> : null}
+            {block.contradiction ? <p className="break-words"><strong>Contradiction:</strong> <MathText text={String(block.contradiction)} /></p> : null}
+            {block.conclusion ? <p className="break-words"><strong>Conclusion:</strong> <MathText text={String(block.conclusion)} /></p> : null}
           </div>
         </GuidedSection>
       ) : null}
       {Array.isArray(block.pairs) && block.pairs.length ? (
         <GuidedSection title="Pairs">
-          <div className="grid gap-2">
-          {block.pairs.map((pair, pairIndex) => (
-            <div key={`${pair.left ?? pairIndex}-${pairIndex}`} className="grid gap-2 rounded-xl border p-3 text-sm sm:grid-cols-2">
-              <span className="font-medium"><MathText text={pair.left || `Item ${pairIndex + 1}`} /></span>
-              <span className="text-muted-foreground"><MathText text={pair.right || 'Add matching value'} /></span>
-            </div>
-          ))}
+          <div className="grid min-w-0 gap-2">
+            {block.pairs.map((pair, pairIndex) => (
+              <div key={`${pair.left ?? pairIndex}-${pairIndex}`} className="grid min-w-0 gap-2 rounded-xl border p-3 text-sm sm:grid-cols-2">
+                <span className="min-w-0 break-words font-medium"><MathText text={pair.left || `Item ${pairIndex + 1}`} /></span>
+                <span className="min-w-0 break-words text-muted-foreground"><MathText text={pair.right || 'Add matching value'} /></span>
+              </div>
+            ))}
           </div>
         </GuidedSection>
       ) : null}
       {criteria.length ? (
         criteria.length > 5 ? <ExpandableSection title={`Quality criteria (${criteria.length})`}>
-          <ul className="mt-3 grid gap-2 text-sm text-muted-foreground">
-            {criteria.map((criterion, criterionIndex) => <li key={`${criterion}-${criterionIndex}`}><MathText text={`- ${criterion}`} /></li>)}
+          <ul className="mt-3 grid min-w-0 gap-2 text-sm text-muted-foreground">
+            {criteria.map((criterion, criterionIndex) => <li key={`${criterion}-${criterionIndex}`} className="break-words"><MathText text={`- ${criterion}`} /></li>)}
           </ul>
         </ExpandableSection> : <GuidedSection title="Quality criteria">
-          <ul className="grid gap-2 text-sm text-muted-foreground">
-            {criteria.map((criterion, criterionIndex) => <li key={`${criterion}-${criterionIndex}`}><MathText text={`- ${criterion}`} /></li>)}
+          <ul className="grid min-w-0 gap-2 text-sm text-muted-foreground">
+            {criteria.map((criterion, criterionIndex) => <li key={`${criterion}-${criterionIndex}`} className="break-words"><MathText text={`- ${criterion}`} /></li>)}
           </ul>
         </GuidedSection>
       ) : null}
-      {block.code ? <pre className="overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{block.code}</code></pre> : null}
+      {block.code ? <pre className="max-w-full overflow-x-auto rounded-2xl bg-muted p-4 text-sm"><code>{block.code}</code></pre> : null}
       {block.visual ? <VisualFrame visual={block.visual} /> : null}
       {Array.isArray(block.steps) && block.steps.length > 0 ? (
         <GuidedSection title="Worked steps">
-          <div className="space-y-4">
-          {block.steps.map((step, stepIndex) => (
-            <div key={`${step.title ?? 'step'}-${stepIndex}`} className="space-y-3 rounded-2xl border bg-muted/10 p-4">
-              <p className="font-semibold"><MathText text={step.title || `Step ${stepIndex + 1}`} /></p>
-              <CardImage block={step} />
-              {step.explanation ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={step.explanation} /></p> : null}
-              {step.visual ? <VisualFrame visual={step.visual} /> : null}
-            </div>
-          ))}
+          <div className="min-w-0 space-y-4">
+            {block.steps.map((step, stepIndex) => (
+              <div key={`${step.title ?? 'step'}-${stepIndex}`} className="min-w-0 space-y-3 rounded-2xl border bg-muted/10 p-4">
+                <p className="break-words font-semibold"><MathText text={step.title || `Step ${stepIndex + 1}`} /></p>
+                <CardImage block={step} />
+                {step.explanation ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={step.explanation} /></p> : null}
+                {step.visual ? <VisualFrame visual={step.visual} /> : null}
+              </div>
+            ))}
           </div>
         </GuidedSection>
       ) : null}
@@ -447,8 +512,8 @@ function BlockContent({ block, revealed, onReveal }: { block: LessonBlock; revea
 
 function GuidedSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="min-w-0 rounded-2xl border bg-muted/10 p-4">
-      <p className="mb-3 text-sm font-semibold">{title}</p>
+    <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-4">
+      <p className="mb-3 break-words text-sm font-semibold">{title}</p>
       {children}
     </section>
   );
@@ -456,12 +521,12 @@ function GuidedSection({ title, children }: { title: string; children: ReactNode
 
 function ExpandableSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <details className="min-w-0 rounded-2xl border bg-muted/10 p-4">
+    <details className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-4">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
-        {title}
-        <ChevronDown className="size-4 text-muted-foreground" />
+        <span className="min-w-0 break-words">{title}</span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </summary>
-      <div className="mt-3">{children}</div>
+      <div className="mt-3 min-w-0 max-w-full overflow-hidden">{children}</div>
     </details>
   );
 }
@@ -473,25 +538,25 @@ function ClassroomThreadContext({ block, compact = false }: { block: LessonBlock
   const sourceQuestion = typeof block.sourceQuestion === 'string' ? block.sourceQuestion : '';
   const sourceIsLong = sourceQuestion.length > 360;
   return (
-    <div className={compact ? 'space-y-3' : 'space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4'}>
+    <div className={compact ? 'min-w-0 space-y-3 overflow-hidden' : 'min-w-0 space-y-3 overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-4'}>
       {block.sourceQuestion ? (
         sourceIsLong || compact ? (
           <ExpandableSection title="Original classroom question">
-            <p className="whitespace-pre-wrap text-sm leading-6 text-foreground"><MathText text={block.sourceQuestion} /></p>
+            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground"><MathText text={block.sourceQuestion} /></p>
           </ExpandableSection>
         ) : (
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">Original classroom question</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground"><MathText text={block.sourceQuestion} /></p>
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground"><MathText text={block.sourceQuestion} /></p>
           </div>
         )
       ) : null}
       {extracted.length ? (
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Data collected so far</p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
             {extracted.map((item, index) => (
-              <div key={`${item}-${index}`} className="rounded-xl border bg-background/70 px-3 py-2 text-sm">
+              <div key={`${item}-${index}`} className="min-w-0 rounded-xl border bg-background/70 px-3 py-2 text-sm">
                 <MathText text={item} />
               </div>
             ))}
@@ -499,22 +564,22 @@ function ClassroomThreadContext({ block, compact = false }: { block: LessonBlock
         </div>
       ) : null}
       {block.teacherNote ? (
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Teacher reasoning</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground"><MathText text={block.teacherNote} /></p>
+          <p className="mt-2 break-words text-sm leading-6 text-muted-foreground"><MathText text={block.teacherNote} /></p>
         </div>
       ) : null}
       {trail.length > 1 ? (
         <ExpandableSection title="Board progress so far">
-          <div className="mt-2 grid gap-2">
+          <div className="mt-2 grid min-w-0 gap-2">
             {trail.map((step, stepIndex) => (
-              <div key={`${step.title}-${stepIndex}`} className="rounded-xl border bg-background/70 p-3 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold">Step {stepIndex + 1}: <MathText text={step.title} /></span>
-                  {step.move ? <Badge variant="outline" className="rounded-full"><MathText text={step.move} /></Badge> : null}
+              <div key={`${step.title}-${stepIndex}`} className="min-w-0 rounded-xl border bg-background/70 p-3 text-sm">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="min-w-0 break-words font-semibold">Step {stepIndex + 1}: <MathText text={step.title} /></span>
+                  {step.move ? <Badge variant="outline" className="max-w-full truncate rounded-full"><MathText text={step.move} /></Badge> : null}
                 </div>
-                {step.note ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground"><MathText text={step.note} /></p> : null}
-                {step.data.length ? <p className="mt-1 text-xs text-muted-foreground"><MathText text={`Collected: ${step.data.join(', ')}`} /></p> : null}
+                {step.note ? <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-muted-foreground"><MathText text={step.note} /></p> : null}
+                {step.data.length ? <p className="mt-1 break-words text-xs text-muted-foreground"><MathText text={`Collected: ${step.data.join(', ')}`} /></p> : null}
               </div>
             ))}
           </div>
@@ -531,11 +596,11 @@ function SideContextPanel({ block, lessonDifficulty }: { block: LessonBlock; les
     <aside className="hidden min-w-0 space-y-3 xl:block">
       <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border bg-background/95 p-4 shadow-sm">
         <p className="text-sm font-semibold">Card context</p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {typeof block.subjectArea === 'string' ? <Badge variant="outline" className="rounded-full"><MathText text={block.subjectArea} /></Badge> : null}
+        <div className="mt-3 flex min-w-0 flex-wrap gap-2 text-xs">
+          {typeof block.subjectArea === 'string' ? <Badge variant="outline" className="max-w-full truncate rounded-full"><MathText text={block.subjectArea} /></Badge> : null}
           {lessonDifficulty ? <Badge variant="outline" className="rounded-full capitalize">{lessonDifficulty}</Badge> : null}
         </div>
-        <div className="mt-4">
+        <div className="mt-4 min-w-0">
           <ClassroomThreadContext block={block} compact />
         </div>
       </div>
@@ -662,8 +727,8 @@ function uniqueText(values: string[]) {
 function CardImage({ block }: { block: Pick<LessonBlock, 'imageUrl' | 'imageAlt' | 'imageCaption'> }) {
   if (!block.imageUrl || typeof block.imageUrl !== 'string') return null;
   return (
-    <figure className="overflow-hidden rounded-2xl border bg-muted/20">
-      <img src={block.imageUrl} alt={block.imageAlt || 'Lesson card illustration'} className="max-h-[420px] w-full object-contain" />
+    <figure className="max-w-full overflow-hidden rounded-2xl border bg-muted/20">
+      <img src={block.imageUrl} alt={block.imageAlt || 'Lesson card illustration'} className="mx-auto max-h-[420px] w-full max-w-full object-contain" />
       {block.imageCaption ? <figcaption className="border-t bg-background/80 px-4 py-3 text-sm text-muted-foreground"><MathText text={block.imageCaption} /></figcaption> : null}
     </figure>
   );
@@ -671,7 +736,7 @@ function CardImage({ block }: { block: Pick<LessonBlock, 'imageUrl' | 'imageAlt'
 
 function VisualFrame({ visual }: { visual: LessonVisualBlock }) {
   return (
-    <div className="rounded-2xl border bg-background/80 p-3">
+    <div className="max-w-full overflow-hidden rounded-2xl border bg-background/80 p-3">
       <MathVisualBlock block={visual} />
     </div>
   );

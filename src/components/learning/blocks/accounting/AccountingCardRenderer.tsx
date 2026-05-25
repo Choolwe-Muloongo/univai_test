@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { AlertTriangle, BadgeCheck, BriefcaseBusiness, CheckCircle2, Landmark } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -36,34 +37,43 @@ const doctoralResearchTypes = new Set([
   'doctoral_proposal',
 ]);
 
+const accountingSectionLabels: Record<string, string> = {
+  accounting_studio: 'Accounting Studio',
+  accounting_intro: 'Accounting intro',
+  accounting_scenario: 'Business scenario',
+  accounting_workpaper: 'Accounting workpaper',
+  accounting_journal_entry: 'Journal entry',
+  accounting_ledger: 'Ledger posting',
+  accounting_trial_balance: 'Trial balance',
+  accounting_statement: 'Financial statement',
+  accounting_feedback: 'Accounting feedback',
+  accounting_exam_question: 'Exam practice',
+  accounting_marking_scheme: 'Marking scheme',
+};
+
 export function AccountingCardRenderer({ payload, definition }: BlockRendererProps) {
   const content = getAccountingContent(payload);
   const data = content.data;
   const title = String(payload.title ?? data.title ?? definition.label);
   const currency = String(data.currency ?? 'ZMW');
   const body = renderAccountingBody(content.accountingType, data, currency);
+  const sectionType = String(payload.type ?? 'accounting_studio');
+  const sectionLabel = accountingSectionLabels[sectionType] ?? definition.label;
 
   return (
-    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-background p-4 shadow-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="rounded-full">Accounting Studio</Badge>
-        <Badge variant="outline" className="rounded-full capitalize">{content.accountingType.replace(/_/g, ' ')}</Badge>
+    <div className="min-w-0 max-w-full space-y-4 overflow-hidden rounded-2xl border bg-background p-4 shadow-sm">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Badge variant="secondary" className="max-w-full truncate rounded-full">{sectionLabel}</Badge>
+        <Badge variant="outline" className="max-w-full truncate rounded-full capitalize">{content.accountingType.replace(/_/g, ' ')}</Badge>
         <Badge variant="outline" className="rounded-full capitalize">{content.difficulty}</Badge>
       </div>
 
-      <div className="space-y-1">
-        <h3 className="text-lg font-semibold tracking-tight"><MathText text={title} /></h3>
-        {payload.body ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
+      <div className="min-w-0 space-y-1">
+        <h3 className="break-words text-lg font-semibold tracking-tight"><MathText text={title} /></h3>
+        {payload.body ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
       </div>
 
-      <AccountingTeachingPlayer content={content} title={title}>{body}</AccountingTeachingPlayer>
-      <StudentAccountingWorkbench content={content} currency={currency} />
-
-      {content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : null}
-
-      <div className="rounded-2xl border border-dashed bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-        Formula helper, professional format, and retry flows are handled by the card data, workspace feedback, and marking scheme. Use the attempt area above for active practice.
-      </div>
+      {renderAccountingSection(sectionType, content, title, body, currency)}
     </div>
   );
 }
@@ -73,6 +83,97 @@ export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
     <div className="rounded-2xl border bg-muted/20 p-3">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><BadgeCheck className="size-4" /> Accounting student preview</div>
       <AccountingCardRenderer {...props} />
+    </div>
+  );
+}
+
+function renderAccountingSection(sectionType: string, content: ReturnType<typeof getAccountingContent>, title: string, body: ReactNode, currency: string) {
+  if (sectionType === 'accounting_studio') {
+    return <LegacyAccountingStudioSplit content={content} title={title} body={body} currency={currency} />;
+  }
+
+  if (sectionType === 'accounting_intro') {
+    return <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>;
+  }
+
+  if (sectionType === 'accounting_scenario') {
+    return <TransactionScenario data={content.data} currency={currency} />;
+  }
+
+  if (sectionType === 'accounting_workpaper' || sectionType === 'accounting_journal_entry' || sectionType === 'accounting_ledger' || sectionType === 'accounting_trial_balance' || sectionType === 'accounting_statement') {
+    return <div className="min-w-0 max-w-full overflow-hidden">{body}</div>;
+  }
+
+  if (sectionType === 'accounting_feedback') {
+    return <AccountingFeedback />;
+  }
+
+  if (sectionType === 'accounting_exam_question') {
+    return <StudentAccountingWorkbench content={content} currency={currency} />;
+  }
+
+  if (sectionType === 'accounting_marking_scheme') {
+    return content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : <p className="text-sm text-muted-foreground">No marking scheme has been attached to this accounting activity.</p>;
+  }
+
+  return <LegacyAccountingStudioSplit content={content} title={title} body={body} currency={currency} />;
+}
+
+function LegacyAccountingStudioSplit({ content, title, body, currency }: { content: ReturnType<typeof getAccountingContent>; title: string; body: ReactNode; currency: string }) {
+  return (
+    <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
+      <AccountingSubCard label="Accounting intro" title="Understand the accounting idea">
+        <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Business scenario" title="Read the business event">
+        <TransactionScenario data={content.data} currency={currency} />
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Accounting workpaper" title="Prepare the accounting treatment">
+        <div className="min-w-0 max-w-full overflow-hidden">{body}</div>
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Exam practice" title="Attempt the question">
+        <StudentAccountingWorkbench content={content} currency={currency} />
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Feedback" title="Check your professional logic">
+        <AccountingFeedback />
+      </AccountingSubCard>
+
+      {content.markingScheme ? (
+        <AccountingSubCard label="Marking scheme" title="Review the marking points">
+          <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
+        </AccountingSubCard>
+      ) : null}
+    </div>
+  );
+}
+
+function AccountingSubCard({ label, title, children }: { label: string; title: string; children: ReactNode }) {
+  return (
+    <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
+      <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
+        <Badge variant="outline" className="max-w-full truncate rounded-full">{label}</Badge>
+      </div>
+      <h4 className="mb-3 break-words text-base font-semibold tracking-tight">{title}</h4>
+      <div className="min-w-0 max-w-full overflow-hidden">{children}</div>
+    </section>
+  );
+}
+
+function AccountingFeedback() {
+  return (
+    <div className="grid min-w-0 gap-3 md:grid-cols-2">
+      <div className="min-w-0 rounded-2xl border bg-muted/20 p-4">
+        <div className="mb-2 text-sm font-semibold">Professional reminder</div>
+        <p className="break-words text-sm leading-6 text-muted-foreground">Check whether the account classification, debit/credit direction, amount, and narration match the business event.</p>
+      </div>
+      <div className="min-w-0 rounded-2xl border bg-muted/20 p-4">
+        <div className="mb-2 text-sm font-semibold">Self-check</div>
+        <p className="break-words text-sm leading-6 text-muted-foreground">If the workpaper does not balance, review the affected accounts before moving to the next lesson card.</p>
+      </div>
     </div>
   );
 }
@@ -132,7 +233,7 @@ function TransactionScenario({ data, currency }: { data: Record<string, unknown>
     <div className="grid gap-3 md:grid-cols-[1.3fr_.7fr]">
       <div className="rounded-2xl border p-4">
         <div className="mb-2 text-sm font-semibold">Business event</div>
-        <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.description ?? 'Add a realistic transaction scenario.')} /></p>
+        <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.description ?? data.scenario ?? data.question ?? 'Add a realistic transaction scenario.')} /></p>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           <Info label="Business" value={String(data.businessName ?? 'Business')} />
           <Info label="Date" value={String(data.transactionDate ?? 'Date')} />
@@ -141,7 +242,7 @@ function TransactionScenario({ data, currency }: { data: Record<string, unknown>
       </div>
       <div className="rounded-2xl border bg-muted/20 p-4">
         <div className="mb-2 text-sm font-semibold">Accounts to identify</div>
-        <div className="flex flex-wrap gap-2">{accounts.map((account) => <Badge key={account} variant="outline">{account}</Badge>)}</div>
+        <div className="flex flex-wrap gap-2">{accounts.length ? accounts.map((account) => <Badge key={account} variant="outline">{account}</Badge>) : <span className="text-sm text-muted-foreground">Use the business event to identify affected accounts.</span>}</div>
       </div>
     </div>
   );
