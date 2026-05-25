@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useSession } from '@/components/providers/session-provider';
 import { getAccountProfile, updateAccountProfile } from '@/lib/api';
@@ -96,8 +95,8 @@ export default function SettingsPage() {
       setError('Choose an image file for your profile photo.');
       return;
     }
-    if (file.size > 750_000) {
-      setError('Profile photo must be smaller than 750 KB.');
+    if (file.size > 600_000) {
+      setError('Profile photo must be smaller than 600 KB.');
       return;
     }
 
@@ -186,7 +185,7 @@ export default function SettingsPage() {
           <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Profile Photo</CardTitle>
-              <CardDescription>Use a clear square image under 750 KB.</CardDescription>
+              <CardDescription>Use a clear square image under 600 KB.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
@@ -209,12 +208,12 @@ export default function SettingsPage() {
           <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
-              <CardDescription>Notification delivery is saved with your device preferences.</CardDescription>
+              <CardDescription>Notification controls are being prepared for device-level preferences.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <ToggleRow title="Academic updates" description="Grades, announcements, and schedule changes." defaultChecked />
-              <ToggleRow title="Course activity" description="Short-course access, certificates, and payments." defaultChecked />
-              <ToggleRow title="Career opportunities" description="Jobs, internships, and portfolio activity." />
+              <PreferenceRow title="Academic updates" description="Grades, announcements, and schedule changes." status="On by default" />
+              <PreferenceRow title="Course activity" description="Short-course access, certificates, and payments." status="On by default" />
+              <PreferenceRow title="Career opportunities" description="Jobs, internships, and portfolio activity." status="Coming soon" />
             </CardContent>
           </Card>
         </div>
@@ -232,14 +231,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function ToggleRow({ title, description, defaultChecked = false }: { title: string; description: string; defaultChecked?: boolean }) {
+function PreferenceRow({ title, description, status }: { title: string; description: string; status: string }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 rounded-xl border p-3">
       <div>
         <p className="font-medium">{title}</p>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      <Switch defaultChecked={defaultChecked} />
+      <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">{status}</span>
     </div>
   );
 }
