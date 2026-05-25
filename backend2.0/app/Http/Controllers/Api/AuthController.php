@@ -100,17 +100,18 @@ class AuthController extends Controller
     {
         $sessionUser = $request->session()->get('user');
         $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+        $profile = is_array($sessionUser) && is_array($sessionUser['profile'] ?? null) ? $sessionUser['profile'] : [];
 
         if (!$userId || !is_numeric($userId)) {
             return response()->json([
                 'user' => $sessionUser,
                 'profile' => [
-                    'displayName' => $sessionUser['name'] ?? null,
-                    'phone' => null,
-                    'country' => null,
-                    'timezone' => null,
-                    'bio' => null,
-                    'avatar' => $sessionUser['avatar'] ?? null,
+                    'displayName' => $profile['displayName'] ?? ($sessionUser['name'] ?? null),
+                    'phone' => $profile['phone'] ?? null,
+                    'country' => $profile['country'] ?? null,
+                    'timezone' => $profile['timezone'] ?? null,
+                    'bio' => $profile['bio'] ?? null,
+                    'avatar' => $profile['avatar'] ?? ($sessionUser['avatar'] ?? null),
                 ],
             ]);
         }
@@ -128,10 +129,6 @@ class AuthController extends Controller
         $sessionUser = $request->session()->get('user');
         $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
 
-        if (!$userId || !is_numeric($userId)) {
-            return response()->json(['message' => 'Profile editing requires a saved user account.'], 422);
-        }
-
         $payload = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:150'],
             'email' => ['required', 'email', 'max:190'],
@@ -141,6 +138,33 @@ class AuthController extends Controller
             'bio' => ['nullable', 'string', 'max:2000'],
             'avatar' => ['nullable', 'string', 'max:1000000'],
         ]);
+
+        if (!$userId || !is_numeric($userId)) {
+            $profile = [
+                'displayName' => trim($payload['name']),
+                'phone' => $payload['phone'] ?? null,
+                'country' => $payload['country'] ?? null,
+                'timezone' => $payload['timezone'] ?? null,
+                'bio' => $payload['bio'] ?? null,
+                'avatar' => $payload['avatar'] ?? ($sessionUser['avatar'] ?? null),
+            ];
+
+            $session = array_merge(is_array($sessionUser) ? $sessionUser : [], [
+                'name' => trim($payload['name']),
+                'email' => strtolower(trim($payload['email'])),
+                'avatar' => $profile['avatar'],
+                'profileCompleted' => true,
+                'profileStarted' => true,
+                'profile' => $profile,
+            ]);
+
+            $request->session()->put('user', $session);
+
+            return response()->json([
+                'user' => $session,
+                'profile' => $profile,
+            ]);
+        }
 
         $user = User::with('profile', 'activeSubscription', 'activeEntitlements')->findOrFail((int) $userId);
         $email = strtolower(trim($payload['email']));
