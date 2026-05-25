@@ -12,6 +12,7 @@ import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useSession } from '@/components/providers/session-provider';
+import { uploadAccountAvatar } from '@/lib/api/account';
 import { getAccountProfile, updateAccountProfile } from '@/lib/api';
 
 type ProfileForm = {
@@ -47,6 +48,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState<ProfileForm>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -90,17 +92,26 @@ export default function SettingsPage() {
 
   async function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setError('Choose an image file for your profile photo.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => update({ avatar: String(reader.result || '') });
-    reader.onerror = () => setError('Unable to read that image.');
-    reader.readAsDataURL(file);
-    event.target.value = '';
+    setUploadingAvatar(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await uploadAccountAvatar(file);
+      update({ avatar: response.avatar || response.url });
+      await refresh();
+      setMessage('Profile photo uploaded.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to upload profile photo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
   }
 
   async function saveProfile() {
@@ -170,7 +181,7 @@ export default function SettingsPage() {
             <Field label="Bio">
               <Textarea rows={5} value={form.bio} onChange={(event) => update({ bio: event.target.value })} placeholder="Short professional or learning profile." />
             </Field>
-            <Button onClick={saveProfile} disabled={saving || !form.name.trim() || !form.email.trim()}>
+            <Button onClick={saveProfile} disabled={saving || uploadingAvatar || !form.name.trim() || !form.email.trim()}>
               {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
               {saving ? 'Saving...' : 'Save changes'}
             </Button>
@@ -181,7 +192,7 @@ export default function SettingsPage() {
           <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Profile Photo</CardTitle>
-              <CardDescription>Use a clear square image for the best display across UnivAI.</CardDescription>
+              <CardDescription>Upload a real image file. UnivAI stores it and keeps only the image URL on your profile.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
@@ -191,10 +202,11 @@ export default function SettingsPage() {
                 </Avatar>
                 <div className="space-y-2">
                   <Label htmlFor="profile-photo" className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">
-                    <Camera className="mr-2 size-4" />
-                    Change photo
+                    {uploadingAvatar ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Camera className="mr-2 size-4" />}
+                    {uploadingAvatar ? 'Uploading...' : 'Upload photo'}
                   </Label>
-                  <Input id="profile-photo" type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
+                  <Input id="profile-photo" type="file" accept="image/*" className="hidden" onChange={handleAvatar} disabled={uploadingAvatar} />
+                  <p className="text-xs text-muted-foreground">For best results, use a clear square image.</p>
                 </div>
               </div>
               <Input value={form.avatar} onChange={(event) => update({ avatar: event.target.value })} placeholder="Or paste an image URL" />
