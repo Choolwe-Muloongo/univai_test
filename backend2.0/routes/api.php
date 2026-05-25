@@ -154,19 +154,6 @@ Route::middleware('api')->group(function () {
         Route::delete('/students/me/exam-clinic/bookings/{booking}', [ExamClinicController::class, 'cancelBooking']);
         Route::post('/students/me/assignments/{assignment}/submit', [StudentAssignmentsController::class, 'submit']);
 
-        Route::post('/students/me/short-courses/{courseId}/enroll', [ShortCourseController::class, 'enroll']);
-        Route::get('/students/me/short-courses/{courseId}/progress', [ShortCourseController::class, 'progress']);
-        Route::get('/students/me/short-courses/{courseId}/access-plans', [ShortCourseController::class, 'accessPlans']);
-        Route::post('/students/me/short-courses/{courseId}/access-plans/purchase', [ShortCourseController::class, 'purchaseAccessPlan']);
-        Route::post('/students/me/short-courses/{courseId}/practice', [ShortCourseController::class, 'practice']);
-        Route::post('/students/me/short-courses/{courseId}/practice/submit', [ShortCourseController::class, 'submitPractice']);
-        Route::get('/students/me/short-courses/{courseId}/exam', [ShortCourseController::class, 'exam']);
-        Route::post('/students/me/short-courses/{courseId}/exam/submit', [ShortCourseController::class, 'submitExam']);
-        Route::post('/students/me/short-courses/{courseId}/exam', [ShortCourseController::class, 'submitExam']);
-        Route::post('/students/me/short-courses/{courseId}/lessons/{lessonId}/complete', [ShortCourseController::class, 'completeLesson']);
-        Route::post('/students/me/short-courses/{courseId}/certificate/pay', [ShortCourseController::class, 'payCertificate']);
-        Route::get('/students/me/short-courses/{courseId}/certificate', [ShortCourseController::class, 'certificate']);
-
         Route::middleware('entitlement:' . StudentAccess::ENTITLEMENT_PROGRAMME)->group(function () {
             Route::get('/students/me/program', [ProgramController::class, 'program']);
             Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
