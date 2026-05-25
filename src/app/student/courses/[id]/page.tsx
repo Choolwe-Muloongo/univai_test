@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   BadgeCheck,
@@ -51,9 +51,19 @@ type LessonNode = {
 };
 
 export default function CourseHubPage() {
+  return (
+    <Suspense fallback={<PageLoading message="Opening Mission Control..." />}>
+      <CourseHubPageInner />
+    </Suspense>
+  );
+}
+
+function CourseHubPageInner() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const courseId = params.id;
+  const paymentStatus = searchParams.get('payment');
+  const invoiceId = searchParams.get('invoice');
   const [course, setCourse] = useState<PublicShortCourse | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [progress, setProgress] = useState<ShortCourseProgress | null>(null);
@@ -64,9 +74,8 @@ export default function CourseHubPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    const invoice = searchParams.get('invoice');
-    if (searchParams.get('payment') === 'success' && invoice) {
-      const verification = await verifyStudentInvoicePayment(invoice).catch(() => null);
+    if (paymentStatus === 'success' && invoiceId) {
+      const verification = await verifyStudentInvoicePayment(invoiceId).catch(() => null);
       if (verification?.status === 'paid') {
         setNotice(verification.message ?? 'Payment confirmed and access activated.');
       } else {
@@ -95,14 +104,14 @@ export default function CourseHubPage() {
       })
       .finally(() => {
         if (mounted) {
-          if (searchParams.get('payment') === 'success' && !searchParams.get('invoice')) {
+          if (paymentStatus === 'success' && !invoiceId) {
             setNotice('Payment completed. Your Journey access is being refreshed.');
           }
           setLoading(false);
         }
       });
     return () => { mounted = false; };
-  }, [courseId, searchParams]);
+  }, [courseId, paymentStatus, invoiceId]);
 
   const lessonNodes = useMemo(() => lessons.map(toLessonNode), [lessons]);
   const groupedLessonNodes = useMemo(() => groupParentAndSubLessons(lessonNodes), [lessonNodes]);
