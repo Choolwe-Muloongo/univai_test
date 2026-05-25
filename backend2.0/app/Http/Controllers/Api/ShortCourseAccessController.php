@@ -140,7 +140,7 @@ class ShortCourseAccessController extends Controller
         }
 
         $courseTitles = $courses->pluck('title')->values();
-        $bundleTitle = $plan['name'] . ': ' . $courseTitles->implode(', ');
+        $bundleTitle = $plan['name'] . ' Bundle';
         $invoice = $this->freshInvoice(
             $studentId,
             'short_course_bundle',
