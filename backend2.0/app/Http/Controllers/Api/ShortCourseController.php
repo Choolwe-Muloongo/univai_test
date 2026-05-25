@@ -21,12 +21,15 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ShortCourseController extends Controller
-{
-    public function mine(Request $request)
+{\n    public function mine(Request $request)
     {
         $studentId = $this->studentId($request);
         $enrollments = ShortCourseEnrollment::with(['course.lessons'])
             ->where('student_id', $studentId)
+            ->where(function ($query) {
+                $query->where('entry_fee_paid', true)
+                    ->orWhereIn('status', ['active', 'lessons_completed', 'completed', 'exam_failed']);
+            })
             ->latest()
             ->get();
 
@@ -85,7 +88,14 @@ class ShortCourseController extends Controller
     {
         $studentId = $this->studentId($request);
         $course = Course::with('lessons')->findOrFail($courseId);
-        $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
+        $enrollment = ShortCourseEnrollment::where('student_id', $studentId)
+            ->where('short_course_id', $course->id)
+            ->first();
+
+        if (!$enrollment) {
+            return response()->json($this->emptyProgressPayload());
+        }
+
         $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
         $completed = ShortCourseLessonProgress::where('student_id', $studentId)->where('short_course_id', $course->id)->pluck('lesson_id');
 
@@ -531,6 +541,27 @@ class ShortCourseController extends Controller
         return $invoice;
     }
 
+    private function emptyProgressPayload(): array
+    {
+        return [
+            'status' => 'not_enrolled',
+            'entryFeePaid' => false,
+            'certificateFeePaid' => false,
+            'completedLessons' => [],
+            'progress' => 0,
+            'examScore' => null,
+            'completedAt' => null,
+            'certificateIssuedAt' => null,
+            'accessExpiresAt' => null,
+            'accessPlan' => null,
+            'aiPlan' => null,
+            'aiAccessExpiresAt' => null,
+            'hourlyAiQuota' => 0,
+            'dailyAiQuota' => 0,
+            'certificateIncluded' => false,
+        ];
+    }
+
     private function enrollmentPayload(ShortCourseEnrollment $enrollment): array
     {
         return [
@@ -592,6 +623,13 @@ class ShortCourseController extends Controller
             'timeSeconds' => $question->time_seconds ?? 60,
             'lessonId' => $question->lesson_id,
             'tags' => $question->tags ?? [],
+            'visual' => $question->visual ?? null,
+            'physicsVisual' => $question->physics_visual ?? null,
+            'chemistryVisual' => $question->chemistry_visual ?? null,
+            'diagram' => $question->diagram ?? null,
+            'imageUrl' => $question->image_url ?? null,
+            'imageAlt' => $question->image_alt ?? null,
+            'imageCaption' => $question->image_caption ?? null,
         ];
 
         if ($includeAnswer) {
