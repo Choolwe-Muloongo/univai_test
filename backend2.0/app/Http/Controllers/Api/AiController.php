@@ -182,6 +182,7 @@ class AiController extends Controller
 
     private function normalizeMode(?string $mode): string
     {
+        // Frontend NovaMode values are normalized into backend execution modes.
         return match ($mode) {
             'flashcards', 'mock-exam', 'mock_exam', 'exam_prep', 'quiz_current_card', 'weak-areas', 'weak_areas' => 'quiz',
             'summarize' => 'summary',
