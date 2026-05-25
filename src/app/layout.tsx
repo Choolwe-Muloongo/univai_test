@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
+import './mobile-student-course-fixes.css';
 import { AffiliateReferralCapture } from '@/components/providers/affiliate-referral-capture';
 import { ClientErrorReporter } from '@/components/providers/client-error-reporter';
 import { SessionProvider } from '@/components/providers/session-provider';
