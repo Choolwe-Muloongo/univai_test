@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { AlertTriangle, BadgeCheck, BriefcaseBusiness, CheckCircle2, Landmark } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -86,7 +87,7 @@ export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
   );
 }
 
-function renderAccountingSection(sectionType: string, content: ReturnType<typeof getAccountingContent>, title: string, body: React.ReactNode, currency: string) {
+function renderAccountingSection(sectionType: string, content: ReturnType<typeof getAccountingContent>, title: string, body: ReactNode, currency: string) {
   if (sectionType === 'accounting_intro') {
     return <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>;
   }
