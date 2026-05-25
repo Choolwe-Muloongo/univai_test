@@ -88,6 +88,10 @@ export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
 }
 
 function renderAccountingSection(sectionType: string, content: ReturnType<typeof getAccountingContent>, title: string, body: ReactNode, currency: string) {
+  if (sectionType === 'accounting_studio') {
+    return <LegacyAccountingStudioSplit content={content} title={title} body={body} currency={currency} />;
+  }
+
   if (sectionType === 'accounting_intro') {
     return <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>;
   }
@@ -101,18 +105,7 @@ function renderAccountingSection(sectionType: string, content: ReturnType<typeof
   }
 
   if (sectionType === 'accounting_feedback') {
-    return (
-      <div className="grid min-w-0 gap-3 md:grid-cols-2">
-        <div className="min-w-0 rounded-2xl border bg-muted/20 p-4">
-          <div className="mb-2 text-sm font-semibold">Professional reminder</div>
-          <p className="break-words text-sm leading-6 text-muted-foreground">Check whether the account classification, debit/credit direction, amount, and narration match the business event.</p>
-        </div>
-        <div className="min-w-0 rounded-2xl border bg-muted/20 p-4">
-          <div className="mb-2 text-sm font-semibold">Self-check</div>
-          <p className="break-words text-sm leading-6 text-muted-foreground">If the workpaper does not balance, review the affected accounts before moving to the next lesson card.</p>
-        </div>
-      </div>
-    );
+    return <AccountingFeedback />;
   }
 
   if (sectionType === 'accounting_exam_question') {
@@ -123,13 +116,63 @@ function renderAccountingSection(sectionType: string, content: ReturnType<typeof
     return content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : <p className="text-sm text-muted-foreground">No marking scheme has been attached to this accounting activity.</p>;
   }
 
+  return <LegacyAccountingStudioSplit content={content} title={title} body={body} currency={currency} />;
+}
+
+function LegacyAccountingStudioSplit({ content, title, body, currency }: { content: ReturnType<typeof getAccountingContent>; title: string; body: ReactNode; currency: string }) {
   return (
     <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
-      <AccountingTeachingPlayer content={content} title={title}>{body}</AccountingTeachingPlayer>
-      <StudentAccountingWorkbench content={content} currency={currency} />
-      {content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : null}
-      <div className="rounded-2xl border border-dashed bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-        Formula helper, professional format, and retry flows are handled by the card data, workspace feedback, and marking scheme. Use the attempt area above for active practice.
+      <AccountingSubCard label="Accounting intro" title="Understand the accounting idea">
+        <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Business scenario" title="Read the business event">
+        <TransactionScenario data={content.data} currency={currency} />
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Accounting workpaper" title="Prepare the accounting treatment">
+        <div className="min-w-0 max-w-full overflow-hidden">{body}</div>
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Exam practice" title="Attempt the question">
+        <StudentAccountingWorkbench content={content} currency={currency} />
+      </AccountingSubCard>
+
+      <AccountingSubCard label="Feedback" title="Check your professional logic">
+        <AccountingFeedback />
+      </AccountingSubCard>
+
+      {content.markingScheme ? (
+        <AccountingSubCard label="Marking scheme" title="Review the marking points">
+          <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
+        </AccountingSubCard>
+      ) : null}
+    </div>
+  );
+}
+
+function AccountingSubCard({ label, title, children }: { label: string; title: string; children: ReactNode }) {
+  return (
+    <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
+      <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
+        <Badge variant="outline" className="max-w-full truncate rounded-full">{label}</Badge>
+      </div>
+      <h4 className="mb-3 break-words text-base font-semibold tracking-tight">{title}</h4>
+      <div className="min-w-0 max-w-full overflow-hidden">{children}</div>
+    </section>
+  );
+}
+
+function AccountingFeedback() {
+  return (
+    <div className="grid min-w-0 gap-3 md:grid-cols-2">
+      <div className="min-w-0 rounded-2xl border bg-muted/20 p-4">
+        <div className="mb-2 text-sm font-semibold">Professional reminder</div>
+        <p className="break-words text-sm leading-6 text-muted-foreground">Check whether the account classification, debit/credit direction, amount, and narration match the business event.</p>
+      </div>
+      <div className="min-w-0 rounded-2xl border bg-muted/20 p-4">
+        <div className="mb-2 text-sm font-semibold">Self-check</div>
+        <p className="break-words text-sm leading-6 text-muted-foreground">If the workpaper does not balance, review the affected accounts before moving to the next lesson card.</p>
       </div>
     </div>
   );
