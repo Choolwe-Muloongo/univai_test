@@ -15,8 +15,8 @@ export function SvgDiagramRenderer({ visual, highlightedIds, hiddenIds, selected
   const width = visual.canvas?.width || 800;
   const height = visual.canvas?.height || 500;
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border bg-muted/20 p-2">
-      <svg role="img" aria-label="Interactive physics diagram" viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full max-w-full rounded-xl bg-background" preserveAspectRatio="xMidYMid meet">
+    <div className="min-w-0 max-w-full overflow-x-auto rounded-2xl border bg-muted/20 p-1 sm:p-2">
+      <svg role="img" aria-label="Interactive physics diagram" viewBox={`0 0 ${width} ${height}`} className="block h-auto max-h-[70vh] w-full min-w-[320px] max-w-full rounded-xl bg-background" preserveAspectRatio="xMidYMid meet">
         <defs>
           <marker id="physics-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
             <path d="M2,2 L10,6 L2,10 z" className="fill-current" />
@@ -30,7 +30,7 @@ export function SvgDiagramRenderer({ visual, highlightedIds, hiddenIds, selected
           <PhysicsArrowRenderer key={arrow.id} arrow={arrow} highlighted={highlightedIds.has(arrow.id) || selectedTargetId === arrow.id} onSelect={onSelect} />
         ))}
         {(visual.labels ?? []).map((label) => (
-          <text key={label.id} x={label.x} y={label.y} className="fill-foreground text-[18px] font-semibold">{label.text}</text>
+          <text key={label.id} x={label.x} y={label.y} className="fill-foreground text-[13px] font-semibold sm:text-[18px]">{label.text}</text>
         ))}
         <PhysicsHotspotLayer hotspots={visual.hotspots ?? []} onSelect={onSelect} />
         <FocusBox visual={visual} highlightedIds={highlightedIds} />
