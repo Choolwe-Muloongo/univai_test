@@ -71,6 +71,14 @@ export default function CoursePracticePage() {
   const question = questions[index];
   const resultById = useMemo(() => new Map(result?.results.map((row) => [String(row.questionId), row]) ?? []), [result]);
   const selectedType = questionType === 'all' ? undefined : questionType;
+  const reviewQuestions = useMemo(() => {
+    if (!result) return questions;
+    return [...questions].sort((a, b) => {
+      const aCorrect = resultById.get(String(a.id))?.correct ? 1 : 0;
+      const bCorrect = resultById.get(String(b.id))?.correct ? 1 : 0;
+      return aCorrect - bCorrect;
+    });
+  }, [questions, result, resultById]);
 
   async function startPractice(nextDifficulty = difficulty) {
     setLoading(true);
@@ -122,7 +130,7 @@ export default function CoursePracticePage() {
   if (error) return <PageError message={error} actionHref={`/student/courses/${courseId}`} actionLabel="Back to Mission Control" />;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-5 overflow-hidden px-3 py-4 sm:px-6 lg:px-8 lg:py-6">
+    <main className="mx-auto w-full max-w-5xl space-y-5 px-3 py-4 sm:px-6 lg:px-8 lg:py-6">
       <Button variant="ghost" asChild className="min-h-10 gap-2 px-2">
         <Link href={`/student/courses/${courseId}`}><ArrowLeft className="h-4 w-4" /> Back to Mission Control</Link>
       </Button>
@@ -199,7 +207,7 @@ export default function CoursePracticePage() {
         <Card className="rounded-3xl">
           <CardHeader>
             <CardTitle>{result.score >= 50 ? 'Battle Won!' : 'Battle Lost — useful data'}</CardTitle>
-            <CardDescription>{result.correct} correct out of {result.total} questions.</CardDescription>
+            <CardDescription>{result.correct} correct out of {result.total} questions. Wrong answers appear first for faster review.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="rounded-2xl border bg-primary/5 p-5">
@@ -208,16 +216,23 @@ export default function CoursePracticePage() {
             </div>
             <NovaInlineActions title="Nova Analysis" description="Turn this Arena result into a rescue plan, extra practice, or mistake explanation." courseId={courseId} attemptId={`practice-${Date.now()}`} actions={[{ label: 'Explain my score', mode: 'explain', intent: 'explain_practice_score' }, { label: 'Create rescue drill', mode: 'quiz', intent: 'create_rescue_drill' }, { label: 'Give similar questions', mode: 'quiz', intent: 'similar_questions' }, { label: 'Explain mistakes', mode: 'explain', intent: 'explain_practice_mistakes' }]} />
             <div className="space-y-3">
-              {questions.map((item, itemIndex) => {
+              {reviewQuestions.map((item, itemIndex) => {
                 const row = resultById.get(String(item.id));
+                const isCorrect = Boolean(row?.correct);
                 return (
-                  <div key={item.id} className="space-y-3 rounded-2xl border p-4">
-                    <p className="break-words font-medium">{itemIndex + 1}. {item.question}</p>
-                    <QuestionVisualRenderer question={item} />
-                    <p className={`mt-2 text-sm ${row?.correct ? 'text-primary' : 'text-destructive'}`}>{row?.correct ? 'Correct' : `Correct answer: ${row?.answer ?? 'Not available'}`}</p>
-                    {row?.explanation ? <p className="mt-2 break-words text-sm text-muted-foreground">{row.explanation}</p> : null}
-                    <NovaInlineActions title="Ask Nova about this question" description="Get targeted help for this Arena question." courseId={courseId} questionId={String(item.id)} compact actions={[{ label: row?.correct ? 'Explain why correct' : 'Why was I wrong?', mode: 'explain', intent: row?.correct ? 'explain_correct_answer' : 'explain_wrong_answer' }, { label: 'Give similar question', mode: 'quiz', intent: 'similar_questions' }]} />
-                  </div>
+                  <details key={item.id} className="group rounded-2xl border bg-card p-4" open={!isCorrect}>
+                    <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="break-words font-medium">{itemIndex + 1}. {isCorrect ? 'Correct' : 'Needs review'}</span>
+                      <span className={`text-sm font-semibold ${isCorrect ? 'text-primary' : 'text-destructive'}`}>{isCorrect ? 'Correct' : 'Wrong'}</span>
+                    </summary>
+                    <div className="mt-4 space-y-3">
+                      <p className="break-words font-medium">{item.question}</p>
+                      <QuestionVisualRenderer question={item} />
+                      <p className={`text-sm ${isCorrect ? 'text-primary' : 'text-destructive'}`}>{isCorrect ? 'Correct' : `Correct answer: ${row?.answer ?? 'Not available'}`}</p>
+                      {row?.explanation ? <p className="break-words text-sm text-muted-foreground">{row.explanation}</p> : null}
+                      <NovaInlineActions title="Ask Nova about this question" description="Get targeted help for this Arena question." courseId={courseId} questionId={String(item.id)} compact actions={[{ label: isCorrect ? 'Explain why correct' : 'Why was I wrong?', mode: 'explain', intent: isCorrect ? 'explain_correct_answer' : 'explain_wrong_answer' }, { label: 'Give similar question', mode: 'quiz', intent: 'similar_questions' }]} />
+                    </div>
+                  </details>
                 );
               })}
             </div>
