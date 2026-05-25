@@ -69,6 +69,15 @@ export type PaymentInitiation = {
   invoiceId?: number;
   checkout_url?: string | null;
   checkoutUrl?: string | null;
+  payment_url?: string | null;
+  paymentUrl?: string | null;
+  payment_link?: string | null;
+  paymentLink?: string | null;
+  authorization_url?: string | null;
+  authorizationUrl?: string | null;
+  redirect_url?: string | null;
+  redirectUrl?: string | null;
+  url?: string | null;
   reference?: string;
   status?: string;
   testMode?: boolean;
@@ -233,5 +242,16 @@ export function getShortCourseCertificateUrl(courseId: string) {
 }
 
 export function paymentUrl(response: PaymentInitiation) {
-  return response.checkout_url ?? response.checkoutUrl ?? null;
+  return response.checkout_url
+    ?? response.checkoutUrl
+    ?? response.payment_url
+    ?? response.paymentUrl
+    ?? response.payment_link
+    ?? response.paymentLink
+    ?? response.authorization_url
+    ?? response.authorizationUrl
+    ?? response.redirect_url
+    ?? response.redirectUrl
+    ?? response.url
+    ?? null;
 }
