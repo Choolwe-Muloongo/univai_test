@@ -194,8 +194,8 @@ export default function CourseHubPage() {
         <div className="grid gap-5 lg:grid-cols-[1fr_280px] lg:items-center">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">Mission Control</p>
-            <h1 className="text-3xl font-bold tracking-tight">{course.title}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{course.description}</p>
+            <h1 className="break-words text-3xl font-bold tracking-tight">{course.title}</h1>
+            <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-muted-foreground">{course.description}</p>
           </div>
           <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
             <div className="flex justify-between text-sm"><span>Journey progress</span><strong>{progress?.progress ?? 0}%</strong></div>
@@ -209,10 +209,14 @@ export default function CourseHubPage() {
               <Button asChild className="w-full">
                 <Link href={courseCompleted && reviewLesson ? `/student/courses/${course.id}/lessons/${reviewLesson.id}` : `/student/courses/${course.id}/lessons/${nextLesson.id}`}>{courseCompleted ? 'Replay Journey' : 'Continue Journey'} <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
-            ) : <Button disabled className="w-full">{nextLesson ? 'Activate access to unlock missions' : 'No missions yet'}</Button>}
+            ) : (
+              <Button onClick={startEntryAccess} disabled={busy === 'entry' || !nextLesson} className="min-h-11 w-full">
+                {busy === 'entry' ? 'Opening payment...' : nextLesson ? Number(course.price ?? 0) <= 0 ? 'Enroll Free' : 'Pay Entry / Activate Access' : 'No missions yet'}
+              </Button>
+            )}
             {courseCompleted ? (
               <Button asChild variant="outline" className="w-full">
-                <Link href="/short-courses">Start a new Journey</Link>
+                <Link href="/student/courses">Choose a new Journey</Link>
               </Button>
             ) : null}
           </div>
@@ -235,7 +239,7 @@ export default function CourseHubPage() {
               icon={Sparkles}
               title="Training Arena"
               description="Train with Easy, Medium, Hard, or Mixed practice. The Arena opens after enrollment."
-              actions={hasActiveAccess ? <Button asChild className="w-full"><Link href={`/student/courses/${course.id}/practice`}>Enter Training Arena</Link></Button> : <Button disabled className="w-full">Activate access first</Button>}
+              actions={hasActiveAccess ? <Button asChild className="w-full"><Link href={`/student/courses/${course.id}/practice`}>Enter Training Arena</Link></Button> : <Button onClick={startEntryAccess} disabled={busy === 'entry'} className="min-h-11 w-full">{busy === 'entry' ? 'Opening payment...' : 'Pay Entry First'}</Button>}
             />
             <ActionPanel
               icon={FileCheck2}
@@ -267,16 +271,18 @@ export default function CourseHubPage() {
                 <Button asChild className="w-full sm:w-auto">
                   <Link href={`/student/courses/${course.id}/exam`}>{courseCompleted ? 'Replay Final Boss' : 'Start Final Boss'}</Link>
                 </Button>
+              ) : !hasActiveAccess ? (
+                <Button onClick={startEntryAccess} disabled={busy === 'entry'} className="min-h-11 w-full sm:w-auto">{busy === 'entry' ? 'Opening payment...' : 'Pay Entry First'}</Button>
               ) : (
                 <Button disabled className="w-full sm:w-auto">Start Final Boss</Button>
               )}
-              {courseCompleted ? <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/short-courses">Start New Journey</Link></Button> : null}
+              {courseCompleted ? <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/student/courses">Choose New Journey</Link></Button> : null}
             </CardContent>
           </Card>
         </div>
 
         <aside className="space-y-6">
-          <Card className="rounded-3xl">
+          <Card className="rounded-3xl border-primary/30 bg-primary/5">
             <CardHeader>
               <CardTitle>Your Access</CardTitle>
               <CardDescription>Journey access, AI access, and certificate inclusion.</CardDescription>
@@ -289,8 +295,8 @@ export default function CourseHubPage() {
               <Info label="AI quota" value={`${progress?.hourlyAiQuota ?? 0}/hr, ${progress?.dailyAiQuota ?? 0}/day`} />
               <Info label="Certificate included" value={progress?.certificateIncluded ? 'Yes' : 'No'} />
               {accessWarning ? <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">This access is close to expiry. Renew it before the Journey locks.</div> : null}
-              <Button onClick={startEntryAccess} disabled={busy === 'entry'} className="w-full">
-                {busy === 'entry' ? 'Working...' : progress?.entryFeePaid ? 'Renew / Refresh Access' : Number(course.price ?? 0) <= 0 ? 'Enroll Free' : 'Enroll / Pay'}
+              <Button onClick={startEntryAccess} disabled={busy === 'entry'} className="min-h-11 w-full">
+                {busy === 'entry' ? 'Opening payment...' : progress?.entryFeePaid ? 'Renew / Refresh Access' : Number(course.price ?? 0) <= 0 ? 'Enroll Free' : 'Pay Entry / Activate Access'}
               </Button>
             </CardContent>
           </Card>
@@ -317,7 +323,7 @@ export default function CourseHubPage() {
           <Card className="rounded-3xl">
             <CardHeader>
               <CardTitle>Single-Journey plans</CardTitle>
-              <CardDescription>Choose one plan for this Journey. Bundles live on the catalogue page if you want multiple Journeys together.</CardDescription>
+              <CardDescription>Choose one plan for this Journey. Bundles are available in the Bundles tab on your Journeys page.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {plans.length ? plans.map((plan) => (
