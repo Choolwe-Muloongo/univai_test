@@ -328,12 +328,12 @@ export default function CourseHubPage() {
             <CardContent className="space-y-3">
               {plans.length ? plans.map((plan) => (
                 <div key={plan.code} className="rounded-2xl border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{planLabel(plan.code)}</p>
-                      <p className="text-sm text-muted-foreground">{plan.name}</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold">{planLabel(plan.code)}</p>
+                      <p className="break-words text-sm text-muted-foreground">{plan.name}</p>
                     </div>
-                    <p className="font-bold">{formatMoney(plan.amount, plan.currency)}</p>
+                    <p className="shrink-0 font-bold sm:text-right">{formatMoney(plan.amount, plan.currency)}</p>
                   </div>
                   <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
                     <span>Access: {Math.round(plan.accessHours / 24)} days</span>
