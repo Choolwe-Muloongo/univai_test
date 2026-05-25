@@ -1,0 +1,47 @@
+/* Mobile-only fixes for the logged-in student short-course flow. */
+
+@media (max-width: 1279px) {
+  /* In Mission Control the access/payment panel is the right aside on desktop.
+     On phones/tablets, place it before the locked Mission Map so paying entry is visible immediately. */
+  div[class*="xl:grid-cols-[1fr_360px]"],
+  div[class*="xl:grid-cols-\[1fr_360px\]"] {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  div[class*="xl:grid-cols-[1fr_360px]"] > aside,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] > aside {
+    order: -1 !important;
+  }
+
+  div[class*="xl:grid-cols-[1fr_360px]"] > *,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Make payment/enrollment controls easier to tap on phones. */
+  a[href*="/student/courses"],
+  button {
+    touch-action: manipulation;
+  }
+
+  div[class*="xl:grid-cols-[1fr_360px]"] aside button,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] aside button,
+  div[class*="xl:grid-cols-[1fr_360px]"] aside a,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] aside a {
+    min-height: 2.75rem !important;
+  }
+
+  /* Keep course/payment cards from creating sideways scrolling. */
+  div[class*="xl:grid-cols-[1fr_360px]"] aside,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] aside,
+  div[class*="xl:grid-cols-[1fr_360px]"] aside *,
+  div[class*="xl:grid-cols-\[1fr_360px\]"] aside * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere;
+  }
+}
