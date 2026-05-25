@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AccountAvatarController;
 use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\ProgramsController;
@@ -92,6 +93,7 @@ Route::middleware('api')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me'])->middleware('session.auth');
     Route::get('/auth/profile', [AuthController::class, 'profile'])->middleware('session.auth');
     Route::patch('/auth/profile', [AuthController::class, 'updateProfile'])->middleware('session.auth');
+    Route::post('/auth/profile/avatar', [AccountAvatarController::class, 'store'])->middleware('session.auth');
     Route::get('/auth/capabilities', function (AccessControl $accessControl) { return response()->json($accessControl->capabilitiesFor(session('user'))); })->middleware('session.auth');
 
     Route::get('/schools', [CatalogController::class, 'schools']);
