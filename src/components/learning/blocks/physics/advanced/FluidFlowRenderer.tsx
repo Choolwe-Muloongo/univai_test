@@ -13,14 +13,14 @@ export function FluidFlowRenderer({ visual }: { visual: PhysicsVisual }) {
   const pressureFromForce = pressure(force, area);
 
   return (
-    <div className="space-y-4 rounded-2xl border bg-muted/10 p-4">
-      <div>
+    <div className="min-w-0 space-y-4 overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
+      <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Advanced fluid renderer</p>
-        <h4 className="font-semibold">Bernoulli flow and pressure comparison</h4>
-        <p className="text-sm text-muted-foreground">Shows pipe narrowing, velocity increase, and pressure change.</p>
+        <h4 className="break-words font-semibold">Bernoulli flow and pressure comparison</h4>
+        <p className="break-words text-sm text-muted-foreground">Shows pipe narrowing, velocity increase, and pressure change.</p>
       </div>
-      <div className="overflow-auto rounded-2xl border bg-background p-2">
-        <svg viewBox="0 0 900 420" className="h-auto w-full min-w-[680px]">
+      <div className="max-w-full overflow-x-auto rounded-2xl border bg-background p-1 sm:p-2">
+        <svg viewBox="0 0 900 420" className="block h-auto max-h-[70vh] w-full min-w-[320px] max-w-full" preserveAspectRatio="xMidYMid meet">
           <defs><marker id="fluid-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M2,2 L10,6 L2,10 z" className="fill-current" /></marker></defs>
           <path d="M90,150 C260,150 280,205 430,205 C580,205 600,150 810,150" fill="none" className="stroke-blue-700" strokeWidth="6" />
           <path d="M90,270 C260,270 280,215 430,215 C580,215 600,270 810,270" fill="none" className="stroke-blue-700" strokeWidth="6" />
