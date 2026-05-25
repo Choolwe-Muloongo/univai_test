@@ -230,13 +230,13 @@ export default function CourseExamPage() {
             <CardTitle className="text-base">Questions</CardTitle>
             <CardDescription>{answeredCount} of {exam.questions.length} answered</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-5 gap-2 lg:grid-cols-4">
+          <CardContent className="flex flex-wrap gap-2">
             {exam.questions.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setCurrent(index)}
-                className={`rounded-xl border p-2 text-sm font-medium ${current === index ? 'border-primary bg-primary/5' : answers[index] ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/50'}`}
+                className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-medium ${current === index ? 'border-primary bg-primary/5' : answers[index] ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/50'}`}
               >
                 {index + 1}
               </button>
