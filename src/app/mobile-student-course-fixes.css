@@ -20,17 +20,11 @@
     max-width: 100% !important;
   }
 
-  /* The top Mission Control summary used to show a disabled
-     "Activate access" button before the real payment card.
-     On mobile this made students think payment was impossible.
-     Hide that summary-only disabled button and let the moved Access card
-     become the first real payment action. */
   section.rounded-3xl > div[class*="lg:grid-cols-[1fr_280px]"] button:disabled,
   section.rounded-3xl > div[class*="lg:grid-cols-\[1fr_280px\]"] button:disabled {
     display: none !important;
   }
 
-  /* Keep the payment/access card visually dominant once moved to the top. */
   div[class*="xl:grid-cols-[1fr_360px]"] > aside > div:first-child,
   div[class*="xl:grid-cols-\[1fr_360px\]"] > aside > div:first-child {
     border-color: hsl(var(--primary) / 0.45) !important;
@@ -39,8 +33,6 @@
   }
 }
 
-/* Lesson player card safety patch.
-   Icons must stay icon-sized; real graphs/diagrams remain responsive. */
 .univai-lesson-render-safe,
 .univai-lesson-render-safe * {
   min-width: 0;
@@ -72,8 +64,6 @@ article .lucide {
   table-layout: fixed;
 }
 
-/* Lesson player sticky bottom navigation.
-   Keeps Previous / Continue / Check answer / Complete buttons usable on phones. */
 main footer.sticky.bottom-0,
 div footer.sticky.bottom-0 {
   width: auto !important;
@@ -115,9 +105,6 @@ div footer.sticky.bottom-0 button span {
   white-space: nowrap !important;
 }
 
-/* Full lesson player render shield.
-   Covers native cards, generic registered blocks, math visuals, Plotly, SVG diagrams,
-   media, code, tables, KaTeX, and every card shell rendered inside the player grid. */
 main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"],
 main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] {
   min-width: 0 !important;
@@ -144,7 +131,7 @@ main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] aside {
 main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(p, span, li, h1, h2, h3, h4, h5, h6, div),
 main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(p, span, li, h1, h2, h3, h4, h5, h6, div) {
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   word-break: normal;
 }
 
@@ -196,11 +183,20 @@ main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] code {
   word-break: break-word;
 }
 
+/* Formula and KaTeX safety: never crush long formulas into vertical letters. */
 main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(.katex, .katex-html, .base),
 main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.katex, .katex-html, .base) {
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(.katex-display),
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.katex-display) {
   max-width: 100% !important;
-  overflow-wrap: anywhere;
-  white-space: normal !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
 }
 
 main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(.plot-container, .js-plotly-plot, .plotly, .svg-container, .main-svg),
@@ -210,7 +206,6 @@ main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.plot-container, 
 }
 
 @media (max-width: 767px) {
-  /* Make payment/enrollment controls easier to tap on phones. */
   a[href*="/student/courses"],
   button {
     touch-action: manipulation;
@@ -223,7 +218,6 @@ main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.plot-container, 
     min-height: 2.75rem !important;
   }
 
-  /* Keep course/payment cards from creating sideways scrolling. */
   div[class*="xl:grid-cols-[1fr_360px]"] aside,
   div[class*="xl:grid-cols-\[1fr_360px\]"] aside,
   div[class*="xl:grid-cols-[1fr_360px]"] aside *,
@@ -281,5 +275,10 @@ main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.plot-container, 
   main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(article, section, details),
   main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(article, section, details) {
     border-radius: 1rem !important;
+  }
+
+  main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(.katex, .katex-html, .base),
+  main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.katex, .katex-html, .base) {
+    font-size: 0.88em !important;
   }
 }
