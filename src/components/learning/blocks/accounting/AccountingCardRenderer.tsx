@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import {
   AlertTriangle,
   BadgeCheck,
-  BookOpenCheck,
   BriefcaseBusiness,
   CheckCircle2,
   Landmark,
@@ -34,7 +33,6 @@ import {
 } from './engine';
 
 const accountingSectionLabels: Record<string, string> = {
-  accounting_studio: 'Accounting Studio',
   accounting_intro: 'Accounting intro',
   accounting_scenario: 'Business scenario',
   accounting_workpaper: 'Accounting workpaper',
@@ -62,7 +60,7 @@ const doctoralResearchTypes = new Set([
 export function AccountingCardRenderer({ payload, definition }: BlockRendererProps) {
   const content = getAccountingContent(payload);
   const data = content.data;
-  const sectionType = String(payload.type ?? 'accounting_studio');
+  const sectionType = String(payload.type ?? 'accounting_intro');
   const sectionLabel = accountingSectionLabels[sectionType] ?? definition.label;
   const title = String(payload.title ?? data.title ?? definition.label);
   const currency = String(data.currency ?? 'ZMW');
@@ -82,7 +80,7 @@ export function AccountingCardRenderer({ payload, definition }: BlockRendererPro
         </div>
       </header>
 
-      {renderAccountingSection(sectionType, content, title, body, currency)}
+      {renderAccountingSection(sectionType, content, body, currency)}
     </div>
   );
 }
@@ -102,12 +100,10 @@ export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
 function renderAccountingSection(
   sectionType: string,
   content: ReturnType<typeof getAccountingContent>,
-  title: string,
   body: ReactNode,
   currency: string,
 ) {
-  if (sectionType === 'accounting_studio') return <AccountingStudioHub content={content} title={title} body={body} currency={currency} />;
-  if (sectionType === 'accounting_intro') return <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>;
+  if (sectionType === 'accounting_intro') return <AccountingTeachingPlayer content={content} title={String(content.data.title ?? 'Accounting intro')}>{null}</AccountingTeachingPlayer>;
   if (sectionType === 'accounting_scenario') return <TransactionScenario data={content.data} currency={currency} />;
   if (
     sectionType === 'accounting_workpaper'
@@ -125,69 +121,7 @@ function renderAccountingSection(
       ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
       : <EmptyState>No marking scheme has been attached to this accounting activity.</EmptyState>;
   }
-  return <AccountingStudioHub content={content} title={title} body={body} currency={currency} />;
-}
-
-function AccountingStudioHub({ content, title, body, currency }: { content: ReturnType<typeof getAccountingContent>; title: string; body: ReactNode; currency: string }) {
-  return (
-    <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
-      <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-        <div className="mb-2 flex min-w-0 items-center gap-2 text-sm font-semibold text-primary">
-          <BookOpenCheck className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 break-words">Professional accounting flow</span>
-        </div>
-        <p className="break-words text-sm leading-6 text-muted-foreground">
-          This legacy studio is now organised as stages. Your old card still works, but the learner sees one clean accounting path instead of six full sections dumped at once.
-        </p>
-      </section>
-
-      <div className="grid min-w-0 gap-3">
-        <AccountingStage label="Accounting intro" title="Understand the accounting idea" summary="Concept, learner goal, teacher explanation, and learning mode." defaultOpen>
-          <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>
-        </AccountingStage>
-
-        <AccountingStage label="Business scenario" title="Read the business event" summary="Identify the business event, date, amount, and affected accounts.">
-          <TransactionScenario data={content.data} currency={currency} />
-        </AccountingStage>
-
-        <AccountingStage label="Accounting workpaper" title="Prepare the accounting treatment" summary="Build the journal, ledger, statement, schedule, or professional workpaper.">
-          <FocusedAccountingPanel title="Accounting workpaper">{body}</FocusedAccountingPanel>
-        </AccountingStage>
-
-        <AccountingStage label="Exam practice" title="Attempt the question" summary="Student workspace for practice and exam-style responses.">
-          <StudentAccountingWorkbench content={content} currency={currency} />
-        </AccountingStage>
-
-        <AccountingStage label="Feedback" title="Check your professional logic" summary="Review account classification, debit/credit direction, amount, and narration.">
-          <AccountingFeedback />
-        </AccountingStage>
-
-        {content.markingScheme ? (
-          <AccountingStage label="Marking scheme" title="Review the marking points" summary="Rubric, marks, and professional grading points.">
-            <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
-          </AccountingStage>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function AccountingStage({ label, title, summary, children, defaultOpen = false }: { label: string; title: string; summary: string; children: ReactNode; defaultOpen?: boolean }) {
-  return (
-    <details open={defaultOpen} className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
-      <summary className="cursor-pointer list-none">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-1">
-            <Badge variant="outline" className="max-w-full truncate rounded-full">{label}</Badge>
-            <h4 className="break-words text-base font-semibold tracking-tight">{title}</h4>
-            <p className="break-words text-xs leading-5 text-muted-foreground">{summary}</p>
-          </div>
-          <span className="shrink-0 text-xs font-semibold text-primary">Open</span>
-        </div>
-      </summary>
-      <div className="mt-4 min-w-0 max-w-full overflow-hidden">{children}</div>
-    </details>
-  );
+  return <FocusedAccountingPanel title={accountingSectionLabels[sectionType] ?? 'Accounting card'}>{body}</FocusedAccountingPanel>;
 }
 
 function FocusedAccountingPanel({ title, children }: { title: string; children: ReactNode }) {
