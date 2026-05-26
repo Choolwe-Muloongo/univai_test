@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 
 import { NovaInlineActions } from '@/components/ai/nova-inline-actions';
+import { PracticeAccountingWorkspace } from '@/components/learning/practice-accounting-workspace';
 import { QuestionVisualRenderer } from '@/components/learning/question-visual-renderer';
 import { CourseHelperBox } from '@/components/student/course-helper-box';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ import {
 } from '@/lib/api/short-courses';
 
 type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
-type PracticeQuestionType = 'all' | 'mcq' | 'true_false' | 'fill_blank' | 'short_answer' | 'matching';
+type PracticeQuestionType = 'all' | 'mcq' | 'true_false' | 'fill_blank' | 'short_answer' | 'matching' | 'accounting_workspace';
 
 type ArenaQuestion = ShortCourseQuestion & { sectionTitle?: string };
 
@@ -43,6 +44,7 @@ const questionTypeOptions: Array<{ key: PracticeQuestionType; label: string; des
   { key: 'fill_blank', label: 'Fill blank', description: 'Recall key terms or numbers.' },
   { key: 'short_answer', label: 'Short answer', description: 'Explain in your own words.' },
   { key: 'matching', label: 'Matching / sorting', description: 'Good for lists, accounts, and categories.' },
+  { key: 'accounting_workspace', label: 'Accounting workspace', description: 'Trial balances, ledgers, journals, cash books, statements, and reconciliations.' },
 ];
 
 function mixedCounts(total: number) {
@@ -227,7 +229,7 @@ export default function CoursePracticePage() {
                     </summary>
                     <div className="mt-4 space-y-3">
                       <p className="break-words font-medium">{item.question}</p>
-                      <QuestionVisualRenderer question={item} />
+                      {item.questionType === 'accounting_workspace' ? <PracticeAccountingWorkspace question={item} /> : <QuestionVisualRenderer question={item} />}
                       <p className={`text-sm ${isCorrect ? 'text-primary' : 'text-destructive'}`}>{isCorrect ? 'Correct' : `Correct answer: ${row?.answer ?? 'Not available'}`}</p>
                       {row?.explanation ? <p className="break-words text-sm text-muted-foreground">{row.explanation}</p> : null}
                       <NovaInlineActions title="Ask Nova about this question" description="Get targeted help for this Arena question." courseId={courseId} questionId={String(item.id)} compact actions={[{ label: isCorrect ? 'Explain why correct' : 'Why was I wrong?', mode: 'explain', intent: isCorrect ? 'explain_correct_answer' : 'explain_wrong_answer' }, { label: 'Give similar question', mode: 'quiz', intent: 'similar_questions' }]} />
@@ -254,8 +256,10 @@ export default function CoursePracticePage() {
           <CardContent className="space-y-5">
             <div className="space-y-4 rounded-2xl border p-4 sm:p-5">
               <p className="break-words text-lg font-semibold">{question.question}</p>
-              <QuestionVisualRenderer question={question} />
-              {question.options?.length ? (
+              {question.questionType === 'accounting_workspace' ? <PracticeAccountingWorkspace question={question} /> : <QuestionVisualRenderer question={question} />}
+              {question.questionType === 'accounting_workspace' ? (
+                <Input className="mt-4 min-h-11" value={answers[question.id] ?? ''} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))} placeholder="Briefly describe your answer or enter your final figure" />
+              ) : question.options?.length ? (
                 <RadioGroup value={answers[question.id] ?? ''} onValueChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))} className="mt-4">
                   {question.options.map((option) => (
                     <div key={option} className="flex min-w-0 items-center gap-2 rounded-xl border p-3">
