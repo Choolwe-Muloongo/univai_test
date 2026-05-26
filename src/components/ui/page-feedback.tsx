@@ -10,10 +10,17 @@ type PageFeedbackProps = {
   actionLabel?: string;
 };
 
-export function PageLoading({ message }: { message: string }) {
+type PageLoadingProps = {
+  message?: string;
+  label?: string;
+};
+
+export function PageLoading({ message, label }: PageLoadingProps) {
   return (
     <Card>
-      <CardContent className="p-6 text-sm text-muted-foreground">{message}</CardContent>
+      <CardContent className="p-6 text-sm text-muted-foreground">
+        {message ?? label ?? 'Loading...'}
+      </CardContent>
     </Card>
   );
 }
