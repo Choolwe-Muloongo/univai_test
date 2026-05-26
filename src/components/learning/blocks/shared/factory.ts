@@ -1,5 +1,4 @@
 import {
-  BoardBlockStudentRenderer,
   GenericBlockAdminEditor,
   GenericBlockPreviewRenderer,
   GenericBlockStudentRenderer,
@@ -24,7 +23,7 @@ export function createBlockDefinition(spec: BlockTypeSpec): LearningBlockDefinit
   const requiresAnswer = spec.completion?.requiresAnswer ?? questionSignals.some((signal) => spec.type.includes(signal));
   const manualMarked = spec.manualMarked ?? manualSignals.some((signal) => spec.type.includes(signal));
   const canRequireCertificate = spec.certificate?.canRequire ?? (certificateSignals.some((signal) => spec.type.includes(signal)) || manualMarked);
-  const renderer = spec.category === 'classroom_board' ? BoardBlockStudentRenderer : GenericBlockStudentRenderer;
+  const renderer = GenericBlockStudentRenderer;
 
   return {
     type: spec.type,
