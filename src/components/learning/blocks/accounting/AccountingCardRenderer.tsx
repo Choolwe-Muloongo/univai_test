@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import {
   AlertTriangle,
   BadgeCheck,
-  BookOpenCheck,
   BriefcaseBusiness,
   CheckCircle2,
   Landmark,
@@ -34,14 +33,29 @@ import {
 } from './engine';
 
 const accountingSectionLabels: Record<string, string> = {
-  accounting_studio: 'Accounting Studio',
   accounting_intro: 'Accounting intro',
+  accounting_equation: 'Accounting equation',
+  accounting_account_classification: 'Account classification',
   accounting_scenario: 'Business scenario',
-  accounting_workpaper: 'Accounting workpaper',
+  accounting_transaction_analysis: 'Transaction analysis',
   accounting_journal_entry: 'Journal entry',
+  accounting_t_account: 'T-account',
   accounting_ledger: 'Ledger posting',
+  accounting_cashbook: 'Cash book',
+  accounting_control_account: 'Control account',
   accounting_trial_balance: 'Trial balance',
+  accounting_adjustment: 'Adjustment',
+  accounting_workpaper: 'Accounting workpaper',
   accounting_statement: 'Financial statement',
+  accounting_bank_reconciliation: 'Bank reconciliation',
+  accounting_inventory: 'Inventory valuation',
+  accounting_depreciation: 'Depreciation',
+  accounting_ratio_analysis: 'Ratio analysis',
+  accounting_budgeting: 'Budgeting',
+  accounting_variance_analysis: 'Variance analysis',
+  accounting_tax_working: 'Tax working',
+  accounting_audit_case: 'Audit case',
+  accounting_ethics_case: 'Ethics case',
   accounting_feedback: 'Accounting feedback',
   accounting_exam_question: 'Exam practice',
   accounting_marking_scheme: 'Marking scheme',
@@ -62,27 +76,30 @@ const doctoralResearchTypes = new Set([
 export function AccountingCardRenderer({ payload, definition }: BlockRendererProps) {
   const content = getAccountingContent(payload);
   const data = content.data;
-  const sectionType = String(payload.type ?? 'accounting_studio');
+  const sectionType = String(payload.type ?? 'accounting_intro');
   const sectionLabel = accountingSectionLabels[sectionType] ?? definition.label;
   const title = String(payload.title ?? data.title ?? definition.label);
   const currency = String(data.currency ?? 'ZMW');
   const body = renderAccountingBody(content.accountingType, data, currency);
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 overflow-hidden rounded-2xl border bg-background p-4 shadow-sm">
-      <header className="min-w-0 space-y-3">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-3xl border bg-background shadow-sm">
+      <header className="min-w-0 space-y-3 border-b bg-gradient-to-br from-muted/40 via-background to-primary/5 p-4 sm:p-5">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Badge variant="secondary" className="max-w-full truncate rounded-full">{sectionLabel}</Badge>
           <Badge variant="outline" className="max-w-full truncate rounded-full capitalize">{content.accountingType.replace(/_/g, ' ')}</Badge>
           <Badge variant="outline" className="rounded-full capitalize">{content.difficulty}</Badge>
+          <Badge variant="outline" className="rounded-full">Normal lesson card</Badge>
         </div>
         <div className="min-w-0 space-y-1">
-          <h3 className="break-words text-lg font-semibold tracking-tight"><MathText text={title} /></h3>
-          {payload.body ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
+          <h3 className="break-words text-xl font-semibold tracking-tight"><MathText text={title} /></h3>
+          {payload.body ? <p className="max-w-3xl break-words text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
         </div>
       </header>
 
-      {renderAccountingSection(sectionType, content, title, body, currency)}
+      <div className="min-w-0 max-w-full space-y-4 overflow-hidden p-4 sm:p-5">
+        {renderAccountingSection(sectionType, content, body, currency)}
+      </div>
     </div>
   );
 }
@@ -92,7 +109,7 @@ export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
     <div className="rounded-2xl border bg-muted/20 p-3">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <BadgeCheck className="h-4 w-4 shrink-0" />
-        Accounting student preview
+        Accounting card preview
       </div>
       <AccountingCardRenderer {...props} />
     </div>
@@ -102,22 +119,14 @@ export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
 function renderAccountingSection(
   sectionType: string,
   content: ReturnType<typeof getAccountingContent>,
-  title: string,
   body: ReactNode,
   currency: string,
 ) {
-  if (sectionType === 'accounting_studio') return <AccountingStudioHub content={content} title={title} body={body} currency={currency} />;
-  if (sectionType === 'accounting_intro') return <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>;
+  if (sectionType === 'accounting_equation') return <AccountingEquation data={content.data} />;
+  if (sectionType === 'accounting_account_classification') return <AccountClassification data={content.data} />;
+  if (sectionType === 'accounting_transaction_analysis') return <TransactionAnalysis data={content.data} />;
+  if (sectionType === 'accounting_intro') return <AccountingTeachingPlayer content={content} title={String(content.data.title ?? 'Accounting intro')}>{null}</AccountingTeachingPlayer>;
   if (sectionType === 'accounting_scenario') return <TransactionScenario data={content.data} currency={currency} />;
-  if (
-    sectionType === 'accounting_workpaper'
-    || sectionType === 'accounting_journal_entry'
-    || sectionType === 'accounting_ledger'
-    || sectionType === 'accounting_trial_balance'
-    || sectionType === 'accounting_statement'
-  ) {
-    return <FocusedAccountingPanel title={accountingSectionLabels[sectionType] ?? 'Accounting workpaper'}>{body}</FocusedAccountingPanel>;
-  }
   if (sectionType === 'accounting_feedback') return <AccountingFeedback />;
   if (sectionType === 'accounting_exam_question') return <StudentAccountingWorkbench content={content} currency={currency} />;
   if (sectionType === 'accounting_marking_scheme') {
@@ -125,68 +134,58 @@ function renderAccountingSection(
       ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
       : <EmptyState>No marking scheme has been attached to this accounting activity.</EmptyState>;
   }
-  return <AccountingStudioHub content={content} title={title} body={body} currency={currency} />;
+  return <FocusedAccountingPanel title={accountingSectionLabels[sectionType] ?? 'Accounting card'}>{body}</FocusedAccountingPanel>;
 }
 
-function AccountingStudioHub({ content, title, body, currency }: { content: ReturnType<typeof getAccountingContent>; title: string; body: ReactNode; currency: string }) {
+function AccountingEquation({ data }: { data: Record<string, unknown> }) {
+  const movements = Array.isArray(data.movements) ? data.movements.filter(isRecord) : [];
   return (
-    <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
-      <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-        <div className="mb-2 flex min-w-0 items-center gap-2 text-sm font-semibold text-primary">
-          <BookOpenCheck className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 break-words">Professional accounting flow</span>
-        </div>
-        <p className="break-words text-sm leading-6 text-muted-foreground">
-          This legacy studio is now organised as stages. Your old card still works, but the learner sees one clean accounting path instead of six full sections dumped at once.
-        </p>
-      </section>
-
-      <div className="grid min-w-0 gap-3">
-        <AccountingStage label="Accounting intro" title="Understand the accounting idea" summary="Concept, learner goal, teacher explanation, and learning mode." defaultOpen>
-          <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>
-        </AccountingStage>
-
-        <AccountingStage label="Business scenario" title="Read the business event" summary="Identify the business event, date, amount, and affected accounts.">
-          <TransactionScenario data={content.data} currency={currency} />
-        </AccountingStage>
-
-        <AccountingStage label="Accounting workpaper" title="Prepare the accounting treatment" summary="Build the journal, ledger, statement, schedule, or professional workpaper.">
-          <FocusedAccountingPanel title="Accounting workpaper">{body}</FocusedAccountingPanel>
-        </AccountingStage>
-
-        <AccountingStage label="Exam practice" title="Attempt the question" summary="Student workspace for practice and exam-style responses.">
-          <StudentAccountingWorkbench content={content} currency={currency} />
-        </AccountingStage>
-
-        <AccountingStage label="Feedback" title="Check your professional logic" summary="Review account classification, debit/credit direction, amount, and narration.">
-          <AccountingFeedback />
-        </AccountingStage>
-
-        {content.markingScheme ? (
-          <AccountingStage label="Marking scheme" title="Review the marking points" summary="Rubric, marks, and professional grading points.">
-            <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
-          </AccountingStage>
-        ) : null}
+    <div className="space-y-4 rounded-3xl border bg-muted/10 p-4">
+      <div className="text-center">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">Core accounting equation</div>
+        <div className="mt-2 text-2xl font-bold tracking-tight"><MathText text={String(data.equation ?? 'Assets = Liabilities + Equity')} /></div>
+      </div>
+      {data.explanation ? <p className="mx-auto max-w-3xl text-center text-sm leading-6 text-muted-foreground"><MathText text={String(data.explanation)} /></p> : null}
+      <div className="grid gap-3 md:grid-cols-3">
+        {movements.map((movement, index) => (
+          <div key={index} className="rounded-2xl border bg-background p-3 text-sm">
+            <div className="mb-2 font-semibold"><MathText text={String(movement.label ?? `Movement ${index + 1}`)} /></div>
+            <Info label="Assets" value={String(movement.assets ?? '')} />
+            <Info label="Liabilities" value={String(movement.liabilities ?? '')} />
+            <Info label="Equity" value={String(movement.equity ?? '')} />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function AccountingStage({ label, title, summary, children, defaultOpen = false }: { label: string; title: string; summary: string; children: ReactNode; defaultOpen?: boolean }) {
+function AccountClassification({ data }: { data: Record<string, unknown> }) {
+  const accounts = Array.isArray(data.accounts) ? data.accounts.filter(isRecord) : [];
   return (
-    <details open={defaultOpen} className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
-      <summary className="cursor-pointer list-none">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-1">
-            <Badge variant="outline" className="max-w-full truncate rounded-full">{label}</Badge>
-            <h4 className="break-words text-base font-semibold tracking-tight">{title}</h4>
-            <p className="break-words text-xs leading-5 text-muted-foreground">{summary}</p>
+    <div className="space-y-3">
+      {data.rule ? <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-muted-foreground"><MathText text={String(data.rule)} /></div> : null}
+      <AccountingTable title="Account classification and normal balance" columns={['Account', 'Class', 'Normal balance']} rows={accounts.map((account) => [account.name ?? '', account.category ?? '', account.normalBalance ?? ''])} />
+    </div>
+  );
+}
+
+function TransactionAnalysis({ data }: { data: Record<string, unknown> }) {
+  const steps = Array.isArray(data.analysisSteps) ? data.analysisSteps.filter(isRecord) : [];
+  return (
+    <div className="space-y-4">
+      {data.description ? <div className="rounded-2xl border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground"><MathText text={String(data.description)} /></div> : null}
+      <div className="grid gap-3 md:grid-cols-3">
+        {steps.map((step, index) => (
+          <div key={index} className="rounded-2xl border p-4">
+            <div className="mb-2 text-sm font-semibold">Step {index + 1}</div>
+            <div className="text-sm font-medium"><MathText text={String(step.step ?? '')} /></div>
+            <p className="mt-2 break-words text-sm text-muted-foreground"><MathText text={String(step.answer ?? '')} /></p>
+            {step.side ? <Badge variant="outline" className="mt-3 rounded-full">{String(step.side)}</Badge> : null}
           </div>
-          <span className="shrink-0 text-xs font-semibold text-primary">Open</span>
-        </div>
-      </summary>
-      <div className="mt-4 min-w-0 max-w-full overflow-hidden">{children}</div>
-    </details>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -254,6 +253,8 @@ function ConceptCard({ data }: { data: Record<string, unknown> }) {
       </div>
       {data.explanation ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(data.explanation)} /></p> : null}
       {data.example ? <p className="break-words rounded-xl bg-background/70 p-3 text-sm"><MathText text={String(data.example)} /></p> : null}
+      {Array.isArray(data.teacherNotes) ? <MiniList title="Teacher guide" items={normalizeTextList(data.teacherNotes)} /> : null}
+      {Array.isArray(data.commonMistakes) ? <MiniList title="Common mistakes" items={normalizeTextList(data.commonMistakes)} /> : null}
       <GenericWorkpaperTable data={data} />
     </div>
   );
@@ -261,6 +262,7 @@ function ConceptCard({ data }: { data: Record<string, unknown> }) {
 
 function TransactionScenario({ data, currency }: { data: Record<string, unknown>; currency: string }) {
   const accounts = Array.isArray(data.expectedAccounts) ? data.expectedAccounts.map(String) : [];
+  const required = normalizeTextList(data.required);
   return (
     <div className="grid gap-3 md:grid-cols-[1.3fr_.7fr]">
       <div className="rounded-2xl border p-4">
@@ -272,9 +274,12 @@ function TransactionScenario({ data, currency }: { data: Record<string, unknown>
           <Info label="Amount" value={formatMoney(data.amount, currency)} />
         </div>
       </div>
-      <div className="rounded-2xl border bg-muted/20 p-4">
-        <div className="mb-2 text-sm font-semibold">Accounts to identify</div>
-        <div className="flex flex-wrap gap-2">{accounts.length ? accounts.map((account) => <Badge key={account} variant="outline">{account}</Badge>) : <span className="text-sm text-muted-foreground">Use the business event to identify affected accounts.</span>}</div>
+      <div className="space-y-3">
+        <div className="rounded-2xl border bg-muted/20 p-4">
+          <div className="mb-2 text-sm font-semibold">Accounts to identify</div>
+          <div className="flex flex-wrap gap-2">{accounts.length ? accounts.map((account) => <Badge key={account} variant="outline">{account}</Badge>) : <span className="text-sm text-muted-foreground">Use the business event to identify affected accounts.</span>}</div>
+        </div>
+        {required.length ? <MiniList title="Required" items={required} /> : null}
       </div>
     </div>
   );
@@ -344,6 +349,7 @@ function ProfessionalCase({ data }: { data: Record<string, unknown> }) {
       {data.scenario ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(data.scenario)} /></p> : null}
       <GenericWorkpaperTable data={data} />
       {prompts.length ? <ol className="space-y-2 text-sm text-muted-foreground">{prompts.slice(0, 4).map((prompt, index) => <li key={prompt} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={prompt} /></li>)}</ol> : null}
+      {data.evidenceStandard ? <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground"><strong>Evidence standard:</strong> <MathText text={String(data.evidenceStandard)} /></div> : null}
     </div>
   );
 }
@@ -395,6 +401,11 @@ function FormulaResult({ title, formula, result }: { title: string; formula: str
   return <div className="rounded-2xl border p-4"><div className="font-semibold">{title}</div><div className="mt-2 rounded-xl bg-muted/30 p-3 text-sm">{formula}</div><div className="mt-3 text-lg font-semibold">{result}</div></div>;
 }
 
+function MiniList({ title, items }: { title: string; items: string[] }) {
+  if (!items.length) return null;
+  return <div className="rounded-2xl border bg-muted/10 p-4"><div className="mb-2 text-sm font-semibold text-primary">{title}</div><ul className="space-y-2 text-sm text-muted-foreground">{items.slice(0, 8).map((item) => <li key={item} className="break-words rounded-xl bg-background/70 p-2"><MathText text={item} /></li>)}</ul></div>;
+}
+
 function EmptyState({ children }: { children: ReactNode }) {
   return <p className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">{children}</p>;
 }
@@ -410,4 +421,8 @@ function Info({ label, value }: { label: string; value: string }) {
 function sumAmounts(value: unknown) {
   if (!Array.isArray(value)) return 0;
   return value.reduce((sum, item) => sum + Number((typeof item === 'object' && item !== null ? (item as Record<string, unknown>).amount : item) ?? 0), 0);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

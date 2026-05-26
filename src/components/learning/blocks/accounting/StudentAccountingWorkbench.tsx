@@ -18,6 +18,8 @@ import {
   type TrialBalanceAccount,
 } from './engine';
 
+const buildExamPayload = (content: AccountingCardContent) => ({ type: 'accounting_exam_question', content });
+
 export function StudentAccountingWorkbench({ content, currency }: { content: AccountingCardContent; currency: string }) {
   if (content.accountingType === 'journal_entry' || content.accountingType === 'error_correction') {
     return <JournalWorkbench content={content} currency={currency} />;
@@ -76,7 +78,7 @@ function JournalWorkbench({ content, currency }: { content: AccountingCardConten
       </div>
       <div className="grid gap-2 sm:flex sm:flex-wrap">
         <Button type="button" size="sm" variant="outline" className="min-h-10 w-full sm:w-auto" onClick={() => setRows((current) => [...current, { account: '', debit: 0, credit: 0 }])}><Plus className="mr-1 size-4" /> Add row</Button>
-        <Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting({ type: 'accounting_studio', content }, { rows }))}>Check answer</Button>
+        <Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting(buildExamPayload(content), { rows }))}>Check answer</Button>
       </div>
       {result ? <Feedback result={result} /> : null}
     </div>
@@ -103,7 +105,7 @@ function TrialBalanceWorkbench({ content, currency }: { content: AccountingCardC
         </table>
       </div>
       <div className="break-words rounded-xl bg-background p-3 text-sm">Debit: {formatMoney(totals.debit, currency)} · Credit: {formatMoney(totals.credit, currency)}</div>
-      <div className="grid gap-2 sm:flex sm:flex-wrap"><Button type="button" size="sm" variant="outline" className="min-h-10 w-full sm:w-auto" onClick={() => setAccounts((current) => [...current, { name: '', debit: 0, credit: 0 }])}>Add account</Button><Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting({ type: 'accounting_studio', content }, { accounts }))}>Check trial balance</Button></div>
+      <div className="grid gap-2 sm:flex sm:flex-wrap"><Button type="button" size="sm" variant="outline" className="min-h-10 w-full sm:w-auto" onClick={() => setAccounts((current) => [...current, { name: '', debit: 0, credit: 0 }])}>Add account</Button><Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting(buildExamPayload(content), { accounts }))}>Check trial balance</Button></div>
       {result ? <Feedback result={result} /> : null}
     </div>
   );
@@ -116,7 +118,7 @@ function NumericWorkbench({ content, fields }: { content: AccountingCardContent;
     <div className="min-w-0 space-y-3 rounded-2xl border bg-muted/10 p-3 sm:p-4">
       <div className="text-sm font-semibold">Student calculation workspace</div>
       <div className="grid gap-3 sm:grid-cols-2">{fields.map((field) => <label key={field} className="space-y-2 text-sm font-medium"><span className="break-words capitalize">{field.replace(/_/g, ' ')}</span><Input className="min-h-10" inputMode="decimal" value={answer[field] || ''} onChange={(event) => setAnswer((current) => ({ ...current, [field]: Number(event.target.value || 0) }))} /></label>)}</div>
-      <Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting({ type: 'accounting_studio', content }, answer))}>Check calculation</Button>
+      <Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting(buildExamPayload(content), answer))}>Check calculation</Button>
       {result ? <Feedback result={result} /> : null}
     </div>
   );
@@ -134,7 +136,7 @@ function ProfessionalResponseWorkbench({ content }: { content: AccountingCardCon
         {isPhd ? 'Your response is assessed against doctoral keywords and the PhD rubric. Strong answers connect theory, method, evidence, and contribution.' : 'Your response is assessed against the professional marking scheme and expected keywords.'}
       </div>
       {content.markingScheme ? <div className="text-xs text-muted-foreground">Total marks available: {content.markingScheme.totalMarks}</div> : null}
-      <Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting({ type: 'accounting_studio', content }, { response }))}>Check response</Button>
+      <Button type="button" size="sm" className="min-h-10 w-full sm:w-auto" onClick={() => setResult(autoMarkAccounting(buildExamPayload(content), { response }))}>Check response</Button>
       {result ? <Feedback result={result} /> : null}
     </div>
   );

@@ -144,6 +144,7 @@ export function normalizeBlockType(type: string) {
   ].includes(normalized)) return 'chemistry_visual';
   if (normalized === 'chart' || normalized === 'plot') return 'graph';
   if (normalized === 'mini_project') return 'code_mini_project';
+  if (normalized === 'accounting_studio') return 'accounting_exam_question';
   return normalized || 'explanation';
 }
 

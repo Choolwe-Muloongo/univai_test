@@ -138,15 +138,14 @@ class EmbeddedShortCourseQuestionSyncer
         }
 
         $type = Str::of((string) ($card['type'] ?? ''))->lower()->replace('-', '_')->toString();
+        if ($type === 'accounting_studio') {
+            return null;
+        }
+
         $question = self::stringValue($card['question'] ?? $card['prompt'] ?? null);
         $options = self::options($card['options'] ?? Arr::get($card, 'data.options'));
         $answer = self::answer($card);
         $explanation = self::stringValue($card['explanation'] ?? Arr::get($card, 'data.explanation') ?? Arr::get($card, 'content.explanation'));
-
-        if ($question === '' && self::isAccountingStudio($type, $card)) {
-            $question = self::accountingStudioQuestion($card);
-            $explanation = $explanation ?: self::accountingStudioExplanation($card);
-        }
 
         if ($question === '' && self::isQuestionLikeType($type) && !empty($card['body'])) {
             $question = self::clean((string) $card['body']);
@@ -195,31 +194,8 @@ class EmbeddedShortCourseQuestionSyncer
             'drag_drop_match',
             'drag_drop_sort',
             'account_sorting',
-            'accounting_studio',
+            'accounting_exam_question',
         ], true);
-    }
-
-    private static function isAccountingStudio(string $type, array $card): bool
-    {
-        return $type === 'accounting_studio' || Arr::has($card, 'markingScheme') || Arr::has($card, 'data.required') || Arr::has($card, 'expectedAnswer');
-    }
-
-    private static function accountingStudioQuestion(array $card): string
-    {
-        $title = self::stringValue($card['title'] ?? 'Accounting Studio task');
-        $body = self::stringValue($card['body'] ?? Arr::get($card, 'data.scenario') ?? Arr::get($card, 'data.description') ?? Arr::get($card, 'data.question'));
-        $required = self::listText(Arr::get($card, 'data.required') ?? Arr::get($card, 'required'));
-
-        return trim($title . "\n\n" . $body . ($required ? "\n\nRequired:\n" . $required : ''));
-    }
-
-    private static function accountingStudioExplanation(array $card): string
-    {
-        $scheme = Arr::get($card, 'markingScheme') ?? Arr::get($card, 'content.markingScheme');
-        if (!$scheme) {
-            return self::stringValue(Arr::get($card, 'data.evidenceStandard'));
-        }
-        return 'Marking scheme: ' . self::clean(json_encode($scheme, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
     }
 
     private static function answer(array $card): string
@@ -233,7 +209,7 @@ class EmbeddedShortCourseQuestionSyncer
         }
 
         $scheme = Arr::get($card, 'markingScheme') ?? Arr::get($card, 'content.markingScheme');
-        if ($scheme) {
+        if ($scheme && (($card['type'] ?? null) === 'accounting_exam_question')) {
             return 'Use the marking scheme and expected professional reasoning.';
         }
 
@@ -289,12 +265,6 @@ class EmbeddedShortCourseQuestionSyncer
         if (!str_starts_with($trimmed, '{') && !str_starts_with($trimmed, '[')) return $trimmed;
         $decoded = json_decode($trimmed, true);
         return json_last_error() === JSON_ERROR_NONE ? $decoded : $trimmed;
-    }
-
-    private static function listText(mixed $value): string
-    {
-        if (!is_array($value)) return self::stringValue($value);
-        return collect($value)->map(fn ($item, $index) => ($index + 1) . '. ' . self::stringValue($item))->implode("\n");
     }
 
     private static function stringValue(mixed $value): string
