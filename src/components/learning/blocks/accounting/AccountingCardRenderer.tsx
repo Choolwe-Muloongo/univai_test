@@ -1,7 +1,15 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { AlertTriangle, BadgeCheck, BriefcaseBusiness, CheckCircle2, Landmark } from 'lucide-react';
+import {
+  AlertTriangle,
+  BadgeCheck,
+  BookOpenCheck,
+  BriefcaseBusiness,
+  CheckCircle2,
+  Landmark,
+  ListChecks,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { MathText } from '@/components/learning/math-text';
@@ -25,18 +33,6 @@ import {
   normalizeTrialBalanceAccounts,
 } from './engine';
 
-const doctoralResearchTypes = new Set([
-  'research_case',
-  'research_article_critique',
-  'theory_comparison',
-  'literature_gap_analysis',
-  'hypothesis_builder',
-  'methodology_design',
-  'empirical_model',
-  'variable_measurement',
-  'doctoral_proposal',
-]);
-
 const accountingSectionLabels: Record<string, string> = {
   accounting_studio: 'Accounting Studio',
   accounting_intro: 'Accounting intro',
@@ -51,27 +47,40 @@ const accountingSectionLabels: Record<string, string> = {
   accounting_marking_scheme: 'Marking scheme',
 };
 
+const doctoralResearchTypes = new Set([
+  'research_case',
+  'research_article_critique',
+  'theory_comparison',
+  'literature_gap_analysis',
+  'hypothesis_builder',
+  'methodology_design',
+  'empirical_model',
+  'variable_measurement',
+  'doctoral_proposal',
+]);
+
 export function AccountingCardRenderer({ payload, definition }: BlockRendererProps) {
   const content = getAccountingContent(payload);
   const data = content.data;
+  const sectionType = String(payload.type ?? 'accounting_studio');
+  const sectionLabel = accountingSectionLabels[sectionType] ?? definition.label;
   const title = String(payload.title ?? data.title ?? definition.label);
   const currency = String(data.currency ?? 'ZMW');
   const body = renderAccountingBody(content.accountingType, data, currency);
-  const sectionType = String(payload.type ?? 'accounting_studio');
-  const sectionLabel = accountingSectionLabels[sectionType] ?? definition.label;
 
   return (
     <div className="min-w-0 max-w-full space-y-4 overflow-hidden rounded-2xl border bg-background p-4 shadow-sm">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="max-w-full truncate rounded-full">{sectionLabel}</Badge>
-        <Badge variant="outline" className="max-w-full truncate rounded-full capitalize">{content.accountingType.replace(/_/g, ' ')}</Badge>
-        <Badge variant="outline" className="rounded-full capitalize">{content.difficulty}</Badge>
-      </div>
-
-      <div className="min-w-0 space-y-1">
-        <h3 className="break-words text-lg font-semibold tracking-tight"><MathText text={title} /></h3>
-        {payload.body ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
-      </div>
+      <header className="min-w-0 space-y-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="max-w-full truncate rounded-full">{sectionLabel}</Badge>
+          <Badge variant="outline" className="max-w-full truncate rounded-full capitalize">{content.accountingType.replace(/_/g, ' ')}</Badge>
+          <Badge variant="outline" className="rounded-full capitalize">{content.difficulty}</Badge>
+        </div>
+        <div className="min-w-0 space-y-1">
+          <h3 className="break-words text-lg font-semibold tracking-tight"><MathText text={title} /></h3>
+          {payload.body ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
+        </div>
+      </header>
 
       {renderAccountingSection(sectionType, content, title, body, currency)}
     </div>
@@ -81,83 +90,113 @@ export function AccountingCardRenderer({ payload, definition }: BlockRendererPro
 export function AccountingCardPreviewRenderer(props: BlockRendererProps) {
   return (
     <div className="rounded-2xl border bg-muted/20 p-3">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><BadgeCheck className="size-4" /> Accounting student preview</div>
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+        <BadgeCheck className="h-4 w-4 shrink-0" />
+        Accounting student preview
+      </div>
       <AccountingCardRenderer {...props} />
     </div>
   );
 }
 
-function renderAccountingSection(sectionType: string, content: ReturnType<typeof getAccountingContent>, title: string, body: ReactNode, currency: string) {
-  if (sectionType === 'accounting_studio') {
-    return <LegacyAccountingStudioSplit content={content} title={title} body={body} currency={currency} />;
+function renderAccountingSection(
+  sectionType: string,
+  content: ReturnType<typeof getAccountingContent>,
+  title: string,
+  body: ReactNode,
+  currency: string,
+) {
+  if (sectionType === 'accounting_studio') return <AccountingStudioHub content={content} title={title} body={body} currency={currency} />;
+  if (sectionType === 'accounting_intro') return <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>;
+  if (sectionType === 'accounting_scenario') return <TransactionScenario data={content.data} currency={currency} />;
+  if (
+    sectionType === 'accounting_workpaper'
+    || sectionType === 'accounting_journal_entry'
+    || sectionType === 'accounting_ledger'
+    || sectionType === 'accounting_trial_balance'
+    || sectionType === 'accounting_statement'
+  ) {
+    return <FocusedAccountingPanel title={accountingSectionLabels[sectionType] ?? 'Accounting workpaper'}>{body}</FocusedAccountingPanel>;
   }
-
-  if (sectionType === 'accounting_intro') {
-    return <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>;
-  }
-
-  if (sectionType === 'accounting_scenario') {
-    return <TransactionScenario data={content.data} currency={currency} />;
-  }
-
-  if (sectionType === 'accounting_workpaper' || sectionType === 'accounting_journal_entry' || sectionType === 'accounting_ledger' || sectionType === 'accounting_trial_balance' || sectionType === 'accounting_statement') {
-    return <div className="min-w-0 max-w-full overflow-hidden">{body}</div>;
-  }
-
-  if (sectionType === 'accounting_feedback') {
-    return <AccountingFeedback />;
-  }
-
-  if (sectionType === 'accounting_exam_question') {
-    return <StudentAccountingWorkbench content={content} currency={currency} />;
-  }
-
+  if (sectionType === 'accounting_feedback') return <AccountingFeedback />;
+  if (sectionType === 'accounting_exam_question') return <StudentAccountingWorkbench content={content} currency={currency} />;
   if (sectionType === 'accounting_marking_scheme') {
-    return content.markingScheme ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} /> : <p className="text-sm text-muted-foreground">No marking scheme has been attached to this accounting activity.</p>;
+    return content.markingScheme
+      ? <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
+      : <EmptyState>No marking scheme has been attached to this accounting activity.</EmptyState>;
   }
-
-  return <LegacyAccountingStudioSplit content={content} title={title} body={body} currency={currency} />;
+  return <AccountingStudioHub content={content} title={title} body={body} currency={currency} />;
 }
 
-function LegacyAccountingStudioSplit({ content, title, body, currency }: { content: ReturnType<typeof getAccountingContent>; title: string; body: ReactNode; currency: string }) {
+function AccountingStudioHub({ content, title, body, currency }: { content: ReturnType<typeof getAccountingContent>; title: string; body: ReactNode; currency: string }) {
   return (
     <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
-      <AccountingSubCard label="Accounting intro" title="Understand the accounting idea">
-        <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>
-      </AccountingSubCard>
+      <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+        <div className="mb-2 flex min-w-0 items-center gap-2 text-sm font-semibold text-primary">
+          <BookOpenCheck className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 break-words">Professional accounting flow</span>
+        </div>
+        <p className="break-words text-sm leading-6 text-muted-foreground">
+          This legacy studio is now organised as stages. Your old card still works, but the learner sees one clean accounting path instead of six full sections dumped at once.
+        </p>
+      </section>
 
-      <AccountingSubCard label="Business scenario" title="Read the business event">
-        <TransactionScenario data={content.data} currency={currency} />
-      </AccountingSubCard>
+      <div className="grid min-w-0 gap-3">
+        <AccountingStage label="Accounting intro" title="Understand the accounting idea" summary="Concept, learner goal, teacher explanation, and learning mode." defaultOpen>
+          <AccountingTeachingPlayer content={content} title={title}>{null}</AccountingTeachingPlayer>
+        </AccountingStage>
 
-      <AccountingSubCard label="Accounting workpaper" title="Prepare the accounting treatment">
-        <div className="min-w-0 max-w-full overflow-hidden">{body}</div>
-      </AccountingSubCard>
+        <AccountingStage label="Business scenario" title="Read the business event" summary="Identify the business event, date, amount, and affected accounts.">
+          <TransactionScenario data={content.data} currency={currency} />
+        </AccountingStage>
 
-      <AccountingSubCard label="Exam practice" title="Attempt the question">
-        <StudentAccountingWorkbench content={content} currency={currency} />
-      </AccountingSubCard>
+        <AccountingStage label="Accounting workpaper" title="Prepare the accounting treatment" summary="Build the journal, ledger, statement, schedule, or professional workpaper.">
+          <FocusedAccountingPanel title="Accounting workpaper">{body}</FocusedAccountingPanel>
+        </AccountingStage>
 
-      <AccountingSubCard label="Feedback" title="Check your professional logic">
-        <AccountingFeedback />
-      </AccountingSubCard>
+        <AccountingStage label="Exam practice" title="Attempt the question" summary="Student workspace for practice and exam-style responses.">
+          <StudentAccountingWorkbench content={content} currency={currency} />
+        </AccountingStage>
 
-      {content.markingScheme ? (
-        <AccountingSubCard label="Marking scheme" title="Review the marking points">
-          <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
-        </AccountingSubCard>
-      ) : null}
+        <AccountingStage label="Feedback" title="Check your professional logic" summary="Review account classification, debit/credit direction, amount, and narration.">
+          <AccountingFeedback />
+        </AccountingStage>
+
+        {content.markingScheme ? (
+          <AccountingStage label="Marking scheme" title="Review the marking points" summary="Rubric, marks, and professional grading points.">
+            <MarkingScheme totalMarks={content.markingScheme.totalMarks} items={content.markingScheme.items} />
+          </AccountingStage>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function AccountingSubCard({ label, title, children }: { label: string; title: string; children: ReactNode }) {
+function AccountingStage({ label, title, summary, children, defaultOpen = false }: { label: string; title: string; summary: string; children: ReactNode; defaultOpen?: boolean }) {
+  return (
+    <details open={defaultOpen} className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
+      <summary className="cursor-pointer list-none">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <Badge variant="outline" className="max-w-full truncate rounded-full">{label}</Badge>
+            <h4 className="break-words text-base font-semibold tracking-tight">{title}</h4>
+            <p className="break-words text-xs leading-5 text-muted-foreground">{summary}</p>
+          </div>
+          <span className="shrink-0 text-xs font-semibold text-primary">Open</span>
+        </div>
+      </summary>
+      <div className="mt-4 min-w-0 max-w-full overflow-hidden">{children}</div>
+    </details>
+  );
+}
+
+function FocusedAccountingPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="min-w-0 max-w-full overflow-hidden rounded-2xl border bg-muted/10 p-3 sm:p-4">
-      <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
-        <Badge variant="outline" className="max-w-full truncate rounded-full">{label}</Badge>
+      <div className="mb-3 flex min-w-0 items-center gap-2 text-sm font-semibold">
+        <ListChecks className="h-4 w-4 shrink-0 text-primary" />
+        <span className="min-w-0 break-words">{title}</span>
       </div>
-      <h4 className="mb-3 break-words text-base font-semibold tracking-tight">{title}</h4>
       <div className="min-w-0 max-w-full overflow-hidden">{children}</div>
     </section>
   );
@@ -179,7 +218,7 @@ function AccountingFeedback() {
 }
 
 function renderAccountingBody(type: string, data: Record<string, unknown>, currency: string) {
-  if (doctoralResearchTypes.has(type)) return <DoctoralResearchCase data={data} type={type} />;
+  if (doctoralResearchTypes.has(type)) return <ProfessionalCase data={data} />;
 
   switch (type) {
     case 'transaction': return <TransactionScenario data={data} currency={currency} />;
@@ -199,29 +238,22 @@ function renderAccountingBody(type: string, data: Record<string, unknown>, curre
     case 'tax_computation':
     case 'budgeting':
     case 'variance_analysis':
-    case 'exam_practice': return <ProfessionalCase data={data} />;
+    case 'exam_practice':
     case 'case_study': return <ProfessionalCase data={data} />;
     case 'business_simulation': return <BusinessSimulation data={data} currency={currency} />;
     default: return <ConceptCard data={data} />;
   }
 }
 
-function GenericWorkpaperTable({ data }: { data: Record<string, unknown> }) {
-  if (!Array.isArray(data.columns) || !Array.isArray(data.rows)) return null;
-  return (
-    <div className="space-y-2">
-      {data.tableKind ? <div className="text-xs font-semibold uppercase tracking-wide text-primary">{String(data.tableKind).replace(/_/g, ' ')}</div> : null}
-      <AccountingTable title={String(data.tableKind ?? 'Accounting workpaper')} columns={data.columns.map(String)} rows={(data.rows as unknown[]).map((row) => Array.isArray(row) ? row : [row])} />
-    </div>
-  );
-}
-
 function ConceptCard({ data }: { data: Record<string, unknown> }) {
   return (
     <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
-      <div className="flex items-center gap-2 font-semibold"><Landmark className="size-4" /> {String(data.concept ?? 'Accounting concept')}</div>
-      {data.explanation ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.explanation)} /></p> : null}
-      {data.example ? <p className="rounded-xl bg-background/70 p-3 text-sm"><MathText text={String(data.example)} /></p> : null}
+      <div className="flex min-w-0 items-center gap-2 font-semibold">
+        <Landmark className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 break-words">{String(data.concept ?? 'Accounting concept')}</span>
+      </div>
+      {data.explanation ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(data.explanation)} /></p> : null}
+      {data.example ? <p className="break-words rounded-xl bg-background/70 p-3 text-sm"><MathText text={String(data.example)} /></p> : null}
       <GenericWorkpaperTable data={data} />
     </div>
   );
@@ -233,7 +265,7 @@ function TransactionScenario({ data, currency }: { data: Record<string, unknown>
     <div className="grid gap-3 md:grid-cols-[1.3fr_.7fr]">
       <div className="rounded-2xl border p-4">
         <div className="mb-2 text-sm font-semibold">Business event</div>
-        <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.description ?? data.scenario ?? data.question ?? 'Add a realistic transaction scenario.')} /></p>
+        <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(data.description ?? data.scenario ?? data.question ?? 'Add a realistic transaction scenario.')} /></p>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           <Info label="Business" value={String(data.businessName ?? 'Business')} />
           <Info label="Date" value={String(data.transactionDate ?? 'Date')} />
@@ -251,19 +283,34 @@ function TransactionScenario({ data, currency }: { data: Record<string, unknown>
 function JournalEntryTable({ rows, currency }: { rows: ReturnType<typeof normalizeJournalRows>; currency: string }) {
   const totals = calculateJournalTotals(rows);
   const balanced = totals.debit === totals.credit && totals.debit > 0;
-  return <div className="space-y-3"><AccountingTable title="Journal entry" columns={['Professional account', 'Debit', 'Credit']} rows={rows.map((row) => [row.account, row.debit ? formatMoney(row.debit, currency) : '', row.credit ? formatMoney(row.credit, currency) : ''])} /><BalanceBanner balanced={balanced} debit={totals.debit} credit={totals.credit} currency={currency} /></div>;
+  return (
+    <div className="space-y-3">
+      <AccountingTable title="Journal entry" columns={['Professional account', 'Debit', 'Credit']} rows={rows.map((row) => [row.account, row.debit ? formatMoney(row.debit, currency) : '', row.credit ? formatMoney(row.credit, currency) : ''])} />
+      <BalanceBanner balanced={balanced} debit={totals.debit} credit={totals.credit} currency={currency} />
+    </div>
+  );
 }
 
 function LedgerAccount({ data, currency }: { data: Record<string, unknown>; currency: string }) {
   const debitEntries = normalizeLedgerEntries(data.debitEntries);
   const creditEntries = normalizeLedgerEntries(data.creditEntries);
-  const rows = Array.from({ length: Math.max(debitEntries.length, creditEntries.length, 1) }).map((_, index) => [debitEntries[index]?.details ?? '', debitEntries[index]?.amount ? formatMoney(debitEntries[index]?.amount, currency) : '', creditEntries[index]?.details ?? '', creditEntries[index]?.amount ? formatMoney(creditEntries[index]?.amount, currency) : '']);
+  const rows = Array.from({ length: Math.max(debitEntries.length, creditEntries.length, 1) }).map((_, index) => [
+    debitEntries[index]?.details ?? '',
+    debitEntries[index]?.amount ? formatMoney(debitEntries[index]?.amount, currency) : '',
+    creditEntries[index]?.details ?? '',
+    creditEntries[index]?.amount ? formatMoney(creditEntries[index]?.amount, currency) : '',
+  ]);
   return <div className="rounded-2xl border p-4"><div className="mb-3 text-center font-semibold">{String(data.accountName ?? 'Ledger Account')}</div><AccountingTable title={String(data.accountName ?? 'Ledger Account')} columns={['Debit details', 'Debit amount', 'Credit details', 'Credit amount']} rows={rows} /></div>;
 }
 
 function TrialBalance({ accounts, currency, title }: { accounts: ReturnType<typeof normalizeTrialBalanceAccounts>; currency: string; title: string }) {
   const totals = calculateTrialBalanceTotals(accounts);
-  return <div className="space-y-3"><AccountingTable title={title} columns={['Account', 'Debit', 'Credit']} rows={accounts.map((account) => [account.name, account.debit ? formatMoney(account.debit, currency) : '', account.credit ? formatMoney(account.credit, currency) : '']).concat([[`${title} totals`, formatMoney(totals.debit, currency), formatMoney(totals.credit, currency)]])} /><BalanceBanner balanced={totals.debit === totals.credit && totals.debit > 0} debit={totals.debit} credit={totals.credit} currency={currency} /></div>;
+  return (
+    <div className="space-y-3">
+      <AccountingTable title={title} columns={['Account', 'Debit', 'Credit']} rows={accounts.map((account) => [account.name, account.debit ? formatMoney(account.debit, currency) : '', account.credit ? formatMoney(account.credit, currency) : '']).concat([[`${title} totals`, formatMoney(totals.debit, currency), formatMoney(totals.credit, currency)]])} />
+      <BalanceBanner balanced={totals.debit === totals.credit && totals.debit > 0} debit={totals.debit} credit={totals.credit} currency={currency} />
+    </div>
+  );
 }
 
 function FinancialStatement({ data, currency }: { data: Record<string, unknown>; currency: string }) {
@@ -289,33 +336,78 @@ function BankReconciliation({ data, currency }: { data: Record<string, unknown>;
   return <TrialBalance accounts={[{ name: 'Adjusted cash book balance', debit: adjustedCash, credit: 0 }, { name: 'Adjusted bank statement balance', debit: 0, credit: adjustedBank }]} currency={currency} title="Bank reconciliation" />;
 }
 
-function Depreciation({ data, currency }: { data: Record<string, unknown>; currency: string }) { return <FormulaResult title={`${String(data.asset ?? 'Asset')} depreciation`} formula={String(data.method ?? 'straight_line').replace(/_/g, ' ')} result={formatMoney(calculateDepreciation(data), currency)} />; }
-function InventoryValuation({ data, currency }: { data: Record<string, unknown>; currency: string }) { const result = calculateInventory(data); return <AccountingTable title="Inventory valuation" columns={['Measure', 'Amount']} rows={[[`Cost of goods sold (${String(data.method ?? 'FIFO')})`, formatMoney(result.cogs, currency)], ['Closing inventory', formatMoney(result.closingInventory, currency)]]} />; }
-function RatioAnalysis({ data }: { data: Record<string, unknown> }) { const ratios = calculateRatios(data.financialData && typeof data.financialData === 'object' ? data.financialData as Record<string, unknown> : data); return <AccountingTable title="Ratio analysis" columns={['Ratio', 'Result', 'Interpretation']} rows={Object.entries(ratios).filter(([, value]) => value > 0).map(([key, value]) => [key.replace(/_/g, ' '), String(value), key.includes('margin') ? `${value}%` : `${value}:1`])} />; }
-
-function ErrorCorrection({ data, currency }: { data: Record<string, unknown>; currency: string }) { const rows = normalizeJournalRows(data.correctionRows ?? data.rows); return <div className="space-y-3"><div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm"><AlertTriangle className="mb-2 size-4" />{String(data.errorDescription ?? 'Describe the accounting error.')}</div><JournalEntryTable rows={rows} currency={currency} /></div>; }
-
-function ProfessionalCase({ data }: { data: Record<string, unknown> }) { const prompts = normalizeTextList(data.required ?? data.prompts ?? data.tasks); return <div className="space-y-3 rounded-2xl border p-4"><div className="font-semibold">{String(data.caseTitle ?? data.businessName ?? 'Professional accounting case')}</div>{data.scenario ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.scenario)} /></p> : null}<GenericWorkpaperTable data={data} />{prompts.length ? <ol className="space-y-2 text-sm text-muted-foreground">{prompts.map((prompt, index) => <li key={prompt} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={prompt} /></li>)}</ol> : null}</div>; }
-
-function DoctoralResearchCase({ data, type }: { data: Record<string, unknown>; type: string }) {
+function ProfessionalCase({ data }: { data: Record<string, unknown> }) {
   const prompts = normalizeTextList(data.required ?? data.prompts ?? data.tasks);
-  const lenses = normalizeTextList(data.theoreticalLens ?? data.theories);
-  const variables = normalizeTextList(data.variables ?? data.constructs);
-  const validity = normalizeTextList(data.validityThreats ?? data.biasThreats ?? data.limitations);
-  return <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4"><div><div className="text-xs font-semibold uppercase tracking-wide text-primary">Doctoral accounting research studio · {type.replace(/_/g, ' ')}</div><h4 className="mt-1 text-base font-semibold"><MathText text={String(data.caseTitle ?? data.researchProblem ?? 'Doctoral research case')} /></h4></div>{data.scenario ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={String(data.scenario)} /></p> : null}<GenericWorkpaperTable data={data} /><div className="grid gap-3 md:grid-cols-2"><ResearchPanel title="Theory / lens" items={lenses} fallback={String(data.theory ?? 'State the theory or theoretical lens.')} /><ResearchPanel title="Variables / constructs" items={variables} fallback={String(data.measurement ?? 'Define constructs, proxies, and measurement logic.')} /><ResearchPanel title="Methodology" items={normalizeTextList(data.methodology ?? data.methods)} fallback={String(data.methodology ?? 'Explain research design, sample, data, and analysis method.')} /><ResearchPanel title="Validity and limitations" items={validity} fallback={String(data.limitations ?? 'Discuss validity, reliability, bias, endogeneity, ethics, and limitations.')} /></div>{prompts.length ? <ol className="space-y-2 text-sm text-muted-foreground">{prompts.map((prompt, index) => <li key={prompt} className="rounded-xl bg-background/70 p-3">{index + 1}. <MathText text={prompt} /></li>)}</ol> : null}</div>;
+  return (
+    <div className="space-y-3 rounded-2xl border p-4">
+      <div className="font-semibold">{String(data.caseTitle ?? data.businessName ?? 'Professional accounting case')}</div>
+      {data.scenario ? <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(data.scenario)} /></p> : null}
+      <GenericWorkpaperTable data={data} />
+      {prompts.length ? <ol className="space-y-2 text-sm text-muted-foreground">{prompts.slice(0, 4).map((prompt, index) => <li key={prompt} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={prompt} /></li>)}</ol> : null}
+    </div>
+  );
 }
-
-function ResearchPanel({ title, items, fallback }: { title: string; items: string[]; fallback: string }) { return <div className="rounded-xl border bg-background/70 p-3"><div className="mb-2 text-sm font-semibold">{title}</div>{items.length ? <ul className="space-y-1 text-xs leading-5 text-muted-foreground">{items.map((item) => <li key={item}>• <MathText text={item} /></li>)}</ul> : <p className="text-xs leading-5 text-muted-foreground"><MathText text={fallback} /></p>}</div>; }
 
 function BusinessSimulation({ data, currency }: { data: Record<string, unknown>; currency: string }) {
   const transactions = Array.isArray(data.transactions) ? data.transactions.map(String) : [];
-  const stages = normalizeTextList(data.stages).length ? normalizeTextList(data.stages) : ['Record journals', 'Post ledgers', 'Prepare trial balance', 'Make adjustments', 'Prepare statements', 'Interpret performance'];
-  return <div className="space-y-3 rounded-2xl border p-4"><div className="flex items-center gap-2 font-semibold"><BriefcaseBusiness className="size-4" /> {String(data.businessName ?? 'Accounting business simulator')}</div><GenericWorkpaperTable data={data} /><div className="grid gap-3 lg:grid-cols-[1.2fr_.8fr]"><ol className="space-y-2 text-sm text-muted-foreground">{transactions.map((transaction, index) => <li key={transaction} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={transaction.replace(/K([0-9,]+)/g, `${currency} $1`)} /></li>)}</ol><div className="rounded-xl border bg-background p-3"><div className="mb-2 text-sm font-semibold">Simulation stages</div><ol className="space-y-2 text-xs text-muted-foreground">{stages.map((stage, index) => <li key={stage}>{index + 1}. {stage}</li>)}</ol></div></div></div>;
+  return (
+    <div className="space-y-3 rounded-2xl border p-4">
+      <div className="flex min-w-0 items-center gap-2 font-semibold"><BriefcaseBusiness className="h-4 w-4 shrink-0" /> <span className="min-w-0 break-words">{String(data.businessName ?? 'Accounting business simulator')}</span></div>
+      <GenericWorkpaperTable data={data} />
+      {transactions.length ? <ol className="space-y-2 text-sm text-muted-foreground">{transactions.slice(0, 4).map((transaction, index) => <li key={transaction} className="rounded-xl bg-muted/30 p-3">{index + 1}. <MathText text={transaction.replace(/K([0-9,]+)/g, `${currency} $1`)} /></li>)}</ol> : null}
+    </div>
+  );
 }
 
-function MarkingScheme({ totalMarks, items }: { totalMarks: number; items: { description: string; marks: number }[] }) { return <AccountingTable title="Marking scheme" columns={['Marking point', 'Marks']} rows={items.map((item) => [item.description, String(item.marks)]).concat([['Total', String(totalMarks)]])} />; }
-function BalanceBanner({ balanced, debit, credit, currency }: { balanced: boolean; debit: number; credit: number; currency: string }) { return <div className={`rounded-xl border p-3 text-sm ${balanced ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-destructive/30 bg-destructive/10'}`}><div className="flex items-center gap-2 font-medium">{balanced ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />} {balanced ? 'Balanced' : 'Not balanced'}</div><p className="mt-1 text-muted-foreground">Debit: {formatMoney(debit, currency)} · Credit: {formatMoney(credit, currency)}</p></div>; }
-function FormulaResult({ title, formula, result }: { title: string; formula: string; result: string }) { return <div className="rounded-2xl border p-4"><div className="font-semibold">{title}</div><div className="mt-2 rounded-xl bg-muted/30 p-3 text-sm">{formula}</div><div className="mt-3 text-lg font-semibold">{result}</div></div>; }
-function AccountingTable({ columns, rows, title = 'Accounting table' }: { columns: string[]; rows: unknown[][]; title?: string }) { return <AnimatedAccountingTable title={title} columns={columns} rows={rows} />; }
-function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-muted/30 p-3"><div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div><div className="font-medium">{value}</div></div>; }
-function sumAmounts(value: unknown) { if (!Array.isArray(value)) return 0; return value.reduce((sum, item) => sum + Number((typeof item === 'object' && item !== null ? (item as Record<string, unknown>).amount : item) ?? 0), 0); }
+function GenericWorkpaperTable({ data }: { data: Record<string, unknown> }) {
+  if (!Array.isArray(data.columns) || !Array.isArray(data.rows)) return null;
+  return <AccountingTable title={String(data.tableKind ?? 'Accounting workpaper')} columns={data.columns.map(String)} rows={(data.rows as unknown[]).map((row) => Array.isArray(row) ? row : [row])} />;
+}
+
+function Depreciation({ data, currency }: { data: Record<string, unknown>; currency: string }) {
+  return <FormulaResult title={`${String(data.asset ?? 'Asset')} depreciation`} formula={String(data.method ?? 'straight_line').replace(/_/g, ' ')} result={formatMoney(calculateDepreciation(data), currency)} />;
+}
+
+function InventoryValuation({ data, currency }: { data: Record<string, unknown>; currency: string }) {
+  const result = calculateInventory(data);
+  return <AccountingTable title="Inventory valuation" columns={['Measure', 'Amount']} rows={[[`Cost of goods sold (${String(data.method ?? 'FIFO')})`, formatMoney(result.cogs, currency)], ['Closing inventory', formatMoney(result.closingInventory, currency)]]} />;
+}
+
+function RatioAnalysis({ data }: { data: Record<string, unknown> }) {
+  const ratios = calculateRatios(data.financialData && typeof data.financialData === 'object' ? data.financialData as Record<string, unknown> : data);
+  return <AccountingTable title="Ratio analysis" columns={['Ratio', 'Result', 'Interpretation']} rows={Object.entries(ratios).filter(([, value]) => value > 0).map(([key, value]) => [key.replace(/_/g, ' '), String(value), key.includes('margin') ? `${value}%` : `${value}:1`])} />;
+}
+
+function ErrorCorrection({ data, currency }: { data: Record<string, unknown>; currency: string }) {
+  const rows = normalizeJournalRows(data.correctionRows ?? data.rows);
+  return <div className="space-y-3"><div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm"><AlertTriangle className="mb-2 h-4 w-4" />{String(data.errorDescription ?? 'Describe the accounting error.')}</div><JournalEntryTable rows={rows} currency={currency} /></div>;
+}
+
+function MarkingScheme({ totalMarks, items }: { totalMarks: number; items: { description: string; marks: number }[] }) {
+  return <AccountingTable title="Marking scheme" columns={['Marking point', 'Marks']} rows={items.map((item) => [item.description, String(item.marks)]).concat([['Total', String(totalMarks)]])} />;
+}
+
+function BalanceBanner({ balanced, debit, credit, currency }: { balanced: boolean; debit: number; credit: number; currency: string }) {
+  return <div className={`rounded-xl border p-3 text-sm ${balanced ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-destructive/30 bg-destructive/10'}`}><div className="flex items-center gap-2 font-medium">{balanced ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />} {balanced ? 'Balanced' : 'Not balanced'}</div><p className="mt-1 text-muted-foreground">Debit: {formatMoney(debit, currency)} · Credit: {formatMoney(credit, currency)}</p></div>;
+}
+
+function FormulaResult({ title, formula, result }: { title: string; formula: string; result: string }) {
+  return <div className="rounded-2xl border p-4"><div className="font-semibold">{title}</div><div className="mt-2 rounded-xl bg-muted/30 p-3 text-sm">{formula}</div><div className="mt-3 text-lg font-semibold">{result}</div></div>;
+}
+
+function EmptyState({ children }: { children: ReactNode }) {
+  return <p className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">{children}</p>;
+}
+
+function AccountingTable({ columns, rows, title = 'Accounting table' }: { columns: string[]; rows: unknown[][]; title?: string }) {
+  return <AnimatedAccountingTable title={title} columns={columns} rows={rows} />;
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl bg-muted/30 p-3"><div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div><div className="break-words font-medium">{value}</div></div>;
+}
+
+function sumAmounts(value: unknown) {
+  if (!Array.isArray(value)) return 0;
+  return value.reduce((sum, item) => sum + Number((typeof item === 'object' && item !== null ? (item as Record<string, unknown>).amount : item) ?? 0), 0);
+}
