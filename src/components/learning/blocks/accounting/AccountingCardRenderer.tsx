@@ -33,7 +33,6 @@ import {
 } from './engine';
 
 const accountingSectionLabels: Record<string, string> = {
-  accounting_course_map: 'Course map',
   accounting_intro: 'Accounting intro',
   accounting_equation: 'Accounting equation',
   accounting_account_classification: 'Account classification',
@@ -123,7 +122,6 @@ function renderAccountingSection(
   body: ReactNode,
   currency: string,
 ) {
-  if (sectionType === 'accounting_course_map') return <AccountingCourseMap data={content.data} />;
   if (sectionType === 'accounting_equation') return <AccountingEquation data={content.data} />;
   if (sectionType === 'accounting_account_classification') return <AccountClassification data={content.data} />;
   if (sectionType === 'accounting_transaction_analysis') return <TransactionAnalysis data={content.data} />;
@@ -137,27 +135,6 @@ function renderAccountingSection(
       : <EmptyState>No marking scheme has been attached to this accounting activity.</EmptyState>;
   }
   return <FocusedAccountingPanel title={accountingSectionLabels[sectionType] ?? 'Accounting card'}>{body}</FocusedAccountingPanel>;
-}
-
-function AccountingCourseMap({ data }: { data: Record<string, unknown> }) {
-  const path = normalizeTextList(data.learningPath);
-  const outcomes = normalizeTextList(data.outcomes);
-  const tools = normalizeTextList(data.tools);
-  return (
-    <div className="space-y-4">
-      <section className="rounded-3xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
-        <div className="mb-2 text-sm font-semibold text-primary">Accounting course journey</div>
-        <p className="break-words text-sm leading-6 text-muted-foreground"><MathText text={String(data.courseGoal ?? data.explanation ?? 'Move from business events to professional accounting reports.')} /></p>
-      </section>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {path.map((item, index) => <div key={`${item}-${index}`} className="rounded-2xl border bg-muted/20 p-3 text-sm"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{index + 1}</span><MathText text={item} /></div>)}
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <MiniList title="Course outcomes" items={outcomes} />
-        <MiniList title="Learning tools" items={tools} />
-      </div>
-    </div>
-  );
 }
 
 function AccountingEquation({ data }: { data: Record<string, unknown> }) {
