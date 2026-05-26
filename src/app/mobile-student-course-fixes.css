@@ -39,6 +39,39 @@
   }
 }
 
+/* Lesson player card safety patch.
+   Icons must stay icon-sized; real graphs/diagrams remain responsive. */
+.univai-lesson-render-safe,
+.univai-lesson-render-safe * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.univai-lesson-render-safe :where(p, span, li, div, button, input, textarea) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.univai-lesson-render-safe svg.lucide,
+.univai-lesson-render-safe .lucide,
+article svg.lucide,
+article .lucide {
+  display: inline-block !important;
+  width: 1rem !important;
+  min-width: 1rem !important;
+  max-width: 1rem !important;
+  height: 1rem !important;
+  min-height: 1rem !important;
+  max-height: 1rem !important;
+  flex: 0 0 1rem !important;
+}
+
+.univai-lesson-render-safe table {
+  max-width: 100% !important;
+  table-layout: fixed;
+}
+
 @media (max-width: 767px) {
   /* Make payment/enrollment controls easier to tap on phones. */
   a[href*="/student/courses"],
@@ -67,5 +100,10 @@
   div[class*="xl:grid-cols-\[1fr_360px\]"] aside button {
     width: 100% !important;
     font-weight: 700 !important;
+  }
+
+  .univai-lesson-render-safe svg:not(.lucide) {
+    max-width: 100% !important;
+    height: auto;
   }
 }
