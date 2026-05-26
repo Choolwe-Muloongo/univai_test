@@ -1,106 +1,17 @@
 // src/app/login/instructor/page.tsx
-'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Logo } from '@/components/icons/logo';
-import Link from 'next/link';
-import { login } from '@/lib/api';
-import { useSession } from '@/components/providers/session-provider';
-import { getPostAuthDestination } from '@/lib/auth-routing';
-import { RoleIntentSwitcher } from '@/components/auth/role-intent-switcher';
-
-const privilegedRole = ['a', 'd', 'm', 'i', 'n'].join('');
+import { AuthLoginPage } from '@/components/auth/auth-login-page';
 
 export default function InstructorLoginPage() {
-  const router = useRouter();
-  const { refresh } = useSession();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    try {
-      let session;
-      try {
-        session = await login({ email, password, role: 'instructor' });
-      } catch (roleError) {
-        const nextSession = await login({ email, password });
-        if (nextSession?.user?.role !== privilegedRole) throw roleError;
-        session = nextSession;
-      }
-      await refresh();
-      router.push(getPostAuthDestination(session?.user));
-    } catch (err) {
-      console.error(err);
-      setError('Sign in failed. Check your details and try again.');
-    }
-  };
-
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
-       <div className="absolute left-4 top-4 md:left-8 md:top-8">
-        <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
-          <Logo className="size-8" />
-          <span>UnivAI</span>
-        </Link>
-      </div>
-
-      <div className="w-full max-w-md">
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle>Instructor Login</CardTitle>
-            <CardDescription>
-              Sign in to manage your courses and learners.
-            </CardDescription>
-          </CardHeader>
-          <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4">
-              {error && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="instructor@univai.edu"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex-col gap-4">
-              <Button className="w-full" type="submit">
-                Continue as Instructor
-              </Button>
-              {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                <p className="font-semibold text-foreground">Demo credentials</p>
-                <p>instructor@univai.edu / password123</p>
-              </div> : null}
-              <RoleIntentSwitcher currentRole="instructor" compact />
-            </CardFooter>
-          </form>
-        </Card>
-      </div>
-    </div>
+    <AuthLoginPage
+      currentRole="instructor"
+      loginRole="instructor"
+      title="Instructor sign in"
+      description="Manage your courses, learners, content, and teaching tools."
+      submitLabel="Continue as Instructor"
+      emailPlaceholder="instructor@univai.edu"
+      allowPrivilegedFallback
+      demoCredentials={[{ email: 'instructor@univai.edu', password: 'password123' }]}
+    />
   );
 }
