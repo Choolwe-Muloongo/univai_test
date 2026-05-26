@@ -24,7 +24,14 @@ export default function LecturerLoginPage() {
     e.preventDefault();
     setError(null);
     try {
-      const session = await login({ email, password });
+      let session;
+      try {
+        session = await login({ email, password, role: 'lecturer' });
+      } catch (roleError) {
+        const nextSession = await login({ email, password });
+        if (nextSession?.user?.role !== 'admin') throw roleError;
+        session = nextSession;
+      }
       await refresh();
       router.push(getPostAuthDestination(session?.user));
     } catch (err) {
@@ -47,7 +54,7 @@ export default function LecturerLoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Lecturer Login</CardTitle>
             <CardDescription>
-              Sign in to continue to the correct dashboard for your account.
+              Sign in to manage modules, sessions, and progress.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
@@ -81,7 +88,7 @@ export default function LecturerLoginPage() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button className="w-full" type="submit">
-                Sign in
+                Continue as Lecturer
               </Button>
               {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>
