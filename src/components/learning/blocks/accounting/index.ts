@@ -23,6 +23,24 @@ type AccountingCardSpec = {
   bestUsedFor?: string[];
 };
 
+type BlockDifficulty = LearningBlockDefinition['difficulty'];
+
+function mapAccountingDifficulty(difficulty?: AccountingCardSpec['difficulty']): BlockDifficulty {
+  switch (difficulty) {
+    case 'beginner':
+      return 'introductory';
+    case 'intermediate':
+      return 'medium';
+    case 'advanced':
+      return 'hard';
+    case 'professional':
+    case 'phd':
+      return 'advanced';
+    default:
+      return 'introductory';
+  }
+}
+
 const baseJournalRows = [
   { account: 'Cash', debit: 10000, credit: 0 },
   { account: 'Capital', debit: 0, credit: 10000 },
@@ -573,7 +591,7 @@ const accountingSectionDefinitions: LearningBlockDefinition[] = accountingCardSp
     'For accounting courses, prefer multiple focused accounting cards instead of one huge card.',
     'Use ZMW examples for local beginner lessons unless another currency is requested.',
   ].join(' '),
-  difficulty: spec.difficulty === 'professional' || spec.difficulty === 'phd' ? 'advanced' : 'intermediate',
+  difficulty: mapAccountingDifficulty(spec.difficulty),
   bestUsedFor: spec.bestUsedFor ?? [spec.label.toLowerCase(), 'accounting course design', 'structured accounting learning'],
   autoMarked: spec.type === 'accounting_exam_question',
 }));
