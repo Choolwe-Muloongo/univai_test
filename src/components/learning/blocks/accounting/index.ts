@@ -89,22 +89,6 @@ const accountingPayloadSchema = {
 
 const accountingCardSpecs: AccountingCardSpec[] = [
   {
-    type: 'accounting_course_map',
-    label: 'Accounting Course Map',
-    description: 'Beautiful course overview card showing the accounting journey, modules, outcomes, tools, and practice flow.',
-    accountingType: 'concept',
-    title: 'Accounting learning journey',
-    body: 'Show students where the course is going before they begin: concepts, transactions, journals, ledgers, trial balance, statements, analysis, and exam practice.',
-    data: {
-      concept: 'Accounting course journey',
-      courseGoal: 'Move from business events to complete financial statements and professional interpretation.',
-      learningPath: ['Business event', 'Account effect', 'Journal entry', 'Ledger posting', 'Trial balance', 'Adjustments', 'Financial statements', 'Analysis', 'Exam answer'],
-      outcomes: ['Explain accounting concepts', 'Record transactions', 'Prepare ledgers', 'Balance a trial balance', 'Prepare statements', 'Interpret performance'],
-      tools: ['Scenario cards', 'Journal workspace', 'Ledger tables', 'Trial balance checks', 'Statement templates', 'Exam marking schemes'],
-    },
-    bestUsedFor: ['first card in an accounting course', 'module overview', 'student orientation'],
-  },
-  {
     type: 'accounting_intro',
     label: 'Accounting Intro',
     description: 'Teacher-style explanation card for concepts, rules, hints, common mistakes, and guided accounting reasoning.',
@@ -585,7 +569,7 @@ const accountingSectionDefinitions: LearningBlockDefinition[] = accountingCardSp
   aiInstructions: [
     `Use type ${spec.type} for ${spec.label}.`,
     'Accounting is not a separate studio. Use these accounting cards inside the normal lesson builder alongside text cards, examples, teaching threads, quizzes, media, and assessments.',
-    'Keep one learner action per card. Build the learning path as course map, concept, scenario, analysis, journal, ledger, trial balance, adjustment, statement, interpretation, practice, and marking scheme.',
+    'Keep one learner action per card. Build the learning path with concept, scenario, analysis, journal, ledger, trial balance, adjustment, statement, interpretation, practice, and marking scheme cards.',
     'For accounting courses, prefer multiple focused accounting cards instead of one huge card.',
     'Use ZMW examples for local beginner lessons unless another currency is requested.',
   ].join(' '),
