@@ -61,6 +61,10 @@ export const rendererRegistry: Record<string, ScientificRenderer> = {
 
   collision: visualOnly(CollisionSimulationRenderer),
   kinematics_graph: GraphPhysicsRenderer,
+  coordinate_graph: GraphPhysicsRenderer,
+  linear_graph: GraphPhysicsRenderer,
+  line_graph: GraphPhysicsRenderer,
+  graph: GraphPhysicsRenderer,
   circuit: CircuitPhysicsRenderer,
   ray_diagram: OpticsPhysicsRenderer,
   wave: WavePhysicsRenderer,
