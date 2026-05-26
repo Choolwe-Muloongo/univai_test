@@ -115,6 +115,100 @@ div footer.sticky.bottom-0 button span {
   white-space: nowrap !important;
 }
 
+/* Full lesson player render shield.
+   Covers native cards, generic registered blocks, math visuals, Plotly, SVG diagrams,
+   media, code, tables, KaTeX, and every card shell rendered inside the player grid. */
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"],
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] *,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] article,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] article,
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] section,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] section,
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] aside,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] aside {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(p, span, li, h1, h2, h3, h4, h5, h6, div),
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(p, span, li, h1, h2, h3, h4, h5, h6, div) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(img, video, iframe, canvas),
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(img, video, iframe, canvas) {
+  display: block;
+  max-width: 100% !important;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] svg,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] svg {
+  max-width: 100% !important;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] svg.lucide,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] svg.lucide {
+  display: inline-block !important;
+  width: 1rem !important;
+  min-width: 1rem !important;
+  max-width: 1rem !important;
+  height: 1rem !important;
+  min-height: 1rem !important;
+  max-height: 1rem !important;
+  flex: 0 0 1rem !important;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] table,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] th,
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] td,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] th,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] pre,
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] code,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] pre,
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] code {
+  max-width: 100% !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(.katex, .katex-html, .base),
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.katex, .katex-html, .base) {
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+}
+
+main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(.plot-container, .js-plotly-plot, .plotly, .svg-container, .main-svg),
+main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(.plot-container, .js-plotly-plot, .plotly, .svg-container, .main-svg) {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 @media (max-width: 767px) {
   /* Make payment/enrollment controls easier to tap on phones. */
   a[href*="/student/courses"],
@@ -174,5 +268,18 @@ div footer.sticky.bottom-0 button span {
     padding-right: 0.625rem !important;
     font-size: 0.875rem !important;
     line-height: 1.1rem !important;
+  }
+
+  main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"],
+  main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+    padding-bottom: 7rem !important;
+  }
+
+  main [class*="xl:grid-cols-[minmax(0,1fr)_300px]"] :where(article, section, details),
+  main [class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] :where(article, section, details) {
+    border-radius: 1rem !important;
   }
 }
