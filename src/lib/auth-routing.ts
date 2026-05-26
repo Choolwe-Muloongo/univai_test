@@ -58,13 +58,6 @@ const roleIntentOptions: RoleIntentOption[] = [
     recommendedGoal: 'Publish your courses and manage instructor AI tools',
   },
   {
-    key: 'admin',
-    label: 'Admin',
-    description: 'Operate governance, compliance, and system setup.',
-    loginPath: '/login/admin',
-    recommendedGoal: 'Configure governance and institution tools',
-  },
-  {
     key: 'employer',
     label: 'Employer',
     description: 'Build your profile and post opportunities.',

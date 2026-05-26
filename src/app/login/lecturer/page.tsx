@@ -24,9 +24,16 @@ export default function LecturerLoginPage() {
     e.preventDefault();
     setError(null);
     try {
-      await login({ email, password, role: 'lecturer' });
+      let session;
+      try {
+        session = await login({ email, password, role: 'lecturer' });
+      } catch (roleError) {
+        const nextSession = await login({ email, password });
+        if (nextSession?.user?.role !== 'admin') throw roleError;
+        session = nextSession;
+      }
       await refresh();
-      router.push(getPostAuthDestination('lecturer'));
+      router.push(getPostAuthDestination(session?.user));
     } catch (err) {
       console.error(err);
       setError('Sign in failed. Check your details and try again.');

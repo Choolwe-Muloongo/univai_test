@@ -28,7 +28,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleStudentLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     try {
@@ -57,12 +57,12 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>Student Login</CardTitle>
+            <CardTitle>Login</CardTitle>
             <CardDescription>
-              Sign in to continue to admissions or your learning dashboard.
+              Sign in to continue to the correct dashboard for your account.
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleStudentLogin}>
+          <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
               {error && (
                 <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -90,7 +90,7 @@ export default function LoginPage() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button className="w-full" type="submit">
-                Continue as Student
+                Sign in
               </Button>
               {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>

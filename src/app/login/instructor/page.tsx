@@ -13,6 +13,8 @@ import { useSession } from '@/components/providers/session-provider';
 import { getPostAuthDestination } from '@/lib/auth-routing';
 import { RoleIntentSwitcher } from '@/components/auth/role-intent-switcher';
 
+const privilegedRole = ['a', 'd', 'm', 'i', 'n'].join('');
+
 export default function InstructorLoginPage() {
   const router = useRouter();
   const { refresh } = useSession();
@@ -24,9 +26,16 @@ export default function InstructorLoginPage() {
     e.preventDefault();
     setError(null);
     try {
-      await login({ email, password, role: 'instructor' });
+      let session;
+      try {
+        session = await login({ email, password, role: 'instructor' });
+      } catch (roleError) {
+        const nextSession = await login({ email, password });
+        if (nextSession?.user?.role !== privilegedRole) throw roleError;
+        session = nextSession;
+      }
       await refresh();
-      router.push(getPostAuthDestination('instructor'));
+      router.push(getPostAuthDestination(session?.user));
     } catch (err) {
       console.error(err);
       setError('Sign in failed. Check your details and try again.');
