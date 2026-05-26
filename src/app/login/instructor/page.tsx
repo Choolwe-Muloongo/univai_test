@@ -24,9 +24,9 @@ export default function InstructorLoginPage() {
     e.preventDefault();
     setError(null);
     try {
-      await login({ email, password, role: 'instructor' });
+      const session = await login({ email, password });
       await refresh();
-      router.push(getPostAuthDestination('instructor'));
+      router.push(getPostAuthDestination(session?.user));
     } catch (err) {
       console.error(err);
       setError('Sign in failed. Check your details and try again.');
@@ -47,7 +47,7 @@ export default function InstructorLoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Instructor Login</CardTitle>
             <CardDescription>
-              Sign in to manage your courses and learners.
+              Sign in to continue to the correct dashboard for your account.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
@@ -81,7 +81,7 @@ export default function InstructorLoginPage() {
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button className="w-full" type="submit">
-                Continue as Instructor
+                Sign in
               </Button>
               {process.env.NODE_ENV === 'development' ? <div className="w-full rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Demo credentials</p>
