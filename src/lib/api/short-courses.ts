@@ -93,6 +93,26 @@ export type PaymentVerification = {
   message?: string;
 };
 
+export type AccountingWorkspacePayload = {
+  type?: string;
+  title?: string;
+  body?: string;
+  content?: {
+    accountingType?: string;
+    difficulty?: string;
+    data?: Record<string, unknown>;
+    expectedAnswer?: Record<string, unknown>;
+    markingScheme?: {
+      totalMarks: number;
+      items: Array<{
+        description: string;
+        marks: number;
+        keywords?: string[];
+      }>;
+    };
+  };
+};
+
 export type ShortCourseQuestion = {
   id: string | number;
   question: string;
@@ -106,6 +126,16 @@ export type ShortCourseQuestion = {
   chemistryVisual?: Record<string, unknown> | null;
   physicsVisual?: Record<string, unknown> | null;
   diagram?: Record<string, unknown> | null;
+  accountingWorkspace?: AccountingWorkspacePayload | null;
+  expectedAnswer?: Record<string, unknown> | null;
+  markingScheme?: {
+    totalMarks: number;
+    items: Array<{
+      description: string;
+      marks: number;
+      keywords?: string[];
+    }>;
+  } | null;
   imageUrl?: string | null;
   imageAlt?: string | null;
   imageCaption?: string | null;
@@ -144,6 +174,7 @@ export type ShortCoursePracticePayload = {
 export type PracticeAnswer = {
   questionId: string | number;
   answer?: string;
+  workspaceAnswer?: Record<string, unknown>;
 };
 
 export type ExamAnswer = {
