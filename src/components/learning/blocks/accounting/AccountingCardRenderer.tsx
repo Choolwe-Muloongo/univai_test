@@ -13,7 +13,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { MathText } from '@/components/learning/math-text';
 import type { BlockRendererProps } from '../schemas';
-import { AccountingTeachingPlayer } from './AccountingTeachingPlayer';
 import { AnimatedAccountingTable } from './AnimatedAccountingTable';
 import { StudentAccountingWorkbench } from './StudentAccountingWorkbench';
 import {
@@ -77,24 +76,15 @@ export function AccountingCardRenderer({ payload, definition }: BlockRendererPro
   const content = getAccountingContent(payload);
   const data = content.data;
   const sectionType = String(payload.type ?? 'accounting_intro');
-  const sectionLabel = accountingSectionLabels[sectionType] ?? definition.label;
   const title = String(payload.title ?? data.title ?? definition.label);
   const currency = String(data.currency ?? 'ZMW');
   const body = renderAccountingBody(content.accountingType, data, currency);
 
   return (
     <div className="min-w-0 max-w-full overflow-hidden rounded-3xl border bg-background shadow-sm">
-      <header className="min-w-0 space-y-3 border-b bg-gradient-to-br from-muted/40 via-background to-primary/5 p-4 sm:p-5">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="max-w-full truncate rounded-full">{sectionLabel}</Badge>
-          <Badge variant="outline" className="max-w-full truncate rounded-full capitalize">{content.accountingType.replace(/_/g, ' ')}</Badge>
-          <Badge variant="outline" className="rounded-full capitalize">{content.difficulty}</Badge>
-          <Badge variant="outline" className="rounded-full">Normal lesson card</Badge>
-        </div>
-        <div className="min-w-0 space-y-1">
-          <h3 className="break-words text-xl font-semibold tracking-tight"><MathText text={title} /></h3>
-          {payload.body ? <p className="max-w-3xl break-words text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
-        </div>
+      <header className="min-w-0 space-y-1 border-b bg-gradient-to-br from-muted/30 via-background to-primary/5 p-4 sm:p-5">
+        <h3 className="break-words text-xl font-semibold tracking-tight"><MathText text={title} /></h3>
+        {payload.body ? <p className="max-w-3xl break-words text-sm leading-6 text-muted-foreground"><MathText text={String(payload.body)} /></p> : null}
       </header>
 
       <div className="min-w-0 max-w-full space-y-4 overflow-hidden p-4 sm:p-5">
@@ -125,7 +115,7 @@ function renderAccountingSection(
   if (sectionType === 'accounting_equation') return <AccountingEquation data={content.data} />;
   if (sectionType === 'accounting_account_classification') return <AccountClassification data={content.data} />;
   if (sectionType === 'accounting_transaction_analysis') return <TransactionAnalysis data={content.data} />;
-  if (sectionType === 'accounting_intro') return <AccountingTeachingPlayer content={content} title={String(content.data.title ?? 'Accounting intro')}>{null}</AccountingTeachingPlayer>;
+  if (sectionType === 'accounting_intro') return <AccountingWorkbookCard data={content.data} />;
   if (sectionType === 'accounting_scenario') return <TransactionScenario data={content.data} currency={currency} />;
   if (sectionType === 'accounting_feedback') return <AccountingFeedback />;
   if (sectionType === 'accounting_exam_question') return <StudentAccountingWorkbench content={content} currency={currency} />;
@@ -260,6 +250,24 @@ function ConceptCard({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+
+function AccountingWorkbookCard({ data }: { data: Record<string, unknown> }) {
+  const explanation = String(data.explanation ?? data.concept ?? '');
+  const scenario = String(data.scenario ?? data.description ?? data.question ?? '');
+  const treatment = String(data.accountingTreatment ?? data.treatment ?? data.answer ?? '');
+  const whyCorrect = String(data.whyCorrect ?? data.reasoning ?? data.rationale ?? '');
+  return (
+    <div className="space-y-4">
+      {explanation ? <div className="rounded-2xl border bg-muted/10 p-4 text-sm leading-6 text-muted-foreground"><MathText text={explanation} /></div> : null}
+      {scenario ? <div className="rounded-2xl border p-4"><div className="mb-2 text-sm font-semibold">Scenario</div><p className="text-sm leading-6 text-muted-foreground"><MathText text={scenario} /></p></div> : null}
+      {treatment ? <div className="rounded-2xl border p-4"><div className="mb-2 text-sm font-semibold">Accounting Treatment</div><p className="text-sm leading-6 text-muted-foreground"><MathText text={treatment} /></p></div> : null}
+      <GenericWorkpaperTable data={data} />
+      {whyCorrect ? <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><div className="mb-2 text-sm font-semibold">Why This Is Correct</div><p className="text-sm leading-6 text-muted-foreground"><MathText text={whyCorrect} /></p></div> : null}
+      <MiniList title="Common Exam Trap" items={normalizeTextList(data.commonMistakes)} />
+      <MiniList title="Try This" items={normalizeTextList(data.tryThis ?? data.practicePrompts ?? data.teacherNotes)} />
+    </div>
+  );
+}
 function TransactionScenario({ data, currency }: { data: Record<string, unknown>; currency: string }) {
   const accounts = Array.isArray(data.expectedAccounts) ? data.expectedAccounts.map(String) : [];
   const required = normalizeTextList(data.required);
