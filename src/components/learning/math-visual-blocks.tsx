@@ -9,6 +9,15 @@ import type { PhysicsVisual } from '@/components/learning/blocks/physics/types';
 type AnyBlock = Record<string, any>;
 
 const mathVisualTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn']);
+const physicsTemplates = new Set([
+  'free_body', 'pulley', 'kinematics_graph', 'projectile', 'inclined_plane', 'moments', 'spring',
+  'angle_vector_resolution', 'collision', 'momentum_conservation', 'elastic_collision', 'inelastic_collision',
+  'perfectly_inelastic_collision', 'explosion_separation', 'impulse_collision', 'collision_graph',
+  'collision_vector_diagram', 'circuit', 'ray_diagram', 'wave', 'electric_field', 'magnetic_field',
+  'thermodynamic_cycle', 'heat_engine', 'fluid_flow', 'hydraulic_press', 'fluid_pressure', 'pascal_principle',
+  'bernoulli_flow', 'continuity_equation', 'buoyancy', 'pipe_flow', 'manometer', 'hydraulic_cylinder',
+  'hydraulic_brake', 'brake_hydraulics', 'pump_valve_circuit', 'custom',
+]);
 
 export function MathVisualBlock({ block }: { block: AnyBlock }) {
   const renderBlock = resolveRenderableMathBlock(block);
@@ -111,7 +120,7 @@ function NumberLineBlock({ block }: { block: AnyBlock }) {
 
 function MatrixBlock({ block }: { block: AnyBlock }) {
   const matrix = Array.isArray(block.matrix) ? block.matrix : [];
-  const latex = `\\begin{bmatrix}${matrix.map((row: any[]) => row.join(' & ')).join(' \\\\ ')}\\end{bmatrix}`;
+  const latex = `\begin{bmatrix}${matrix.map((row: any[]) => row.join(' & ')).join(' \\ ')}\end{bmatrix}`;
   return (
     <div className="space-y-3">
       {block.description ? <p className="text-sm text-muted-foreground"><MathText text={block.description} /></p> : null}
@@ -284,24 +293,53 @@ function resolveChemistryVisual(block: AnyBlock): ChemistryVisual | null {
 }
 
 function resolvePhysicsVisual(block: AnyBlock): PhysicsVisual | null {
+  const template = String(block.template ?? '').trim();
   const looksLikePhysics = block.subject === 'physics'
     || block.type === 'physics_visual'
-    || block.template === 'wave'
-    || block.template === 'free_body'
-    || block.template === 'pulley'
-    || block.template === 'collision'
+    || physicsTemplates.has(template)
     || Array.isArray(block.objects);
   if (!looksLikePhysics) return null;
+
+  const metadata = {
+    ...(block.metadata && typeof block.metadata === 'object' ? block.metadata : {}),
+    title: block.title,
+    name: block.name,
+    mode: block.mode,
+    graph: block.graph,
+    points: block.points,
+    dataPoints: block.dataPoints,
+    coordinates: block.coordinates,
+    areaSegments: block.areaSegments,
+    summaryText: block.summaryText,
+    xLabel: block.xLabel ?? block.xAxisLabel,
+    yLabel: block.yLabel ?? block.yAxisLabel,
+    xMin: block.xMin,
+    xMax: block.xMax,
+    yMin: block.yMin,
+    yMax: block.yMax,
+    showArea: block.showArea,
+    showGradient: block.showGradient,
+    angle: block.angle ?? block.theta,
+    initialVelocity: block.initialVelocity ?? block.u,
+    horizontalComponent: block.horizontalComponent ?? block.ux,
+    verticalComponent: block.verticalComponent ?? block.uy,
+    gravity: block.gravity,
+    mass: block.mass ?? block.massKg,
+    vectorLabel: block.vectorLabel,
+    magnitude: block.magnitude,
+    equation: block.equation,
+  };
+
   return {
     id: block.id || 'lesson-physics-visual',
     subject: 'physics',
-    visualType: block.visualType || 'diagram',
-    template: block.template || 'custom',
+    visualType: block.visualType || (template === 'kinematics_graph' ? 'graph' : 'diagram'),
+    template: template || 'custom',
     renderMode: block.renderMode || 'svg',
     canvas: {
-      width: Number(block.canvas?.width || 800),
-      height: Number(block.canvas?.height || 500),
-      background: block.canvas?.background || 'plain',
+      width: Number(block.canvas?.width || (template === 'kinematics_graph' ? 900 : 800)),
+      height: Number(block.canvas?.height || (template === 'kinematics_graph' ? 520 : 500)),
+      background: block.canvas?.background || (template === 'kinematics_graph' ? 'graph_paper' : 'plain'),
       unitScale: block.canvas?.unitScale,
     },
     objects: Array.isArray(block.objects) ? block.objects : [],
@@ -311,7 +349,7 @@ function resolvePhysicsVisual(block: AnyBlock): PhysicsVisual | null {
     steps: Array.isArray(block.steps) ? block.steps : [],
     interactions: Array.isArray(block.interactions) ? block.interactions : [],
     equations: Array.isArray(block.equations) ? block.equations : [],
-    metadata: block.metadata || {},
+    metadata,
   } as PhysicsVisual;
 }
 
