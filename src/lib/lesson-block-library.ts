@@ -92,7 +92,7 @@ const starterTemplates: LessonBlockTemplate[] = BLOCK_TEMPLATE_LIBRARY.map((temp
     teachingMove: template.intent,
     label: `${template.domainLabel}: ${template.label}`,
     help: template.description,
-    type: visualTypes.has(block.type) ? 'teach' : block.type,
+    type: block.type,
     title: block.title || template.label,
     body: block.body || stringValue(block.description),
     question: block.question,
