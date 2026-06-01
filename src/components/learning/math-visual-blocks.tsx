@@ -8,21 +8,25 @@ import type { PhysicsVisual } from '@/components/learning/blocks/physics/types';
 
 type AnyBlock = Record<string, any>;
 
+const mathVisualTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn']);
+
 export function MathVisualBlock({ block }: { block: AnyBlock }) {
-  const chemistryVisual = resolveChemistryVisual(block);
+  const renderBlock = resolveRenderableMathBlock(block);
+
+  const chemistryVisual = resolveChemistryVisual(renderBlock);
   if (chemistryVisual) return <ChemistryVisualRenderer visual={chemistryVisual} mode="student" />;
 
-  const physicsVisual = resolvePhysicsVisual(block);
+  const physicsVisual = resolvePhysicsVisual(renderBlock);
   if (physicsVisual) return <PhysicsVisualRenderer visual={physicsVisual} mode="student" />;
 
-  if (block.type === 'equation' || block.type === 'formula') return <EquationBlock block={block} />;
-  if (block.type === 'graph') return <GraphBlock block={block} />;
-  if (block.type === 'table') return <TableBlock block={block} />;
-  if (block.type === 'number_line') return <NumberLineBlock block={block} />;
-  if (block.type === 'matrix') return <MatrixBlock block={block} />;
-  if (block.type === 'formula_sheet') return <FormulaSheetBlock block={block} />;
-  if (block.type === 'geometry') return <GeometryBlock block={block} />;
-  if (block.type === 'venn') return <ProfessionalVennBlock block={block} />;
+  if (renderBlock.type === 'equation' || renderBlock.type === 'formula') return <EquationBlock block={renderBlock} />;
+  if (renderBlock.type === 'graph') return <GraphBlock block={renderBlock} />;
+  if (renderBlock.type === 'table') return <TableBlock block={renderBlock} />;
+  if (renderBlock.type === 'number_line') return <NumberLineBlock block={renderBlock} />;
+  if (renderBlock.type === 'matrix') return <MatrixBlock block={renderBlock} />;
+  if (renderBlock.type === 'formula_sheet') return <FormulaSheetBlock block={renderBlock} />;
+  if (renderBlock.type === 'geometry') return <GeometryBlock block={renderBlock} />;
+  if (renderBlock.type === 'venn') return <ProfessionalVennBlock block={renderBlock} />;
   return null;
 }
 
@@ -159,6 +163,23 @@ function GeometryBlock({ block }: { block: AnyBlock }) {
       </div>
     </div>
   );
+}
+
+function resolveRenderableMathBlock(block: AnyBlock) {
+  const visual = block.visual;
+  if (!visual || typeof visual !== 'object' || Array.isArray(visual)) return block;
+
+  const rawType = String(visual.type ?? visual.visualType ?? block.type ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (!mathVisualTypes.has(rawType)) return block;
+
+  return {
+    ...block,
+    ...visual,
+    type: rawType,
+    title: block.title ?? visual.title,
+    body: block.body ?? visual.body,
+    description: block.description ?? visual.description,
+  };
 }
 
 function normalizeFormulaSheet(block: AnyBlock) {
