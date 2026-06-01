@@ -12,8 +12,10 @@ import { SpacetimeDiagramRenderer } from '../../physics/advanced/SpacetimeDiagra
 import { ThermodynamicCycleRenderer } from '../../physics/advanced/ThermodynamicCycleRenderer';
 import { CircuitPhysicsRenderer } from '../../physics/renderers/CircuitPhysicsRenderer';
 import { CollisionSimulationRenderer } from '../../physics/renderers/CollisionSimulationRenderer';
+import { FreeBodyTeachingRenderer, InclinedPlaneTeachingRenderer, VectorResolutionRenderer } from '../../physics/renderers/ForceTeachingRenderers';
 import { GraphPhysicsRenderer } from '../../physics/renderers/GraphPhysicsRenderer';
 import { OpticsPhysicsRenderer } from '../../physics/renderers/OpticsPhysicsRenderer';
+import { ProjectileMotionRenderer } from '../../physics/renderers/ProjectileMotionRenderer';
 import { SvgDiagramRenderer } from '../../physics/renderers/SvgDiagramRenderer';
 import { WavePhysicsRenderer } from '../../physics/renderers/WavePhysicsRenderer';
 
@@ -51,13 +53,13 @@ function EngineeringSvgRenderer(props: ScientificRendererProps) {
 const hydraulicsRenderer = visualOnly(HydraulicsRenderer);
 
 export const rendererRegistry: Record<string, ScientificRenderer> = {
-  free_body: svgFallback,
+  free_body: FreeBodyTeachingRenderer,
   pulley: svgFallback,
-  projectile: svgFallback,
-  inclined_plane: svgFallback,
+  projectile: ProjectileMotionRenderer,
+  inclined_plane: InclinedPlaneTeachingRenderer,
   moments: svgFallback,
   spring: svgFallback,
-  angle_vector_resolution: svgFallback,
+  angle_vector_resolution: VectorResolutionRenderer,
 
   collision: visualOnly(CollisionSimulationRenderer),
   kinematics_graph: GraphPhysicsRenderer,
