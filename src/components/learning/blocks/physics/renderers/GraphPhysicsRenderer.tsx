@@ -93,17 +93,57 @@ function AreaShape({ segment, index, mapX, mapY, zeroY, onSelect }: { segment: A
   const x2 = mapX(segment.endTime);
   const y1 = mapY(segment.startValue);
   const y2 = mapY(segment.endValue);
-  const points = `${x1},${zeroY} ${x1},${y1} ${x2},${y2} ${x2},${zeroY}`;
-  const labelX = (x1 + x2) / 2;
-  const labelY = Math.min(y1, y2, zeroY) + 26 + index * 6;
-  const label = [segment.label, segment.shapeType.replace(/_/g, ' '), segment.calculationText, segment.resultText].filter(Boolean).join(' = ');
+  const polygonPoints = areaPolygonPoints(segment, x1, x2, y1, y2, zeroY);
+  const labelPoint = areaLabelPoint(segment, x1, x2, y1, y2, zeroY, index);
+  const shapeName = segment.shapeType.replace(/_/g, ' ');
+  const label = [segment.label, shapeName, segment.calculationText, segment.resultText].filter(Boolean).join(' = ');
   return (
     <g className="cursor-pointer" onClick={() => onSelect(segment.id)}>
-      <polygon points={points} className="fill-primary/15 stroke-primary/40" strokeWidth="2" />
-      <text x={labelX} y={labelY} textAnchor="middle" className="fill-foreground text-[12px] font-bold">{label}</text>
-      {segment.formulaText ? <text x={labelX} y={labelY + 16} textAnchor="middle" className="fill-muted-foreground text-[11px] font-semibold">{segment.formulaText}</text> : null}
+      <polygon points={polygonPoints} className="fill-primary/15 stroke-primary/40" strokeWidth="2" />
+      <line x1={x1} x2={x1} y1={zeroY} y2={y1} className="stroke-primary/30" strokeWidth="2" strokeDasharray="6 6" />
+      <line x1={x2} x2={x2} y1={zeroY} y2={y2} className="stroke-primary/30" strokeWidth="2" strokeDasharray="6 6" />
+      <text x={labelPoint.x} y={labelPoint.y} textAnchor="middle" className="fill-foreground text-[12px] font-bold">{label}</text>
+      {segment.formulaText ? <text x={labelPoint.x} y={labelPoint.y + 16} textAnchor="middle" className="fill-muted-foreground text-[11px] font-semibold">{segment.formulaText}</text> : null}
     </g>
   );
+}
+
+function areaPolygonPoints(segment: AreaSegment, x1: number, x2: number, y1: number, y2: number, zeroY: number) {
+  const startIsOnAxis = nearlyEqual(y1, zeroY);
+  const endIsOnAxis = nearlyEqual(y2, zeroY);
+
+  if (segment.shapeType === 'rectangle') {
+    const topY = Math.abs(y1 - zeroY) >= Math.abs(y2 - zeroY) ? y1 : y2;
+    return `${x1},${zeroY} ${x1},${topY} ${x2},${topY} ${x2},${zeroY}`;
+  }
+
+  if (segment.shapeType === 'triangle') {
+    const apexX = Math.abs(y1 - zeroY) >= Math.abs(y2 - zeroY) ? x1 : x2;
+    const apexY = Math.abs(y1 - zeroY) >= Math.abs(y2 - zeroY) ? y1 : y2;
+    return `${x1},${zeroY} ${apexX},${apexY} ${x2},${zeroY}`;
+  }
+
+  if (segment.shapeType === 'above_time_axis' || segment.shapeType === 'below_time_axis') {
+    return `${x1},${zeroY} ${x1},${y1} ${x2},${y2} ${x2},${zeroY}`;
+  }
+
+  if (startIsOnAxis || endIsOnAxis) {
+    const apexX = startIsOnAxis ? x2 : x1;
+    const apexY = startIsOnAxis ? y2 : y1;
+    return `${x1},${zeroY} ${apexX},${apexY} ${x2},${zeroY}`;
+  }
+
+  return `${x1},${zeroY} ${x1},${y1} ${x2},${y2} ${x2},${zeroY}`;
+}
+
+function areaLabelPoint(segment: AreaSegment, x1: number, x2: number, y1: number, y2: number, zeroY: number, index: number) {
+  const centerX = (x1 + x2) / 2;
+  const topOrBottomY = Math.abs(y1 - zeroY) >= Math.abs(y2 - zeroY) ? y1 : y2;
+  const insideY = (zeroY + topOrBottomY) / 2;
+  const nudge = index * 8;
+  if (segment.shapeType === 'triangle') return { x: centerX, y: insideY + nudge };
+  if (segment.shapeType === 'below_time_axis') return { x: centerX, y: Math.max(y1, y2, zeroY) - 18 + nudge };
+  return { x: centerX, y: Math.min(Math.min(y1, y2), zeroY) + 28 + nudge };
 }
 
 function GradientTriangle({ points, mapX, mapY, onSelect, isDemand }: { points: Point[]; mapX: (x: number) => number; mapY: (y: number) => number; onSelect: (id: string) => void; isDemand: boolean }) {
@@ -177,3 +217,4 @@ function padMax(max: number, min: number) { if (!Number.isFinite(max)) return mi
 function ticks(min: number, max: number, count: number) { const step = (max - min) / count || 1; return Array.from({ length: count + 1 }, (_, index) => min + step * index); }
 function formatTick(value: number) { if (Math.abs(value) >= 100) return String(Math.round(value)); if (Number.isInteger(value)) return String(value); return value.toFixed(1); }
 function clamp(value: number, min: number, max: number) { return Math.min(max, Math.max(min, value)); }
+function nearlyEqual(a: number, b: number) { return Math.abs(a - b) < 0.001; }
