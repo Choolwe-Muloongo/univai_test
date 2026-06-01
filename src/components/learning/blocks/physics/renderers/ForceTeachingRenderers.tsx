@@ -110,6 +110,56 @@ export function InclinedPlaneTeachingRenderer({ visual }: SvgDiagramRendererProp
   );
 }
 
+export function PulleyTeachingRenderer({ visual }: SvgDiagramRendererProps) {
+  const metadata = asRecord(visual.metadata);
+  const m1 = num(metadata.m1 ?? metadata.lighterMass, 3);
+  const m2 = num(metadata.m2 ?? metadata.heavierMass, 5);
+  return (
+    <Shell eyebrow="Pulley renderer" title="Connected bodies: pulley equation setup" note="Write one equation per mass, then add the equations to eliminate tension.">
+      <svg viewBox="0 0 900 540" className="block h-auto max-h-[70vh] w-full min-w-[320px] rounded-xl bg-background" preserveAspectRatio="xMidYMid meet">
+        <Defs /><rect width="900" height="540" className="fill-background" /><Grid />
+        <rect x="335" y="55" width="230" height="16" rx="4" className="fill-muted stroke-muted-foreground" />
+        <circle cx="450" cy="150" r="58" className="fill-background stroke-foreground" strokeWidth="5" />
+        <circle cx="450" cy="150" r="12" className="fill-muted stroke-foreground" strokeWidth="3" />
+        <path d="M 310 150 Q 450 45 590 150" fill="none" className="stroke-foreground" strokeWidth="5" />
+        <line x1="310" y1="150" x2="310" y2="305" className="stroke-foreground" strokeWidth="5" />
+        <line x1="590" y1="150" x2="590" y2="305" className="stroke-foreground" strokeWidth="5" />
+        <rect x="260" y="305" width="100" height="90" rx="14" className="fill-cyan-50 stroke-cyan-700 dark:fill-cyan-950" strokeWidth="4" />
+        <rect x="540" y="305" width="100" height="90" rx="14" className="fill-amber-50 stroke-amber-700 dark:fill-amber-950" strokeWidth="4" />
+        <text x="310" y="356" textAnchor="middle" className="fill-foreground text-[18px] font-bold">m₁ = {round(m1)} kg</text>
+        <text x="590" y="356" textAnchor="middle" className="fill-foreground text-[18px] font-bold">m₂ = {round(m2)} kg</text>
+        <Arrow from={[310, 305]} to={[310, 220]} label="T" role="normal" />
+        <Arrow from={[590, 305]} to={[590, 220]} label="T" role="normal" />
+        <Arrow from={[310, 395]} to={[310, 485]} label="m₁g" role="weight" />
+        <Arrow from={[590, 395]} to={[590, 500]} label="m₂g" role="weight" />
+        <Arrow from={[650, 325]} to={[650, 405]} label="a" role="velocity" />
+        <text x="80" y="430" className="fill-foreground text-[17px] font-bold">Lighter mass: T - m₁g = m₁a</text>
+        <text x="80" y="462" className="fill-foreground text-[17px] font-bold">Heavier mass: m₂g - T = m₂a</text>
+        <text x="80" y="494" className="fill-muted-foreground text-[14px] font-semibold">Add both equations: tension cancels out.</text>
+      </svg>
+    </Shell>
+  );
+}
+
+export function MomentsTeachingRenderer() {
+  return (
+    <Shell eyebrow="Moments renderer" title="Moments and rotational equilibrium" note="Moment depends on force and perpendicular distance from the pivot.">
+      <svg viewBox="0 0 900 480" className="block h-auto max-h-[70vh] w-full min-w-[320px] rounded-xl bg-background" preserveAspectRatio="xMidYMid meet">
+        <Defs /><rect width="900" height="480" className="fill-background" />
+        <rect x="180" y="230" width="540" height="24" rx="8" className="fill-muted stroke-foreground" strokeWidth="4" />
+        <polygon points="450,254 410,360 490,360" className="fill-slate-200 stroke-slate-800 dark:fill-slate-700 dark:stroke-slate-200" strokeWidth="3" />
+        <text x="450" y="385" textAnchor="middle" className="fill-foreground text-[16px] font-bold">Pivot</text>
+        <Arrow from={[260, 205]} to={[260, 105]} label="F₁" />
+        <Arrow from={[650, 205]} to={[650, 120]} label="F₂" />
+        <Arrow from={[450, 285]} to={[260, 285]} label="d₁" role="velocity" />
+        <Arrow from={[450, 315]} to={[650, 315]} label="d₂" role="velocity" />
+        <text x="220" y="70" className="fill-foreground text-[18px] font-bold">Moment = force × perpendicular distance</text>
+        <text x="220" y="102" className="fill-muted-foreground text-[15px] font-semibold">At balance: clockwise moments = anticlockwise moments</text>
+      </svg>
+    </Shell>
+  );
+}
+
 function Shell({ eyebrow, title, note, children }: { eyebrow: string; title: string; note: string; children: React.ReactNode }) {
   return <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border bg-muted/10 p-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-primary">{eyebrow}</p><h3 className="break-words text-base font-bold text-foreground">{title}</h3><p className="break-words text-sm text-muted-foreground">{note}</p></div><div className="max-w-full overflow-x-auto rounded-2xl border bg-background p-1 sm:p-2">{children}</div></div>;
 }
