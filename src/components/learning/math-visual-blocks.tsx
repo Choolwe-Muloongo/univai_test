@@ -32,7 +32,7 @@ function EquationBlock({ block }: { block: AnyBlock }) {
       {block.body ? <p className="text-base leading-7 text-muted-foreground"><MathText text={block.body} /></p> : null}
       <div className="max-w-full rounded-2xl border bg-muted/40 p-3 text-center text-lg font-semibold sm:p-5 sm:text-2xl">
         <div className="max-w-full overflow-hidden break-words">
-          <MathText text={`$${block.equation || block.formula || block.body || ''}$`} />
+          <MathText text={asInlineLatex(block.equation || block.formula || block.body || '')} />
         </div>
       </div>
       {block.explanation ? <p className="text-sm leading-6 text-muted-foreground"><MathText text={block.explanation} /></p> : null}
@@ -111,14 +111,35 @@ function MatrixBlock({ block }: { block: AnyBlock }) {
   return (
     <div className="space-y-3">
       {block.description ? <p className="text-sm text-muted-foreground"><MathText text={block.description} /></p> : null}
-      <div className="max-w-full rounded-2xl border bg-muted/40 p-3 text-center text-lg sm:p-5 sm:text-xl"><div className="max-w-full overflow-hidden break-words"><MathText text={`$${latex}$`} /></div></div>
+      <div className="max-w-full rounded-2xl border bg-muted/40 p-3 text-center text-lg sm:p-5 sm:text-xl"><div className="max-w-full overflow-hidden break-words"><MathText text={asInlineLatex(latex)} /></div></div>
     </div>
   );
 }
 
 function FormulaSheetBlock({ block }: { block: AnyBlock }) {
-  const formulas = Array.isArray(block.formulas) ? block.formulas : [];
-  return <div className="space-y-3">{formulas.map((formula: AnyBlock, index: number) => <div key={index} className="rounded-2xl border p-3 sm:p-4"><p className="font-semibold"><MathText text={formula.name} /></p><p className="mt-2 break-words text-lg sm:text-xl"><MathText text={`$${formula.formula}$`} /></p>{formula.description ? <p className="mt-2 text-sm text-muted-foreground"><MathText text={formula.description} /></p> : null}</div>)}</div>;
+  const formulas = normalizeFormulaSheet(block);
+
+  if (!formulas.length) {
+    return (
+      <div className="rounded-2xl border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+        No formulas have been added to this formula sheet yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {formulas.map((formula: AnyBlock, index: number) => (
+        <div key={index} className="min-w-0 rounded-2xl border bg-background p-3 shadow-sm sm:p-4">
+          {formula.name ? <p className="break-words text-sm font-semibold"><MathText text={String(formula.name)} /></p> : null}
+          <div className="mt-2 max-w-full overflow-x-auto rounded-xl bg-muted/30 p-3 text-center text-base sm:text-lg">
+            <MathText text={asInlineLatex(formula.formula || formula.expression || formula.value || '')} />
+          </div>
+          {formula.description ? <p className="mt-2 break-words text-sm leading-6 text-muted-foreground"><MathText text={String(formula.description)} /></p> : null}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function GeometryBlock({ block }: { block: AnyBlock }) {
@@ -138,6 +159,78 @@ function GeometryBlock({ block }: { block: AnyBlock }) {
       </div>
     </div>
   );
+}
+
+function normalizeFormulaSheet(block: AnyBlock) {
+  const candidate = block.formulas ?? block.formulae ?? block.entries ?? block.items ?? block.rows ?? [];
+
+  if (Array.isArray(candidate)) {
+    return candidate
+      .map((item) => {
+        if (typeof item === 'string') return parseFormulaLine(item);
+        if (Array.isArray(item)) {
+          return {
+            name: String(item[0] ?? ''),
+            formula: String(item[1] ?? item[0] ?? ''),
+            description: String(item[2] ?? ''),
+          };
+        }
+        if (item && typeof item === 'object') return item as AnyBlock;
+        return null;
+      })
+      .filter(Boolean) as AnyBlock[];
+  }
+
+  if (typeof candidate === 'string') {
+    return candidate
+      .split('\n')
+      .map((line) => parseFormulaLine(line))
+      .filter((item) => item.formula);
+  }
+
+  if (typeof block.formula === 'string' || typeof block.equation === 'string') {
+    return [
+      {
+        name: block.name || block.title || 'Formula',
+        formula: block.formula || block.equation,
+        description: block.description || block.explanation || '',
+      },
+    ];
+  }
+
+  return [];
+}
+
+function parseFormulaLine(line: string) {
+  const parts = line.split('|').map((part) => part.trim());
+  if (parts.length >= 2) {
+    return {
+      name: parts[0],
+      formula: parts[1],
+      description: parts.slice(2).join(' | '),
+    };
+  }
+
+  return {
+    name: '',
+    formula: line.trim(),
+    description: '',
+  };
+}
+
+function asInlineLatex(value: unknown) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+
+  if (
+    (text.startsWith('$') && text.endsWith('$'))
+    || (text.startsWith('\\(') && text.endsWith('\\)'))
+    || (text.startsWith('\\[') && text.endsWith('\\]'))
+  ) {
+    return text;
+  }
+
+  return `$${text}$`;
 }
 
 function resolveChemistryVisual(block: AnyBlock): ChemistryVisual | null {
