@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { getCourseById, getLessonById, getLessonsByCourse } from '@/lib/api';
 import { completeShortCourseLesson, getShortCourseProgress } from '@/lib/api/short-courses';
 import { recordLearningEvent, type LearningEventType } from '@/lib/api/student-gamification';
+import { isSubLesson, mergeSubLessonsIntoLesson } from '@/lib/short-course-sub-lessons';
 import type { Course, Lesson, LessonWithCourseId } from '@/lib/api/types';
 
 type CardPayload = { cardIndex: number; cardType: string; title?: string; source?: string };
@@ -66,12 +67,17 @@ export default function FocusedLessonPage() {
     };
   }, [params.id, params.lessonId]);
 
+  const playableLesson = useMemo(() => {
+    if (!lesson) return null;
+    return mergeSubLessonsIntoLesson(lesson, lessons);
+  }, [lesson, lessons]);
+
   if (loading) return <main className="min-h-screen bg-background px-3 py-4 sm:px-4"><PageLoading message="Opening mission..." /></main>;
   if (error) return <main className="min-h-screen bg-background px-3 py-4 sm:px-4"><PageError message={error} actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
-  if (!course || !lesson) return <main className="min-h-screen bg-background px-3 py-4 sm:px-4"><PageError title="Mission unavailable" message="This mission could not be opened." actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
+  if (!course || !lesson || !playableLesson) return <main className="min-h-screen bg-background px-3 py-4 sm:px-4"><PageError title="Mission unavailable" message="This mission could not be opened." actionHref={`/student/courses/${params.id}`} actionLabel="Back to Mission Control" /></main>;
 
   const currentIndex = lessons.findIndex((item) => String(item.id) === String(params.lessonId));
-  const nextLesson = currentIndex >= 0 ? lessons[currentIndex + 1] : null;
+  const nextLesson = currentIndex >= 0 ? lessons.slice(currentIndex + 1).find((item) => !isSubLesson(item)) ?? null : null;
 
   function handleCardCompleted(payload: CardPayload) {
     if (completedCardsRef.current.has(payload.cardIndex)) return;
@@ -141,7 +147,7 @@ export default function FocusedLessonPage() {
     <main className="min-h-screen w-full bg-background px-2 py-3 sm:px-4 lg:px-6">
       <div className="mx-auto w-full max-w-5xl space-y-4">
         <LessonPlayer
-          lesson={lesson as any}
+          lesson={playableLesson as any}
           courseTitle={course.title}
           backHref={`/student/courses/${params.id}`}
           onComplete={markComplete}
