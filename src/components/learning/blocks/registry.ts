@@ -128,8 +128,30 @@ export function recommendedBlocksForCourseType(courseType?: string | null) {
 export function normalizeBlockType(type: string) {
   const normalized = type.trim().toLowerCase().replace(/[\s-]+/g, '_');
   if (normalized === 'teach' || normalized === 'content' || normalized === 'read') return 'explanation';
-  if (['multiple_choice', 'mcq', 'checkpoint', 'visual_question', 'graph_question', 'geometry_question', 'table_question', 'number_line_question'].includes(normalized)) return 'question';
-  if (normalized === 'fill_in_the_blank') return 'fill_blank';
+  if ([
+    'multiple_choice',
+    'mcq',
+    'checkpoint',
+    'quiz',
+    'quick_check',
+    'auto_marked_question',
+    'lesson_checkpoint',
+    'exam_review_block',
+    'symbol_matching',
+    'visual_question',
+    'graph_question',
+    'graph_interpretation_question',
+    'geometry_question',
+    'table_question',
+    'number_line_question',
+    'interval_question',
+  ].includes(normalized)) return 'question';
+  if ([
+    'fill_in_the_blank',
+    'typed_answer',
+    'short_answer_check',
+    'missing_step_check',
+  ].includes(normalized)) return 'fill_blank';
   if (normalized === 'truefalse' || normalized === 'true_or_false') return 'true_false';
   if (normalized === 'physics_card' || normalized === 'physics_diagram' || normalized === 'physics_simulation') return 'physics_visual';
   if ([
