@@ -10,6 +10,7 @@ use App\Services\LencoPaymentService;
 use App\Support\AuditLogger;
 use App\Support\Affiliates\AffiliateService;
 use App\Support\DeliveryModes;
+use App\Support\Notifications\InAppNotifier;
 use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentReceiptMailer;
 use App\Support\Payments\PaymentSettings;
@@ -18,7 +19,7 @@ use Illuminate\Support\Str;
 
 class BillingController extends Controller
 {
-    public function invoices(Request $request)
+    public function invoices(Request $request, InAppNotifier $notifier)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
@@ -27,10 +28,27 @@ class BillingController extends Controller
             return [];
         }
 
-        return Invoice::query()
+        $invoices = Invoice::query()
             ->where('student_id', $studentId)
             ->orderByDesc('created_at')
-            ->get()
+            ->get();
+
+        $invoices
+            ->where('status', 'unpaid')
+            ->take(3)
+            ->each(function (Invoice $invoice) use ($notifier) {
+                $alreadySent = \App\Models\InAppNotification::where('user_key', (string) $invoice->student_id)
+                    ->where('type', 'invoice')
+                    ->where('href', '/student/payments')
+                    ->where('body', 'like', '%' . $invoice->title . '%')
+                    ->exists();
+
+                if (!$alreadySent) {
+                    $notifier->notifyInvoiceCreated($invoice);
+                }
+            });
+
+        return $invoices
             ->map(function (Invoice $invoice) {
                 $mode = DeliveryModes::normalize(Enrollment::query()
                     ->where('user_id', $invoice->student_id)
@@ -54,7 +72,7 @@ class BillingController extends Controller
             });
     }
 
-    public function pay(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker)
+    public function pay(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, InAppNotifier $notifier)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
@@ -80,6 +98,7 @@ class BillingController extends Controller
         if (!PaymentSettings::lencoCollectionsEnabled()) {
             $settings = PaymentSettings::current();
             $paidInvoice = $unlocker->markPaidForTesting($invoice, $settings->test_mode_message ?: 'Payment confirmed in test mode.');
+            $notifier->notifyPaymentSuccessful($paidInvoice);
 
             AuditLogger::log($request, 'invoice.payment_test_mode_confirmed', 'invoice', (string) $invoice->id, [
                 'provider' => 'test-mode',
@@ -132,7 +151,7 @@ class BillingController extends Controller
         ]);
     }
 
-    public function verify(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer, AffiliateService $affiliates)
+    public function verify(Request $request, Invoice $invoice, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer, AffiliateService $affiliates, InAppNotifier $notifier)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
@@ -159,6 +178,7 @@ class BillingController extends Controller
         }
 
         if (!$invoice->transaction_reference) {
+            $notifier->notifyPaymentNeedsAttention($invoice, 'This invoice has no payment reference yet. Please start payment again.');
             return response()->json(['message' => 'This invoice has no payment reference yet.'], 422);
         }
 
@@ -183,14 +203,17 @@ class BillingController extends Controller
         $amountSettled = (float) (data_get($payload, 'data.settlement.amountSettled') ?? data_get($payload, 'settlement.amountSettled') ?? 0);
 
         if ($reference !== $invoice->transaction_reference) {
+            $notifier->notifyPaymentNeedsAttention($invoice, 'Payment reference mismatch. Please contact support if money left your account.');
             return response()->json(['message' => 'Payment reference mismatch.'], 422);
         }
 
         if (abs($amount - (float) $invoice->amount) > 0.01) {
+            $notifier->notifyPaymentNeedsAttention($invoice, 'Payment amount mismatch. Please contact support if money left your account.');
             return response()->json(['message' => 'Payment amount mismatch.'], 422);
         }
 
         if ($currency !== strtoupper($invoice->currency ?? 'ZMW')) {
+            $notifier->notifyPaymentNeedsAttention($invoice, 'Payment currency mismatch. Please contact support if money left your account.');
             return response()->json(['message' => 'Payment currency mismatch.'], 422);
         }
 
@@ -244,6 +267,7 @@ class BillingController extends Controller
         $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $invoice->transaction_reference)->first(), [
             'channel' => $isTest ? 'lenco-test-verify' : 'lenco-verify',
         ]);
+        $notifier->notifyPaymentSuccessful($invoice->fresh() ?? $invoice);
 
         return response()->json([
             'id' => $invoice->id,
