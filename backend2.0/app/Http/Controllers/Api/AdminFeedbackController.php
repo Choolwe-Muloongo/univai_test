@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AppRating;
 use App\Models\FeedbackComment;
 use App\Models\FeedbackPost;
+use App\Support\Notifications\InAppNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -40,8 +41,11 @@ class AdminFeedbackController extends Controller
         ]);
     }
 
-    public function update(Request $request, FeedbackPost $feedbackPost)
+    public function update(Request $request, FeedbackPost $feedbackPost, InAppNotifier $notifier)
     {
+        $oldStatus = $feedbackPost->status;
+        $oldResponse = $feedbackPost->admin_response;
+
         $payload = $request->validate([
             'status' => ['nullable', Rule::in(['open', 'under_review', 'planned', 'in_progress', 'completed', 'rejected', 'duplicate'])],
             'adminResponse' => ['nullable', 'string', 'max:8000'],
@@ -54,10 +58,32 @@ class AdminFeedbackController extends Controller
             'duplicate_of' => array_key_exists('duplicateOf', $payload) ? $payload['duplicateOf'] : $feedbackPost->duplicate_of,
         ])->save();
 
+        if ($feedbackPost->user_key) {
+            if ($oldStatus !== $feedbackPost->status) {
+                $notifier->notify(
+                    $feedbackPost->user_key,
+                    'Your feedback status changed',
+                    "Your post '{$feedbackPost->title}' is now " . $this->statusLabel($feedbackPost->status) . '.',
+                    '/student/suggestions',
+                    'feedback'
+                );
+            }
+
+            if ($oldResponse !== $feedbackPost->admin_response && $feedbackPost->admin_response) {
+                $notifier->notify(
+                    $feedbackPost->user_key,
+                    'UnivAI replied to your feedback',
+                    "The team replied to '{$feedbackPost->title}'.",
+                    '/student/suggestions',
+                    'feedback'
+                );
+            }
+        }
+
         return response()->json($this->mapPost($feedbackPost->fresh()));
     }
 
-    public function comment(Request $request, FeedbackPost $feedbackPost)
+    public function comment(Request $request, FeedbackPost $feedbackPost, InAppNotifier $notifier)
     {
         $payload = $request->validate([
             'body' => ['required', 'string', 'min:2', 'max:5000'],
@@ -73,6 +99,16 @@ class AdminFeedbackController extends Controller
         ]);
 
         $feedbackPost->increment('comments_count');
+
+        if ($feedbackPost->user_key) {
+            $notifier->notify(
+                $feedbackPost->user_key,
+                'New reply on your feedback',
+                "The UnivAI team replied to '{$feedbackPost->title}'.",
+                '/student/suggestions',
+                'feedback'
+            );
+        }
 
         return response()->json([
             'id' => $comment->id,
@@ -118,5 +154,18 @@ class AdminFeedbackController extends Controller
             'averageRating' => round((float) AppRating::avg('rating'), 1),
             'totalRatings' => AppRating::count(),
         ];
+    }
+
+    protected function statusLabel(string $status): string
+    {
+        return match ($status) {
+            'under_review' => 'Under Review',
+            'planned' => 'Planned',
+            'in_progress' => 'Being Worked On',
+            'completed' => 'Done',
+            'rejected' => 'Not Planned',
+            'duplicate' => 'Duplicate',
+            default => 'Open',
+        };
     }
 }
