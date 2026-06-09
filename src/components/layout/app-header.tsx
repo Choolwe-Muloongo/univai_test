@@ -190,7 +190,7 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
             <DropdownMenuSeparator />
             {notifications.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground">No notifications yet.</div>
-            ) : notifications.map((notification) => (
+            ) : notifications.slice(0, 6).map((notification) => (
               <DropdownMenuItem key={notification.id} onSelect={(event) => { event.preventDefault(); openNotification(notification); }} className="cursor-pointer items-start gap-3 p-3">
                 <span className={`mt-1 h-2 w-2 rounded-full ${notification.readAt ? 'bg-muted' : 'bg-primary'}`} />
                 <span className="min-w-0 flex-1">
@@ -200,6 +200,12 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
                 </span>
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/notifications" className="cursor-pointer justify-center text-sm font-medium text-primary">
+                View all notifications
+              </Link>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
