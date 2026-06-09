@@ -17,16 +17,18 @@ use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
 use App\Models\User;
 use App\Models\Application;
+use App\Support\Notifications\InAppNotifier;
 use Illuminate\Http\Request;
 use App\Support\StudentAccess;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function student(Request $request)
+    public function student(Request $request, InAppNotifier $notifier)
     {
         $sessionUser = StudentAccess::sessionPayload($request->session()->get('user') ?? []);
         $request->session()->put('user', $sessionUser);
+        $notifier->notifyMonthlyRatingReminder($sessionUser);
         $role = $sessionUser['role'] ?? null;
 
         $actions = DB::table('student_actions')
@@ -220,39 +222,17 @@ class DashboardController extends Controller
 
     public function admin()
     {
-        $revenue = Payment::query()->sum('amount');
-        $studentCount = User::query()->where('role', 'like', '%student%')->count();
-        $courseCount = Course::query()->count();
-        $recentApplications = Application::query()
-            ->whereDate('created_at', '>=', now()->subDays(7)->toDateString())
-            ->count();
+        $pendingAdmissions = Application::query()->whereIn('status', ['submitted', 'under_review'])->count();
+        $pendingLecturerApplications = DB::table('lecturer_applications')->whereIn('status', ['submitted', 'under_review'])->count();
+        $pendingLessonDocuments = LessonDocument::query()->where('status', 'pending')->count();
+        $failedPayments = Payment::query()->whereIn('status', ['failed', 'rejected'])->count();
 
         return response()->json([
             'metrics' => [
-                [
-                    'key' => 'revenue',
-                    'label' => 'Total Revenue',
-                    'value' => '$' . number_format((float) $revenue, 2),
-                    'note' => 'Tuition payments received',
-                ],
-                [
-                    'key' => 'students',
-                    'label' => 'Total Students',
-                    'value' => (string) $studentCount,
-                    'note' => 'Active student accounts',
-                ],
-                [
-                    'key' => 'courses',
-                    'label' => 'Total Courses',
-                    'value' => (string) $courseCount,
-                    'note' => 'Programs and courses offered',
-                ],
-                [
-                    'key' => 'activity',
-                    'label' => 'Platform Activity',
-                    'value' => (string) $recentApplications,
-                    'note' => 'Applications in last 7 days',
-                ],
+                ['label' => 'Admissions Pending', 'value' => $pendingAdmissions, 'note' => 'Awaiting review'],
+                ['label' => 'Lecturer Applications', 'value' => $pendingLecturerApplications, 'note' => 'Awaiting decision'],
+                ['label' => 'Content Reviews', 'value' => $pendingLessonDocuments, 'note' => 'Documents pending'],
+                ['label' => 'Payment Exceptions', 'value' => $failedPayments, 'note' => 'Failed or rejected payments'],
             ],
         ]);
     }
