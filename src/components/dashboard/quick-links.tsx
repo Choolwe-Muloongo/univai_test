@@ -1,6 +1,6 @@
 // src/components/dashboard/quick-links.tsx
 'use client';
-import { BookOpen, Sparkles } from 'lucide-react';
+import { BookOpen, MessageSquare, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -10,18 +10,24 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
-const aiTools = [
+const quickLinks = [
   {
-    title: 'Personalized Study Plan',
-    description: 'Let AI build a plan just for you.',
+    title: 'Study Plan',
+    description: 'See what to study next and keep your learning organized.',
     href: '/student/study-plan',
     icon: BookOpen,
   },
   {
     title: 'Nova Mentor',
-    description: 'Ask Nova for study help, revision, and quick explanations.',
+    description: 'Ask for help with lessons, revision, and quick explanations.',
     href: '/student/ai/chat',
     icon: Sparkles,
+  },
+  {
+    title: 'Suggestions & Reports',
+    description: 'Request a feature, report an error, or tell us what feels confusing.',
+    href: '/student/suggestions',
+    icon: MessageSquare,
   },
 ];
 
@@ -30,11 +36,11 @@ export function QuickLinks() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>AI Tools</CardTitle>
+          <CardTitle>Quick Links</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-4">
-            {aiTools.map((tool) => (
+            {quickLinks.map((tool) => (
               <li key={tool.title}>
                 <Link
                   href={tool.href}
