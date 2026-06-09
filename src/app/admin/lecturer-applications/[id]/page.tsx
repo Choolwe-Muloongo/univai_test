@@ -111,7 +111,7 @@ export default function LecturerApplicationDetailPage() {
               <div key={key} className="flex items-center justify-between rounded-lg border p-3">
                 <span className="font-medium capitalize">{key.replace(/_/g, ' ')}</span>
                 {value ? (
-                  <a className="text-primary underline" href={value} target="_blank" rel="noreferrer">
+                  <a className="text-primary underline" href={String(value)} target="_blank" rel="noreferrer">
                     View
                   </a>
                 ) : (
