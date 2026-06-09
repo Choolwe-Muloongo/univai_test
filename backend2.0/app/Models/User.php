@@ -23,6 +23,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'must_change_password',
+        'password_reset_by_admin_at',
+        'password_reset_by_admin_id',
         'role',
         'school_id',
         'program_id',
@@ -54,6 +57,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'password_reset_by_admin_at' => 'datetime',
             'profile_completed_at' => 'datetime',
         ];
     }
@@ -105,4 +110,8 @@ class User extends Authenticatable
         return $this->hasOne(Affiliate::class);
     }
 
+    public function adminNotes(): HasMany
+    {
+        return $this->hasMany(AdminUserNote::class);
+    }
 }
