@@ -65,6 +65,7 @@ type NavGroup = {
 };
 
 const NOVA_CHAT_HREF = '/student/ai/chat';
+const STUDENT_FEEDBACK_LINK: NavLink = { href: '/student/suggestions', label: 'Ideas & Feedback', icon: Lightbulb };
 
 const studentCoreLinks: NavLink[] = [
   { href: '/student/dashboard', label: 'Mission Home', icon: Home },
@@ -72,6 +73,7 @@ const studentCoreLinks: NavLink[] = [
   { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-core-training-arena' },
   { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
   { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
+  STUDENT_FEEDBACK_LINK,
   { href: '/student/rewards', label: 'Rewards', icon: Trophy },
   { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
   { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
@@ -94,6 +96,7 @@ const shortCourseOnlyStudentLinks: NavLink[] = [
   { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-short-training-arena' },
   { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
   { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
+  STUDENT_FEEDBACK_LINK,
   { href: '/student/rewards', label: 'Rewards', icon: Trophy },
   { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
   { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
@@ -111,6 +114,7 @@ const formalStudentLinks: NavLink[] = [
   { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-formal-training-arena' },
   { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
   { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
+  STUDENT_FEEDBACK_LINK,
   { href: '/student/rewards', label: 'Rewards', icon: Trophy },
   { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
   { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
@@ -133,6 +137,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck },
         { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
         { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
+        STUDENT_FEEDBACK_LINK,
         { href: '/student/rewards', label: 'Rewards', icon: Trophy },
         { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
         { href: '/student/profile', label: 'Profile', icon: User },
@@ -272,6 +277,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
       links: [
         { href: '/admin/announcements', label: 'Announcements', icon: Users },
         { href: '/admin/notifications', label: 'Notifications', icon: BadgeCheck },
+        { href: '/admin/feedback', label: 'Feedback Board', icon: Lightbulb },
         { href: '/admin/message-templates', label: 'Message Templates', icon: BookMarked },
         { href: '/admin/delivery-logs', label: 'Delivery Logs', icon: ClipboardCheck },
       ],
