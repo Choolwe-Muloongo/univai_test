@@ -6,4 +6,5 @@ return [
     App\Providers\ShortCourseAdminRoutesServiceProvider::class,
     App\Providers\ShortCourseStudentRoutesServiceProvider::class,
     App\Providers\FeedbackRoutesServiceProvider::class,
+    App\Providers\AdminUserCareRoutesServiceProvider::class,
 ];
