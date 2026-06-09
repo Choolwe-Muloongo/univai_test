@@ -24,12 +24,24 @@ export type LearningBlockCategory =
   | 'writing'
   | 'vocational';
 
+export type LearningBlockQuestionPayload =
+  | string
+  | {
+      prompt?: string;
+      correctAnswer?: string | boolean | number;
+      unit?: string;
+      tolerance?: number;
+      explanation?: string;
+      options?: string[] | string;
+      [key: string]: unknown;
+    };
+
 export type LearningBlockPayload = Record<string, unknown> & {
   type: string;
   title?: string;
   body?: string;
   prompt?: string;
-  question?: string;
+  question?: LearningBlockQuestionPayload;
   options?: string[] | string;
   correctAnswer?: string | boolean | number;
   answer?: string | boolean | number;
