@@ -21,9 +21,9 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
       <section className="overflow-hidden rounded-3xl border bg-card shadow-sm">
         <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-center">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Mission Home</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Student Dashboard</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Welcome back{learnerName ? `, ${learnerName}` : ''} 👋</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Nova has prepared your learning path for today. Protect your streak, finish one focused mission, and keep building proof of real skill.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Pick up your current course, complete today&apos;s practice, and keep building real skill. XP and rewards are there to encourage progress, not to confuse the lesson.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-4">
               <MiniStat icon={Trophy} label="Level" value={`${gamification.level} ${gamification.levelTitle}`} />
               <MiniStat icon={Sparkles} label="XP" value={gamification.xp.toLocaleString()} />
@@ -32,12 +32,12 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
             </div>
           </div>
           <div className="rounded-3xl border bg-primary/5 p-4">
-            <p className="text-sm font-semibold text-primary">Nova says</p>
+            <p className="text-sm font-semibold text-primary">Nova Mentor</p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{gamification.novaMessage}</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              {course ? <Button asChild><Link href={`/student/courses/${course.id}`}>Start Mission</Link></Button> : <Button asChild><Link href="/student/courses">Find a Journey</Link></Button>}
-              {course ? <Button asChild variant="outline"><Link href={`/student/courses/${course.id}/practice`}>Train Weak Area</Link></Button> : null}
-              <Button asChild variant="outline"><Link href="/student/ai">Ask Nova</Link></Button>
+              {course ? <Button asChild><Link href={`/student/courses/${course.id}`}>Continue Course</Link></Button> : <Button asChild><Link href="/student/courses">Browse Courses</Link></Button>}
+              {course ? <Button asChild variant="outline"><Link href={`/student/courses/${course.id}/practice`}>Practice Weak Areas</Link></Button> : null}
+              <Button asChild variant="outline"><Link href="/student/ai/chat">Ask Nova</Link></Button>
             </div>
           </div>
         </div>
@@ -47,8 +47,8 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
         <div className="space-y-5">
           <Card className="rounded-3xl border-primary/20 shadow-sm">
             <CardHeader>
-              <CardTitle>Continue Mission</CardTitle>
-              <CardDescription>{course ? 'Your next focused learning run is ready.' : 'Join a Journey to unlock your first mission.'}</CardDescription>
+              <CardTitle>Continue Learning</CardTitle>
+              <CardDescription>{course ? 'Your current course is ready. Continue from where you stopped.' : 'Choose a course to start learning.'}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {course ? (
@@ -56,12 +56,12 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-2xl font-bold">{course.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Stage: {course.level ?? 'Foundation'} · Reward: +50 XP · Time: 8 minutes</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Level: {course.level ?? 'Foundation'} · Reward: +50 XP · Estimated time: 8 minutes</p>
                     </div>
-                    <Button asChild className="w-full lg:w-auto"><Link href={`/student/courses/${course.id}`}>Continue Mission <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+                    <Button asChild className="w-full lg:w-auto"><Link href={`/student/courses/${course.id}`}>Continue Course <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm"><span>Mission Progress</span><strong>{progress}%</strong></div>
+                    <div className="flex justify-between text-sm"><span>Course Progress</span><strong>{progress}%</strong></div>
                     <Progress value={progress} className="h-3" />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
@@ -73,9 +73,9 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
               ) : (
                 <div className="rounded-2xl border border-dashed p-8 text-center">
                   <BookOpen className="mx-auto h-10 w-10 text-primary" />
-                  <p className="mt-3 font-semibold">No active Journey yet.</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Start with one short course and UnivAI will turn it into a mission path.</p>
-                  <Button asChild className="mt-4"><Link href="/student/courses">Browse Journeys</Link></Button>
+                  <p className="mt-3 font-semibold">No active course yet.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Start with one short course. UnivAI will help you track progress as you learn.</p>
+                  <Button asChild className="mt-4"><Link href="/student/courses">Browse Courses</Link></Button>
                 </div>
               )}
             </CardContent>
@@ -86,7 +86,7 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
           <XpBar xp={gamification.xp} level={gamification.level} levelTitle={gamification.levelTitle} nextLevelXp={gamification.nextLevelXp} />
           <StreakFlame days={gamification.streakDays} protectedToday={gamification.streakProtected} />
           <Card className="rounded-3xl">
-            <CardHeader><CardTitle>Activity preview</CardTitle><CardDescription>Activity points rank students across the whole platform, not only one course.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Activity summary</CardTitle><CardDescription>Activity points show your learning consistency across the platform.</CardDescription></CardHeader>
             <CardContent className="space-y-3 text-sm">
               <InfoBox label="Weekly activity" value={`${gamification.weeklyActivityPoints} pts`} />
               <InfoBox label="Badges" value={gamification.badges.join(', ') || 'None yet'} />
