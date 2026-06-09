@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { logout } from '@/lib/api';
+import { apiFetch } from '@/lib/api/client';
 import { useSession } from '@/components/providers/session-provider';
 
 const roleDetails: { [key: string]: { name: string; email: string; avatar: string } } = {
@@ -61,11 +62,28 @@ const roleRoutes: { [key: string]: { profile?: string; settings?: string } } = {
   admin: { settings: '/admin/settings' },
 };
 
+type InAppNotification = {
+  id: number;
+  type: string;
+  title: string;
+  body?: string | null;
+  href?: string | null;
+  readAt?: string | null;
+  createdAt?: string | null;
+};
+
+type NotificationsResponse = {
+  items: InAppNotification[];
+  unreadCount: number;
+};
+
 export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string; hideSidebarTrigger?: boolean }) {
   const router = useRouter();
   const { session, refresh } = useSession();
   const [user, setUser] = useState({ name: '', email: '', avatar: '' });
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<InAppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const resolvedRole = role || session?.user?.role || 'premium-student';
@@ -83,11 +101,55 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
     });
   }, [role, session]);
 
+  async function loadNotifications() {
+    if (!session?.user) return;
+    try {
+      const data = await apiFetch<NotificationsResponse>('/notifications');
+      setNotifications(data.items);
+      setUnreadCount(data.unreadCount);
+    } catch (error) {
+      console.error('Failed to load notifications', error);
+    }
+  }
+
+  useEffect(() => {
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 60_000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, session?.user?.email]);
+
   const handleLogout = async () => {
     await logout();
     await refresh();
     router.push('/login');
   };
+
+  async function markAllRead() {
+    try {
+      await apiFetch('/notifications/read-all', { method: 'POST' });
+      setNotifications((items) => items.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark notifications read', error);
+    }
+  }
+
+  async function openNotification(notification: InAppNotification) {
+    try {
+      if (!notification.readAt) {
+        await apiFetch(`/notifications/${notification.id}/read`, { method: 'POST' });
+        setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
+        setUnreadCount((count) => Math.max(0, count - 1));
+      }
+    } catch (error) {
+      console.error('Failed to mark notification read', error);
+    }
+
+    if (notification.href) {
+      router.push(notification.href);
+    }
+  }
 
   const routes = roleRoutes[userRole || ''] || {};
 
@@ -108,10 +170,38 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
       </div>
       <div className="flex items-center gap-4">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Bell className="h-5 w-5" />
-          <span className="sr-only">Toggle notifications</span>
-        </Button>
+        <DropdownMenu onOpenChange={(open) => { if (open) loadNotifications(); }}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative rounded-full">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 ? (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              ) : null}
+              <span className="sr-only">Open notifications</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="glass-modal w-80" align="end">
+            <DropdownMenuLabel className="flex items-center justify-between gap-3">
+              <span>Notifications</span>
+              {unreadCount > 0 ? <button type="button" onClick={markAllRead} className="text-xs font-normal text-primary">Mark all read</button> : null}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {notifications.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground">No notifications yet.</div>
+            ) : notifications.map((notification) => (
+              <DropdownMenuItem key={notification.id} onSelect={(event) => { event.preventDefault(); openNotification(notification); }} className="cursor-pointer items-start gap-3 p-3">
+                <span className={`mt-1 h-2 w-2 rounded-full ${notification.readAt ? 'bg-muted' : 'bg-primary'}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">{notification.title}</span>
+                  {notification.body ? <span className="mt-1 block text-xs text-muted-foreground">{notification.body}</span> : null}
+                  {notification.createdAt ? <span className="mt-1 block text-[11px] text-muted-foreground">{new Date(notification.createdAt).toLocaleString()}</span> : null}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
