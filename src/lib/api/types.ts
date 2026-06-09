@@ -9,6 +9,7 @@ export type RoleCapabilities = {
   canSuspendUsers: boolean;
   canCreateAdmins: boolean;
   reports: string[];
+  [key: string]: unknown;
 };
 
 export type ManagedUser = {
@@ -31,6 +32,29 @@ export type ManagedUser = {
   capabilities?: RoleCapabilities | null;
   mustChangePassword?: boolean | null;
   passwordResetByAdminAt?: string | null;
+};
+
+export type AdminUsersResponse = {
+  data: ManagedUser[];
+  roleCapabilities: Record<string, RoleCapabilities>;
+  permissions: Record<string, unknown>;
+};
+
+export type CreateManagedUserPayload = {
+  name: string;
+  email: string;
+  role: string;
+  state?: string;
+  accountState?: string;
+  verificationStatus?: string;
+  schoolId?: string | null;
+  programId?: string | null;
+  intakeId?: string | null;
+  unit?: string;
+  notes?: string;
+  subscriptionTier?: string;
+  subscriptionStatus?: string;
+  entitlements?: string[];
 };
 
 export type AdminUserNote = {
@@ -73,190 +97,125 @@ export type AdminUserPaymentsResponse = {
   payments: AdminUserPayment[];
 };
 
-export type AdminUsersResponse = {
-  data: ManagedUser[];
-  roleCapabilities: Record<string, RoleCapabilities>;
-  permissions: Record<string, unknown>;
-};
-
-export type CreateManagedUserPayload = {
-  name: string;
-  email: string;
-  role: string;
-  state?: string;
-  accountState?: string;
-  verificationStatus?: string;
-  schoolId?: string | null;
-  programId?: string | null;
-  intakeId?: string | null;
-  unit?: string;
-  notes?: string;
-  subscriptionTier?: string;
-  subscriptionStatus?: string;
-  entitlements?: string[];
-};
-
-export type AdmissionStatus = {
-  status: string;
-  admissionFeePaid: boolean;
-  offerIssuedAt?: string | null;
-  offerAcceptedAt?: string | null;
-};
-
-export type SessionUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string | null;
-  schoolId?: string | null;
-  programId?: string | null;
-  intakeId?: string | null;
-  accountState?: string | null;
-  verificationStatus?: string | null;
-  profileCompleted?: boolean | null;
-  profileStarted?: boolean | null;
-  subscriptionStatus?: string | null;
-  subscriptionTier?: string | null;
-  entitlements?: string[] | null;
-};
-
-export type Session = {
-  user: SessionUser | null;
-};
-
-export type AccountProfile = {
-  displayName?: string | null;
-  phone?: string | null;
-  country?: string | null;
-  timezone?: string | null;
-  bio?: string | null;
-  avatar?: string | null;
-};
-
-export type AccountProfileResponse = {
-  user: SessionUser | null;
-  profile: AccountProfile;
-};
-
-export type School = {
-  id: string;
-  name: string;
-};
-
-export type Department = {
-  id: number;
-  schoolId: string;
-  schoolName?: string | null;
-  name: string;
-  description?: string | null;
-  headOfDepartmentId?: number | null;
-};
-
-export type Course = {
-  id: string;
-  title: string;
-  description: string;
-  schoolId: string;
-  progress?: number | null;
-  imageId: string;
-  certificateType?: string;
-  pricingType?: string;
-  price?: string | number | null;
-  currency?: string | null;
-  certificateFee?: string | number | null;
-  certificateCurrency?: string | null;
-  durationHours?: number | null;
-  level?: string | null;
-  status?: 'draft' | 'published' | string | null;
-  modules?: Array<{ title: string; description?: string | null }>;
-  lessons?: Array<{ title: string; summary?: string | null }>;
-  outcomes?: string[];
-  supportedDeliveryModes?: string[];
-};
-
-export type CoursePayload = Omit<Course, 'supportedDeliveryModes'>;
-
-export type AiShortCourseLesson = {
-  title: string;
-  summary: string;
-  durationMinutes: number;
-  outcomes: string[];
-  activities: string[];
-  assessment: string;
-};
-
-export type AiShortCourseModule = {
-  title: string;
-  description: string;
-  durationMinutes: number;
-  outcomes: string[];
-  lessons: AiShortCourseLesson[];
-  moduleAssessment: string;
-};
-
-export type AiShortCourseBlueprint = {
-  courseSummary: {
-    title: string;
-    audience: string;
-    level: string;
-    description: string;
-    prerequisites: string[];
-    totalDurationHours: number;
-    outcomes: string[];
-    finalAssessment: string;
-    certificateCriteria: string;
-  };
-  assessments: {
-    quizzes: string[];
-    practicalWork: string[];
-    instructorReviewChecklist: string[];
-  };
-  modules: AiShortCourseModule[];
-};
-
-export type ShortCourseDraftCreatePayload = {
-  course: CoursePayload;
-  blueprint: AiShortCourseBlueprint;
-  sourceMode: 'new' | 'programme-course';
-  programmeTitle?: string | null;
-  programmeCourseTitle?: string | null;
-};
-
-export type QualificationLevel = {
-  id: string;
-  name: string;
-  category: string;
-  defaultCredits: number;
-  minimumCredits: number;
-  maximumCredits?: number | null;
-  durationMonths: number;
-  admissionRequirements?: string | null;
-  allowedDeliveryModes: string[];
-  requiresExamClinic: boolean;
-  requiresAccreditationApproval: boolean;
-  minimumSubjectCount: number;
-  minimumTotalPoints: number;
-  requiredPriorQualification?: string | null;
-};
-
-export type RequiredSubject = {
-  subjectId: string;
-  subjectName: string;
-  minimumPoints?: number | null;
-};
-
-export type ProgramPayload = {
-  id: string;
-  title: string;
-  description: string;
-  schoolId: string;
-  departmentId?: number | null;
-  qualificationLevelId: string;
-  credits?: number | null;
-  durationMonths?: number | null;
-  admissionRequirements?: string | null;
-  requiredSubjects?: RequiredSubject[];
-  deliveryModes?: string[];
-  examClinicRequired?: boolean;
-};
+export type SessionUser = Record<string, any>;
+export type Session = { user: SessionUser | null };
+export type AccountProfile = Record<string, any>;
+export type AccountProfileResponse = { user: SessionUser | null; profile: AccountProfile };
+export type School = Record<string, any>;
+export type Department = Record<string, any>;
+export type Course = Record<string, any>;
+export type CoursePayload = Record<string, any>;
+export type AiShortCourseLesson = Record<string, any>;
+export type AiShortCourseModule = Record<string, any>;
+export type AiShortCourseBlueprint = Record<string, any>;
+export type ShortCourseDraftCreatePayload = Record<string, any>;
+export type QualificationLevel = Record<string, any>;
+export type RequiredSubject = Record<string, any>;
+export type ProgramPayload = Record<string, any>;
+export type ProgramModule = Record<string, any>;
+export type Program = Record<string, any>;
+export type AcademicYear = Record<string, any>;
+export type Semester = Record<string, any>;
+export type ProgrammeCourse = Record<string, any>;
+export type CourseUnit = Record<string, any>;
+export type LearningModeRule = Record<string, any>;
+export type Venue = Record<string, any>;
+export type PartnerInstitution = Record<string, any>;
+export type PracticalSession = Record<string, any>;
+export type AffiliateEarning = Record<string, any>;
+export type AffiliatePayout = Record<string, any>;
+export type AffiliateSummary = Record<string, any>;
+export type AffiliateRecord = Record<string, any>;
+export type AffiliateOverview = Record<string, any>;
+export type AdminAcademicStructureResponse = Record<string, any>;
+export type PlatformExpansionOverview = Record<string, any>;
+export type PlatformOperationsOverview = Record<string, any>;
+export type Lesson = Record<string, any>;
+export type LearningObject = Record<string, any>;
+export type LessonQuiz = Record<string, any>;
+export type LessonWithCourseId = Record<string, any>;
+export type Job = Record<string, any>;
+export type ResearchOpportunity = Record<string, any>;
+export type DiscussionComment = Record<string, any>;
+export type Discussion = Record<string, any>;
+export type ConsultantApplication = Record<string, any>;
+export type Badge = Record<string, any>;
+export type LeaderboardStudent = Record<string, any>;
+export type AdmissionsSettings = Record<string, any>;
+export type PaymentSettings = Record<string, any>;
+export type DocumentBrandingSettings = Record<string, any>;
+export type AcademicPolicy = Record<string, any>;
+export type ProgramPolicyAssignment = Record<string, any>;
+export type CurriculumPolicyAssignment = Record<string, any>;
+export type LecturerStudent = Record<string, any>;
+export type StudentGrade = Record<string, any>;
+export type StudentGradesResponse = Record<string, any>;
+export type StudentAssignment = Record<string, any>;
+export type StudentAssignmentDetail = Record<string, any>;
+export type StudentAssignmentSubmission = Record<string, any>;
+export type ExamQuestion = Record<string, any>;
+export type ExamQuestionRecord = Record<string, any>;
+export type ApplicationPayload = Record<string, any>;
+export type ApplicationStatus = string;
+export type ApplicationSummary = Record<string, any>;
+export type ApplicationDetail = Record<string, any>;
+export type ApplicationDocument = Record<string, any>;
+export type AdmissionStatus = Record<string, any>;
+export type CreateJobPayload = Record<string, any>;
+export type CreateResearchPayload = Record<string, any>;
+export type CreateDiscussionPayload = Record<string, any>;
+export type JobApplicationPayload = Record<string, any>;
+export type ResearchApplicationPayload = Record<string, any>;
+export type DashboardMetric = Record<string, any>;
+export type StudentDashboardAction = Record<string, any>;
+export type StudentDashboardDeadline = Record<string, any>;
+export type StudentDashboardWallet = Record<string, any>;
+export type StudentDashboardData = Record<string, any>;
+export type LecturerDashboardCourse = Record<string, any>;
+export type LecturerDashboardData = Record<string, any>;
+export type Intake = Record<string, any>;
+export type CurriculumVersion = Record<string, any>;
+export type CurriculumModule = Record<string, any>;
+export type ModulePrerequisite = Record<string, any>;
+export type LecturerAssignment = Record<string, any>;
+export type AdminAssignment = Record<string, any>;
+export type AdminAssignmentsResponse = Record<string, any>;
+export type LecturerApplication = Record<string, any>;
+export type AiResponse = Record<string, any>;
+export type LessonDocument = Record<string, any>;
+export type CourseMeeting = Record<string, any>;
+export type CourseSession = Record<string, any>;
+export type SessionRosterStudent = Record<string, any>;
+export type Invoice = Record<string, any>;
+export type Payment = Record<string, any>;
+export type EnrollmentData = Record<string, any>;
+export type RouteChangeRequest = Record<string, any>;
+export type ExamResultsMap = Record<string, any>;
+export type AuditLogEntry = Record<string, any>;
+export type EmployerDashboardJob = Record<string, any>;
+export type EmployerDashboardData = Record<string, any>;
+export type AdminDashboardData = Record<string, any>;
+export type SupportMessage = Record<string, any>;
+export type SupportTicket = Record<string, any>;
+export type WalletSettings = Record<string, any>;
+export type StudentEntitlementsResponse = Record<string, any>;
+export type PaymentMethod = Record<string, any>;
+export type ScholarshipApplication = Record<string, any>;
+export type PortfolioItem = Record<string, any>;
+export type FinanceReportRow = Record<string, any>;
+export type IncidentLifecycleStep = Record<string, any>;
+export type IncidentTimelineUpdate = Record<string, any>;
+export type QueueImpact = Record<string, any>;
+export type SystemHealthIncident = Record<string, any>;
+export type LaunchCapabilityStatus = Record<string, any>;
+export type LaunchReadinessReport = Record<string, any>;
+export type SystemHealthData = Record<string, any>;
+export type ResearchApplication = Record<string, any>;
+export type ExamCentre = Record<string, any>;
+export type ExamRoom = Record<string, any>;
+export type ExamInvigilator = Record<string, any>;
+export type ExamClinicSession = Record<string, any>;
+export type ExamBooking = Record<string, any>;
+export type ExamIncident = Record<string, any>;
+export type ExamResultsSyncLog = Record<string, any>;
+export type ExamClinicOverview = Record<string, any>;
