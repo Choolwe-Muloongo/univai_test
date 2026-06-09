@@ -158,7 +158,7 @@ export function ShortCourseStepwiseAiBuilderClient() {
     }));
     try {
       const lessons = await getLessonsByCourse(courseId);
-      const lessonsWithCourseId = lessons.map((lesson) => ({ ...lesson, courseId }));
+      const lessonsWithCourseId = lessons.map((lesson) => ({ ...lesson, title: lesson.title ?? 'Untitled lesson', courseId }));
       const importedBlueprint = normalizeBlueprint(courseAndLessonsToBuilderBlueprint(course, lessonsWithCourseId));
       setBlueprint(importedBlueprint);
       setSelection({ moduleIndex: 0, lessonIndex: 0, subLessonIndex: null, cardIndex: 0 });

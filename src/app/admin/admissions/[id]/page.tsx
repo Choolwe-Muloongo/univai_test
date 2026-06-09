@@ -81,7 +81,7 @@ export default function AdmissionDetailPage() {
 
   const subjectSummary = useMemo(() => {
     if (!application) return { total: 0, missing: [], totalPoints: 0 };
-    const totalPoints = Object.values(application.subjectPoints).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const totalPoints = Object.values(application.subjectPoints).reduce<number>((sum, value) => sum + (Number(value) || 0), 0);
     const missing = requiredSubjects.filter((subject) => !application.subjectPoints[subject]);
     return {
       total: Object.values(application.subjectPoints).filter((value) => Number(value) > 0).length,

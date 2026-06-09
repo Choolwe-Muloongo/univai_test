@@ -196,7 +196,7 @@ export default function SystemHealthPage() {
                 </span>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                {Object.entries(data.launchReadiness.capabilities).map(([key, capability]) => (
+                {Object.entries(data.launchReadiness.capabilities as Record<string, { label: string; ready: boolean }>).map(([key, capability]) => (
                   <div key={key} className="rounded-lg border p-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium">{capability.label}</p>
