@@ -8,7 +8,7 @@ import type { PhysicsVisual } from '@/components/learning/blocks/physics/types';
 
 type AnyBlock = Record<string, any>;
 
-const mathVisualTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'matrix', 'formula_sheet', 'geometry', 'venn']);
+const mathVisualTypes = new Set(['equation', 'formula', 'graph', 'table', 'number_line', 'interval_number_line', 'matrix', 'formula_sheet', 'geometry', 'venn']);
 const physicsTemplates = new Set([
   'free_body', 'pulley', 'kinematics_graph', 'projectile', 'inclined_plane', 'moments', 'spring',
   'angle_vector_resolution', 'collision', 'momentum_conservation', 'elastic_collision', 'inelastic_collision',
@@ -32,6 +32,7 @@ export function MathVisualBlock({ block }: { block: AnyBlock }) {
   if (renderBlock.type === 'graph') return <GraphBlock block={renderBlock} />;
   if (renderBlock.type === 'table') return <TableBlock block={renderBlock} />;
   if (renderBlock.type === 'number_line') return <NumberLineBlock block={renderBlock} />;
+  if (renderBlock.type === 'interval_number_line') return <IntervalNumberLineBlock block={renderBlock} />;
   if (renderBlock.type === 'matrix') return <MatrixBlock block={renderBlock} />;
   if (renderBlock.type === 'formula_sheet') return <FormulaSheetBlock block={renderBlock} />;
   if (renderBlock.type === 'geometry') return <GeometryBlock block={renderBlock} />;
@@ -81,41 +82,120 @@ function TableBlock({ block }: { block: AnyBlock }) {
 }
 
 function NumberLineBlock({ block }: { block: AnyBlock }) {
+  if (Array.isArray(block.rows) || block.renderMode === 'interval' || block.intervalMode === true) return <IntervalNumberLineBlock block={block} />;
+  const intervals = Array.isArray(block.intervals) ? block.intervals : [];
+  const hasTeachingIntervals = intervals.some((interval: AnyBlock) => interval && (interval.label || typeof interval.startClosed !== 'undefined' || typeof interval.endClosed !== 'undefined' || typeof interval.inclusiveStart !== 'undefined' || typeof interval.inclusiveEnd !== 'undefined'));
+  if (hasTeachingIntervals) {
+    return <IntervalNumberLineBlock block={{ ...block, rows: [{ label: block.label || '', expression: block.expression || block.title, segments: intervals }] }} />;
+  }
+
   const min = Number(block.min ?? -10);
   const max = Number(block.max ?? 10);
   const scale = (value: number) => 35 + ((value - min) / (max - min || 1)) * 450;
-  const intervals = Array.isArray(block.intervals) ? block.intervals : [];
   const points = Array.isArray(block.points) ? block.points : [];
+  const tickValues = getTicks(block, min, max);
   return (
     <div className="space-y-3">
       {block.description ? <p className="text-sm text-muted-foreground"><MathText text={block.description} /></p> : null}
       <div className="rounded-2xl border bg-muted/20 p-2 sm:p-4">
         <svg viewBox="0 0 520 120" className="block h-auto max-h-[150px] w-full max-w-full" preserveAspectRatio="xMidYMid meet">
           <line x1="35" x2="485" y1="60" y2="60" className="stroke-foreground" strokeWidth="2" />
-          {ticks(min, max).map((tick) => <g key={tick}><line x1={scale(tick)} x2={scale(tick)} y1="52" y2="68" className="stroke-foreground" /><text x={scale(tick)} y="90" textAnchor="middle" className="fill-muted-foreground text-[11px]">{tick}</text></g>)}
-          {intervals.map((interval: AnyBlock, index: number) => {
-            const start = interval.start == null ? min : Number(interval.start);
-            const end = interval.end == null ? max : Number(interval.end);
-            const startClosed = Boolean(interval.startClosed ?? interval.inclusiveStart);
-            const endClosed = Boolean(interval.endClosed ?? interval.inclusiveEnd);
-            const hasLeftInfinity = interval.start == null;
-            const hasRightInfinity = interval.end == null;
-            return (
-              <g key={index}>
-                <line x1={scale(start)} x2={scale(end)} y1="60" y2="60" className="stroke-primary" strokeWidth="7" strokeLinecap="round" />
-                {!hasLeftInfinity ? <circle cx={scale(start)} cy="60" r="6" className={startClosed ? 'fill-primary stroke-primary' : 'fill-background stroke-primary'} strokeWidth="2" /> : null}
-                {!hasRightInfinity ? <circle cx={scale(end)} cy="60" r="6" className={endClosed ? 'fill-primary stroke-primary' : 'fill-background stroke-primary'} strokeWidth="2" /> : null}
-                {hasLeftInfinity ? <polygon points={`${scale(min)},60 ${scale(min) + 10},54 ${scale(min) + 10},66`} className="fill-primary" /> : null}
-                {hasRightInfinity ? <polygon points={`${scale(max)},60 ${scale(max) - 10},54 ${scale(max) - 10},66`} className="fill-primary" /> : null}
-                {interval.label ? <text x={(scale(start) + scale(end)) / 2} y="45" textAnchor="middle" className="fill-primary text-[11px]">{interval.label}</text> : null}
-              </g>
-            );
-          })}
+          {tickValues.map((tick) => <g key={tick}><line x1={scale(tick)} x2={scale(tick)} y1="52" y2="68" className="stroke-foreground" /><text x={scale(tick)} y="90" textAnchor="middle" className="fill-muted-foreground text-[11px]">{tick}</text></g>)}
           {points.map((point: any, index: number) => { const value = typeof point === 'number' ? point : Number(point.value); return <circle key={index} cx={scale(value)} cy="60" r="6" className="fill-primary" />; })}
         </svg>
       </div>
     </div>
   );
+}
+
+function IntervalNumberLineBlock({ block }: { block: AnyBlock }) {
+  const rows = normalizeIntervalRows(block);
+  const allSegments = rows.flatMap((row) => row.segments);
+  const finiteValues = allSegments.flatMap((segment) => [segment.start, segment.end]).filter((value): value is number => Number.isFinite(value));
+  const min = Number(block.min ?? (finiteValues.length ? Math.floor(Math.min(...finiteValues) - 1) : -10));
+  const max = Number(block.max ?? (finiteValues.length ? Math.ceil(Math.max(...finiteValues) + 1) : 10));
+  const width = 620;
+  const left = 86;
+  const right = 590;
+  const rowGap = 68;
+  const top = 58;
+  const height = Math.max(150, top + rows.length * rowGap + 48);
+  const scale = (value: number) => left + ((value - min) / (max - min || 1)) * (right - left);
+  const tickValues = getTicks(block, min, max);
+
+  return (
+    <div className="space-y-3">
+      {block.description ? <p className="text-sm text-muted-foreground"><MathText text={block.description} /></p> : null}
+      <div className="overflow-x-auto rounded-2xl border bg-muted/20 p-3 sm:p-4">
+        <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto min-w-[620px] max-w-full" preserveAspectRatio="xMidYMid meet">
+          {rows.map((row, rowIndex) => {
+            const y = top + rowIndex * rowGap;
+            return (
+              <g key={`${row.label}-${rowIndex}`}>
+                <text x="8" y={y - 10} className="fill-foreground text-[13px] font-semibold">{row.label}</text>
+                {row.expression ? <text x="8" y={y + 10} className="fill-primary text-[12px] font-semibold">{row.expression}</text> : null}
+                <line x1={left} x2={right} y1={y} y2={y} className="stroke-foreground" strokeWidth="2" />
+                {tickValues.map((tick) => <g key={`${rowIndex}-${tick}`}><line x1={scale(tick)} x2={scale(tick)} y1={y - 7} y2={y + 7} className="stroke-foreground" /><text x={scale(tick)} y={y + 27} textAnchor="middle" className="fill-muted-foreground text-[11px]">{tick}</text></g>)}
+                {row.segments.map((segment, segmentIndex) => {
+                  const hasLeftInfinity = segment.start == null || !Number.isFinite(segment.start);
+                  const hasRightInfinity = segment.end == null || !Number.isFinite(segment.end);
+                  const start = hasLeftInfinity ? min : Number(segment.start);
+                  const end = hasRightInfinity ? max : Number(segment.end);
+                  const x1 = scale(start);
+                  const x2 = scale(end);
+                  return (
+                    <g key={`${rowIndex}-${segmentIndex}`}>
+                      <line x1={x1} x2={x2} y1={y} y2={y} className="stroke-primary" strokeWidth="8" strokeLinecap="round" />
+                      {hasLeftInfinity ? <polygon points={`${left},${y} ${left + 12},${y - 7} ${left + 12},${y + 7}`} className="fill-primary" /> : <IntervalEndpoint x={x1} y={y} closed={segment.startClosed} side="left" />}
+                      {hasRightInfinity ? <polygon points={`${right},${y} ${right - 12},${y - 7} ${right - 12},${y + 7}`} className="fill-primary" /> : <IntervalEndpoint x={x2} y={y} closed={segment.endClosed} side="right" />}
+                      {segment.label ? <text x={(x1 + x2) / 2} y={y - 18} textAnchor="middle" className="fill-primary text-[12px] font-semibold">{segment.label}</text> : null}
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+          <g>
+            <circle cx="420" cy={height - 18} r="6" className="fill-primary stroke-primary" strokeWidth="2" />
+            <text x="432" y={height - 14} className="fill-muted-foreground text-[11px]">included / closed</text>
+            <circle cx="520" cy={height - 18} r="6" className="fill-background stroke-primary" strokeWidth="2" />
+            <text x="532" y={height - 14} className="fill-muted-foreground text-[11px]">excluded / open</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function IntervalEndpoint({ x, y, closed, side }: { x: number; y: number; closed: boolean; side: 'left' | 'right' }) {
+  const bracket = closed ? (side === 'left' ? '[' : ']') : (side === 'left' ? '(' : ')');
+  return (
+    <g>
+      <circle cx={x} cy={y} r="7" className={closed ? 'fill-primary stroke-primary' : 'fill-background stroke-primary'} strokeWidth="3" />
+      <text x={side === 'left' ? x - 18 : x + 18} y={y + 6} textAnchor="middle" className="fill-primary text-[24px] font-bold">{bracket}</text>
+    </g>
+  );
+}
+
+function normalizeIntervalRows(block: AnyBlock) {
+  const sourceRows = Array.isArray(block.rows)
+    ? block.rows
+    : [{ label: block.label || '', expression: block.expression || block.title || '', segments: Array.isArray(block.intervals) ? block.intervals : [] }];
+
+  return sourceRows.map((row: AnyBlock, index: number) => {
+    const rawSegments = Array.isArray(row.segments) ? row.segments : Array.isArray(row.intervals) ? row.intervals : [];
+    return {
+      label: String(row.label ?? row.name ?? `Row ${index + 1}`),
+      expression: String(row.expression ?? row.interval ?? ''),
+      segments: rawSegments.map((segment: AnyBlock) => ({
+        start: segment.start == null ? null : Number(segment.start),
+        end: segment.end == null ? null : Number(segment.end),
+        startClosed: Boolean(segment.startClosed ?? segment.inclusiveStart ?? segment.closedStart),
+        endClosed: Boolean(segment.endClosed ?? segment.inclusiveEnd ?? segment.closedEnd),
+        label: segment.label ? String(segment.label) : '',
+      })),
+    };
+  }).filter((row) => row.segments.length);
 }
 
 function MatrixBlock({ block }: { block: AnyBlock }) {
@@ -142,7 +222,7 @@ function FormulaSheetBlock({ block }: { block: AnyBlock }) {
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {formulas.map((formula: AnyBlock, index: number) => (
+      {formulas.map((formula: AnyBlock, index) => (
         <div key={index} className="min-w-0 rounded-2xl border bg-background p-3 shadow-sm sm:p-4">
           {formula.name ? <p className="break-words text-sm font-semibold"><MathText text={String(formula.name)} /></p> : null}
           <div className="mt-2 max-w-full overflow-x-auto rounded-xl bg-muted/30 p-3 text-center text-base sm:text-lg">
@@ -351,6 +431,13 @@ function resolvePhysicsVisual(block: AnyBlock): PhysicsVisual | null {
     equations: Array.isArray(block.equations) ? block.equations : [],
     metadata,
   } as PhysicsVisual;
+}
+
+function getTicks(block: AnyBlock, min: number, max: number) {
+  if (Array.isArray(block.ticks) && block.ticks.length) {
+    return block.ticks.map((tick: unknown) => Number(tick)).filter((tick: number) => Number.isFinite(tick));
+  }
+  return ticks(min, max);
 }
 
 function ticks(min: number, max: number) {
