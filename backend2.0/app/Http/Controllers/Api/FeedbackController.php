@@ -7,6 +7,7 @@ use App\Models\AppRating;
 use App\Models\FeedbackComment;
 use App\Models\FeedbackPost;
 use App\Models\FeedbackVote;
+use App\Support\Notifications\InAppNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -56,7 +57,7 @@ class FeedbackController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, InAppNotifier $notifier)
     {
         $payload = $request->validate([
             'type' => ['required', Rule::in(['feature', 'bug', 'suggestion', 'rating'])],
@@ -92,6 +93,8 @@ class FeedbackController extends Controller
             );
         }
 
+        $notifier->notifyFeedbackCreated($post);
+
         return response()->json($this->mapPost($post, false), 201);
     }
 
@@ -103,7 +106,7 @@ class FeedbackController extends Controller
         return response()->json($this->mapPost($feedbackPost, $hasVoted, true));
     }
 
-    public function vote(Request $request, FeedbackPost $feedbackPost)
+    public function vote(Request $request, FeedbackPost $feedbackPost, InAppNotifier $notifier)
     {
         $userKey = $this->userKey($request);
 
@@ -118,7 +121,10 @@ class FeedbackController extends Controller
             }
         });
 
-        return response()->json($this->mapPost($feedbackPost->fresh(), true));
+        $fresh = $feedbackPost->fresh();
+        $notifier->notifyFeedbackVoteMilestone($fresh);
+
+        return response()->json($this->mapPost($fresh, true));
     }
 
     public function unvote(Request $request, FeedbackPost $feedbackPost)
@@ -135,7 +141,7 @@ class FeedbackController extends Controller
         return response()->json($this->mapPost($feedbackPost->fresh(), false));
     }
 
-    public function comment(Request $request, FeedbackPost $feedbackPost)
+    public function comment(Request $request, FeedbackPost $feedbackPost, InAppNotifier $notifier)
     {
         $payload = $request->validate([
             'body' => ['required', 'string', 'min:2', 'max:5000'],
@@ -154,10 +160,20 @@ class FeedbackController extends Controller
             $feedbackPost->increment('comments_count');
         });
 
+        if ($feedbackPost->user_key && $feedbackPost->user_key !== $this->userKey($request)) {
+            $notifier->notify(
+                $feedbackPost->user_key,
+                'New comment on your feedback',
+                ($sessionUser['name'] ?? 'A student') . " commented on '{$feedbackPost->title}'.",
+                '/student/suggestions',
+                'feedback'
+            );
+        }
+
         return response()->json($this->mapComment($comment), 201);
     }
 
-    public function rating(Request $request)
+    public function rating(Request $request, InAppNotifier $notifier)
     {
         $payload = $request->validate([
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
@@ -173,6 +189,15 @@ class FeedbackController extends Controller
                 'comment' => $payload['comment'] ?? null,
             ]
         );
+
+        if ($payload['rating'] <= 3) {
+            $notifier->notifyAdmins(
+                'Low app rating submitted',
+                ($sessionUser['name'] ?? 'A student') . " rated UnivAI {$payload['rating']}/5.",
+                '/admin/feedback',
+                'rating'
+            );
+        }
 
         return response()->json([
             'rating' => $rating->rating,
