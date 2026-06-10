@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Workflow,
+  MailCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -277,6 +278,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
       links: [
         { href: '/admin/announcements', label: 'Announcements', icon: Users },
         { href: '/admin/notifications', label: 'Notifications', icon: BadgeCheck },
+        { href: '/admin/email-test', label: 'Email Test', icon: MailCheck },
         { href: '/admin/feedback', label: 'Feedback Board', icon: Lightbulb },
         { href: '/admin/message-templates', label: 'Message Templates', icon: BookMarked },
         { href: '/admin/delivery-logs', label: 'Delivery Logs', icon: ClipboardCheck },
@@ -329,21 +331,11 @@ const groupedLinks: Record<string, NavGroup[]> = {
   instructor: [
     {
       links: [
-        { href: '/instructor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/instructor/portal', label: 'Instructor Portal', icon: LayoutDashboard },
         { href: '/instructor/courses', label: 'My Courses', icon: BookOpen },
-        { href: '/instructor/courses/create', label: 'Create Course', icon: Settings },
-        { href: '/instructor/course-builder', label: 'Course Materials', icon: BookMarked },
-        { href: '/instructor/ai-builder', label: 'AI Course Builder', icon: Sparkles },
-        { href: '/instructor/ai-builder/generations', label: 'AI Drafts', icon: BookMarked, key: 'instructor-ai-drafts' },
-        { href: '/instructor/ai-builder/packages', label: 'AI Packages', icon: CreditCard },
-        { href: '/instructor/ai-builder/sources', label: 'AI Sources', icon: BookMarked },
-        { href: '/instructor/courses/review', label: 'Review Submission', icon: ClipboardCheck },
-        { href: '/instructor/learners', label: 'Learners', icon: Users },
-        { href: '/instructor/reviews', label: 'Reviews', icon: BadgeCheck },
+        { href: '/instructor/ai', label: 'AI Generator', icon: Sparkles },
         { href: '/instructor/earnings', label: 'Earnings', icon: Wallet },
-        { href: '/instructor/payouts', label: 'Payouts', icon: Landmark },
-        { href: '/instructor/profile', label: 'Profile & Verification', icon: User },
-        { href: '/instructor/support', label: 'Support', icon: Lightbulb },
+        { href: '/instructor/settings', label: 'Settings', icon: Settings },
       ],
     },
   ],
@@ -351,87 +343,81 @@ const groupedLinks: Record<string, NavGroup[]> = {
     {
       links: [
         { href: '/employer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { href: '/employer/jobs', label: 'Job Listings', icon: Briefcase },
-        { href: '/employer/research', label: 'Research', icon: FlaskConical },
-        { href: '/employer/profile', label: 'Company Profile', icon: Building },
-        { href: '/verify', label: 'Verify Credential', icon: BadgeCheck },
+        { href: '/employer/jobs', label: 'Jobs', icon: Briefcase },
+        { href: '/employer/talent', label: 'Talent', icon: Users },
+        { href: '/employer/research', label: 'Research Hub', icon: FlaskConical },
       ],
     },
   ],
 };
 
-function normalizeRole(role?: string) {
-  if (role === 'enrolled') return 'premium-student';
-  if (role === 'exam-officer') return 'admin';
-  return role || 'premium-student';
-}
-
-function isLinkActive(pathname: string, href: string, activeHref: string | null) {
-  return activeHref === href;
-}
-
-export function AppSidebar({ role }: { role?: string }) {
+export function AppSidebar() {
   const pathname = usePathname();
-  const { session } = useSession();
-  const [groups, setGroups] = useState<NavGroup[]>([]);
-  const [activeHref, setActiveHref] = useState<string | null>(null);
+  const { session, loading } = useSession();
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    const normalizedRole = normalizeRole(session?.user?.role ?? role);
-    const tier = roleToStudentAccessTier(normalizedRole);
-    const hasProgrammeAccess = hasStudentEntitlement(
-      STUDENT_ENTITLEMENT.PROGRAMME,
-      session?.user?.entitlements,
-      tier,
-    );
-    const nextGroups = isStudentRole(normalizedRole)
-      ? [{ links: hasProgrammeAccess ? formalStudentLinks : shortCourseOnlyStudentLinks }]
-      : groupedLinks[normalizedRole] || groupedLinks['premium-student'];
-    setGroups(nextGroups);
+  useEffect(() => setMounted(true), []);
 
-    const links = nextGroups.flatMap((group) => group.links);
-    const ranked = links
-      .map((link) => ({ href: link.href, score: pathname === link.href ? 10_000 : pathname.startsWith(`${link.href}/`) ? link.href.length : -1 }))
-      .filter((item) => item.score >= 0)
-      .sort((a, b) => b.score - a.score);
+  if (!mounted || loading || !session?.user) return null;
 
-    setActiveHref(ranked[0]?.href ?? null);
-  }, [pathname, role, session]);
+  const userRole = session.user.role || 'student';
+  const navKey = isStudentRole(userRole) ? studentNavKey(session.user) : userRole;
+  const groups = groupedLinks[navKey] || groupedLinks.student;
 
   return (
-    <>
-      <SidebarHeader className="glass-nav rounded-t-xl border-b border-sidebar-border/60">
-        <div className="flex items-center gap-2">
-          <Logo className="size-9 rounded-xl brand-logo-glow" />
-          <span className="brand-gradient-text text-lg font-semibold">UnivAI</span>
+    <SidebarContent>
+      <SidebarHeader>
+        <div className="flex items-center gap-3 px-4 py-4">
+          <Logo className="h-8 w-8" />
+          <div>
+            <p className="text-sm font-semibold">UnivAI</p>
+            <p className="text-xs text-muted-foreground">{session.user.name || session.user.email}</p>
+          </div>
         </div>
       </SidebarHeader>
-      <SidebarContent className="glass-surface rounded-b-xl border border-sidebar-border/50 p-1">
-        {groups.map((group, index) => (
-          <SidebarGroup key={group.label || `nav-group-${index}`} className="px-1 py-1">
-            {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.links.map((link) => (
-                  <SidebarMenuItem key={link.key || link.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isLinkActive(pathname, link.href, activeHref)}
-                      tooltip={link.label}
-                      className="justify-start data-[active=true]:bg-sidebar-accent/70"
-                    >
-                      <Link href={link.href}>
-                        <link.icon className="size-5" />
-                        <span>{link.label}</span>
+      {groups.map((group, groupIndex) => (
+        <SidebarGroup key={`${group.label || 'group'}-${groupIndex}`}>
+          {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {group.links.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <SidebarMenuItem key={item.key || `${item.href}-${item.label}`}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
-      </SidebarContent>
-    </>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </SidebarContent>
   );
+}
+
+function studentNavKey(user: NonNullable<ReturnType<typeof useSession>['session']>['user']) {
+  if (!user) return 'student';
+
+  const roleTier = roleToStudentAccessTier(user.role || 'student');
+  const entitlements = user.entitlements || [];
+
+  if (hasStudentEntitlement(entitlements, STUDENT_ENTITLEMENT.PROGRAMME) || roleTier === 'programme') {
+    return 'formal-student';
+  }
+
+  if (hasStudentEntitlement(entitlements, STUDENT_ENTITLEMENT.SHORT_COURSE)) {
+    return 'short-course-student';
+  }
+
+  if ((user.role || '').includes('free') || roleTier === 'freemium') {
+    return 'freemium-student';
+  }
+
+  return 'student';
 }
