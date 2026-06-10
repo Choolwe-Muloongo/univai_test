@@ -47,7 +47,11 @@ export async function changeAccountPassword(payload: ChangePasswordPayload): Pro
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      currentPassword: payload.currentPassword,
+      newPassword: payload.newPassword,
+      newPassword_confirmation: payload.confirmPassword,
+    }),
   });
 
   if (!response.ok) {
