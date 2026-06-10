@@ -93,6 +93,7 @@ Route::middleware('api')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me'])->middleware('session.auth');
     Route::get('/auth/profile', [AuthController::class, 'profile'])->middleware('session.auth');
     Route::patch('/auth/profile', [AuthController::class, 'updateProfile'])->middleware('session.auth');
+    Route::patch('/auth/profile/password', [AuthController::class, 'changePassword'])->middleware('session.auth');
     Route::post('/auth/profile/avatar', [AccountAvatarController::class, 'store'])->middleware('session.auth');
     Route::get('/auth/capabilities', function (AccessControl $accessControl) { return response()->json($accessControl->capabilitiesFor(session('user'))); })->middleware('session.auth');
 
@@ -202,61 +203,7 @@ Route::middleware('api')->group(function () {
         Route::get('/admissions/me', [AdmissionsController::class, 'me'])->middleware('access:admissions.applicant');
         Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents'])->middleware('access:admissions.applicant');
         Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument'])->middleware('access:admissions.applicant');
-        Route::get('/admissions/me/documents/{document}', [AdmissionsController::class, 'downloadDocument'])->middleware('access:admissions.applicant');
-        Route::get('/admissions/status', [AdmissionsController::class, 'status'])->middleware('access:admissions.applicant');
-        Route::post('/admissions/fee', [AdmissionsController::class, 'payFee'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
-        Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
-        Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter'])->middleware('access:admissions.applicant');
-        Route::post('/ai/generate', [AiController::class, 'generate'])->middleware(['access:ai.generate', 'throttle:ai']);
-    });
-
-    Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit']);
-    Route::post('/instructor-applications', [PlatformExpansionController::class, 'storeInstructorApplication'])->middleware('throttle:admissions');
-
-    Route::middleware(['session.auth', 'access:student.portal'])->group(function () {
-        Route::get('/students/me/learning', [PlatformExpansionController::class, 'studentLearning']);
-        Route::post('/students/me/ai-study-sessions', [PlatformExpansionController::class, 'storeStudySession'])->middleware('throttle:ai');
-    });
-
-    Route::prefix('lecturer')->middleware(['session.auth', 'access:lecturer.portal'])->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'lecturer']);
-        Route::get('/testing', [PlatformExpansionController::class, 'lecturerTesting']);
-        Route::post('/test-announcements', [PlatformExpansionController::class, 'storeTestAnnouncement']);
-        Route::post('/grades', [GradesController::class, 'recordGrade']);
-        Route::get('/students', [StudentsController::class, 'lecturerStudents']);
-        Route::get('/assignments', [LecturerAssignmentsController::class, 'index']);
-        Route::patch('/assignments/{assignment}/meeting', [LecturerAssignmentsController::class, 'updateMeeting']);
-        Route::get('/exam-questions', [LecturerExamQuestionsController::class, 'index']);
-        Route::post('/exam-questions', [LecturerExamQuestionsController::class, 'store']);
-        Route::patch('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'update']);
-        Route::delete('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'destroy']);
-        Route::get('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerIndex']);
-        Route::post('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerStore']);
-        Route::get('/sessions/{session}/roster', [CourseSessionsController::class, 'roster']);
-        Route::post('/sessions/{session}/attendance', [CourseSessionsController::class, 'markAttendance']);
-        Route::get('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'index']);
-        Route::post('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'store']);
-        Route::patch('/lessons/{lessonId}/documents/{document}', [LessonDocumentsController::class, 'review']);
-    });
-
-    Route::prefix('employer')->middleware(['session.auth', 'access:employer.portal'])->group(function () { Route::get('/dashboard', [DashboardController::class, 'employer']); });
-
-    Route::prefix('instructor')->middleware(['session.auth', 'access:instructor.portal'])->group(function () {
-        Route::get('/portal', [PlatformExpansionController::class, 'instructorPortal']);
-        Route::post('/course-sources', [PlatformOperationsController::class, 'storeInstructorSource']);
-        Route::post('/ai-generations', [PlatformOperationsController::class, 'storeInstructorAiGeneration'])->middleware(['access:instructor.ai', 'throttle:ai']);
-    });
-
-    Route::prefix('admin')->middleware(['session.auth', 'access:admin.exam'])->group(function () {
-        Route::get('/exam-clinic', [ExamClinicController::class, 'adminOverview']);
-        Route::post('/exam-clinic/centres', [ExamClinicController::class, 'storeCentre']);
-        Route::patch('/exam-clinic/centres/{centre}/approval', [ExamClinicController::class, 'updateCentreApproval']);
-        Route::post('/exam-clinic/rooms', [ExamClinicController::class, 'storeRoom']);
-        Route::post('/exam-clinic/invigilators', [ExamClinicController::class, 'storeInvigilator']);
-        Route::post('/exam-clinic/sessions', [ExamClinicController::class, 'storeSession']);
-        Route::patch('/exam-clinic/sessions/{session}', [ExamClinicController::class, 'updateSession']);
-        Route::post('/exam-clinic/sessions/{session}/incidents', [ExamClinicController::class, 'storeIncident']);
-        Route::post('/exam-clinic/bookings/{booking}/attendance', [ExamClinicController::class, 'markAttendance']);
+        Route::get('/admissions/me/documents/{document}/download', [AdmissionsController::class, 'downloadDocument'])->middleware('access:admissions.applicant');
         Route::post('/exam-clinic/results-sync', [ExamClinicController::class, 'syncResults']);
     });
 
@@ -324,8 +271,8 @@ Route::middleware('api')->group(function () {
         Route::get('/admissions/{id}', [AdmissionsController::class, 'adminShow']);
         Route::patch('/admissions/{id}', [AdmissionsController::class, 'adminUpdate']);
         Route::get('/admissions/{id}/documents', [AdmissionsController::class, 'adminDocuments']);
-        Route::patch('/admissions/{id}/documents/{document}', [AdmissionsController::class, 'adminReviewDocument']);
         Route::get('/admissions/{id}/documents/{document}/download', [AdmissionsController::class, 'adminDownloadDocument']);
+        Route::patch('/admissions/{id}/documents/{document}', [AdmissionsController::class, 'adminReviewDocument']);
         Route::patch('/admissions/settings', [AdmissionsController::class, 'updateSettings']);
         Route::get('/lecturer-applications', [LecturerApplicationsController::class, 'adminIndex']);
         Route::get('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminShow']);
