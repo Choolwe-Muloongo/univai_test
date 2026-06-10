@@ -11,10 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   createInstructorAiGeneration,
   createInstructorCourseSource,
+  getCourses,
   getInstructorPortalOverview,
 } from '@/lib/api';
 
 type Row = Record<string, unknown>;
+
+type AiBuilderMode = 'create' | 'edit';
 
 type InstructorOverview = {
   instructor?: Row | null;
@@ -37,16 +40,24 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
     sourceType: 'document',
     extractedText: '',
   });
+  const [courses, setCourses] = useState<Row[]>([]);
+  const [builderMode, setBuilderMode] = useState<AiBuilderMode>('create');
   const [generationForm, setGenerationForm] = useState({
     title: '',
     generationType: 'course_outline',
     prompt: '',
+    selectedCourseId: '',
+    selectedPart: 'new_lessons',
     selectedSourceIds: [] as string[],
   });
 
   async function refresh() {
-    const data = (await getInstructorPortalOverview()) as InstructorOverview;
-    setOverview(data);
+    const [data, courseItems] = await Promise.all([getInstructorPortalOverview(), getCourses().catch(() => [])]);
+    setOverview(data as InstructorOverview);
+    setCourses(courseItems as Row[]);
+    if (!generationForm.selectedCourseId && courseItems[0]) {
+      setGenerationForm((value) => ({ ...value, selectedCourseId: String(courseItems[0].id) }));
+    }
   }
 
   useEffect(() => {
@@ -93,6 +104,11 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
 
   async function generateCourse(event: FormEvent) {
     event.preventDefault();
+    if (builderMode === 'edit' && !generationForm.selectedCourseId) {
+      setError('Select an existing course before asking AI to improve course content.');
+      return;
+    }
+
     if (!generationForm.selectedSourceIds.length) {
       setError('Select at least one source document before using the Instructor AI Course Builder.');
       return;
@@ -104,8 +120,15 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
       await createInstructorAiGeneration({
         generationType: generationForm.generationType,
         sourceIds: generationForm.selectedSourceIds.map((id) => Number(id)),
+        courseId: builderMode === 'edit' ? generationForm.selectedCourseId : undefined,
+        operation: builderMode === 'edit' ? 'edit_existing_course' : 'create_new_course',
+        selectedPart: builderMode === 'edit' ? generationForm.selectedPart : undefined,
         title: generationForm.title || deriveTitle(generationForm.prompt, selectedSources),
-        prompt: buildInstructorPrompt(generationForm.prompt, selectedSources),
+        prompt: buildInstructorPrompt(generationForm.prompt, selectedSources, {
+          mode: builderMode,
+          courseTitle: String(courses.find((course) => String(course.id) === generationForm.selectedCourseId)?.title ?? courses.find((course) => String(course.id) === generationForm.selectedCourseId)?.name ?? ''),
+          selectedPart: generationForm.selectedPart,
+        }),
       });
       setGenerationForm((value) => ({ ...value, title: '', prompt: '' }));
       await refresh();
@@ -129,6 +152,31 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
       </section>
 
       {error ? <PageError message={error} /> : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Create or edit with AI</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={builderMode} onChange={(event) => setBuilderMode(event.target.value as AiBuilderMode)}>
+            <option value="create">Create New Course</option>
+            <option value="edit">Edit Existing Course</option>
+          </select>
+          {builderMode === 'edit' ? (
+            <>
+              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={generationForm.selectedCourseId} onChange={(event) => setGenerationForm((value) => ({ ...value, selectedCourseId: event.target.value }))}>
+                {courses.map((course) => <option key={String(course.id)} value={String(course.id)}>{String(course.title ?? course.name ?? `Course ${course.id}`)}</option>)}
+              </select>
+              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={generationForm.selectedPart} onChange={(event) => setGenerationForm((value) => ({ ...value, selectedPart: event.target.value }))}>
+                <option value="new_lessons">Add new lessons</option>
+                <option value="cards_only">Regenerate selected cards only</option>
+                <option value="questions_only">Regenerate selected questions only</option>
+                <option value="module_outline">Improve module outline only</option>
+              </select>
+            </>
+          ) : <p className="self-center text-sm text-muted-foreground md:col-span-2">AI will create a new review-ready course draft from the selected source material.</p>}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Metric label="Sources" value={sources.length} />
@@ -168,7 +216,7 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
 
           <Card>
             <CardHeader>
-              <CardTitle>Generate Professional Draft</CardTitle>
+              <CardTitle>{builderMode === 'edit' ? 'Improve Existing Course' : 'Generate Professional Draft'}</CardTitle>
             </CardHeader>
             <CardContent>
               <form className="space-y-4" onSubmit={generateCourse}>
@@ -212,7 +260,7 @@ export function InstructorAiBuilderClient({ mode = 'builder' }: { mode?: 'dashbo
                 <Field label="Prompt or rough idea">
                   <Textarea rows={6} value={generationForm.prompt} onChange={(event) => setGenerationForm((value) => ({ ...value, prompt: event.target.value }))} placeholder="A vague prompt is fine. Example: create a 19-hour beginner digital marketing course." />
                 </Field>
-                <Button disabled={generating || !sources.length}>{generating ? 'Generating...' : 'Generate review-ready draft'}</Button>
+                <Button disabled={generating || !sources.length || (builderMode === 'edit' && !generationForm.selectedCourseId)}>{generating ? 'Generating...' : builderMode === 'edit' ? 'Improve selected course part' : 'Generate review-ready draft'}</Button>
               </form>
             </CardContent>
           </Card>
@@ -328,9 +376,15 @@ function deriveTitle(prompt: string, sources: Row[]) {
   return seed.length > 80 ? `${seed.slice(0, 77)}...` : seed;
 }
 
-function buildInstructorPrompt(prompt: string, sources: Row[]) {
+function buildInstructorPrompt(prompt: string, sources: Row[], context?: { mode: AiBuilderMode; courseTitle?: string; selectedPart?: string }) {
   const sourceTitles = sources.map((source) => String(source.title ?? 'Untitled source')).join(', ');
+  const editInstruction = context?.mode === 'edit'
+    ? `Mode: Improve/edit existing course: ${context.courseTitle || 'selected course'}. Only change the selected part (${context.selectedPart}); preserve every other module, lesson, card, and question.`
+    : 'Mode: Create a new course draft.';
+
   return `
+${editInstruction}
+
 Instructor request:
 ${prompt || 'Create the strongest professional short course from the selected source material.'}
 
