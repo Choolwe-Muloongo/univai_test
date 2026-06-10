@@ -296,6 +296,7 @@ Route::middleware('api')->group(function () {
         Route::patch('/affiliates/payouts/{payout}/verify', [AffiliateController::class, 'verifyPayout'])->middleware('access:admin.finance');
         Route::get('/system-health', [SystemHealthController::class, 'status']);
         Route::post('/system-health/diagnostics', [SystemHealthController::class, 'diagnostics']);
+        Route::post('/system/email/test', [SystemHealthController::class, 'testEmail']);
         Route::get('/short-courses/manual-guide', [ShortCourseManualGuideController::class, 'download'])->middleware('access:admin.academic');
     });
 });
