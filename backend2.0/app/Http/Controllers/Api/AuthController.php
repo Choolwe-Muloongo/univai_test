@@ -11,6 +11,7 @@ use App\Support\Affiliates\AffiliateService;
 use Illuminate\Http\Request;
 use App\Support\StudentAccess;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -204,6 +205,34 @@ class AuthController extends Controller
         ]);
     }
 
+    public function changePassword(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+
+        if (!$userId || !is_numeric($userId)) {
+            return response()->json(['message' => 'Password changes are only available for saved user accounts.'], 422);
+        }
+
+        $payload = $request->validate([
+            'currentPassword' => ['required', 'string'],
+            'newPassword' => ['required', 'string', 'confirmed', Password::min(8)],
+            'newPassword_confirmation' => ['required', 'string'],
+        ]);
+
+        $user = User::findOrFail((int) $userId);
+
+        if (!Hash::check($payload['currentPassword'], $user->password)) {
+            return response()->json(['message' => 'Current password is incorrect.'], 422);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($payload['newPassword']),
+        ])->save();
+
+        return response()->json(['message' => 'Password changed successfully.']);
+    }
+
     public function logout(Request $request)
     {
         $request->session()->forget('user');
@@ -318,120 +347,79 @@ class AuthController extends Controller
                 'name' => 'Applicant',
                 'email' => 'applicant@univai.edu',
                 'role' => 'applicant',
-                'schoolId' => null,
-                'programId' => null,
-                'intakeId' => null,
-                'accountState' => 'applicant',
-                'verificationStatus' => 'email',
                 'profileCompleted' => false,
                 'profileStarted' => false,
-                'subscriptionStatus' => 'none',
-                'subscriptionTier' => 'none',
-                'entitlements' => [],
-            ],
-            'free-student', 'freemium-student' => StudentAccess::sessionPayload([
-                'id' => $role === 'free-student' ? 'student-free' : 'student-freemium',
-                'name' => $role === 'free-student' ? 'Free Student' : 'Freemium Student',
-                'email' => $role === 'free-student' ? 'student.free@univai.edu' : 'student.freemium@univai.edu',
-                'role' => $role === 'free-student' ? StudentAccess::ROLE_FREE : StudentAccess::ROLE_FREEMIUM,
-                'schoolId' => null,
-                'programId' => null,
-                'accountState' => 'active',
+                'accountState' => 'applicant',
                 'verificationStatus' => 'email',
-                'profileCompleted' => true,
-                'subscriptionStatus' => 'free',
-                'subscriptionTier' => 'freemium',
-                'entitlements' => ['student_portal'],
-            ]),
-            'paid-certificate-student', 'certificate-student' => StudentAccess::sessionPayload([
-                'id' => 'student-certificate',
-                'name' => 'Certificate Student',
-                'email' => 'student.certificate@univai.edu',
-                'role' => StudentAccess::ROLE_CERTIFICATE,
-                'schoolId' => null,
-                'programId' => null,
-            ]),
-            'programme-student', 'enrolled' => StudentAccess::sessionPayload([
-                'id' => 'student-programme',
-                'name' => 'Programme Student',
-                'email' => 'student.programme@univai.edu',
-                'role' => StudentAccess::ROLE_PROGRAMME,
-                'schoolId' => 'ict',
-                'programId' => 'cs101',
-                'intakeId' => 'cs101-2026-jan',
-            ]),
-            'lecturer' => [
-                'id' => 'lecturer-1',
-                'name' => 'Lecturer',
-                'email' => 'lecturer@univai.edu',
-                'role' => 'lecturer',
-                'schoolId' => 'ict',
-                'programId' => null,
-                'intakeId' => null,
-                'accountState' => 'active',
-                'verificationStatus' => 'verified',
-                'profileCompleted' => true,
-                'profileStarted' => true,
-                'subscriptionStatus' => 'active',
-                'subscriptionTier' => 'staff',
-                'entitlements' => ['lecturer_portal'],
+                'subscriptionStatus' => 'pending',
+                'subscriptionTier' => 'free',
+                'entitlements' => [],
             ],
             'employer' => [
                 'id' => 'employer-1',
-                'name' => 'Employer',
+                'name' => 'Employer Partner',
                 'email' => 'employer@univai.edu',
                 'role' => 'employer',
-                'schoolId' => null,
-                'programId' => null,
-                'intakeId' => null,
-                'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'profileCompleted' => true,
                 'profileStarted' => true,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'employer',
                 'entitlements' => ['employer_portal'],
             ],
             'instructor' => [
                 'id' => 'instructor-1',
-                'name' => 'Instructor',
+                'name' => 'Instructor Creator',
                 'email' => 'instructor@univai.edu',
                 'role' => 'instructor',
-                'schoolId' => null,
-                'programId' => null,
-                'intakeId' => null,
-                'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'profileCompleted' => true,
                 'profileStarted' => true,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'instructor',
                 'entitlements' => ['instructor_portal', 'instructor_ai'],
+            ],
+            'lecturer' => [
+                'id' => 'lecturer-1',
+                'name' => 'Lecturer',
+                'email' => 'lecturer@univai.edu',
+                'role' => 'lecturer',
+                'profileCompleted' => true,
+                'profileStarted' => true,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
+                'subscriptionStatus' => 'active',
+                'subscriptionTier' => 'staff',
+                'entitlements' => ['lecturer_portal'],
             ],
             'admin' => [
                 'id' => 'admin-1',
                 'name' => 'Admin',
                 'email' => 'admin@univai.edu',
                 'role' => 'admin',
-                'schoolId' => null,
-                'programId' => null,
-                'intakeId' => null,
-                'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'profileCompleted' => true,
                 'profileStarted' => true,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'staff',
-                'entitlements' => ['admin_portal', 'admin_academic', 'admin_users', 'admin_finance'],
+                'entitlements' => ['admin_portal', 'admin_academic', 'admin_users_manage', 'admin_finance'],
             ],
-            default => StudentAccess::sessionPayload([
-                'id' => 'student-premium',
-                'name' => 'Premium Student',
+            default => [
+                'id' => 'student-1',
+                'name' => 'Student',
                 'email' => 'student.premium@univai.edu',
-                'role' => StudentAccess::ROLE_PREMIUM,
-                'schoolId' => null,
-                'programId' => null,
-            ]),
+                'role' => $role,
+                'profileCompleted' => true,
+                'profileStarted' => true,
+                'accountState' => 'active',
+                'verificationStatus' => 'verified',
+                'subscriptionStatus' => 'active',
+                'subscriptionTier' => str_contains($role, 'free') ? 'free' : 'premium',
+                'entitlements' => str_contains($role, 'programme') ? ['programme_access'] : ['certificate_access'],
+            ],
         };
     }
 }
