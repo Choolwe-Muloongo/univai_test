@@ -7,24 +7,30 @@ use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AccountAvatarController extends Controller
 {
     public function store(Request $request)
     {
         $payload = $request->validate([
-            'avatar' => ['required', 'image'],
+            'avatar' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
         $sessionUser = $request->session()->get('user');
         $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
         $folderKey = $this->folderKey($userId, $request->session()->getId());
-        $path = $payload['avatar']->store('avatars/' . $folderKey, 'public');
+        $file = $payload['avatar'];
+        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('avatars/' . $folderKey, $filename, 'public');
         $url = Storage::disk('public')->url($path);
 
         if ($userId && is_numeric($userId)) {
             $user = User::with('profile', 'activeSubscription', 'activeEntitlements')->find((int) $userId);
             if ($user) {
+                $this->deleteOldAvatar($user->avatar);
+                $this->deleteOldAvatar($user->profile?->avatar);
+
                 $user->forceFill(['avatar' => $url])->save();
                 UserProfile::updateOrCreate(
                     ['user_id' => $user->id],
@@ -50,6 +56,18 @@ class AccountAvatarController extends Controller
             'avatar' => $url,
             'url' => $url,
         ], 201);
+    }
+
+    private function deleteOldAvatar(?string $url): void
+    {
+        if (!$url || !str_contains($url, '/storage/avatars/')) {
+            return;
+        }
+
+        $path = ltrim(Str::after($url, '/storage/'), '/');
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
     }
 
     private function folderKey($userId, string $sessionId): string
