@@ -5,6 +5,24 @@ export type AvatarUploadResponse = {
   url: string;
 };
 
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+async function readError(response: Response, fallback: string) {
+  let message = fallback;
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload.message === 'string') message = payload.message;
+  } catch {
+    const text = await response.text().catch(() => '');
+    if (text) message = text;
+  }
+  return message;
+}
+
 export async function uploadAccountAvatar(file: File): Promise<AvatarUploadResponse> {
   const formData = new FormData();
   formData.append('avatar', file);
@@ -16,15 +34,24 @@ export async function uploadAccountAvatar(file: File): Promise<AvatarUploadRespo
   });
 
   if (!response.ok) {
-    let message = 'Unable to upload profile photo.';
-    try {
-      const payload = await response.json();
-      if (payload && typeof payload.message === 'string') message = payload.message;
-    } catch {
-      const text = await response.text().catch(() => '');
-      if (text) message = text;
-    }
-    throw new Error(message);
+    throw new Error(await readError(response, 'Unable to upload profile photo.'));
+  }
+
+  return response.json();
+}
+
+export async function changeAccountPassword(payload: ChangePasswordPayload): Promise<{ message: string }> {
+  const response = await fetch(buildApiUrl('/auth/profile/password'), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response, 'Unable to change password.'));
   }
 
   return response.json();
