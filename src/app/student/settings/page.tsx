@@ -1,7 +1,7 @@
 'use client';
 
 import { ChangeEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Camera, Loader2, Save } from 'lucide-react';
+import { Camera, KeyRound, Loader2, Save } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useSession } from '@/components/providers/session-provider';
-import { uploadAccountAvatar } from '@/lib/api/account';
+import { changeAccountPassword, uploadAccountAvatar } from '@/lib/api/account';
 import { getAccountProfile, updateAccountProfile } from '@/lib/api';
 
 type ProfileForm = {
@@ -25,6 +25,12 @@ type ProfileForm = {
   avatar: string;
 };
 
+type CredentialForm = {
+  current: string;
+  next: string;
+  confirm: string;
+};
+
 const emptyForm: ProfileForm = {
   name: '',
   email: '',
@@ -35,6 +41,12 @@ const emptyForm: ProfileForm = {
   avatar: '',
 };
 
+const emptyCredentialForm: CredentialForm = {
+  current: '',
+  next: '',
+  confirm: '',
+};
+
 const timezones = [
   'Africa/Lusaka',
   'Africa/Johannesburg',
@@ -43,11 +55,15 @@ const timezones = [
   'UTC',
 ];
 
+const allowedAvatarTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
 export default function SettingsPage() {
   const { session, refresh } = useSession();
   const [form, setForm] = useState<ProfileForm>(emptyForm);
+  const [credentials, setCredentials] = useState<CredentialForm>(emptyCredentialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingCredentials, setSavingCredentials] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -90,12 +106,20 @@ export default function SettingsPage() {
     setForm((current) => ({ ...current, ...patch }));
   }
 
+  function updateCredentials(patch: Partial<CredentialForm>) {
+    setCredentials((current) => ({ ...current, ...patch }));
+  }
+
   async function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError('Choose an image file for your profile photo.');
+    if (!allowedAvatarTypes.includes(file.type)) {
+      setError('Choose a JPG, PNG, or WEBP image for your profile photo.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Profile photo must be 5MB or smaller.');
       return;
     }
 
@@ -137,62 +161,115 @@ export default function SettingsPage() {
     }
   }
 
+  async function saveCredentials() {
+    setError(null);
+    setMessage(null);
+
+    if (!credentials.current) {
+      setError('Enter your current password.');
+      return;
+    }
+    if (credentials.next.length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
+    if (credentials.next !== credentials.confirm) {
+      setError('New password and confirmation do not match.');
+      return;
+    }
+
+    setSavingCredentials(true);
+    try {
+      const response = await changeAccountPassword({
+        currentPassword: credentials.current,
+        newPassword: credentials.next,
+        confirmPassword: credentials.confirm,
+      });
+      setCredentials(emptyCredentialForm);
+      setMessage(response.message || 'Password changed successfully.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to change password.');
+    } finally {
+      setSavingCredentials(false);
+    }
+  }
+
   if (loading) return <PageLoading message="Loading account settings..." />;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground">Update your name, contact details, timezone, and profile photo.</p>
+        <p className="text-muted-foreground">Update your name, contact details, timezone, profile photo, and password.</p>
       </div>
 
       {error ? <PageError message={error} /> : null}
       {message ? <div className="rounded-2xl border bg-primary/5 p-4 text-sm">{message}</div> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Profile Details</CardTitle>
-            <CardDescription>These details appear across your dashboard, profile menu, and learning activity.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Full name">
-                <Input value={form.name} onChange={(event) => update({ name: event.target.value })} />
+        <div className="space-y-6">
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle>Profile Details</CardTitle>
+              <CardDescription>These details appear across your dashboard, profile menu, and learning activity.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Full name">
+                  <Input value={form.name} onChange={(event) => update({ name: event.target.value })} />
+                </Field>
+                <Field label="Email address">
+                  <Input type="email" value={form.email} onChange={(event) => update({ email: event.target.value })} />
+                </Field>
+                <Field label="Phone">
+                  <Input value={form.phone} onChange={(event) => update({ phone: event.target.value })} placeholder="+260..." />
+                </Field>
+                <Field label="Country">
+                  <Input value={form.country} onChange={(event) => update({ country: event.target.value })} placeholder="Zambia" />
+                </Field>
+                <Field label="Timezone">
+                  <Select value={form.timezone} onValueChange={(value) => update({ timezone: value })}>
+                    <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                    <SelectContent>
+                      {timezones.map((timezone) => <SelectItem key={timezone} value={timezone}>{timezone}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <Field label="Bio">
+                <Textarea rows={5} value={form.bio} onChange={(event) => update({ bio: event.target.value })} placeholder="Short professional or learning profile." />
               </Field>
-              <Field label="Email address">
-                <Input type="email" value={form.email} onChange={(event) => update({ email: event.target.value })} />
-              </Field>
-              <Field label="Phone">
-                <Input value={form.phone} onChange={(event) => update({ phone: event.target.value })} placeholder="+260..." />
-              </Field>
-              <Field label="Country">
-                <Input value={form.country} onChange={(event) => update({ country: event.target.value })} placeholder="Zambia" />
-              </Field>
-              <Field label="Timezone">
-                <Select value={form.timezone} onValueChange={(value) => update({ timezone: value })}>
-                  <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
-                  <SelectContent>
-                    {timezones.map((timezone) => <SelectItem key={timezone} value={timezone}>{timezone}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <Field label="Bio">
-              <Textarea rows={5} value={form.bio} onChange={(event) => update({ bio: event.target.value })} placeholder="Short professional or learning profile." />
-            </Field>
-            <Button onClick={saveProfile} disabled={saving || uploadingAvatar || !form.name.trim() || !form.email.trim()}>
-              {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
-              {saving ? 'Saving...' : 'Save changes'}
-            </Button>
-          </CardContent>
-        </Card>
+              <Button onClick={saveProfile} disabled={saving || uploadingAvatar || !form.name.trim() || !form.email.trim()}>
+                {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
+                {saving ? 'Saving...' : 'Save changes'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle>Change Password</CardTitle>
+              <CardDescription>Available for both admin and student accounts.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Current password"><Input type="password" value={credentials.current} onChange={(event) => updateCredentials({ current: event.target.value })} /></Field>
+                <Field label="New password"><Input type="password" value={credentials.next} onChange={(event) => updateCredentials({ next: event.target.value })} /></Field>
+                <Field label="Confirm new password"><Input type="password" value={credentials.confirm} onChange={(event) => updateCredentials({ confirm: event.target.value })} /></Field>
+              </div>
+              <Button onClick={saveCredentials} disabled={savingCredentials}>
+                {savingCredentials ? <Loader2 className="mr-2 size-4 animate-spin" /> : <KeyRound className="mr-2 size-4" />}
+                {savingCredentials ? 'Changing...' : 'Change password'}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="space-y-6">
           <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle>Profile Photo</CardTitle>
-              <CardDescription>Upload a real image file. UnivAI stores it and keeps only the image URL on your profile.</CardDescription>
+              <CardDescription>Upload JPG, PNG, or WEBP. UnivAI stores it and updates your dashboard avatar.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
@@ -205,8 +282,8 @@ export default function SettingsPage() {
                     {uploadingAvatar ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Camera className="mr-2 size-4" />}
                     {uploadingAvatar ? 'Uploading...' : 'Upload photo'}
                   </Label>
-                  <Input id="profile-photo" type="file" accept="image/*" className="hidden" onChange={handleAvatar} disabled={uploadingAvatar} />
-                  <p className="text-xs text-muted-foreground">For best results, use a clear square image.</p>
+                  <Input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatar} disabled={uploadingAvatar} />
+                  <p className="text-xs text-muted-foreground">For best results, use a clear square image under 5MB.</p>
                 </div>
               </div>
               <Input value={form.avatar} onChange={(event) => update({ avatar: event.target.value })} placeholder="Or paste an image URL" />
