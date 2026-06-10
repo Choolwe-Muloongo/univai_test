@@ -55,6 +55,7 @@ export default function AdminUsersPage() {
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [actionError, setActionError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -73,7 +74,9 @@ export default function AdminUsersPage() {
 
   const [newNote, setNewNote] = useState('');
   const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [generatedPassword, setGeneratedPassword] = useState('');
   const [resetReason, setResetReason] = useState('Customer care password reset.');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const [invoiceTitle, setInvoiceTitle] = useState('');
   const [invoiceAmount, setInvoiceAmount] = useState('');
@@ -151,14 +154,47 @@ export default function AdminUsersPage() {
   }
 
   async function resetPassword() {
-    if (!selectedUser) return;
-    const response = await apiFetch<{ temporaryPassword: string; user: ManagedUser }>(`/admin/users/${selectedUser.id}/reset-password`, {
-      method: 'POST',
-      body: JSON.stringify({ temporaryPassword: temporaryPassword || undefined, forceChange: true, reason: resetReason }),
-    });
-    setTemporaryPassword(response.temporaryPassword);
-    setSelectedUser(response.user);
-    setMessage('Temporary password generated. Copy it before leaving this page.');
+    if (!selectedUser) {
+      setActionError('Failed to update password: no user selected.');
+      return;
+    }
+
+    const customPassword = temporaryPassword.trim();
+    if (customPassword && customPassword.length < 6) {
+      setActionError('Failed to update password: password must be at least 6 characters.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setMessage('');
+    setActionError('');
+
+    try {
+      const response = await apiFetch<{ temporaryPassword?: string; password?: string; user?: ManagedUser }>(`/admin/users/${encodeURIComponent(selectedUser.id)}/reset-password`, {
+        method: 'POST',
+        body: JSON.stringify({
+          temporaryPassword: customPassword || undefined,
+          password: customPassword || undefined,
+          newPassword: customPassword || undefined,
+          forceChange: true,
+          reason: resetReason.trim() || 'Customer care password reset.',
+        }),
+        loadingLabel: 'Updating password...',
+        successMessage: 'Password updated successfully.',
+      });
+      const nextPassword = response.temporaryPassword || response.password || customPassword;
+      setGeneratedPassword(nextPassword);
+      if (response.user) {
+        setSelectedUser(response.user);
+        setUsers((current) => current.map((user) => user.id === response.user?.id ? { ...user, ...response.user } : user));
+      }
+      setTemporaryPassword('');
+      setMessage('Password updated successfully. Copy the temporary password before leaving this page.');
+    } catch (cause) {
+      setActionError(`Failed to update password: ${cause instanceof Error ? cause.message : 'unknown error'}`);
+    } finally {
+      setIsResettingPassword(false);
+    }
   }
 
   async function suspendUser() {
@@ -215,6 +251,7 @@ export default function AdminUsersPage() {
       </div>
 
       {message ? <div className="rounded-xl border bg-primary/5 p-3 text-sm text-primary">{message}</div> : null}
+      {actionError ? <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{actionError}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -265,7 +302,7 @@ export default function AdminUsersPage() {
 
           <Card>
             <CardHeader><CardTitle>Password Reset</CardTitle><CardDescription>Generate or set a temporary password for customer care.</CardDescription></CardHeader>
-            <CardContent className="space-y-3"><Input placeholder="Optional custom temporary password" value={temporaryPassword} onChange={(e) => setTemporaryPassword(e.target.value)} /><Textarea value={resetReason} onChange={(e) => setResetReason(e.target.value)} /><Button onClick={resetPassword}><KeyRound className="mr-2 h-4 w-4" /> Reset password</Button>{temporaryPassword ? <div className="rounded-lg border p-3 text-sm"><p className="font-semibold">Temporary password</p><code>{temporaryPassword}</code></div> : null}</CardContent>
+            <CardContent className="space-y-3"><Input placeholder="Optional custom temporary password" value={temporaryPassword} onChange={(e) => setTemporaryPassword(e.target.value)} minLength={6} /><Textarea value={resetReason} onChange={(e) => setResetReason(e.target.value)} /><Button onClick={resetPassword} disabled={isResettingPassword}><KeyRound className="mr-2 h-4 w-4" /> {isResettingPassword ? 'Updating password...' : 'Reset password'}</Button>{generatedPassword ? <div className="rounded-lg border p-3 text-sm"><p className="font-semibold">Temporary password</p><code>{generatedPassword}</code></div> : null}</CardContent>
           </Card>
 
           <Card>

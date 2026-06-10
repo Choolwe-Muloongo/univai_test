@@ -4,6 +4,7 @@ import './globals.css';
 import './mobile-student-course-fixes.css';
 import { AffiliateReferralCapture } from '@/components/providers/affiliate-referral-capture';
 import { ClientErrorReporter } from '@/components/providers/client-error-reporter';
+import { GlobalLoadingProvider } from '@/components/providers/global-loading-provider';
 import { SessionProvider } from '@/components/providers/session-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 
@@ -39,7 +40,7 @@ export default function RootLayout({
         >
           <AffiliateReferralCapture />
           <ClientErrorReporter />
-          <SessionProvider>{children}</SessionProvider>
+          <GlobalLoadingProvider><SessionProvider>{children}</SessionProvider></GlobalLoadingProvider>
         </ThemeProvider>
       </body>
     </html>

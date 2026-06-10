@@ -364,3 +364,23 @@
     transition: none;
   }
 }
+
+@keyframes univai-loader-draw {
+  0% {
+    stroke-dashoffset: 220;
+    opacity: 0.35;
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -220;
+    opacity: 0.95;
+  }
+}
+
+.univai-loader-path {
+  stroke-dasharray: 72 220;
+  animation: univai-loader-draw 1.9s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px hsl(var(--brand-cyan) / 0.75));
+}

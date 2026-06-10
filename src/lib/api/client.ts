@@ -67,7 +67,26 @@ function mapValidationArray(candidate: unknown[]): Record<string, string[]> {
   return mapped;
 }
 
-type FetchOptions = RequestInit & { parseJson?: boolean };
+type FetchOptions = RequestInit & { parseJson?: boolean; loadingLabel?: string; successMessage?: string };
+
+
+function dispatchLoadingEvent(name: 'univai:loading-start' | 'univai:loading-end', detail: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(name, { detail }));
+}
+
+function shouldShowSuccessToast(method: string) {
+  return !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
+}
+
+function loadingLabelFor(method: string) {
+  const normalized = method.toUpperCase();
+  if (normalized === 'POST') return 'Saving changes...';
+  if (normalized === 'PATCH' || normalized === 'PUT') return 'Updating changes...';
+  if (normalized === 'DELETE') return 'Deleting item...';
+  return 'Loading data...';
+}
+
 
 const AFFILIATE_CODE_KEYS = ['univai.affiliate.code', 'univai.referral.code'];
 
@@ -154,38 +173,55 @@ function normalizeArrayEndpointPayload(path: string, payload: unknown): unknown 
 
 export async function apiFetch<T>(
   path: string,
-  { parseJson = true, headers, body, ...options }: FetchOptions = {}
+  { parseJson = true, headers, body, loadingLabel, successMessage, ...options }: FetchOptions = {}
 ): Promise<T> {
   const url = buildApiUrl(path);
   const guardedBody = guardReviewedPublishing(path, body);
   const affiliateCode = storedAffiliateCode();
-  const response = await fetch(url, {
-    ...options,
-    body: guardedBody,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(affiliateCode ? { 'X-Univai-Referral-Code': affiliateCode } : {}),
-      ...(headers || {}),
-    },
-    credentials: 'include',
-    cache: 'no-store',
-  });
+  const method = options.method || 'GET';
+  const loadingId = `api-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  dispatchLoadingEvent('univai:loading-start', { id: loadingId, label: loadingLabel || loadingLabelFor(method), path, method });
 
-  if (!response.ok) {
-    let details: unknown = null;
-    try {
-      details = await response.json();
-    } catch (error) {
-      details = null;
-      void error;
+  try {
+    const response = await fetch(url, {
+      ...options,
+      body: guardedBody,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(affiliateCode ? { 'X-Univai-Referral-Code': affiliateCode } : {}),
+        ...(headers || {}),
+      },
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      let details: unknown = null;
+      try {
+        details = await response.json();
+      } catch (error) {
+        details = null;
+        void error;
+      }
+      const message = apiErrorMessage(response.status, details);
+      dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
+      throw new ApiError(message, response.status, details);
     }
-    throw new ApiError(apiErrorMessage(response.status, details), response.status, details);
-  }
 
-  if (!parseJson) {
-    return undefined as T;
-  }
+    const completeMessage = successMessage || (shouldShowSuccessToast(method) ? 'Your change was saved successfully.' : undefined);
+    dispatchLoadingEvent('univai:loading-end', { id: loadingId, successMessage: completeMessage, path, method });
 
-  const payload = await response.json();
-  return normalizeArrayEndpointPayload(path, payload) as T;
+    if (!parseJson) {
+      return undefined as T;
+    }
+
+    const payload = await response.json();
+    return normalizeArrayEndpointPayload(path, payload) as T;
+  } catch (error) {
+    if (!(error instanceof ApiError)) {
+      const message = error instanceof Error ? error.message : 'Network request failed.';
+      dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
+    }
+    throw error;
+  }
 }
