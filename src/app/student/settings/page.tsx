@@ -118,10 +118,6 @@ export default function SettingsPage() {
       setError('Choose a JPG, PNG, or WEBP image for your profile photo.');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Profile photo must be 5MB or smaller.');
-      return;
-    }
 
     setUploadingAvatar(true);
     setError(null);
@@ -283,7 +279,7 @@ export default function SettingsPage() {
                     {uploadingAvatar ? 'Uploading...' : 'Upload photo'}
                   </Label>
                   <Input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatar} disabled={uploadingAvatar} />
-                  <p className="text-xs text-muted-foreground">For best results, use a clear square image under 5MB.</p>
+                  <p className="text-xs text-muted-foreground">For best results, use a clear square image.</p>
                 </div>
               </div>
               <Input value={form.avatar} onChange={(event) => update({ avatar: event.target.value })} placeholder="Or paste an image URL" />
