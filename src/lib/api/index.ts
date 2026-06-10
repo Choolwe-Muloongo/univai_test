@@ -505,6 +505,24 @@ export async function deleteCourse(id: string): Promise<void> {
   await apiFetch(`/admin/courses/${id}`, { method: 'DELETE', parseJson: false });
 }
 
+export async function updateCourse(id: string, payload: Record<string, unknown>): Promise<Course> {
+  return apiFetch(`/admin/courses/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+    loadingLabel: 'Saving course changes...',
+    successMessage: 'Course updated successfully.',
+  });
+}
+
+export async function testSmtpEmail(payload: { to: string; subject?: string; message?: string }): Promise<Record<string, unknown>> {
+  return apiFetch('/admin/system/email/test', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    loadingLabel: 'Sending SMTP test email...',
+    successMessage: 'Email sent successfully.',
+  });
+}
+
 export async function deleteProgram(id: string): Promise<void> {
   await apiFetch(`/admin/programs/${id}`, { method: 'DELETE', parseJson: false });
 }

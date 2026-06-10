@@ -1,16 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, CreditCard, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CreditCard, MailCheck, Save, ShieldCheck } from 'lucide-react';
 
 import { AdminSectionPage } from '@/components/admin/admin-section-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { getPaymentSettings, updatePaymentSettings } from '@/lib/api';
+import { getPaymentSettings, testSmtpEmail, updatePaymentSettings } from '@/lib/api';
 import type { PaymentSettings } from '@/lib/api/types';
 
 const defaultSettings: PaymentSettings = {
@@ -24,6 +25,9 @@ export default function SystemPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [smtpResult, setSmtpResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -45,6 +49,31 @@ export default function SystemPage() {
       mounted = false;
     };
   }, []);
+
+  async function sendTestEmail() {
+    const target = testEmail.trim();
+    if (!target) {
+      setSmtpResult({ ok: false, message: 'Enter an email address before sending a test.' });
+      return;
+    }
+
+    setIsSendingTest(true);
+    setSmtpResult(null);
+
+    try {
+      const response = await testSmtpEmail({
+        to: target,
+        subject: 'UnivAI SMTP test',
+        message: 'This confirms UnivAI can send email through the configured SMTP provider.',
+      });
+      const message = typeof response.message === 'string' ? response.message : 'Email sent successfully.';
+      setSmtpResult({ ok: true, message });
+    } catch (err) {
+      setSmtpResult({ ok: false, message: `SMTP failed: ${err instanceof Error ? err.message : 'Unable to send test email.'}` });
+    } finally {
+      setIsSendingTest(false);
+    }
+  }
 
   async function saveSettings() {
     setIsSaving(true);
@@ -138,6 +167,41 @@ export default function SystemPage() {
             <Button onClick={saveSettings} disabled={isLoading || isSaving} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" />
               {isSaving ? 'Saving...' : 'Save Payment Settings'}
+            </Button>
+          </CardContent>
+        </Card>
+
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MailCheck className="h-5 w-5 text-primary" />
+              SMTP Test Email
+            </CardTitle>
+            <CardDescription>Send a real test message after SMTP credentials are activated so email delivery is verified before relying on it.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {smtpResult ? (
+              <div className={`flex gap-3 rounded-lg border p-3 text-sm ${smtpResult.ok ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
+                {smtpResult.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+                <p>{smtpResult.message}</p>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="smtp-test-email">Recipient email</Label>
+              <Input
+                id="smtp-test-email"
+                type="email"
+                placeholder="admin@univai.edu"
+                value={testEmail}
+                disabled={isSendingTest}
+                onChange={(event) => setTestEmail(event.target.value)}
+              />
+              <p className="text-sm text-muted-foreground">The backend should report clear SMTP errors such as wrong password, wrong host, or blocked port.</p>
+            </div>
+            <Button type="button" variant="outline" onClick={sendTestEmail} disabled={isSendingTest}>
+              <MailCheck className="mr-2 h-4 w-4" />
+              {isSendingTest ? 'Sending test...' : 'Send Test Email'}
             </Button>
           </CardContent>
         </Card>
