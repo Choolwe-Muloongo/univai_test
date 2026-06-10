@@ -14,7 +14,7 @@ class AccountAvatarController extends Controller
     public function store(Request $request)
     {
         $payload = $request->validate([
-            'avatar' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'avatar' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp'],
         ]);
 
         $sessionUser = $request->session()->get('user');
