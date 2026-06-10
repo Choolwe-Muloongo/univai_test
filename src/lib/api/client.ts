@@ -87,6 +87,11 @@ function loadingLabelFor(method: string) {
   return 'Loading data...';
 }
 
+function isSilentGuestAuthCheck(path: string, status: number) {
+  const normalized = path.startsWith('/api/') ? path.replace(/^\/api/, '') : path;
+  return status === 401 && (normalized === '/auth/me' || normalized === 'auth/me');
+}
+
 
 const AFFILIATE_CODE_KEYS = ['univai.affiliate.code', 'univai.referral.code'];
 
@@ -160,13 +165,13 @@ function apiErrorMessage(status: number, details: unknown): string {
 }
 
 function normalizeArrayEndpointPayload(path: string, payload: unknown): unknown {
-  const isArrayEndpoint = path === '/schools' || path === '/courses' || path === 'schools' || path === 'courses';
+  const isArrayEndpoint = path === '/schools' || path === '/courses' || path === '/programs' || path === '/programmes' || path === 'schools' || path === 'courses' || path === 'programs' || path === 'programmes';
   if (!isArrayEndpoint) return payload;
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== 'object') return [];
 
   const record = payload as Record<string, unknown>;
-  const candidates = [record.data, record.items, record.results, record.schools, record.courses];
+  const candidates = [record.data, record.items, record.results, record.schools, record.courses, record.programs, record.programmes];
   const match = candidates.find(Array.isArray);
   return match ?? [];
 }
@@ -204,7 +209,11 @@ export async function apiFetch<T>(
         void error;
       }
       const message = apiErrorMessage(response.status, details);
-      dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
+      if (isSilentGuestAuthCheck(path, response.status)) {
+        dispatchLoadingEvent('univai:loading-end', { id: loadingId, path, method });
+      } else {
+        dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
+      }
       throw new ApiError(message, response.status, details);
     }
 
