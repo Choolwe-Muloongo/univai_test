@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Support\Launch\V1LaunchReadiness;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class SystemHealthController extends Controller
 {
@@ -165,12 +168,51 @@ class SystemHealthController extends Controller
         return $this->status();
     }
 
+    public function testEmail(Request $request)
+    {
+        $payload = $request->validate([
+            'to' => ['required', 'email'],
+            'subject' => ['nullable', 'string', 'max:180'],
+            'message' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $subject = $payload['subject'] ?? 'UnivAI SMTP test';
+        $body = $payload['message'] ?? 'This confirms UnivAI can send email through the configured SMTP provider.';
+
+        try {
+            Mail::raw($body, function ($message) use ($payload, $subject) {
+                $message->to($payload['to'])->subject($subject);
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'SMTP test failed: ' . $exception->getMessage(),
+                'mailer' => config('mail.default'),
+                'host' => config('mail.mailers.smtp.host'),
+                'port' => config('mail.mailers.smtp.port'),
+                'from' => config('mail.from.address'),
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Test email sent to ' . $payload['to'] . '. Check the inbox and spam folder.',
+            'mailer' => config('mail.default'),
+            'host' => config('mail.mailers.smtp.host'),
+            'port' => config('mail.mailers.smtp.port'),
+            'from' => config('mail.from.address'),
+            'sentAt' => now()->toISOString(),
+        ]);
+    }
+
     private function checkDatabase(): bool
     {
         try {
             DB::select('select 1');
             return true;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return false;
         }
     }
@@ -184,7 +226,7 @@ class SystemHealthController extends Controller
             $exists = $disk->exists($path);
             $disk->delete($path);
             return $exists;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return false;
         }
     }
