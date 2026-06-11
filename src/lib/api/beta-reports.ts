@@ -84,6 +84,12 @@ export async function updateBetaReport(id: number, payload: { status: BetaReport
   });
 }
 
+export async function verifyBetaReport(id: number): Promise<BetaReportRecord> {
+  return apiFetch(`/admin/beta-reports/${id}/verify`, {
+    method: 'POST',
+  });
+}
+
 export async function verifyAllBetaReports(params: { status?: string; type?: string } = {}): Promise<VerifyAllBetaReportsResponse> {
   const query = new URLSearchParams();
   if (params.status) query.set('status', params.status);
