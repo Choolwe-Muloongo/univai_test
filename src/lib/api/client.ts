@@ -92,6 +92,30 @@ function isSilentGuestAuthCheck(path: string, status: number) {
   return status === 401 && (normalized === '/auth/me' || normalized === 'auth/me');
 }
 
+function isReadMethod(method: string) {
+  return ['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
+}
+
+function defaultRequestCache(path: string, method: string): RequestCache {
+  if (!isReadMethod(method)) return 'no-store';
+
+  const normalized = path.startsWith('/api/') ? path.replace(/^\/api/, '') : path;
+  const alwaysFresh = [
+    '/auth/me',
+    'auth/me',
+    '/students/me/short-courses',
+    'students/me/short-courses',
+    '/students/me/learning',
+    'students/me/learning',
+  ];
+
+  if (alwaysFresh.some((entry) => normalized === entry || normalized.startsWith(`${entry}/`))) {
+    return 'no-store';
+  }
+
+  return 'default';
+}
+
 
 const AFFILIATE_CODE_KEYS = ['univai.affiliate.code', 'univai.referral.code'];
 
@@ -185,6 +209,7 @@ export async function apiFetch<T>(
   const affiliateCode = storedAffiliateCode();
   const method = options.method || 'GET';
   const loadingId = `api-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const requestCache = options.cache ?? defaultRequestCache(path, method);
   dispatchLoadingEvent('univai:loading-start', { id: loadingId, label: loadingLabel || loadingLabelFor(method), path, method });
 
   try {
@@ -197,7 +222,7 @@ export async function apiFetch<T>(
         ...(headers || {}),
       },
       credentials: 'include',
-      cache: 'no-store',
+      cache: requestCache,
     });
 
     if (!response.ok) {
