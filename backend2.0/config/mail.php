@@ -1,5 +1,17 @@
 <?php
 
+$mailMailer = strtolower((string) env('MAIL_MAILER', 'log'));
+$mailScheme = strtolower((string) env('MAIL_SCHEME', ''));
+$mailEncryption = strtolower((string) env('MAIL_ENCRYPTION', ''));
+$invalidMailerSchemes = ['tls', 'starttls', 'ssl'];
+$validSmtpSchemes = ['smtp', 'smtps'];
+
+if (in_array($mailMailer, $invalidMailerSchemes, true)) {
+    $mailMailer = 'smtp';
+}
+
+$smtpScheme = in_array($mailScheme, $validSmtpSchemes, true) ? $mailScheme : null;
+
 return [
 
     /*
@@ -14,7 +26,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    'default' => $mailMailer,
 
     /*
     |--------------------------------------------------------------------------
@@ -39,7 +51,7 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME', env('MAIL_ENCRYPTION')),
+            'scheme' => $smtpScheme,
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
@@ -105,8 +117,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | You may wish for all emails sent by your application to be sent from
-    | the same address. Here you may specify a name and address that is
-    | used globally for all emails that are sent by your application.
+    | the same address. Here you may specify the name and address that are
+    | used globally for all emails that are sent from the application.
     |
     */
 
