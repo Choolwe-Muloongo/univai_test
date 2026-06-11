@@ -19,6 +19,58 @@ class AffiliateService
 {
     public const SOURCE_FORMAL_PROGRAMME = 'formal_programme';
     public const SOURCE_SHORT_COURSE = 'short_course_first_purchase';
+    public const SOURCE_SHORT_COURSE_RECURRING = 'short_course_recurring_purchase';
+    public const SOURCE_SHORT_COURSE_ENTRY = 'short_course_entry_bonus';
+
+    public function tierConfig(?string $tier): array
+    {
+        return match ($tier ?: 'starter') {
+            'campus_promoter' => [
+                'label' => 'Campus Promoter',
+                'entryBonus' => 1.5,
+                'firstPurchaseRate' => 15,
+                'recurringEnabled' => false,
+                'recurringRate' => 0,
+                'recurringMonths' => 0,
+                'dailyPayoutLimit' => 300,
+                'nextTier' => 'ambassador',
+                'requirements' => ['paidReferrals' => 30, 'referredRevenue' => 3000, 'retentionRate' => 30],
+            ],
+            'ambassador' => [
+                'label' => 'UnivAI Ambassador',
+                'entryBonus' => 2,
+                'firstPurchaseRate' => 20,
+                'recurringEnabled' => false,
+                'recurringRate' => 0,
+                'recurringMonths' => 0,
+                'dailyPayoutLimit' => 700,
+                'nextTier' => 'elite_partner',
+                'requirements' => ['paidReferrals' => 100, 'referredRevenue' => 10000, 'retentionRate' => 60],
+            ],
+            'elite_partner' => [
+                'label' => 'Elite Partner',
+                'entryBonus' => 2,
+                'firstPurchaseRate' => 20,
+                'recurringEnabled' => true,
+                'recurringRate' => 5,
+                'recurringMonths' => 12,
+                'dailyPayoutLimit' => 2000,
+                'nextTier' => null,
+                'requirements' => ['paidReferrals' => 100, 'referredRevenue' => 10000, 'retentionRate' => 60],
+            ],
+            default => [
+                'label' => 'Starter Affiliate',
+                'entryBonus' => 1,
+                'firstPurchaseRate' => 10,
+                'recurringEnabled' => false,
+                'recurringRate' => 0,
+                'recurringMonths' => 0,
+                'dailyPayoutLimit' => 100,
+                'nextTier' => 'campus_promoter',
+                'requirements' => ['paidReferrals' => 10, 'referredRevenue' => 1000, 'retentionRate' => 0],
+            ],
+        };
+    }
 
     public function captureReferralCode(?Request $request = null): ?string
     {
@@ -30,7 +82,8 @@ class AffiliateService
             ?: $request->header('X-Affiliate-Code')
             ?: $request->input('affiliateCode')
             ?: $request->input('referralCode')
-            ?: $request->input('ref');
+            ?: $request->input('ref')
+            ?: $request->session()->get('affiliate_code');
 
         if (!is_string($code)) {
             return null;
@@ -47,16 +100,13 @@ class AffiliateService
             return null;
         }
 
-        return Affiliate::query()
-            ->where('code', $clean)
-            ->where('status', 'active')
-            ->first();
+        return Affiliate::query()->where('code', $clean)->where('status', 'active')->first();
     }
 
     public function touchUserReferral(User $user, ?string $code, string $sourceType = 'registration'): void
     {
         $affiliate = $this->affiliateForCode($code);
-        if (!$affiliate) {
+        if (!$affiliate || (int) $affiliate->user_id === (int) $user->id) {
             return;
         }
 
@@ -76,6 +126,7 @@ class AffiliateService
                 'metadata' => [
                     'source' => $sourceType,
                     'captured_at' => now()->toISOString(),
+                    'status' => 'signed_up',
                 ],
             ]
         );
@@ -86,7 +137,7 @@ class AffiliateService
         $invoice->loadMissing('student');
         $metadata = $invoice->metadata ?? [];
         $affiliate = $this->affiliateForCode($metadata['affiliate_code'] ?? $invoice->student?->referred_by_affiliate_code ?? null);
-        if (!$affiliate || !$payment) {
+        if (!$affiliate || !$payment || (int) $affiliate->user_id === (int) $invoice->student_id) {
             return null;
         }
 
@@ -163,7 +214,7 @@ class AffiliateService
             [
                 'referral_code' => $affiliate->code,
                 'first_paid_at' => now(),
-                'metadata' => ['application_reference' => $application->reference],
+                'metadata' => ['application_reference' => $application->reference, 'status' => 'paid'],
             ]
         );
 
@@ -174,15 +225,8 @@ class AffiliateService
     {
         $metadata = $invoice->metadata ?? [];
         $studentId = (int) $invoice->student_id;
-
-        $alreadyEarned = AffiliateEarning::query()
-            ->where('referred_user_id', $studentId)
-            ->where('source_type', self::SOURCE_SHORT_COURSE)
-            ->exists();
-        if ($alreadyEarned) {
-            return null;
-        }
-
+        $tier = $this->tierConfig($affiliate->tier);
+        $gross = (float) $payment->amount;
         $courseId = (string) ($metadata['short_course_id'] ?? '');
         if ($courseId === '' && isset($metadata['short_course_ids']) && is_array($metadata['short_course_ids']) && count($metadata['short_course_ids']) > 0) {
             $courseId = (string) $metadata['short_course_ids'][0];
@@ -192,9 +236,42 @@ class AffiliateService
             return null;
         }
 
-        $gross = (float) $payment->amount;
-        $rate = $this->rateForAffiliate($affiliate, self::SOURCE_SHORT_COURSE);
-        $commission = round(($gross * $rate) / 100, 2);
+        $alreadyFirstPurchase = AffiliateEarning::query()
+            ->where('referred_user_id', $studentId)
+            ->where('source_type', self::SOURCE_SHORT_COURSE)
+            ->exists();
+
+        $sourceType = self::SOURCE_SHORT_COURSE;
+        $rate = (float) $tier['firstPurchaseRate'];
+        $fixedCommission = null;
+
+        if ($invoice->type === 'short_course_entry') {
+            $sourceType = self::SOURCE_SHORT_COURSE_ENTRY;
+            $rate = 0;
+            $fixedCommission = (float) $tier['entryBonus'];
+            $sourceReference = 'entry:' . $sourceReference;
+            if (AffiliateEarning::query()->where('referred_user_id', $studentId)->where('source_type', self::SOURCE_SHORT_COURSE_ENTRY)->exists()) {
+                return null;
+            }
+        } elseif ($alreadyFirstPurchase) {
+            if (empty($affiliate->recurring_commission_enabled)) {
+                return null;
+            }
+            $firstPaidAt = AffiliateReferral::query()
+                ->where('affiliate_id', $affiliate->id)
+                ->where('referred_user_id', $studentId)
+                ->where('source_type', self::SOURCE_SHORT_COURSE)
+                ->whereNotNull('first_paid_at')
+                ->min('first_paid_at');
+            if ($firstPaidAt && now()->diffInMonths($firstPaidAt) >= (int) ($affiliate->recurring_months ?: $tier['recurringMonths'])) {
+                return null;
+            }
+            $sourceType = self::SOURCE_SHORT_COURSE_RECURRING;
+            $rate = (float) $tier['recurringRate'];
+            $sourceReference = $sourceReference . ':renewal:' . $invoice->id;
+        }
+
+        $commission = $fixedCommission !== null ? $fixedCommission : round(($gross * $rate) / 100, 2);
         if ($commission <= 0) {
             return null;
         }
@@ -202,7 +279,7 @@ class AffiliateService
         $earning = AffiliateEarning::query()->updateOrCreate(
             [
                 'affiliate_id' => $affiliate->id,
-                'source_type' => self::SOURCE_SHORT_COURSE,
+                'source_type' => $sourceType,
                 'source_reference' => $sourceReference,
                 'payment_id' => $payment->id,
             ],
@@ -218,6 +295,8 @@ class AffiliateService
                     'short_course_id' => $courseId ?: null,
                     'short_course_ids' => $metadata['short_course_ids'] ?? null,
                     'invoice_type' => $invoice->type,
+                    'tier' => $affiliate->tier ?: 'starter',
+                    'fixed_commission' => $fixedCommission,
                 ]),
             ]
         );
@@ -232,7 +311,7 @@ class AffiliateService
             [
                 'referral_code' => $affiliate->code,
                 'first_paid_at' => now(),
-                'metadata' => ['invoice_id' => $invoice->id],
+                'metadata' => ['invoice_id' => $invoice->id, 'status' => 'paid'],
             ]
         );
 
@@ -241,24 +320,59 @@ class AffiliateService
 
     public function summaryForAffiliate(Affiliate $affiliate): array
     {
-        $available = AffiliateEarning::query()
-            ->where('affiliate_id', $affiliate->id)
-            ->where('status', 'available')
-            ->sum('commission_amount');
-
-        $reserved = AffiliatePayout::query()
-            ->where('affiliate_id', $affiliate->id)
-            ->whereIn('status', ['pending', 'processing', 'successful'])
-            ->sum('amount');
+        $available = AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->where('status', 'available')->sum('commission_amount');
+        $reserved = AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->whereIn('status', ['pending', 'pending_review', 'processing', 'successful'])->sum('amount');
+        $paidReferralCount = AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->distinct('referred_user_id')->count('referred_user_id');
 
         return [
             'grossEarned' => (string) AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->sum('gross_amount'),
             'commissionEarned' => (string) AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->sum('commission_amount'),
             'availableToWithdraw' => (string) max(0, $available - $reserved),
-            'pendingPayouts' => (string) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->where('status', 'pending')->sum('amount'),
+            'pendingPayouts' => (string) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->whereIn('status', ['pending', 'pending_review'])->sum('amount'),
             'processingPayouts' => (string) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->where('status', 'processing')->sum('amount'),
             'successfulPayouts' => (string) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->where('status', 'successful')->sum('amount'),
+            'verifiedSignups' => AffiliateReferral::query()->where('affiliate_id', $affiliate->id)->distinct('referred_user_id')->count('referred_user_id'),
+            'paidReferrals' => $paidReferralCount,
         ];
+    }
+
+    public function tierProgress(Affiliate $affiliate): array
+    {
+        $config = $this->tierConfig($affiliate->tier);
+        $requirements = $config['requirements'];
+        $summary = $this->summaryForAffiliate($affiliate);
+        $revenue = (float) $summary['grossEarned'];
+
+        return [
+            'currentTier' => $affiliate->tier ?: 'starter',
+            'currentTierLabel' => $config['label'],
+            'nextTier' => $config['nextTier'],
+            'paidReferrals' => (int) $summary['paidReferrals'],
+            'requiredPaidReferrals' => $requirements['paidReferrals'],
+            'referredRevenue' => $revenue,
+            'requiredReferredRevenue' => $requirements['referredRevenue'],
+            'retentionRate' => null,
+            'requiredRetentionRate' => $requirements['retentionRate'],
+        ];
+    }
+
+    public function autoPayoutReviewReason(Affiliate $affiliate, float $amount): ?string
+    {
+        if (!$affiliate->auto_payout_enabled) {
+            return 'Automatic payouts are disabled for this affiliate.';
+        }
+        if ($amount > (float) ($affiliate->auto_payout_daily_limit ?? $this->tierConfig($affiliate->tier)['dailyPayoutLimit'])) {
+            return 'Withdrawal exceeds your daily automatic payout limit and needs admin review.';
+        }
+        $todayTotal = AffiliatePayout::query()
+            ->where('affiliate_id', $affiliate->id)
+            ->whereDate('created_at', now()->toDateString())
+            ->whereIn('status', ['pending', 'processing', 'successful'])
+            ->sum('amount');
+        if (($todayTotal + $amount) > (float) ($affiliate->auto_payout_daily_limit ?? 100)) {
+            return 'Daily automatic payout limit reached. This withdrawal needs admin review.';
+        }
+        return null;
     }
 
     public function createPayout(Affiliate $affiliate, array $payload, ?int $requestedBy = null): AffiliatePayout
@@ -283,7 +397,7 @@ class AffiliateService
             throw new \RuntimeException('Requested payout exceeds available affiliate balance.');
         }
 
-        $payout = AffiliatePayout::query()->create([
+        return AffiliatePayout::query()->create([
             'affiliate_id' => $affiliate->id,
             'reference' => $payload['reference'] ?? ('AFF-' . strtoupper(Str::random(10))),
             'amount' => $amount,
@@ -298,8 +412,6 @@ class AffiliateService
             'requested_at' => now(),
             'lenco_payload' => null,
         ]);
-
-        return $payout;
     }
 
     public function sendPayoutToLenco(AffiliatePayout $payout, LencoPaymentService $lenco, ?int $approvedBy = null): AffiliatePayout
@@ -307,15 +419,11 @@ class AffiliateService
         $affiliate = $payout->affiliate;
         $accountId = $affiliate->lenco_account_id ?: config('services.lenco.account_id', env('LENCO_ACCOUNT_ID'));
         if (!$accountId) {
-            $payout->update([
-                'status' => 'failed',
-                'failure_reason' => 'Lenco account id is missing.',
-                'approved_by' => $approvedBy,
-            ]);
+            $payout->update(['status' => 'failed', 'failure_reason' => 'Lenco account id is missing.', 'approved_by' => $approvedBy]);
             return $payout->fresh();
         }
 
-        $transferPayload = [
+        $response = $lenco->initiateMobileMoneyTransfer([
             'accountId' => $accountId,
             'amount' => (float) $payout->amount,
             'narration' => 'UnivAI affiliate payout: ' . $affiliate->code,
@@ -323,9 +431,7 @@ class AffiliateService
             'phone' => $payout->phone ?: $affiliate->payout_phone,
             'operator' => $payout->operator ?: $affiliate->payout_operator,
             'country' => $payout->country ?: $affiliate->payout_country ?: 'zm',
-        ];
-
-        $response = $lenco->initiateMobileMoneyTransfer($transferPayload);
+        ]);
 
         $status = strtolower((string) ($response['status'] ?? 'unknown'));
         $successful = in_array($status, ['successful', 'success', 'paid', 'completed'], true);
@@ -350,24 +456,11 @@ class AffiliateService
         $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? $verification['status'] ?? 'unknown'));
 
         if ($verification['verified'] || in_array($status, ['successful', 'success', 'paid', 'completed'], true)) {
-            $payout->update([
-                'status' => 'successful',
-                'lenco_payload' => $payload ?: $payout->lenco_payload,
-                'completed_at' => now(),
-                'failure_reason' => null,
-            ]);
+            $payout->update(['status' => 'successful', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'completed_at' => now(), 'failure_reason' => null]);
         } elseif ($status === 'pending' || $status === 'processing') {
-            $payout->update([
-                'status' => 'processing',
-                'lenco_payload' => $payload ?: $payout->lenco_payload,
-                'failure_reason' => null,
-            ]);
+            $payout->update(['status' => 'processing', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'failure_reason' => null]);
         } else {
-            $payout->update([
-                'status' => 'failed',
-                'lenco_payload' => $payload ?: $payout->lenco_payload,
-                'failure_reason' => $verification['message'] ?: 'Unable to verify payout.',
-            ]);
+            $payout->update(['status' => 'failed', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'failure_reason' => $verification['message'] ?: 'Unable to verify payout.']);
         }
 
         return $payout->fresh();
@@ -375,11 +468,10 @@ class AffiliateService
 
     private function rateForAffiliate(Affiliate $affiliate, string $sourceType): float
     {
-        $rate = $sourceType === self::SOURCE_FORMAL_PROGRAMME
-            ? (float) $affiliate->formal_programme_rate
-            : (float) $affiliate->short_course_rate;
-
-        return max(0, $rate);
+        if ($sourceType === self::SOURCE_SHORT_COURSE) {
+            return (float) $this->tierConfig($affiliate->tier)['firstPurchaseRate'];
+        }
+        return max(0, (float) $affiliate->formal_programme_rate);
     }
 
     private function affiliateCanEarn(Affiliate $affiliate, string $sourceType): bool
@@ -387,11 +479,9 @@ class AffiliateService
         if ($affiliate->status !== 'active') {
             return false;
         }
-
         if ($affiliate->scope === 'all') {
             return true;
         }
-
         return $sourceType === self::SOURCE_FORMAL_PROGRAMME
             ? $affiliate->scope === 'formal_programmes'
             : $affiliate->scope === 'short_courses';
