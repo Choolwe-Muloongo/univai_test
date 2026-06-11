@@ -26,6 +26,29 @@ export type DailyQuest = {
   completed: boolean;
 };
 
+export type RankSnapshot = {
+  rank: number | null;
+  points: number;
+  xpPoints?: number;
+  rewardPoints?: number;
+  missionsCompleted?: number;
+  practicesPassed?: number;
+  finalTrialsPassed?: number;
+  lastActivityAt?: string | null;
+};
+
+export type CourseRankSnapshot = RankSnapshot & {
+  courseId: string;
+  courseTitle?: string | null;
+};
+
+export type RankingSummary = {
+  globalWeekly: RankSnapshot;
+  globalAllTime: RankSnapshot;
+  activeCourseWeekly: CourseRankSnapshot | null;
+  activeCourseAllTime: CourseRankSnapshot | null;
+};
+
 export type GamificationState = {
   xp: number;
   level: number;
@@ -35,6 +58,7 @@ export type GamificationState = {
   streakDays: number;
   streakProtected: boolean;
   weeklyRank: number | null;
+  rankings?: RankingSummary;
   weeklyActivityPoints: number;
   badges: string[];
   novaMessage: string;
@@ -126,8 +150,9 @@ export async function redeemStudentReward(code: string, courseId?: string | null
   });
 }
 
-export async function getStudentActivityLeaderboard(): Promise<LeaderboardRow[]> {
-  return apiFetch<LeaderboardRow[]>('/students/me/leaderboard/activity');
+export async function getStudentActivityLeaderboard(period: ShortCourseLeaderboardPeriod = 'weekly'): Promise<LeaderboardRow[]> {
+  const query = new URLSearchParams({ period });
+  return apiFetch<LeaderboardRow[]>(`/students/me/leaderboard/activity?${query.toString()}`);
 }
 
 export async function getShortCourseLeaderboard(courseId: string, period: ShortCourseLeaderboardPeriod = 'weekly'): Promise<ShortCourseLeaderboard> {
@@ -147,6 +172,7 @@ export function fallbackGamification(progress = 0): GamificationState {
   const xp = Math.max(0, Math.round(progress * 12.4));
   const level = xp >= 1000 ? 4 : xp >= 600 ? 3 : xp >= 250 ? 2 : 1;
   const levelTitle = ['New Learner', 'Explorer', 'Builder', 'Problem Solver'][level - 1] ?? 'UnivAI Scholar';
+  const weeklyPoints = Math.floor(xp / 2);
   return {
     xp,
     level,
@@ -156,7 +182,13 @@ export function fallbackGamification(progress = 0): GamificationState {
     streakDays: progress > 0 ? 1 : 0,
     streakProtected: false,
     weeklyRank: null,
-    weeklyActivityPoints: Math.floor(xp / 2),
+    rankings: {
+      globalWeekly: { rank: null, points: weeklyPoints },
+      globalAllTime: { rank: null, points: weeklyPoints },
+      activeCourseWeekly: null,
+      activeCourseAllTime: null,
+    },
+    weeklyActivityPoints: weeklyPoints,
     badges: progress >= 100 ? ['Skill Proof Ready'] : progress >= 50 ? ['Halfway Builder'] : ['First Steps'],
     novaMessage: progress >= 100
       ? 'Your Skill Proof path is ready. Finish the Final Trial and show the work, not just the score.'
