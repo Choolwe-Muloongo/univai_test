@@ -14,7 +14,7 @@ import {
   getAffiliateOverview,
   requestAffiliatePayout,
   verifyAffiliatePayout,
-} from '@/lib/api';
+} from '@/lib/api/admin-affiliate';
 import type { AffiliateOverview, AffiliateRecord } from '@/lib/api/types';
 
 type CreateForm = {
@@ -186,23 +186,13 @@ export default function AdminAffiliatesPage() {
 
       {pendingAffiliates.length ? (
         <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Pending affiliate applications</CardTitle>
-            <CardDescription>Review student applications and approve only clean promoters.</CardDescription>
-          </CardHeader>
+          <CardHeader><CardTitle>Pending affiliate applications</CardTitle><CardDescription>Review student applications and approve only clean promoters.</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             {pendingAffiliates.map((affiliate) => (
               <div key={affiliate.id} className="rounded-2xl border p-4 text-sm">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="font-semibold">{affiliate.displayName}</p>
-                    <p className="text-muted-foreground">{affiliate.userEmail ?? 'No email'} · {affiliate.payoutOperator} {affiliate.payoutPhone}</p>
-                    <p className="mt-2 text-muted-foreground">{affiliate.applicationReason ?? 'No reason provided.'}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => { loadAffiliate(affiliate, 'active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Approve</Button>
-                    <Button size="sm" variant="outline" onClick={() => { loadAffiliate(affiliate, 'rejected'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Reject</Button>
-                  </div>
+                  <div><p className="font-semibold">{affiliate.displayName}</p><p className="text-muted-foreground">{affiliate.userEmail ?? 'No email'} · {affiliate.payoutOperator} {affiliate.payoutPhone}</p><p className="mt-2 text-muted-foreground">{affiliate.applicationReason ?? 'No reason provided.'}</p></div>
+                  <div className="flex gap-2"><Button size="sm" onClick={() => { loadAffiliate(affiliate, 'active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Approve</Button><Button size="sm" variant="outline" onClick={() => { loadAffiliate(affiliate, 'rejected'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Reject</Button></div>
                 </div>
               </div>
             ))}
@@ -212,10 +202,7 @@ export default function AdminAffiliatesPage() {
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Create or update affiliate</CardTitle>
-            <CardDescription>Set status to active to approve, rejected to decline, or pending to hold.</CardDescription>
-          </CardHeader>
+          <CardHeader><CardTitle>Create or update affiliate</CardTitle><CardDescription>Set status to active to approve, rejected to decline, or pending to hold.</CardDescription></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="User ID"><Input value={form.userId} onChange={(event) => setForm((current) => ({ ...current, userId: event.target.value }))} placeholder="Required to link student" /></Field>
@@ -237,10 +224,7 @@ export default function AdminAffiliatesPage() {
         </Card>
 
         <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Affiliate list</CardTitle>
-            <CardDescription>Commission status, tier, earnings, and payout actions.</CardDescription>
-          </CardHeader>
+          <CardHeader><CardTitle>Affiliate list</CardTitle><CardDescription>Commission status, tier, earnings, and payout actions.</CardDescription></CardHeader>
           <CardContent className="space-y-4">
             <Button variant="outline" onClick={refresh} className="w-full"><RefreshCw className="mr-2 size-4" />Refresh</Button>
             <div className="space-y-4">
@@ -248,39 +232,10 @@ export default function AdminAffiliatesPage() {
                 const available = Number(affiliate.summary.availableToWithdraw ?? 0);
                 return (
                   <div key={affiliate.id} className="rounded-2xl border p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="font-semibold">{affiliate.displayName}</p>
-                        <p className="text-sm text-muted-foreground">{affiliate.code} - {affiliate.scope} - {affiliate.status}</p>
-                        <p className="text-xs text-muted-foreground">{affiliate.tierLabel ?? affiliate.tier} · First purchase {affiliate.shortCourseRate}% · Recurring {affiliate.recurringCommissionEnabled ? 'enabled' : 'locked'}</p>
-                      </div>
-                      <div className="text-right text-sm">
-                        <p className="font-semibold">ZMW {available.toLocaleString()}</p>
-                        <p className="text-muted-foreground">Available</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                      <Input value={payoutAmounts[affiliate.id] ?? ''} onChange={(event) => setPayoutAmounts((current) => ({ ...current, [affiliate.id]: event.target.value }))} placeholder="Payout amount" />
-                      <Button onClick={() => submitPayout(affiliate)} disabled={busyId === affiliate.id || available <= 0}>{busyId === affiliate.id ? 'Working...' : 'Create payout'}</Button>
-                      <Button variant="outline" onClick={() => loadAffiliate(affiliate)}>Edit</Button>
-                    </div>
-                    <div className="mt-3 space-y-2 text-xs text-muted-foreground">
-                      <p>Signups: {affiliate.summary.verifiedSignups ?? 0} | Paid referrals: {affiliate.summary.paidReferrals ?? 0}</p>
-                      <p>Gross: {affiliate.summary.grossEarned} | Commission: {affiliate.summary.commissionEarned}</p>
-                      <p>Pending: {affiliate.summary.pendingPayouts} | Processing: {affiliate.summary.processingPayouts} | Paid: {affiliate.summary.successfulPayouts}</p>
-                    </div>
-                    {affiliate.recentPayouts.length ? (
-                      <div className="mt-4 space-y-2">
-                        {affiliate.recentPayouts.map((payout) => (
-                          <div key={payout.id} className="rounded-xl border bg-muted/30 p-3 text-sm">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div><p className="font-medium">{payout.reference}</p><p className="text-xs text-muted-foreground">{payout.status} - {payout.currency} {payout.amount}</p></div>
-                              <Button size="sm" variant="outline" onClick={() => verifyPayout(payout.id)} disabled={busyId === payout.id}>{busyId === payout.id ? 'Checking...' : 'Verify'}</Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-semibold">{affiliate.displayName}</p><p className="text-sm text-muted-foreground">{affiliate.code} - {affiliate.scope} - {affiliate.status}</p><p className="text-xs text-muted-foreground">{affiliate.tierLabel ?? affiliate.tier} · First purchase {affiliate.shortCourseRate}% · Recurring {affiliate.recurringCommissionEnabled ? 'enabled' : 'locked'}</p></div><div className="text-right text-sm"><p className="font-semibold">ZMW {available.toLocaleString()}</p><p className="text-muted-foreground">Available</p></div></div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3"><Input value={payoutAmounts[affiliate.id] ?? ''} onChange={(event) => setPayoutAmounts((current) => ({ ...current, [affiliate.id]: event.target.value }))} placeholder="Payout amount" /><Button onClick={() => submitPayout(affiliate)} disabled={busyId === affiliate.id || available <= 0}>{busyId === affiliate.id ? 'Working...' : 'Create payout'}</Button><Button variant="outline" onClick={() => loadAffiliate(affiliate)}>Edit</Button></div>
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground"><p>Signups: {affiliate.summary.verifiedSignups ?? 0} | Paid referrals: {affiliate.summary.paidReferrals ?? 0}</p><p>Gross: {affiliate.summary.grossEarned} | Commission: {affiliate.summary.commissionEarned}</p><p>Pending: {affiliate.summary.pendingPayouts} | Processing: {affiliate.summary.processingPayouts} | Paid: {affiliate.summary.successfulPayouts}</p></div>
+                    {affiliate.recentPayouts.length ? <div className="mt-4 space-y-2">{affiliate.recentPayouts.map((payout) => <div key={payout.id} className="rounded-xl border bg-muted/30 p-3 text-sm"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{payout.reference}</p><p className="text-xs text-muted-foreground">{payout.status} - {payout.currency} {payout.amount}</p></div><Button size="sm" variant="outline" onClick={() => verifyPayout(payout.id)} disabled={busyId === payout.id}>{busyId === payout.id ? 'Checking...' : 'Verify'}</Button></div></div>)}</div> : null}
                   </div>
                 );
               })}
@@ -294,9 +249,7 @@ export default function AdminAffiliatesPage() {
 }
 
 function SummaryCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string | number }) {
-  return (
-    <Card className="rounded-3xl"><CardContent className="flex items-center gap-4 p-5"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10"><Icon className="size-5 text-primary" /></div><div><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-semibold">{value}</p></div></CardContent></Card>
-  );
+  return <Card className="rounded-3xl"><CardContent className="flex items-center gap-4 p-5"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10"><Icon className="size-5 text-primary" /></div><div><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-semibold">{value}</p></div></CardContent></Card>;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
