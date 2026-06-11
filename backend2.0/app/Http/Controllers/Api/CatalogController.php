@@ -10,6 +10,7 @@ use App\Models\Lesson;
 use App\Models\School;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class CatalogController extends Controller
 {
@@ -29,50 +30,16 @@ class CatalogController extends Controller
         return Cache::remember('catalog:courses', $this->publicCacheSeconds(), fn () => Course::query()
             ->orderBy('title')
             ->get()
-            ->map(fn (Course $course) => [
-                'id' => $course->id,
-                'title' => $course->title,
-                'description' => $course->description,
-                'schoolId' => $course->school_id,
-                'progress' => $course->progress,
-                'imageId' => $course->image_id,
-                'certificateType' => $course->certificate_type,
-                'pricingType' => $course->pricing_type,
-                'price' => $course->price,
-                'currency' => $course->currency,
-                'certificateFee' => $course->certificate_fee,
-                'certificateCurrency' => $course->certificate_currency,
-                'durationHours' => $course->duration_hours,
-                'level' => $course->level,
-                'status' => $course->status ?? 'draft',
-            ]));
+            ->map(fn (Course $course) => $this->mapCourse($course)));
     }
 
     public function course(string $id)
     {
-        $payload = Cache::remember("catalog:course:{$id}", $this->publicCacheSeconds(), function () use ($id) {
-            $course = Course::find($id);
-            if (!$course) {
-                return null;
-            }
+        $cacheKey = 'catalog:course:' . md5($id);
 
-            return [
-                'id' => $course->id,
-                'title' => $course->title,
-                'description' => $course->description,
-                'schoolId' => $course->school_id,
-                'progress' => $course->progress,
-                'imageId' => $course->image_id,
-                'certificateType' => $course->certificate_type,
-                'pricingType' => $course->pricing_type,
-                'price' => $course->price,
-                'currency' => $course->currency,
-                'certificateFee' => $course->certificate_fee,
-                'certificateCurrency' => $course->certificate_currency,
-                'durationHours' => $course->duration_hours,
-                'level' => $course->level,
-                'status' => $course->status ?? 'draft',
-            ];
+        $payload = Cache::remember($cacheKey, $this->publicCacheSeconds(), function () use ($id) {
+            $course = $this->findCourseForCatalogue($id);
+            return $course ? $this->mapCourse($course) : null;
         });
 
         if (!$payload) {
@@ -84,15 +51,16 @@ class CatalogController extends Controller
 
     public function lessonsByCourse(string $courseId)
     {
-        $course = Course::find($courseId);
+        $course = $this->findCourseForCatalogue($courseId);
+
         if (!$course) {
-            return response()->json([], 404);
+            return response()->json([], 200);
         }
 
-        return Cache::remember("catalog:course:{$courseId}:lessons", $this->publicCacheSeconds(), fn () => $course->lessons()
+        return Cache::remember('catalog:course:' . md5($course->id) . ':lessons', $this->publicCacheSeconds(), fn () => $course->lessons()
             ->with('learningObjects')
             ->get()
-            ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $courseId)));
+            ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $course->id)));
     }
 
     public function lesson(string $lessonId)
@@ -157,7 +125,7 @@ class CatalogController extends Controller
 
         $courseId = $lesson->shortCourses()->value('short_courses.id');
         if ($courseId) {
-            Cache::forget("catalog:course:{$courseId}:lessons");
+            Cache::forget('catalog:course:' . md5($courseId) . ':lessons');
         }
 
         return $this->mapLesson($lesson->fresh('learningObjects'), $courseId);
@@ -165,8 +133,11 @@ class CatalogController extends Controller
 
     public function courseExam(string $courseId)
     {
-        return Cache::remember("catalog:course:{$courseId}:exam", $this->publicCacheSeconds(), fn () => ExamQuestion::query()
-            ->where('course_id', $courseId)
+        $course = $this->findCourseForCatalogue($courseId);
+        $resolvedCourseId = $course?->id ?? $courseId;
+
+        return Cache::remember('catalog:course:' . md5($resolvedCourseId) . ':exam', $this->publicCacheSeconds(), fn () => ExamQuestion::query()
+            ->where('course_id', $resolvedCourseId)
             ->orderBy('id')
             ->get()
             ->map(fn (ExamQuestion $question) => [
@@ -179,6 +150,43 @@ class CatalogController extends Controller
     private function publicCacheSeconds(): int
     {
         return max(0, (int) config('univai.capacity.public_cache_seconds', 300));
+    }
+
+    private function findCourseForCatalogue(string $id): ?Course
+    {
+        $decoded = rawurldecode($id);
+        $normalized = trim($decoded);
+        $slug = Str::slug($normalized);
+
+        return Course::query()
+            ->where('id', $normalized)
+            ->orWhere('id', $decoded)
+            ->orWhere('id', $slug)
+            ->orWhere('title', $normalized)
+            ->orWhereRaw('LOWER(title) = ?', [Str::lower($normalized)])
+            ->orWhereRaw('LOWER(REPLACE(title, " ", "-")) = ?', [Str::lower($slug)])
+            ->first();
+    }
+
+    private function mapCourse(Course $course): array
+    {
+        return [
+            'id' => $course->id,
+            'title' => $course->title,
+            'description' => $course->description,
+            'schoolId' => $course->school_id,
+            'progress' => $course->progress,
+            'imageId' => $course->image_id,
+            'certificateType' => $course->certificate_type,
+            'pricingType' => $course->pricing_type,
+            'price' => $course->price,
+            'currency' => $course->currency,
+            'certificateFee' => $course->certificate_fee,
+            'certificateCurrency' => $course->certificate_currency,
+            'durationHours' => $course->duration_hours,
+            'level' => $course->level,
+            'status' => $course->status ?? 'draft',
+        ];
     }
 
     private function mapLesson(Lesson $lesson, ?string $courseId): array
@@ -239,46 +247,19 @@ class CatalogController extends Controller
         ];
     }
 
-    private function upsertLearningObject(Lesson $lesson, string $type, array $attributes): LearningObject
+    private function upsertLearningObject(Lesson $lesson, string $type, array $attributes): void
     {
         $object = $lesson->learningObjects()->where('type', $type)->first();
-
-        if (!$object) {
-            $object = LearningObject::create([
-                'id' => "{$lesson->id}-{$type}-v1",
-                'type' => $type,
-                'title' => "{$lesson->title} ".ucfirst($type),
-                'review_status' => 'approved',
-                'publication_status' => 'published',
-                'published_at' => now(),
-                ...$attributes,
-            ]);
-
-            $lesson->learningObjects()->attach($object->id, [
-                'position' => $this->nextLearningObjectPosition($lesson),
-                'publication_status' => 'published',
-            ]);
-
-            return $object;
+        if ($object) {
+            $object->update($attributes);
+            return;
         }
 
-        $object->update([
-            ...$attributes,
-            'version' => $object->version + 1,
-            'review_status' => 'pending_review',
+        $lesson->learningObjects()->create(array_merge([
+            'type' => $type,
+            'title' => ucfirst($type),
+            'review_status' => 'draft',
             'publication_status' => 'draft',
-        ]);
-
-        return $object;
-    }
-
-    private function nextLearningObjectPosition(Lesson $lesson): int
-    {
-        return ((int) $lesson->learningObjects()->max('lesson_learning_objects.position')) + 1;
-    }
-
-    private function examQuestions(): array
-    {
-        return [];
+        ], $attributes));
     }
 }
