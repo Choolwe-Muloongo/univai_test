@@ -14,6 +14,7 @@ class Affiliate extends Model
         'display_name',
         'scope',
         'status',
+        'tier',
         'formal_programme_rate',
         'short_course_rate',
         'lenco_account_id',
@@ -21,13 +22,29 @@ class Affiliate extends Model
         'payout_operator',
         'payout_country',
         'notes',
+        'application_reason',
+        'promotion_channels',
         'approved_at',
+        'rejected_at',
+        'terms_accepted_at',
+        'recurring_commission_enabled',
+        'recurring_months',
+        'auto_payout_enabled',
+        'auto_payout_daily_limit',
+        'last_tier_reviewed_at',
     ];
 
     protected $casts = [
         'formal_programme_rate' => 'decimal:2',
         'short_course_rate' => 'decimal:2',
+        'promotion_channels' => 'array',
         'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'terms_accepted_at' => 'datetime',
+        'recurring_commission_enabled' => 'boolean',
+        'auto_payout_enabled' => 'boolean',
+        'auto_payout_daily_limit' => 'decimal:2',
+        'last_tier_reviewed_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
