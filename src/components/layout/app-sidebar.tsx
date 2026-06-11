@@ -415,7 +415,7 @@ function studentNavKey(user: NonNullable<ReturnType<typeof useSession>['session'
     return 'short-course-student';
   }
 
-  if ((user.role || '').includes('free') || roleTier === 'freemium') {
+  if ((user.role || '').includes('free') || roleTier === 'free-learning') {
     return 'freemium-student';
   }
 
