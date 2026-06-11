@@ -9,13 +9,19 @@ import { Progress } from '@/components/ui/progress';
 import { DailyQuests } from '@/components/gamification/daily-quests';
 import { StreakFlame } from '@/components/gamification/streak-flame';
 import { XpBar } from '@/components/gamification/xp-bar';
-import type { GamificationState } from '@/lib/api/student-gamification';
+import type { GamificationState, RankSnapshot } from '@/lib/api/student-gamification';
 import type { ShortCourseEnrollmentSummary } from '@/lib/api/short-courses';
 import { accessLabel, formatExpiryDate, timeRemainingLabel } from '@/lib/short-course-ui';
 
 export function MissionHome({ learnerName, activeJourney, gamification }: { learnerName?: string | null; activeJourney?: ShortCourseEnrollmentSummary | null; gamification: GamificationState }) {
   const course = activeJourney?.course;
   const progress = activeJourney?.progress ?? 0;
+  const ranking = bestRankLabel(gamification);
+  const rankings = gamification.rankings;
+  const activeCourseRank = rankings?.activeCourseWeekly;
+  const globalWeeklyRank = rankings?.globalWeekly;
+  const globalAllTimeRank = rankings?.globalAllTime;
+
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-3xl border bg-card shadow-sm">
@@ -28,7 +34,7 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
               <MiniStat icon={Trophy} label="Level" value={`${gamification.level} ${gamification.levelTitle}`} />
               <MiniStat icon={Sparkles} label="XP" value={gamification.xp.toLocaleString()} />
               <MiniStat icon={Gift} label="Reward points" value={gamification.rewardPoints.toLocaleString()} />
-              <MiniStat icon={Target} label="Weekly rank" value={gamification.weeklyRank ? `#${gamification.weeklyRank}` : 'Unranked'} />
+              <MiniStat icon={Target} label={ranking.label} value={ranking.value} hint={ranking.hint} />
             </div>
           </div>
           <div className="rounded-3xl border bg-primary/5 p-4">
@@ -37,6 +43,7 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
             <div className="mt-4 flex flex-wrap gap-2">
               {course ? <Button asChild><Link href={`/student/courses/${course.id}`}>Continue Course</Link></Button> : <Button asChild><Link href="/student/courses">Browse Courses</Link></Button>}
               {course ? <Button asChild variant="outline"><Link href={`/student/courses/${course.id}/practice`}>Practice Weak Areas</Link></Button> : null}
+              {course ? <Button asChild variant="outline"><Link href={`/student/courses/${course.id}/leaderboard`}>Journey Ranking</Link></Button> : null}
               <Button asChild variant="outline"><Link href="/student/ai/chat">Ask Nova</Link></Button>
             </div>
           </div>
@@ -58,7 +65,10 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
                       <p className="text-2xl font-bold">{course.title}</p>
                       <p className="mt-1 text-sm text-muted-foreground">Level: {course.level ?? 'Foundation'} · Reward: +50 XP · Estimated time: 8 minutes</p>
                     </div>
-                    <Button asChild className="w-full lg:w-auto"><Link href={`/student/courses/${course.id}`}>Continue Course <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                      <Button asChild className="w-full lg:w-auto"><Link href={`/student/courses/${course.id}`}>Continue Course <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+                      <Button asChild variant="outline" className="w-full lg:w-auto"><Link href={`/student/courses/${course.id}/leaderboard`}>Ranking</Link></Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm"><span>Course Progress</span><strong>{progress}%</strong></div>
@@ -89,8 +99,14 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
             <CardHeader><CardTitle>Activity summary</CardTitle><CardDescription>Activity points show your learning consistency across the platform.</CardDescription></CardHeader>
             <CardContent className="space-y-3 text-sm">
               <InfoBox label="Weekly activity" value={`${gamification.weeklyActivityPoints} pts`} />
+              <InfoBox label="Journey weekly rank" value={rankValue(activeCourseRank, 'No Journey activity yet')} />
+              <InfoBox label="Global weekly rank" value={rankValue(globalWeeklyRank, 'No weekly activity yet')} />
+              <InfoBox label="Global all-time rank" value={rankValue(globalAllTimeRank, 'No activity yet')} />
               <InfoBox label="Badges" value={gamification.badges.join(', ') || 'None yet'} />
-              <Button asChild variant="outline" className="w-full"><Link href="/student/leaderboard">View Leaderboard</Link></Button>
+              <div className="grid gap-2">
+                {course ? <Button asChild variant="outline" className="w-full"><Link href={`/student/courses/${course.id}/leaderboard`}>View Journey Ranking</Link></Button> : null}
+                <Button asChild variant="outline" className="w-full"><Link href="/student/leaderboard">View Global Ranking</Link></Button>
+              </div>
             </CardContent>
           </Card>
         </aside>
@@ -99,8 +115,33 @@ export function MissionHome({ learnerName, activeJourney, gamification }: { lear
   );
 }
 
-function MiniStat({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) {
-  return <div className="rounded-2xl border bg-muted/20 p-3"><Icon className="mb-2 h-4 w-4 text-primary" /><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-sm font-bold">{value}</p></div>;
+function bestRankLabel(gamification: GamificationState) {
+  const course = gamification.rankings?.activeCourseWeekly;
+  if (course?.rank) {
+    return { label: 'Journey rank', value: `#${course.rank}`, hint: `${course.points.toLocaleString()} pts this week` };
+  }
+
+  const global = gamification.rankings?.globalWeekly;
+  if (global?.rank) {
+    return { label: 'Global rank', value: `#${global.rank}`, hint: `${global.points.toLocaleString()} pts this week` };
+  }
+
+  if ((global?.points ?? gamification.weeklyActivityPoints) > 0) {
+    return { label: 'Ranking', value: 'Calculating', hint: `${(global?.points ?? gamification.weeklyActivityPoints).toLocaleString()} pts logged` };
+  }
+
+  return { label: 'Ranking', value: 'Start today', hint: 'Complete one mission to enter' };
+}
+
+function rankValue(rank?: RankSnapshot | null, empty = 'No activity yet') {
+  if (!rank) return empty;
+  if (rank.rank) return `#${rank.rank} · ${rank.points.toLocaleString()} pts`;
+  if (rank.points > 0) return `${rank.points.toLocaleString()} pts · calculating`;
+  return empty;
+}
+
+function MiniStat({ icon: Icon, label, value, hint }: { icon: ElementType; label: string; value: string; hint?: string }) {
+  return <div className="rounded-2xl border bg-muted/20 p-3"><Icon className="mb-2 h-4 w-4 text-primary" /><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-sm font-bold">{value}</p>{hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}</div>;
 }
 
 function InfoBox({ label, value }: { label: string; value?: string | null }) {
