@@ -34,7 +34,7 @@ export function AppShell({ children, role, showAiTutor }: AppShellProps) {
       <div className="flex min-h-svh bg-transparent text-foreground">
         {!fullWidthWorkspace && !focusedLesson ? (
           <Sidebar>
-            <AppSidebar role={resolvedRole ?? undefined} />
+            <AppSidebar />
           </Sidebar>
         ) : null}
         <SidebarInset>
