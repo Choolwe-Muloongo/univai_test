@@ -74,8 +74,19 @@ type ClientCacheEntry = {
   expiresAt: number;
 };
 
+type ApiFailureReportInput = {
+  path: string;
+  method: string;
+  url: string;
+  status: number;
+  message: string;
+  details: unknown;
+};
+
 const clientMemoryCache = new Map<string, ClientCacheEntry>();
 const clientInflightRequests = new Map<string, Promise<unknown>>();
+const API_FAILURE_REPORT_MIN_INTERVAL_MS = 30_000;
+const API_FAILURE_REPORT_STORAGE_PREFIX = 'univai.lastApiFailureReportAt';
 
 function clientCacheStorageKey(key: string) {
   return `univai:api-fast:${key}`;
@@ -180,7 +191,7 @@ function loadingLabelFor(method: string) {
 }
 
 function isSilentGuestAuthCheck(path: string, status: number) {
-  const normalized = path.startsWith('/api/') ? path.replace(/^\/api/, '') : path;
+  const normalized = normalizedApiPath(path);
   return status === 401 && (normalized === '/auth/me' || normalized === 'auth/me');
 }
 
@@ -191,7 +202,7 @@ function isReadMethod(method: string) {
 function defaultRequestCache(path: string, method: string): RequestCache {
   if (!isReadMethod(method)) return 'no-store';
 
-  const normalized = path.startsWith('/api/') ? path.replace(/^\/api/, '') : path;
+  const normalized = normalizedApiPath(path);
   const alwaysFresh = [
     '/auth/me',
     'auth/me',
@@ -277,6 +288,89 @@ function apiErrorMessage(status: number, details: unknown): string {
   return exception ? `${message} - ${exception}${location}` : message;
 }
 
+function isImportantApiFailurePath(path: string) {
+  return /payment|lenco|billing|checkout|purchase|certificate\/pay|settings|system|integration|smtp|email-test/i.test(path);
+}
+
+function canSendApiFailureReport(path: string, method: string, status: number) {
+  if (!canUseSessionStorage()) return false;
+
+  const key = `${API_FAILURE_REPORT_STORAGE_PREFIX}:${method.toUpperCase()}:${status}:${path}`;
+  const last = Number(window.sessionStorage.getItem(key) || 0);
+  const now = Date.now();
+
+  if (now - last < API_FAILURE_REPORT_MIN_INTERVAL_MS) {
+    return false;
+  }
+
+  window.sessionStorage.setItem(key, String(now));
+  return true;
+}
+
+function apiFailureSeverity(path: string, status: number): 'medium' | 'high' | 'critical' {
+  if (status === 0 || status >= 500) return 'critical';
+  if (isImportantApiFailurePath(path)) return 'high';
+  return 'medium';
+}
+
+function shouldReportApiFailure(path: string, method: string, status: number) {
+  const normalized = normalizedApiPath(path);
+
+  if (normalized.includes('beta-reports')) return false;
+  if (isSilentGuestAuthCheck(path, status)) return false;
+  if (status === 401) return false;
+
+  const important = isImportantApiFailurePath(normalized);
+  const shouldReport =
+    status === 0 ||
+    status >= 500 ||
+    important ||
+    (!isReadMethod(method) && status >= 400 && status !== 422);
+
+  return shouldReport && canSendApiFailureReport(normalized, method, status);
+}
+
+async function reportHandledApiFailure({ path, method, url, status, message, details }: ApiFailureReportInput) {
+  if (!shouldReportApiFailure(path, method, status)) return;
+
+  const normalized = normalizedApiPath(path);
+  const responseDetails = details && typeof details === 'object' ? details : { value: details };
+
+  try {
+    await fetch(buildApiUrl('/beta-reports'), {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'error',
+        source: status === 0 ? 'client-api-network' : 'client-api-auto',
+        severity: apiFailureSeverity(normalized, status),
+        title: `${method.toUpperCase()} ${normalized} failed${status ? ` (${status})` : ''}`.slice(0, 180),
+        description: status === 0
+          ? 'Automatically captured network/CORS/API connectivity failure from the shared apiFetch client.'
+          : 'Automatically captured handled API failure from the shared apiFetch client.',
+        pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+        browser: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        errorName: status === 0 ? 'NetworkApiError' : 'ApiError',
+        errorMessage: message,
+        context: {
+          path: normalized,
+          method: method.toUpperCase(),
+          status,
+          requestUrl: url,
+          importantArea: isImportantApiFailurePath(normalized),
+          response: responseDetails,
+        },
+      }),
+    });
+  } catch {
+    // Reporting must never create another user-facing failure.
+  }
+}
+
 function normalizeArrayEndpointPayload(path: string, payload: unknown): unknown {
   const isArrayEndpoint = path === '/schools' || path === '/courses' || path === '/programs' || path === '/programmes' || path === 'schools' || path === 'courses' || path === 'programs' || path === 'programmes';
   if (!isArrayEndpoint) return payload;
@@ -340,6 +434,7 @@ export async function apiFetch<T>(
           dispatchLoadingEvent('univai:loading-end', { id: loadingId, path, method });
         } else {
           dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
+          void reportHandledApiFailure({ path, method, url, status: response.status, message, details });
         }
         throw new ApiError(message, response.status, details);
       }
@@ -365,6 +460,14 @@ export async function apiFetch<T>(
       if (!(error instanceof ApiError)) {
         const message = error instanceof Error ? error.message : 'Network request failed.';
         dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
+        void reportHandledApiFailure({
+          path,
+          method,
+          url,
+          status: 0,
+          message,
+          details: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : { value: error },
+        });
       }
       throw error;
     } finally {
