@@ -35,18 +35,13 @@ class CatalogController extends Controller
 
     public function course(string $id)
     {
-        $cacheKey = 'catalog:course:' . md5($id);
+        $course = $this->findCourseForCatalogue($id);
 
-        $payload = Cache::remember($cacheKey, $this->publicCacheSeconds(), function () use ($id) {
-            $course = $this->findCourseForCatalogue($id);
-            return $course ? $this->mapCourse($course) : null;
-        });
-
-        if (!$payload) {
+        if (!$course) {
             return response()->json(null, 404);
         }
 
-        return $payload;
+        return $this->mapCourse($course);
     }
 
     public function lessonsByCourse(string $courseId)
@@ -57,10 +52,10 @@ class CatalogController extends Controller
             return response()->json([], 200);
         }
 
-        return Cache::remember('catalog:course:' . md5($course->id) . ':lessons', $this->publicCacheSeconds(), fn () => $course->lessons()
+        return $course->lessons()
             ->with('learningObjects')
             ->get()
-            ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $course->id)));
+            ->map(fn (Lesson $lesson) => $this->mapLesson($lesson, $course->id));
     }
 
     public function lesson(string $lessonId)
@@ -126,6 +121,7 @@ class CatalogController extends Controller
         $courseId = $lesson->shortCourses()->value('short_courses.id');
         if ($courseId) {
             Cache::forget('catalog:course:' . md5($courseId) . ':lessons');
+            Cache::forget("catalog:course:{$courseId}:lessons");
         }
 
         return $this->mapLesson($lesson->fresh('learningObjects'), $courseId);
@@ -160,15 +156,29 @@ class CatalogController extends Controller
         $lowerNormalized = Str::lower($normalized);
         $lowerSlug = Str::lower($slug);
 
-        return Course::query()
+        $course = Course::query()
             ->where('id', $normalized)
             ->orWhere('id', $decoded)
             ->orWhere('id', $slug)
             ->orWhere('title', $normalized)
-            ->orWhereRaw('LOWER(title) = ?', [$lowerNormalized])
-            ->orWhereRaw("LOWER(REPLACE(title, ' ', '-')) = ?", [$lowerSlug])
-            ->orWhereRaw("LOWER(REGEXP_REPLACE(title, '[^a-zA-Z0-9]+', '-', 'g')) = ?", [$lowerSlug])
             ->first();
+
+        if ($course) {
+            return $course;
+        }
+
+        return Course::query()
+            ->select(['id', 'title', 'description', 'school_id', 'progress', 'image_id', 'certificate_type', 'pricing_type', 'price', 'currency', 'certificate_fee', 'certificate_currency', 'duration_hours', 'level', 'status'])
+            ->get()
+            ->first(function (Course $candidate) use ($lowerNormalized, $lowerSlug) {
+                $title = Str::lower(trim((string) $candidate->title));
+                $titleSlug = Str::lower(Str::slug((string) $candidate->title));
+                $idSlug = Str::lower(Str::slug((string) $candidate->id));
+
+                return $title === $lowerNormalized
+                    || $titleSlug === $lowerSlug
+                    || $idSlug === $lowerSlug;
+            });
     }
 
     private function mapCourse(Course $course): array
