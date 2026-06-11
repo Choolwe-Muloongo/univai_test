@@ -152,6 +152,11 @@ class CatalogController extends Controller
     {
         $decoded = rawurldecode($id);
         $normalized = trim($decoded);
+
+        if ($this->isInvalidCatalogueKey($normalized)) {
+            return null;
+        }
+
         $slug = Str::slug($normalized);
         $lowerNormalized = Str::lower($normalized);
         $lowerSlug = Str::lower($slug);
@@ -179,6 +184,19 @@ class CatalogController extends Controller
                     || $titleSlug === $lowerSlug
                     || $idSlug === $lowerSlug;
             });
+    }
+
+    private function isInvalidCatalogueKey(string $value): bool
+    {
+        if ($value === '') {
+            return true;
+        }
+
+        $lower = Str::lower($value);
+
+        return in_array($lower, ['[object object]', 'object-object', 'undefined', 'null', 'nan'], true)
+            || str_contains($lower, '[object')
+            || str_contains($lower, 'object%20object');
     }
 
     private function mapCourse(Course $course): array
