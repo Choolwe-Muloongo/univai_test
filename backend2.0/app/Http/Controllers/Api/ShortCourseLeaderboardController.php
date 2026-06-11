@@ -29,11 +29,11 @@ class ShortCourseLeaderboardController extends Controller
                 SUM(student_learning_events.activity_points_awarded) as activity_points,
                 SUM(student_learning_events.xp_awarded) as xp_points,
                 SUM(student_learning_events.reward_points_awarded) as reward_points,
-                SUM(CASE WHEN student_learning_events.event_type = "mission_completed" THEN 1 ELSE 0 END) as missions_completed,
-                SUM(CASE WHEN student_learning_events.event_type = "practice_passed" THEN 1 ELSE 0 END) as practices_passed,
-                SUM(CASE WHEN student_learning_events.event_type = "final_trial_passed" THEN 1 ELSE 0 END) as final_trials_passed,
+                SUM(CASE WHEN student_learning_events.event_type = ? THEN 1 ELSE 0 END) as missions_completed,
+                SUM(CASE WHEN student_learning_events.event_type = ? THEN 1 ELSE 0 END) as practices_passed,
+                SUM(CASE WHEN student_learning_events.event_type = ? THEN 1 ELSE 0 END) as final_trials_passed,
                 MAX(student_learning_events.created_at) as last_activity_at
-            ', ['New Learner'])
+            ', ['New Learner', 'mission_completed', 'practice_passed', 'final_trial_passed'])
             ->havingRaw('SUM(student_learning_events.activity_points_awarded) > 0');
 
         if ($since) {
