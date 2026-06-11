@@ -407,11 +407,11 @@ function studentNavKey(user: NonNullable<ReturnType<typeof useSession>['session'
   const roleTier = roleToStudentAccessTier(user.role || 'student');
   const entitlements = user.entitlements || [];
 
-  if (hasStudentEntitlement(entitlements, STUDENT_ENTITLEMENT.PROGRAMME) || roleTier === 'programme') {
+  if (hasStudentEntitlement(STUDENT_ENTITLEMENT.PROGRAMME, entitlements, roleTier) || roleTier === 'programme') {
     return 'formal-student';
   }
 
-  if (hasStudentEntitlement(entitlements, STUDENT_ENTITLEMENT.SHORT_COURSE)) {
+  if (hasStudentEntitlement(STUDENT_ENTITLEMENT.SHORT_COURSE, entitlements, roleTier)) {
     return 'short-course-student';
   }
 
