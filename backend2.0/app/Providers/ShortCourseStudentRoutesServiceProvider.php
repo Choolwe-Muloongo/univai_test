@@ -25,6 +25,8 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
             ->prefix('api/students/me')
             ->group(function () {
                 Route::get('/affiliate', [AffiliateController::class, 'me']);
+                Route::post('/affiliate/apply', [AffiliateController::class, 'apply'])->middleware('throttle:general');
+                Route::post('/affiliate/payouts', [AffiliateController::class, 'requestMyPayout'])->middleware('throttle:general');
                 Route::post('/beta-reports', [BetaReportController::class, 'store'])->middleware('throttle:general');
                 Route::get('/gamification', [StudentGamificationController::class, 'state']);
                 Route::get('/daily-quests', [StudentGamificationController::class, 'dailyQuests']);
