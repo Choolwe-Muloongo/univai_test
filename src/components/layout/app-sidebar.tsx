@@ -129,6 +129,8 @@ const formalStudentLinks: NavLink[] = [
 ];
 
 const groupedLinks: Record<string, NavGroup[]> = {
+  'short-course-student': [{ links: shortCourseOnlyStudentLinks }],
+  'formal-student': [{ links: formalStudentLinks }],
   'premium-student': [{ links: studentCoreLinks }],
   student: [{ links: studentCoreLinks }],
   'freemium-student': [
@@ -408,12 +410,16 @@ function studentNavKey(user: NonNullable<ReturnType<typeof useSession>['session'
 
   const roleTier = roleToStudentAccessTier(user.role || 'student');
   const entitlements = user.entitlements || [];
+  const normalizedEntitlements = entitlements.map((code) => String(code).replace(/_/g, '-'));
+  const hasEntitlement = (code: (typeof STUDENT_ENTITLEMENT)[keyof typeof STUDENT_ENTITLEMENT]) => (
+    hasStudentEntitlement(code, entitlements, roleTier) || normalizedEntitlements.includes(code)
+  );
 
-  if (hasStudentEntitlement(STUDENT_ENTITLEMENT.PROGRAMME, entitlements, roleTier) || roleTier === 'programme') {
+  if (hasEntitlement(STUDENT_ENTITLEMENT.PROGRAMME) || roleTier === 'programme') {
     return 'formal-student';
   }
 
-  if (hasStudentEntitlement(STUDENT_ENTITLEMENT.SHORT_COURSE, entitlements, roleTier)) {
+  if (hasEntitlement(STUDENT_ENTITLEMENT.SHORT_COURSE)) {
     return 'short-course-student';
   }
 
