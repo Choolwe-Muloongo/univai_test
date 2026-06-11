@@ -28,19 +28,38 @@ export function AppShell({ children, role, showAiTutor }: AppShellProps) {
   const fullWidthWorkspace = pathname?.startsWith('/admin/short-courses/manual') ?? false;
   const focusedLesson = isFocusedLessonPath(pathname);
   const shouldShowAiTutor = showAiTutor ?? Boolean(isStudent && !focusedLesson);
+  const workspaceMode = fullWidthWorkspace || focusedLesson;
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-svh bg-transparent text-foreground">
-        {!fullWidthWorkspace && !focusedLesson ? (
+      <div className="flex min-h-svh w-full max-w-full overflow-x-hidden bg-transparent text-foreground">
+        {!workspaceMode ? (
           <Sidebar>
             <AppSidebar />
           </Sidebar>
         ) : null}
-        <SidebarInset>
-          <div className={`${fullWidthWorkspace ? 'w-full px-3 sm:px-4 lg:px-5' : focusedLesson ? 'flex min-h-svh w-full flex-col overflow-hidden px-0 py-0' : 'page-shell'} flex h-full flex-col ${focusedLesson ? 'gap-0' : 'gap-4 py-3 sm:gap-6 sm:py-4'}`}>
-            {!focusedLesson ? <AppHeader role={resolvedRole ?? undefined} hideSidebarTrigger={fullWidthWorkspace} /> : null}
-            <main className={`${fullWidthWorkspace ? 'flex-1 overflow-y-auto rounded-2xl border bg-background/70 p-3 shadow-sm sm:p-4 lg:p-5' : focusedLesson ? 'univai-lesson-render-safe min-h-0 flex-1 overflow-y-auto bg-background' : 'section-shell flex-1 overflow-y-auto'}`}>{children}</main>
+        <SidebarInset className={workspaceMode ? 'w-full max-w-full overflow-x-hidden' : undefined}>
+          <div
+            className={
+              fullWidthWorkspace
+                ? 'flex min-h-svh w-full max-w-full flex-col overflow-x-hidden bg-background px-2 py-2 sm:px-4'
+                : focusedLesson
+                  ? 'flex min-h-svh w-full max-w-full flex-col overflow-hidden px-0 py-0'
+                  : 'page-shell flex h-full flex-col gap-4 py-3 sm:gap-6 sm:py-4'
+            }
+          >
+            {!workspaceMode ? <AppHeader role={resolvedRole ?? undefined} /> : null}
+            <main
+              className={
+                fullWidthWorkspace
+                  ? 'min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background'
+                  : focusedLesson
+                    ? 'univai-lesson-render-safe min-h-0 flex-1 overflow-y-auto bg-background'
+                    : 'section-shell flex-1 overflow-y-auto'
+              }
+            >
+              {children}
+            </main>
             {shouldShowAiTutor ? (
               <Suspense fallback={null}>
                 <AiTutorWidget />
