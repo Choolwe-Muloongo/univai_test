@@ -28,27 +28,24 @@ export function AppShell({ children, role, showAiTutor }: AppShellProps) {
   const fullWidthWorkspace = pathname?.startsWith('/admin/short-courses/manual') ?? false;
   const focusedLesson = isFocusedLessonPath(pathname);
   const shouldShowAiTutor = showAiTutor ?? Boolean(isStudent && !focusedLesson);
-  const workspaceMode = fullWidthWorkspace || focusedLesson;
 
   return (
     <SidebarProvider>
       <div className="flex min-h-svh w-full max-w-full overflow-x-hidden bg-transparent text-foreground">
-        {!workspaceMode ? (
-          <Sidebar>
-            <AppSidebar />
-          </Sidebar>
-        ) : null}
-        <SidebarInset className={workspaceMode ? 'w-full max-w-full overflow-x-hidden' : undefined}>
+        <Sidebar>
+          <AppSidebar />
+        </Sidebar>
+        <SidebarInset className="min-w-0 w-full max-w-full overflow-x-hidden">
           <div
             className={
               fullWidthWorkspace
-                ? 'flex min-h-svh w-full max-w-full flex-col overflow-x-hidden bg-background px-2 py-2 sm:px-4'
+                ? 'page-shell flex min-h-svh w-full max-w-full flex-col gap-3 overflow-x-hidden py-2 sm:gap-4 sm:py-4'
                 : focusedLesson
-                  ? 'flex min-h-svh w-full max-w-full flex-col overflow-hidden px-0 py-0'
+                  ? 'page-shell flex min-h-svh w-full max-w-full flex-col gap-3 overflow-hidden py-2 sm:gap-4 sm:py-4'
                   : 'page-shell flex h-full flex-col gap-4 py-3 sm:gap-6 sm:py-4'
             }
           >
-            {!workspaceMode ? <AppHeader role={resolvedRole ?? undefined} /> : null}
+            <AppHeader role={resolvedRole ?? undefined} />
             <main
               className={
                 fullWidthWorkspace
