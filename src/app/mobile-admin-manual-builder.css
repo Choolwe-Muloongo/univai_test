@@ -1,0 +1,247 @@
+/* Mobile-first admin manual builder polish.
+   This keeps the existing create/edit builder logic intact while making the UI usable on phones. */
+
+.univai-mobile-manual-builder,
+.univai-mobile-manual-builder * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.univai-mobile-manual-builder :where(input, textarea, select, button, a) {
+  touch-action: manipulation;
+}
+
+.univai-mobile-manual-builder :where(input, textarea, select) {
+  font-size: 16px;
+}
+
+.univai-mobile-manual-builder :where(p, span, li, div, h1, h2, h3, h4, h5, h6) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.univai-mobile-manual-builder :where(button, a) {
+  min-height: 2.5rem;
+}
+
+@media (max-width: 1279px) {
+  .univai-mobile-manual-builder {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  .univai-mobile-manual-builder > div,
+  .univai-mobile-manual-builder .space-y-5,
+  .univai-mobile-manual-builder .space-y-6 {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Course edit launcher: turn the desktop grid into stacked phone controls. */
+  .univai-mobile-manual-builder div[class*="lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)_auto_auto]"],
+  .univai-mobile-manual-builder div[class*="lg:grid-cols-\[minmax\(0\,1fr\)_minmax\(220px\,320px\)_auto_auto\]"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .univai-mobile-manual-builder div[class*="lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)_auto_auto]"] > *,
+  .univai-mobile-manual-builder div[class*="lg:grid-cols-\[minmax\(0\,1fr\)_minmax\(220px\,320px\)_auto_auto\]"] > * {
+    width: 100% !important;
+  }
+
+  /* Main manual builder shell: never use desktop split layouts on phone/tablet. */
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[300px_minmax(0,1fr)]"],
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[300px_minmax\(0\,1fr\)\]"] {
+    display: block !important;
+  }
+
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[300px_minmax(0,1fr)]"] > *,
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[300px_minmax\(0\,1fr\)\]"] > * {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Step navigator becomes phone tabs instead of a left rail. */
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[300px_minmax(0,1fr)]"] > :first-child,
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[300px_minmax\(0\,1fr\)\]"] > :first-child {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    margin-bottom: 0.75rem !important;
+    border-radius: 1rem !important;
+    background: hsl(var(--background) / 0.96) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+
+  /* Cards step: remove the 3-column desktop canvas on phones. */
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"],
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > *,
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    position: static !important;
+  }
+
+  /* Put the editing canvas before the block library on phone. */
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :first-child,
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :first-child {
+    order: 2 !important;
+  }
+
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :nth-child(2),
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :nth-child(2) {
+    order: 1 !important;
+  }
+
+  /* Live preview should not permanently steal phone space. Keep it after editing and compact. */
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :nth-child(3),
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :nth-child(3) {
+    order: 3 !important;
+  }
+
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-[280px_minmax(0,1fr)_420px]"] > :nth-child(3) > div,
+  .univai-mobile-manual-builder div[class*="xl:grid-cols-\[280px_minmax\(0\,1fr\)_420px\]"] > :nth-child(3) > div {
+    max-height: 620px !important;
+    overflow: auto !important;
+  }
+
+  /* Module and lesson pickers: horizontal, thumb-friendly chips. */
+  .univai-mobile-manual-builder .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .univai-mobile-manual-builder .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+
+  .univai-mobile-manual-builder .overflow-x-auto button {
+    flex: 0 0 auto;
+    min-height: 2.5rem;
+    white-space: nowrap;
+  }
+
+  /* Card canvas: compact stacked list. */
+  .univai-mobile-manual-builder article[draggable="true"],
+  .univai-mobile-manual-builder article[draggable="false"] {
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto !important;
+    align-items: start !important;
+    padding: 0.75rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .univai-mobile-manual-builder article[draggable="true"] textarea,
+  .univai-mobile-manual-builder article[draggable="false"] textarea {
+    min-height: 7rem;
+  }
+
+  /* Advanced block library: compact on phones so it does not bury the editor. */
+  .univai-mobile-manual-builder div.max-h-60 {
+    max-height: 13rem !important;
+  }
+
+  .univai-mobile-manual-builder div.max-h-60 button {
+    padding: 0.75rem !important;
+  }
+
+  /* Action buttons become full-width where wrapping used to be messy. */
+  .univai-mobile-manual-builder .flex.flex-wrap.gap-2 > button,
+  .univai-mobile-manual-builder .flex.flex-wrap.items-center.gap-2 > button,
+  .univai-mobile-manual-builder .flex.flex-wrap.items-center.gap-2 > a {
+    flex: 1 1 11rem;
+  }
+
+  /* Header actions: make save/new/edit reachable and readable. */
+  .univai-mobile-manual-builder header,
+  .univai-mobile-manual-builder [class*="CardHeader"] {
+    max-width: 100%;
+  }
+
+  .univai-mobile-manual-builder .rounded-2xl,
+  .univai-mobile-manual-builder .rounded-3xl {
+    border-radius: 1rem !important;
+  }
+
+  .univai-mobile-manual-builder textarea {
+    min-height: 6rem;
+  }
+
+  /* Lesson player preview inside the builder should feel like a preview pane, not a whole page. */
+  .univai-mobile-manual-builder .min-h-dvh {
+    min-height: auto !important;
+  }
+
+  .univai-mobile-manual-builder footer.sticky.bottom-0 {
+    position: sticky !important;
+    bottom: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .univai-mobile-manual-builder {
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+  }
+
+  .univai-mobile-manual-builder :where(.p-4, .sm\:p-5, .sm\:p-6) {
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+  }
+
+  .univai-mobile-manual-builder :where(h1, h2) {
+    font-size: 1.15rem;
+    line-height: 1.35;
+  }
+
+  .univai-mobile-manual-builder :where(input, select) {
+    min-height: 2.75rem;
+  }
+
+  .univai-mobile-manual-builder :where(button, a) {
+    min-height: 2.75rem;
+  }
+
+  /* Keep the main save/start-new controls close to the thumb. */
+  .univai-mobile-manual-builder > div > div:first-child,
+  .univai-mobile-manual-builder .rounded-2xl.border-primary\/20:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    background: hsl(var(--background) / 0.97);
+    backdrop-filter: blur(14px);
+  }
+
+  /* On very small screens, action clusters become a clean two-column grid. */
+  .univai-mobile-manual-builder .flex.flex-wrap.gap-1,
+  .univai-mobile-manual-builder .flex.flex-wrap.gap-2 {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .univai-mobile-manual-builder .flex.flex-wrap.gap-1 > *,
+  .univai-mobile-manual-builder .flex.flex-wrap.gap-2 > * {
+    width: 100% !important;
+  }
+
+  .univai-mobile-manual-builder article[draggable="true"],
+  .univai-mobile-manual-builder article[draggable="false"] {
+    grid-template-columns: 1.85rem minmax(0, 1fr) auto !important;
+    gap: 0.5rem !important;
+  }
+
+  .univai-mobile-manual-builder article[draggable="true"] > div:first-child svg,
+  .univai-mobile-manual-builder article[draggable="false"] > div:first-child svg {
+    display: none !important;
+  }
+
+  /* Student preview in admin should not show a desktop side panel on phone. */
+  .univai-mobile-manual-builder main[class*="xl:grid-cols-[minmax(0,1fr)_300px]"] > aside,
+  .univai-mobile-manual-builder main[class*="xl:grid-cols-\[minmax\(0\,1fr\)_300px\]"] > aside {
+    display: none !important;
+  }
+}
