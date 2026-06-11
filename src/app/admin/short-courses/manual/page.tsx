@@ -1,5 +1,4 @@
-import { DedicatedManualCourseBuilderClient } from '@/components/admin/short-courses/dedicated-manual-course-builder-client';
-import { ManualCourseEditLauncher } from '@/components/admin/short-courses/manual-course-edit-launcher';
+import { MobileFirstManualCourseBuilderClient } from '@/components/admin/short-courses/mobile-first-manual-course-builder-client';
 import { ShortCourseShell } from '@/components/admin/short-courses/short-course-shell';
 import { Button } from '@/components/ui/button';
 import { buildApiUrl } from '@/lib/api/client';
@@ -8,7 +7,7 @@ export default function ManualPage() {
   return (
     <ShortCourseShell
       title="Manual course builder"
-      description="Build new short courses manually, or load an existing saved course and edit it in the same visual studio."
+      description="Build new short courses manually, or load an existing saved course and edit it in a phone-first course studio."
     >
       <div className="univai-mobile-manual-builder space-y-5">
         <div className="flex flex-wrap justify-end gap-2">
@@ -18,8 +17,7 @@ export default function ManualPage() {
             </a>
           </Button>
         </div>
-        <ManualCourseEditLauncher />
-        <DedicatedManualCourseBuilderClient />
+        <MobileFirstManualCourseBuilderClient />
       </div>
     </ShortCourseShell>
   );
