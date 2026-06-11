@@ -157,14 +157,17 @@ class CatalogController extends Controller
         $decoded = rawurldecode($id);
         $normalized = trim($decoded);
         $slug = Str::slug($normalized);
+        $lowerNormalized = Str::lower($normalized);
+        $lowerSlug = Str::lower($slug);
 
         return Course::query()
             ->where('id', $normalized)
             ->orWhere('id', $decoded)
             ->orWhere('id', $slug)
             ->orWhere('title', $normalized)
-            ->orWhereRaw('LOWER(title) = ?', [Str::lower($normalized)])
-            ->orWhereRaw('LOWER(REPLACE(title, " ", "-")) = ?', [Str::lower($slug)])
+            ->orWhereRaw('LOWER(title) = ?', [$lowerNormalized])
+            ->orWhereRaw("LOWER(REPLACE(title, ' ', '-')) = ?", [$lowerSlug])
+            ->orWhereRaw("LOWER(REGEXP_REPLACE(title, '[^a-zA-Z0-9]+', '-', 'g')) = ?", [$lowerSlug])
             ->first();
     }
 
