@@ -29,8 +29,11 @@ class StudentGamificationController extends Controller
             'metadata' => ['nullable', 'array'],
         ]);
 
-        $canAward = $this->canAwardEvent($studentId, $payload['type'], $payload['courseId'] ?? null, $payload['lessonId'] ?? null);
-        $award = $canAward ? $this->awardFor($payload['type']) : ['xp' => 0, 'points' => 0, 'activity' => 0];
+        $eventType = $payload['type'];
+        $courseId = $payload['courseId'] ?? null;
+        $lessonId = $payload['lessonId'] ?? null;
+        $canAward = $this->canAwardEvent($studentId, $eventType, $courseId, $lessonId);
+        $award = $canAward ? $this->awardFor($eventType) : ['xp' => 0, 'points' => 0, 'activity' => 0];
         $metadata = $payload['metadata'] ?? [];
 
         if (!$canAward) {
@@ -40,9 +43,9 @@ class StudentGamificationController extends Controller
 
         DB::table('student_learning_events')->insert([
             'student_id' => $studentId,
-            'event_type' => $payload['type'],
-            'short_course_id' => $payload['courseId'] ?? null,
-            'lesson_id' => $payload['lessonId'] ?? null,
+            'event_type' => $eventType,
+            'short_course_id' => $courseId,
+            'lesson_id' => $lessonId,
             'xp_awarded' => $award['xp'],
             'reward_points_awarded' => $award['points'],
             'activity_points_awarded' => $award['activity'],
@@ -51,8 +54,14 @@ class StudentGamificationController extends Controller
             'updated_at' => now(),
         ]);
 
+        // Streaks and daily quest progress should move when real learning happens, even when XP/points are capped.
+        $this->touchStreak($studentId);
+        $this->updateDailyQuests($studentId, $eventType);
+
         if (!$canAward) {
-            return response()->json($this->statePayload($studentId) + ['message' => 'Learning event recorded without extra reward because the daily or duplicate limit was reached.']);
+            return response()->json($this->statePayload($studentId) + [
+                'message' => 'Learning event recorded without extra reward because the daily or duplicate limit was reached.',
+            ]);
         }
 
         $xp = DB::table('student_xp_balances')->where('student_id', $studentId)->first();
@@ -60,7 +69,13 @@ class StudentGamificationController extends Controller
         $level = $this->levelFor($newXp);
         DB::table('student_xp_balances')->updateOrInsert(
             ['student_id' => $studentId],
-            ['xp' => $newXp, 'level' => $level['level'], 'level_title' => $level['title'], 'updated_at' => now(), 'created_at' => $xp->created_at ?? now()]
+            [
+                'xp' => $newXp,
+                'level' => $level['level'],
+                'level_title' => $level['title'],
+                'updated_at' => now(),
+                'created_at' => $xp->created_at ?? now(),
+            ]
         );
 
         $points = DB::table('student_reward_points')->where('student_id', $studentId)->first();
@@ -73,9 +88,6 @@ class StudentGamificationController extends Controller
                 'created_at' => $points->created_at ?? now(),
             ]
         );
-
-        $this->touchStreak($studentId);
-        $this->updateDailyQuests($studentId, $payload['type']);
 
         return response()->json($this->statePayload($studentId));
     }
@@ -130,20 +142,7 @@ class StudentGamificationController extends Controller
         $since = $this->periodStart(is_string($period) ? $period : 'weekly');
         $rows = $this->leaderboardRows(null, $since, 50);
 
-        return response()->json($rows->map(fn ($row, $index) => [
-            'rank' => $index + 1,
-            'studentId' => $row->student_id,
-            'name' => $row->name ?? 'UnivAI Learner',
-            'levelTitle' => $row->level_title,
-            'activityPoints' => (int) $row->activity_points,
-            'xpPoints' => (int) $row->xp_points,
-            'rewardPoints' => (int) $row->reward_points,
-            'streakDays' => (int) $row->streak_days,
-            'missionsCompleted' => (int) $row->missions_completed,
-            'practicesPassed' => (int) $row->practices_passed,
-            'finalTrialsPassed' => (int) $row->final_trials_passed,
-            'lastActivityAt' => $row->last_activity_at ? Carbon::parse($row->last_activity_at)->toISOString() : null,
-        ])->values());
+        return response()->json($this->mapLeaderboardRows($rows));
     }
 
     public function mistakes(Request $request)
@@ -167,10 +166,18 @@ class StudentGamificationController extends Controller
     public function reviewMistake(Request $request, int $id)
     {
         $studentId = $this->studentId($request);
-        DB::table('student_mistakes')->where('student_id', $studentId)->where('id', $id)->where('fixed', false)->update(['fixed' => true, 'fixed_at' => now(), 'updated_at' => now()]);
+        DB::table('student_mistakes')
+            ->where('student_id', $studentId)
+            ->where('id', $id)
+            ->where('fixed', false)
+            ->update(['fixed' => true, 'fixed_at' => now(), 'updated_at' => now()]);
+
         if ($this->canAwardEvent($studentId, 'mistake_fixed', null, null)) {
             $this->recordSyntheticEvent($studentId, 'mistake_fixed', 30, 3, 10);
+            $this->touchStreak($studentId);
+            $this->updateDailyQuests($studentId, 'mistake_fixed');
         }
+
         return response()->json(['message' => 'Mistake marked as fixed.']);
     }
 
@@ -296,7 +303,10 @@ class StudentGamificationController extends Controller
         $streak = DB::table('student_streaks')->where('student_id', $studentId)->first();
         $xpValue = (int) ($xp->xp ?? 0);
         $level = $this->levelFor($xpValue);
-        $weeklyPoints = (int) DB::table('student_learning_events')->where('student_id', $studentId)->where('created_at', '>=', now()->startOfWeek())->sum('activity_points_awarded');
+        $weeklyPoints = (int) DB::table('student_learning_events')
+            ->where('student_id', $studentId)
+            ->where('created_at', '>=', now()->startOfWeek())
+            ->sum('activity_points_awarded');
         $rankings = $this->rankingsPayload($studentId);
 
         return [
@@ -386,7 +396,19 @@ class StudentGamificationController extends Controller
             ->leftJoin('student_xp_balances', 'student_xp_balances.student_id', '=', 'student_learning_events.student_id')
             ->leftJoin('student_streaks', 'student_streaks.student_id', '=', 'student_learning_events.student_id')
             ->groupBy('student_learning_events.student_id', 'users.name', 'student_xp_balances.level_title', 'student_streaks.current_days')
-            ->selectRaw("\n                student_learning_events.student_id,\n                users.name,\n                COALESCE(student_xp_balances.level_title, ?) as level_title,\n                COALESCE(student_streaks.current_days, 0) as streak_days,\n                SUM(student_learning_events.activity_points_awarded) as activity_points,\n                SUM(student_learning_events.xp_awarded) as xp_points,\n                SUM(student_learning_events.reward_points_awarded) as reward_points,\n                SUM(CASE WHEN student_learning_events.event_type = 'mission_completed' THEN 1 ELSE 0 END) as missions_completed,\n                SUM(CASE WHEN student_learning_events.event_type = 'practice_passed' THEN 1 ELSE 0 END) as practices_passed,\n                SUM(CASE WHEN student_learning_events.event_type = 'final_trial_passed' THEN 1 ELSE 0 END) as final_trials_passed,\n                MAX(student_learning_events.created_at) as last_activity_at\n            ", ['New Learner'])
+            ->selectRaw('
+                student_learning_events.student_id,
+                users.name,
+                COALESCE(student_xp_balances.level_title, ?) as level_title,
+                COALESCE(student_streaks.current_days, 0) as streak_days,
+                SUM(student_learning_events.activity_points_awarded) as activity_points,
+                SUM(student_learning_events.xp_awarded) as xp_points,
+                SUM(student_learning_events.reward_points_awarded) as reward_points,
+                SUM(CASE WHEN student_learning_events.event_type = "mission_completed" THEN 1 ELSE 0 END) as missions_completed,
+                SUM(CASE WHEN student_learning_events.event_type = "practice_passed" THEN 1 ELSE 0 END) as practices_passed,
+                SUM(CASE WHEN student_learning_events.event_type = "final_trial_passed" THEN 1 ELSE 0 END) as final_trials_passed,
+                MAX(student_learning_events.created_at) as last_activity_at
+            ', ['New Learner'])
             ->havingRaw('SUM(student_learning_events.activity_points_awarded) > 0')
             ->orderByDesc('activity_points')
             ->orderByDesc('xp_points')
@@ -404,6 +426,24 @@ class StudentGamificationController extends Controller
         }
 
         return $query->get()->values();
+    }
+
+    private function mapLeaderboardRows($rows)
+    {
+        return $rows->values()->map(fn ($row, $index) => [
+            'rank' => $index + 1,
+            'studentId' => $row->student_id,
+            'name' => $row->name ?? 'UnivAI Learner',
+            'levelTitle' => $row->level_title,
+            'activityPoints' => (int) $row->activity_points,
+            'xpPoints' => (int) $row->xp_points,
+            'rewardPoints' => (int) $row->reward_points,
+            'streakDays' => (int) $row->streak_days,
+            'missionsCompleted' => (int) $row->missions_completed,
+            'practicesPassed' => (int) $row->practices_passed,
+            'finalTrialsPassed' => (int) $row->final_trials_passed,
+            'lastActivityAt' => $row->last_activity_at ? Carbon::parse($row->last_activity_at)->toISOString() : null,
+        ])->values();
     }
 
     private function activeShortCourse(int $studentId): ?object
@@ -461,7 +501,12 @@ class StudentGamificationController extends Controller
 
     private function updateDailyQuests(int $studentId, string $eventType): void
     {
-        $map = ['mission_completed' => 'daily-card-set', 'card_completed' => 'daily-card-set', 'practice_passed' => 'training-battle', 'ai_help_used' => 'ask-nova'];
+        $map = [
+            'mission_completed' => 'daily-card-set',
+            'card_completed' => 'daily-card-set',
+            'practice_passed' => 'training-battle',
+            'ai_help_used' => 'ask-nova',
+        ];
         $questKey = $map[$eventType] ?? null;
         if (!$questKey) return;
         $today = now()->toDateString();
@@ -469,7 +514,12 @@ class StudentGamificationController extends Controller
         if (!$quest) return;
         $progress = min((int) $quest->target, (int) $quest->progress + 1);
         $completed = $progress >= (int) $quest->target;
-        DB::table('student_daily_quests')->where('id', $quest->id)->update(['progress' => $progress, 'completed' => $completed, 'completed_at' => $completed ? now() : null, 'updated_at' => now()]);
+        DB::table('student_daily_quests')->where('id', $quest->id)->update([
+            'progress' => $progress,
+            'completed' => $completed,
+            'completed_at' => $completed ? now() : null,
+            'updated_at' => now(),
+        ]);
     }
 
     private function touchStreak(int $studentId): void
@@ -477,13 +527,36 @@ class StudentGamificationController extends Controller
         $today = now()->toDateString();
         $streak = DB::table('student_streaks')->where('student_id', $studentId)->first();
         if (!$streak) {
-            DB::table('student_streaks')->insert(['student_id' => $studentId, 'current_days' => 1, 'best_days' => 1, 'last_activity_date' => $today, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('student_streaks')->insert([
+                'student_id' => $studentId,
+                'current_days' => 1,
+                'best_days' => 1,
+                'streak_shields' => 0,
+                'last_activity_date' => $today,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
             return;
         }
+
         if ($streak->last_activity_date === $today) return;
+
         $yesterday = now()->subDay()->toDateString();
         $current = $streak->last_activity_date === $yesterday ? (int) $streak->current_days + 1 : 1;
-        DB::table('student_streaks')->where('student_id', $studentId)->update(['current_days' => $current, 'best_days' => max((int) $streak->best_days, $current), 'last_activity_date' => $today, 'updated_at' => now()]);
+        $shields = (int) ($streak->streak_shields ?? 0);
+
+        if ($streak->last_activity_date && $streak->last_activity_date !== $yesterday && $shields > 0) {
+            $current = max(1, (int) $streak->current_days);
+            $shields -= 1;
+        }
+
+        DB::table('student_streaks')->where('student_id', $studentId)->update([
+            'current_days' => $current,
+            'best_days' => max((int) $streak->best_days, $current),
+            'streak_shields' => $shields,
+            'last_activity_date' => $today,
+            'updated_at' => now(),
+        ]);
     }
 
     private function awardFor(string $type): array
@@ -492,8 +565,10 @@ class StudentGamificationController extends Controller
             'practice_started' => ['xp' => 0, 'points' => 0, 'activity' => 0],
             'card_completed' => ['xp' => 5, 'points' => 0, 'activity' => 2],
             'checkpoint_correct' => ['xp' => 10, 'points' => 0, 'activity' => 4],
+            'checkpoint_wrong' => ['xp' => 2, 'points' => 0, 'activity' => 1],
             'mission_completed' => ['xp' => 50, 'points' => 5, 'activity' => 20],
             'practice_passed' => ['xp' => 60, 'points' => 8, 'activity' => 15],
+            'practice_failed' => ['xp' => 10, 'points' => 1, 'activity' => 3],
             'boss_battle_completed' => ['xp' => 200, 'points' => 50, 'activity' => 50],
             'final_trial_passed' => ['xp' => 500, 'points' => 100, 'activity' => 100],
             'ai_help_used' => ['xp' => 20, 'points' => 2, 'activity' => 5],
@@ -517,12 +592,29 @@ class StudentGamificationController extends Controller
 
     private function badgesFor(int $studentId, int $xp): array
     {
+        $events = DB::table('student_learning_events')->where('student_id', $studentId);
+        $missions = (clone $events)->where('event_type', 'mission_completed')->where('xp_awarded', '>', 0)->count();
+        $arenaWins = (clone $events)->where('event_type', 'practice_passed')->where('xp_awarded', '>', 0)->count();
+        $finalTrials = (clone $events)->where('event_type', 'final_trial_passed')->where('xp_awarded', '>', 0)->count();
+        $mistakesFixed = (clone $events)->where('event_type', 'mistake_fixed')->count();
+        $streak = DB::table('student_streaks')->where('student_id', $studentId)->first();
+        $streakDays = (int) ($streak->current_days ?? 0);
+
         $badges = [];
         if ($xp > 0) $badges[] = 'First Steps';
+        if ($missions >= 1) $badges[] = 'Mission Starter';
+        if ($missions >= 10) $badges[] = 'Mission Grinder';
+        if ($arenaWins >= 1) $badges[] = 'Arena Fighter';
+        if ($arenaWins >= 5) $badges[] = 'Arena Champion';
+        if ($finalTrials >= 1) $badges[] = 'Final Trial Victor';
+        if ($mistakesFixed >= 5) $badges[] = 'Mistake Slayer';
+        if ($streakDays >= 3) $badges[] = 'Streak Keeper';
+        if ($streakDays >= 7) $badges[] = 'Weekly Flame';
         if ($xp >= 600) $badges[] = 'Builder';
-        if ((int) DB::table('student_learning_events')->where('student_id', $studentId)->where('event_type', 'practice_passed')->count() >= 3) $badges[] = 'Arena Fighter';
-        if ((int) DB::table('student_learning_events')->where('student_id', $studentId)->where('event_type', 'boss_battle_completed')->count() > 0) $badges[] = 'Boss Breaker';
-        return $badges;
+        if ($xp >= 1000) $badges[] = 'Problem Solver';
+        if ($xp >= 3000) $badges[] = 'Certified Builder';
+
+        return array_values(array_unique($badges));
     }
 
     private function novaMessage(int $studentId, int $xp, int $weeklyPoints): string
@@ -544,7 +636,15 @@ class StudentGamificationController extends Controller
 
     private function recordSyntheticEvent(int $studentId, string $type, int $xp, int $points, int $activity): void
     {
-        DB::table('student_learning_events')->insert(['student_id' => $studentId, 'event_type' => $type, 'xp_awarded' => $xp, 'reward_points_awarded' => $points, 'activity_points_awarded' => $activity, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('student_learning_events')->insert([
+            'student_id' => $studentId,
+            'event_type' => $type,
+            'xp_awarded' => $xp,
+            'reward_points_awarded' => $points,
+            'activity_points_awarded' => $activity,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     private function studentId(Request $request): int
