@@ -48,17 +48,92 @@ function firstString(...values: unknown[]) {
   return typeof match === 'string' ? match : '';
 }
 
-function lessonBlocks(lesson: Record<string, unknown>): Record<string, unknown>[] {
-  const candidates = [lesson.blocks, lesson.cards, lesson.contentBlocks, lesson.content_blocks, lesson.lessonBlocks, lesson.lesson_blocks];
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object');
+function parseMaybeJson(value: unknown): unknown {
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return null;
   }
-  return [];
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function blockArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.filter(
+    (item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === 'object' && !Array.isArray(item)
+  );
+}
+
+function extractBlocksFromPayload(payload: unknown): Record<string, unknown>[] {
+  if (!payload) return [];
+
+  if (Array.isArray(payload)) {
+    return blockArray(payload);
+  }
+
+  if (typeof payload !== 'object') {
+    return [];
+  }
+
+  const record = payload as Record<string, unknown>;
+
+  const candidates = [
+    record.blocks,
+    record.cards,
+    record.items,
+    record.steps,
+    record.contentBlocks,
+    record.content_blocks,
+    record.lessonBlocks,
+    record.lesson_blocks,
+  ];
+
+  return candidates.flatMap(blockArray);
+}
+
+function lessonBlocks(lesson: Record<string, unknown>): Record<string, unknown>[] {
+  const directCandidates = [
+    lesson.blocks,
+    lesson.cards,
+    lesson.contentBlocks,
+    lesson.content_blocks,
+    lesson.lessonBlocks,
+    lesson.lesson_blocks,
+  ];
+
+  const directBlocks = directCandidates.flatMap(blockArray);
+
+  const learningObjectBlocks = Array.isArray(lesson.learningObjects)
+    ? lesson.learningObjects.flatMap((object) => {
+        if (!object || typeof object !== 'object' || Array.isArray(object)) {
+          return [];
+        }
+
+        const record = object as Record<string, unknown>;
+        const payload = record.payload ?? parseMaybeJson(record.body);
+
+        return extractBlocksFromPayload(payload);
+      })
+    : [];
+
+  return [...directBlocks, ...learningObjectBlocks];
 }
 
 function cardFromBlock(block: Record<string, unknown>, index: number): ManualCard {
   const type = firstString(block.type, block.cardType, block.kind) || 'teach';
   const body = firstString(block.body, block.content, block.text, block.explanation, block.description);
+  const visual = block.visual && typeof block.visual === 'object' && !Array.isArray(block.visual)
+    ? block.visual as Record<string, unknown>
+    : null;
 
   return {
     id: firstString(block.id) || uid('card'),
@@ -74,14 +149,14 @@ function cardFromBlock(block: Record<string, unknown>, index: number): ManualCar
     items: Array.isArray(block.items) ? block.items.join('\n') : firstString(block.items),
     criteria: Array.isArray(block.criteria) ? block.criteria.join('\n') : firstString(block.criteria),
     options: Array.isArray(block.options) ? block.options.join('\n') : firstString(block.options),
-    answer: firstString(block.answer, block.correctAnswer, block.correct_answer),
+    answer: firstString(block.answer, block.correctAnswer, block.correct_answer, block.correct),
     explanation: firstString(block.explanation),
-    equation: firstString(block.equation),
-    expression: firstString(block.expression),
+    equation: firstString(block.equation, visual?.equation),
+    expression: firstString(block.expression, visual?.expression),
     imageUrl: firstString(block.imageUrl, block.image_url, block.image),
     imageAlt: firstString(block.imageAlt, block.image_alt),
     imageCaption: firstString(block.imageCaption, block.image_caption),
-    mathTool: firstString(block.mathTool, block.math_tool) || 'none',
+    mathTool: firstString(block.mathTool, block.math_tool, visual?.type) || 'none',
     saved: true,
   };
 }
@@ -218,22 +293,19 @@ export function ManualCourseEditLauncher() {
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)_auto_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-            <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search existing courses..." />
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search courses..." className="pl-9" />
           </div>
-          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={selectedId} onChange={(event) => setSelectedId(event.target.value)} disabled={loading || !filteredCourses.length}>
-            {loading ? <option>Loading courses...</option> : null}
-            {!loading && filteredCourses.length === 0 ? <option>No courses found</option> : null}
-            {filteredCourses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
+          <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm">
+            {filteredCourses.length ? filteredCourses.map((course) => <option key={course.id} value={course.id}>{course.title || course.id}</option>) : <option value="">No courses found</option>}
           </select>
-          <Button type="button" onClick={prepareCourseForEditing} disabled={loading || preparing || !selectedId}>
+          <Button type="button" onClick={prepareCourseForEditing} disabled={preparing || !selectedId}>
             {preparing ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Edit3 className="mr-2 size-4" />}
-            {preparing ? 'Loading...' : 'Load for editing'}
+            {preparing ? 'Loading...' : 'Load into builder'}
           </Button>
           <Button type="button" variant="outline" onClick={clearPendingEdit}>
-            <RotateCcw className="mr-2 size-4" />Clear draft
+            <RotateCcw className="mr-2 size-4" />Clear pending edit
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">This uses the builder’s existing recovery system, so it avoids duplicating the course and preserves the normal save/update path.</p>
       </CardContent>
     </Card>
   );
