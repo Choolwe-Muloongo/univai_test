@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { LessonPlayer } from '@/components/learning/lesson-player';
+import { EnhancedLessonPlayer } from '@/components/learning/enhanced-lesson-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
@@ -146,7 +146,7 @@ export default function FocusedLessonPage() {
   return (
     <main className="min-h-screen w-full bg-background px-2 py-3 sm:px-4 lg:px-6">
       <div className="mx-auto w-full max-w-5xl space-y-4">
-        <LessonPlayer
+        <EnhancedLessonPlayer
           lesson={playableLesson as any}
           courseTitle={course.title}
           backHref={`/student/courses/${params.id}`}
@@ -158,9 +158,12 @@ export default function FocusedLessonPage() {
         />
         {completeError ? <div className="mx-auto mt-4 max-w-3xl rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{completeError}</div> : null}
         {completed ? (
-          <Card className="mx-auto mt-4 max-w-3xl rounded-2xl">
+          <Card className="mx-auto mt-4 max-w-3xl rounded-2xl border-primary/30 bg-primary/5">
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium">Mission completed · reward claimed</p>
+              <div>
+                <p className="text-base font-bold">Mission Complete 🎉</p>
+                <p className="text-sm text-muted-foreground">Reward claimed. Next mission unlocked if available.</p>
+              </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button asChild variant="outline"><Link href={`/student/courses/${params.id}/practice`}>Enter Training Arena</Link></Button>
                 {nextLesson ? <Button asChild><Link href={`/student/courses/${params.id}/lessons/${nextLesson.id}`}>Next Mission</Link></Button> : <Button asChild><Link href={`/student/courses/${params.id}`}>Back to Mission Control</Link></Button>}
