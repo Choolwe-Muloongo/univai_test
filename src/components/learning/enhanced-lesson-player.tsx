@@ -4,18 +4,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { Eye, List, Settings, Type, X } from 'lucide-react';
 
 import { LessonPlayer } from '@/components/learning/lesson-player';
+import { ScrollLessonPlayer } from '@/components/learning/scroll-lesson-player';
 import { Button } from '@/components/ui/button';
 
 type LessonPlayerProps = React.ComponentProps<typeof LessonPlayer>;
 
 type TextSize = 'normal' | 'large' | 'xl';
 type HelpMode = 'hidden' | 'inline';
+type NavigationMode = 'card' | 'scroll';
 
 type LessonSettings = {
   focusMode: boolean;
   textSize: TextSize;
   helpMode: HelpMode;
   reduceMotion: boolean;
+  navigationMode: NavigationMode;
 };
 
 const STORAGE_KEY = 'univai.lesson-player.settings.v1';
@@ -25,6 +28,7 @@ const defaultSettings: LessonSettings = {
   textSize: 'normal',
   helpMode: 'hidden',
   reduceMotion: false,
+  navigationMode: 'card',
 };
 
 export function EnhancedLessonPlayer(props: LessonPlayerProps) {
@@ -56,12 +60,15 @@ export function EnhancedLessonPlayer(props: LessonPlayerProps) {
     classes.push(settings.focusMode ? 'univai-lesson-focus-mode' : '');
     classes.push(settings.helpMode === 'hidden' ? 'univai-lesson-hide-help' : '');
     classes.push(settings.reduceMotion ? 'univai-lesson-reduce-motion' : '');
+    classes.push(settings.navigationMode === 'scroll' ? 'univai-lesson-scroll-mode' : 'univai-lesson-card-mode');
     return classes.filter(Boolean).join(' ');
   }, [settings]);
 
   function patch(patch: Partial<LessonSettings>) {
     setSettings((current) => ({ ...current, ...patch }));
   }
+
+  const Player = settings.navigationMode === 'scroll' ? ScrollLessonPlayer : LessonPlayer;
 
   return (
     <div className={wrapperClass}>
@@ -72,7 +79,7 @@ export function EnhancedLessonPlayer(props: LessonPlayerProps) {
         </Button>
       </div>
 
-      <LessonPlayer {...props} />
+      <Player {...props} />
 
       {open ? (
         <div className="fixed inset-0 z-[60] bg-black/40" onClick={() => setOpen(false)}>
@@ -86,6 +93,15 @@ export function EnhancedLessonPlayer(props: LessonPlayerProps) {
             </div>
 
             <div className="space-y-4">
+              <section className="rounded-2xl border p-3">
+                <div className="mb-3 flex items-center gap-2 font-semibold"><List className="size-4 text-primary" /> Navigation</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" variant={settings.navigationMode === 'card' ? 'default' : 'outline'} onClick={() => patch({ navigationMode: 'card' })}>Card mode</Button>
+                  <Button type="button" variant={settings.navigationMode === 'scroll' ? 'default' : 'outline'} onClick={() => patch({ navigationMode: 'scroll', helpMode: 'hidden' })}>Scroll mode</Button>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Card mode is best for quizzes and instant checking. Scroll mode shows the whole lesson vertically for reading fast.</p>
+              </section>
+
               <section className="rounded-2xl border p-3">
                 <div className="mb-3 flex items-center gap-2 font-semibold"><Eye className="size-4 text-primary" /> Reading mode</div>
                 <div className="grid gap-2">
@@ -109,13 +125,13 @@ export function EnhancedLessonPlayer(props: LessonPlayerProps) {
                 <div className="mb-3 flex items-center gap-2 font-semibold"><List className="size-4 text-primary" /> Help panel</div>
                 <div className="grid grid-cols-2 gap-2">
                   <Button type="button" variant={settings.helpMode === 'hidden' ? 'default' : 'outline'} onClick={() => patch({ helpMode: 'hidden' })}>Hidden</Button>
-                  <Button type="button" variant={settings.helpMode === 'inline' ? 'default' : 'outline'} onClick={() => patch({ helpMode: 'inline' })}>Show</Button>
+                  <Button type="button" variant={settings.helpMode === 'inline' ? 'default' : 'outline'} onClick={() => patch({ helpMode: 'inline', navigationMode: 'card' })}>Show</Button>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">On phones, hiding help keeps the lesson fast and clean. You can turn it back on anytime.</p>
+                <p className="mt-2 text-xs text-muted-foreground">On phones, hiding help keeps the lesson fast and clean. Scroll mode always keeps side help hidden.</p>
               </section>
 
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-                Lessons already load their cards into the player once. These settings make card-to-card movement feel lighter on phones by reducing visible side content and heavy layout work.
+                Card mode loads all cards once and renders the active card. Scroll mode renders the full lesson vertically so students can read up/down like notes.
               </div>
             </div>
           </div>
