@@ -6,6 +6,7 @@ import { AlertTriangle, Bug, CheckCircle2, Download, Lightbulb, RefreshCw, Shiel
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
+import { buildApiUrl } from '@/lib/api/client';
 import {
   getAdminBetaReports,
   updateBetaReport,
@@ -23,17 +24,18 @@ export default function AdminBetaReportsPage() {
   const [type, setType] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [verifyingAll, setVerifyingAll] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const exportUrl = useMemo(() => {
+  const exportPath = useMemo(() => {
     const query = new URLSearchParams();
     if (status) query.set('status', status);
     if (type) query.set('type', type);
     const qs = query.toString();
-    return `/api/admin/beta-reports/export.txt${qs ? `?${qs}` : ''}`;
+    return `/admin/beta-reports/export.txt${qs ? `?${qs}` : ''}`;
   }, [status, type]);
 
   async function load() {
@@ -60,6 +62,40 @@ export default function AdminBetaReportsPage() {
       setError(cause instanceof Error ? cause.message : 'Unable to refresh beta reports.');
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function downloadTxt() {
+    setDownloading(true);
+    setNotice(null);
+    setError(null);
+
+    try {
+      const response = await fetch(buildApiUrl(exportPath), {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const message = await response.text().catch(() => '');
+        throw new Error(message || `Download failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = objectUrl;
+      link.download = `univai-error-reports-${date}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      setNotice('TXT export downloaded.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to download TXT export.');
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -129,16 +165,15 @@ export default function AdminBetaReportsPage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button onClick={checkAllReports} disabled={verifyingAll || refreshing} className="gap-2">
+            <Button onClick={checkAllReports} disabled={verifyingAll || refreshing || downloading} className="gap-2">
               <ShieldCheck className={`h-4 w-4 ${verifyingAll ? 'animate-pulse' : ''}`} />
               {verifyingAll ? 'Checking all...' : 'Check All Open Errors'}
             </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <a href={exportUrl} download>
-                <Download className="h-4 w-4" /> Download TXT
-              </a>
+            <Button onClick={downloadTxt} disabled={downloading || verifyingAll} variant="outline" className="gap-2">
+              <Download className={`h-4 w-4 ${downloading ? 'animate-pulse' : ''}`} />
+              {downloading ? 'Downloading...' : 'Download TXT'}
             </Button>
-            <Button onClick={refresh} disabled={refreshing || verifyingAll} variant="outline" className="gap-2">
+            <Button onClick={refresh} disabled={refreshing || verifyingAll || downloading} variant="outline" className="gap-2">
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
             </Button>
           </div>
