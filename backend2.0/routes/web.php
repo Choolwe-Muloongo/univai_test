@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ShortCourseAccessController;
+use App\Http\Controllers\Api\ShortCourseLeaderboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -12,4 +13,5 @@ Route::middleware(['api', 'session.auth'])->prefix('api')->group(function () {
     Route::post('/students/me/short-courses/{courseId}/access-plans/purchase', [ShortCourseAccessController::class, 'purchase']);
     Route::get('/students/me/short-courses/bundles', [ShortCourseAccessController::class, 'bundlePlans']);
     Route::post('/students/me/short-courses/bundles/purchase', [ShortCourseAccessController::class, 'purchaseBundle']);
+    Route::get('/students/me/short-courses/{courseId}/leaderboard', [ShortCourseLeaderboardController::class, 'show']);
 });
