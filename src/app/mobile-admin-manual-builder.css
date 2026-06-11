@@ -55,7 +55,15 @@ body {
   }
 
   .short-course-admin-tabs {
-    display: none !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
+    border-radius: 1rem !important;
+  }
+
+  .short-course-admin-tabs > * {
+    flex: 0 0 auto;
   }
 
   .short-course-admin-shell > *,
@@ -84,11 +92,11 @@ body {
   }
 
   .univai-mobile-manual-builder .sticky.top-0 {
-    top: 0 !important;
+    top: 4.75rem !important;
   }
 
   .univai-mobile-manual-builder .sticky.top-\[6\.75rem\] {
-    top: 6.25rem !important;
+    top: 9.5rem !important;
   }
 
   .univai-mobile-manual-builder .grid,
