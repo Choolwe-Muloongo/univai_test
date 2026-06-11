@@ -40,6 +40,8 @@ class ShortCourseAdminRoutesServiceProvider extends ServiceProvider
                 Route::get('/payments', [AdminPaymentsController::class, 'index']);
                 Route::get('/beta-reports', [BetaReportController::class, 'index']);
                 Route::get('/beta-reports/export.txt', [BetaReportController::class, 'exportTxt']);
+                Route::post('/beta-reports/verify-all', [BetaReportController::class, 'verifyAll']);
+                Route::post('/beta-reports/{betaReport}/verify', [BetaReportController::class, 'verify']);
                 Route::patch('/beta-reports/{betaReport}', [BetaReportController::class, 'update']);
             });
     }
