@@ -29,6 +29,7 @@ import {
   Sparkles,
   Workflow,
   MailCheck,
+  Bug,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -299,6 +300,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
       label: 'System',
       links: [
         { href: '/admin/system', label: 'Settings', icon: Settings },
+        { href: '/admin/beta-reports', label: 'Error Reports', icon: Bug },
         { href: '/admin/document-branding', label: 'Document Branding', icon: BadgeCheck },
         { href: '/admin/system', label: 'Integrations', icon: Link2, key: 'admin-integrations' },
         { href: '/admin/users', label: 'Roles & Permissions', icon: Shield },
