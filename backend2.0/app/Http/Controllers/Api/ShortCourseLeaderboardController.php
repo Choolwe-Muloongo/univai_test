@@ -33,7 +33,8 @@ class ShortCourseLeaderboardController extends Controller
                 SUM(CASE WHEN student_learning_events.event_type = "practice_passed" THEN 1 ELSE 0 END) as practices_passed,
                 SUM(CASE WHEN student_learning_events.event_type = "final_trial_passed" THEN 1 ELSE 0 END) as final_trials_passed,
                 MAX(student_learning_events.created_at) as last_activity_at
-            ', ['New Learner']);
+            ', ['New Learner'])
+            ->havingRaw('SUM(student_learning_events.activity_points_awarded) > 0');
 
         if ($since) {
             $query->where('student_learning_events.created_at', '>=', $since);
@@ -43,6 +44,7 @@ class ShortCourseLeaderboardController extends Controller
             ->orderByDesc('activity_points')
             ->orderByDesc('xp_points')
             ->orderByDesc('final_trials_passed')
+            ->orderByDesc('last_activity_at')
             ->take(50)
             ->get();
 
