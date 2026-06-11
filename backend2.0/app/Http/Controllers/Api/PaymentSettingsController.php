@@ -26,8 +26,8 @@ class PaymentSettingsController extends Controller
     {
         $payload = $request->validate([
             'lencoCollectionsEnabled' => ['required', 'boolean'],
-            'paymentMode' => ['required', 'string', 'in:live,lenco_test,local_test'],
-            'showTestPaymentsInAdmin' => ['required', 'boolean'],
+            'paymentMode' => ['nullable', 'string', 'in:live,lenco_test,local_test'],
+            'showTestPaymentsInAdmin' => ['nullable', 'boolean'],
             'testModeMessage' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -37,10 +37,17 @@ class PaymentSettingsController extends Controller
             ? (int) $sessionUser['id']
             : null;
 
+        $lencoCollectionsEnabled = (bool) $payload['lencoCollectionsEnabled'];
+        $paymentMode = $payload['paymentMode']
+            ?? ($lencoCollectionsEnabled ? PaymentSettings::MODE_LIVE : PaymentSettings::MODE_LOCAL_TEST);
+        $showTestPaymentsInAdmin = array_key_exists('showTestPaymentsInAdmin', $payload)
+            ? (bool) $payload['showTestPaymentsInAdmin']
+            : (bool) ($settings->show_test_payments_in_admin ?? true);
+
         $settings->update([
-            'lenco_collections_enabled' => $payload['lencoCollectionsEnabled'],
-            'payment_mode' => $payload['paymentMode'],
-            'show_test_payments_in_admin' => $payload['showTestPaymentsInAdmin'],
+            'lenco_collections_enabled' => $lencoCollectionsEnabled,
+            'payment_mode' => $paymentMode,
+            'show_test_payments_in_admin' => $showTestPaymentsInAdmin,
             'test_mode_message' => $payload['testModeMessage'] ?? $settings->test_mode_message,
             'updated_by' => $updatedBy,
         ]);
