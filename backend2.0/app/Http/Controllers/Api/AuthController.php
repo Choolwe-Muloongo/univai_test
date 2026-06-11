@@ -140,14 +140,20 @@ class AuthController extends Controller
             'avatar' => ['nullable', 'string'],
         ]);
 
+        $incomingAvatar = $payload['avatar'] ?? null;
+        if ($incomingAvatar !== null && $this->isUnsafeInlineAvatar($incomingAvatar)) {
+            unset($payload['avatar']);
+        }
+
         if (!$userId || !is_numeric($userId)) {
+            $existingAvatar = is_array($sessionUser) ? ($sessionUser['avatar'] ?? null) : null;
             $profile = [
                 'displayName' => trim($payload['name']),
                 'phone' => $payload['phone'] ?? null,
                 'country' => $payload['country'] ?? null,
                 'timezone' => $payload['timezone'] ?? null,
                 'bio' => $payload['bio'] ?? null,
-                'avatar' => $payload['avatar'] ?? ($sessionUser['avatar'] ?? null),
+                'avatar' => $payload['avatar'] ?? $existingAvatar,
             ];
 
             $session = array_merge(is_array($sessionUser) ? $sessionUser : [], [
@@ -174,10 +180,14 @@ class AuthController extends Controller
             return response()->json(['message' => 'Email already belongs to another account.'], 422);
         }
 
+        $safeAvatar = array_key_exists('avatar', $payload) ? $payload['avatar'] : null;
+        $existingAvatar = $user->profile?->avatar ?: $user->avatar;
+        $avatar = $safeAvatar ?: $existingAvatar;
+
         $user->forceFill([
             'name' => trim($payload['name']),
             'email' => $email,
-            'avatar' => $payload['avatar'] ?: $user->avatar,
+            'avatar' => $avatar,
             'profile_completed_at' => now(),
         ])->save();
 
@@ -189,7 +199,7 @@ class AuthController extends Controller
                 'country' => $payload['country'] ?? null,
                 'timezone' => $payload['timezone'] ?? null,
                 'bio' => $payload['bio'] ?? null,
-                'avatar' => $payload['avatar'] ?? $user->profile?->avatar,
+                'avatar' => $avatar,
                 'completion_percent' => 100,
                 'completed_at' => now(),
             ]
@@ -311,6 +321,19 @@ class AuthController extends Controller
                 ['status' => 'active', 'starts_at' => now(), 'metadata' => ['source' => 'registration']]
             );
         }
+    }
+
+    private function isUnsafeInlineAvatar(?string $avatar): bool
+    {
+        if ($avatar === null) {
+            return false;
+        }
+
+        $value = trim($avatar);
+
+        return $value === ''
+            || strlen($value) > 255
+            || str_starts_with(strtolower($value), 'data:image/');
     }
 
     private function isDemoCredential(string $email, string $password): bool
