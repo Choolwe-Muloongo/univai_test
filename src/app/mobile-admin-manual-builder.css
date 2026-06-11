@@ -1,6 +1,12 @@
 /* Phone-first admin manual builder fixes.
    The goal: no zooming out, no horizontal page scroll, no desktop canvas on phones. */
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .short-course-admin-shell,
 .short-course-admin-shell *,
 .univai-mobile-manual-builder,
@@ -46,6 +52,10 @@
   .short-course-admin-shell {
     margin-inline: 0 !important;
     padding-inline: 0 !important;
+  }
+
+  .short-course-admin-tabs {
+    display: none !important;
   }
 
   .short-course-admin-shell > *,
