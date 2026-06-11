@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\BetaReportController;
 use App\Http\Controllers\Api\ShortCourseAccessController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\StudentGamificationController;
+use App\Http\Controllers\Api\StudentGamificationReadController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,12 +29,12 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
                 Route::post('/affiliate/apply', [AffiliateController::class, 'apply'])->middleware('throttle:general');
                 Route::post('/affiliate/payouts', [AffiliateController::class, 'requestMyPayout'])->middleware('throttle:general');
                 Route::post('/beta-reports', [BetaReportController::class, 'store'])->middleware('throttle:general');
-                Route::get('/gamification', [StudentGamificationController::class, 'state']);
-                Route::get('/daily-quests', [StudentGamificationController::class, 'dailyQuests']);
+                Route::get('/gamification', [StudentGamificationReadController::class, 'state']);
+                Route::get('/daily-quests', [StudentGamificationReadController::class, 'dailyQuests']);
                 Route::post('/learning-events', [StudentGamificationController::class, 'recordEvent']);
                 Route::get('/rewards', [StudentGamificationController::class, 'rewards']);
                 Route::post('/rewards/redeem', [StudentGamificationController::class, 'redeem']);
-                Route::get('/leaderboard/activity', [StudentGamificationController::class, 'leaderboard']);
+                Route::get('/leaderboard/activity', [StudentGamificationReadController::class, 'leaderboard']);
                 Route::get('/mistakes', [StudentGamificationController::class, 'mistakes']);
                 Route::post('/mistakes/{id}/review', [StudentGamificationController::class, 'reviewMistake']);
             });
