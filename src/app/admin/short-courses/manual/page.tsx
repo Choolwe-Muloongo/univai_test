@@ -1,4 +1,4 @@
-import { MobileFirstManualCourseBuilderClient } from '@/components/admin/short-courses/mobile-first-manual-course-builder-client';
+import { FixedMobileManualCourseBuilderClient } from '@/components/admin/short-courses/fixed-mobile-manual-course-builder-client';
 import { ShortCourseShell } from '@/components/admin/short-courses/short-course-shell';
 import { Button } from '@/components/ui/button';
 import { buildApiUrl } from '@/lib/api/client';
@@ -17,7 +17,7 @@ export default function ManualPage() {
             </a>
           </Button>
         </div>
-        <MobileFirstManualCourseBuilderClient />
+        <FixedMobileManualCourseBuilderClient />
       </div>
     </ShortCourseShell>
   );
