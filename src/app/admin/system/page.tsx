@@ -16,6 +16,9 @@ import type { PaymentSettings } from '@/lib/api/types';
 
 const defaultSettings: PaymentSettings = {
   lencoCollectionsEnabled: false,
+  paymentMode: 'local_test',
+  showTestPaymentsInAdmin: true,
+  paymentsAreTest: true,
   testModeMessage: 'Payment confirmed in test mode. No Lenco collection was created.',
 };
 
@@ -34,7 +37,12 @@ export default function SystemPage() {
     getPaymentSettings()
       .then((data) => {
         if (!mounted) return;
-        setSettings(data);
+        setSettings({
+          ...defaultSettings,
+          ...data,
+          paymentMode: data.paymentMode ?? (data.lencoCollectionsEnabled ? 'live' : 'local_test'),
+          showTestPaymentsInAdmin: data.showTestPaymentsInAdmin ?? true,
+        });
         setError(null);
       })
       .catch(() => {
@@ -80,12 +88,21 @@ export default function SystemPage() {
     setNotice(null);
     setError(null);
 
+    const lencoCollectionsEnabled = Boolean(settings.lencoCollectionsEnabled);
+
     try {
       const saved = await updatePaymentSettings({
-        lencoCollectionsEnabled: settings.lencoCollectionsEnabled,
+        lencoCollectionsEnabled,
+        paymentMode: lencoCollectionsEnabled ? 'live' : 'local_test',
+        showTestPaymentsInAdmin: settings.showTestPaymentsInAdmin ?? true,
         testModeMessage: settings.testModeMessage?.trim() || defaultSettings.testModeMessage,
       });
-      setSettings(saved);
+      setSettings({
+        ...defaultSettings,
+        ...saved,
+        paymentMode: saved.paymentMode ?? (saved.lencoCollectionsEnabled ? 'live' : 'local_test'),
+        showTestPaymentsInAdmin: saved.showTestPaymentsInAdmin ?? true,
+      });
       setNotice(saved.lencoCollectionsEnabled ? 'Lenco payment collections are now enabled.' : 'Test mode is active. Payments will unlock access without creating Lenco collections.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment settings could not be saved.');
