@@ -64,6 +64,22 @@ export type LeaderboardRow = {
   levelTitle: string;
   activityPoints: number;
   streakDays: number;
+  xpPoints?: number;
+  rewardPoints?: number;
+  missionsCompleted?: number;
+  practicesPassed?: number;
+  finalTrialsPassed?: number;
+  lastActivityAt?: string | null;
+};
+
+export type ShortCourseLeaderboardPeriod = 'daily' | 'weekly' | 'monthly' | 'all_time';
+
+export type ShortCourseLeaderboard = {
+  courseId: string;
+  period: ShortCourseLeaderboardPeriod;
+  generatedAt: string;
+  myRank: LeaderboardRow | null;
+  rows: LeaderboardRow[];
 };
 
 export type MistakeBankItem = {
@@ -112,6 +128,11 @@ export async function redeemStudentReward(code: string, courseId?: string | null
 
 export async function getStudentActivityLeaderboard(): Promise<LeaderboardRow[]> {
   return apiFetch<LeaderboardRow[]>('/students/me/leaderboard/activity');
+}
+
+export async function getShortCourseLeaderboard(courseId: string, period: ShortCourseLeaderboardPeriod = 'weekly'): Promise<ShortCourseLeaderboard> {
+  const query = new URLSearchParams({ period });
+  return apiFetch<ShortCourseLeaderboard>(`/students/me/short-courses/${courseId}/leaderboard?${query.toString()}`);
 }
 
 export async function getStudentMistakes(): Promise<MistakeBankItem[]> {
