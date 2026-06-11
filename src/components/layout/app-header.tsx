@@ -154,21 +154,21 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
   const routes = roleRoutes[userRole || ''] || {};
 
   return (
-    <header className="glass-nav sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 rounded-2xl border-b px-3 sm:gap-4 sm:px-6 lg:px-8">
+    <header className="glass-nav sticky top-0 z-30 flex min-h-16 shrink-0 flex-wrap items-center gap-2 rounded-2xl border-b px-3 py-2 sm:flex-nowrap sm:gap-4 sm:px-6 lg:px-8">
       {!hideSidebarTrigger ? (
-        <div className="md:hidden">
-          <SidebarTrigger />
+        <div className="shrink-0 md:hidden">
+          <SidebarTrigger className="h-9 w-9 rounded-xl" />
         </div>
       ) : null}
-      <div className="relative flex-1">
+      <div className="relative order-3 w-full min-w-0 flex-1 sm:order-none sm:w-auto">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search..."
-          className="w-full rounded-xl bg-background/70 pl-8 sm:max-w-[260px] lg:max-w-[340px]"
+          className="h-10 w-full rounded-xl bg-background/70 pl-8 sm:max-w-[260px] lg:max-w-[340px]"
         />
       </div>
-      <div className="flex items-center gap-4">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
         <ThemeToggle />
         <DropdownMenu onOpenChange={(open) => { if (open) loadNotifications(); }}>
           <DropdownMenuTrigger asChild>
@@ -182,7 +182,7 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
               <span className="sr-only">Open notifications</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="glass-modal w-80" align="end">
+          <DropdownMenuContent className="glass-modal w-[calc(100vw-1.5rem)] sm:w-80" align="end">
             <DropdownMenuLabel className="flex items-center justify-between gap-3">
               <span>Notifications</span>
               {unreadCount > 0 ? <button type="button" onClick={markAllRead} className="text-xs font-normal text-primary">Mark all read</button> : null}
