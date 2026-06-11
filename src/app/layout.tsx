@@ -3,6 +3,7 @@ import 'katex/dist/katex.min.css';
 import './globals.css';
 import './mobile-student-course-fixes.css';
 import './mobile-admin-manual-builder.css';
+import './enhanced-lesson-player.css';
 import { AffiliateReferralCapture } from '@/components/providers/affiliate-referral-capture';
 import { ClientErrorReporter } from '@/components/providers/client-error-reporter';
 import { GlobalLoadingProvider } from '@/components/providers/global-loading-provider';
