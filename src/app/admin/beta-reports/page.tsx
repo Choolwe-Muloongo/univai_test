@@ -10,6 +10,7 @@ import {
   getAdminBetaReports,
   updateBetaReport,
   verifyAllBetaReports,
+  verifyBetaReport,
   type AdminBetaReportsResponse,
   type BetaReportRecord,
   type BetaReportStatus,
@@ -75,6 +76,27 @@ export default function AdminBetaReportsPage() {
       setError(cause instanceof Error ? cause.message : 'Unable to verify reports. Make sure the backend /admin/beta-reports/verify-all endpoint exists.');
     } finally {
       setVerifyingAll(false);
+    }
+  }
+
+  async function verifyReport(report: BetaReportRecord) {
+    setBusyId(report.id);
+    setNotice(null);
+    setError(null);
+
+    try {
+      const verifiedReport = await verifyBetaReport(report.id);
+      const passed = verifiedReport.verificationStatus === 'passed' || verifiedReport.status === 'verified' || verifiedReport.status === 'closed';
+      setNotice(
+        passed
+          ? `Fix verified for #${report.id}. The issue was closed or marked verified.`
+          : `Fix check completed for #${report.id}. The issue still needs attention.`
+      );
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to run fix check. Make sure the backend /admin/beta-reports/:id/verify endpoint exists.');
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -177,7 +199,7 @@ export default function AdminBetaReportsPage() {
 
       <div className="space-y-4">
         {data?.reports.length ? data.reports.map((report) => (
-          <ReportCard key={report.id} report={report} busy={busyId === report.id || verifyingAll} onStatus={changeStatus} />
+          <ReportCard key={report.id} report={report} busy={busyId === report.id || verifyingAll} onStatus={changeStatus} onVerify={verifyReport} />
         )) : (
           <Card className="rounded-3xl border-dashed">
             <CardContent className="p-8 text-center text-sm text-muted-foreground">No reports found for these filters.</CardContent>
@@ -188,7 +210,9 @@ export default function AdminBetaReportsPage() {
   );
 }
 
-function ReportCard({ report, busy, onStatus }: { report: BetaReportRecord; busy: boolean; onStatus: (report: BetaReportRecord, status: BetaReportStatus) => Promise<void> }) {
+function ReportCard({ report, busy, onStatus, onVerify }: { report: BetaReportRecord; busy: boolean; onStatus: (report: BetaReportRecord, status: BetaReportStatus) => Promise<void>; onVerify: (report: BetaReportRecord) => Promise<void> }) {
+  const isChecking = busy && (report.status === 'verifying' || report.verificationStatus === 'running');
+
   return (
     <Card className="rounded-3xl">
       <CardHeader>
@@ -207,6 +231,10 @@ function ReportCard({ report, busy, onStatus }: { report: BetaReportRecord; busy
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => onVerify(report)} className="gap-2">
+              <ShieldCheck className={`h-4 w-4 ${isChecking ? 'animate-pulse' : ''}`} />
+              {isChecking ? 'Checking...' : 'Run Fix Check'}
+            </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => onStatus(report, 'reviewing')}>Reviewing</Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => onStatus(report, 'planned')}>Planned</Button>
             <Button size="sm" disabled={busy} onClick={() => onStatus(report, 'resolved')} className="gap-2"><CheckCircle2 className="h-4 w-4" /> Resolve</Button>
@@ -223,6 +251,7 @@ function ReportCard({ report, busy, onStatus }: { report: BetaReportRecord; busy
           <Info label="Report ID" value={`#${report.id}`} />
           <Info label="Verification" value={report.verificationMessage || report.verificationStatus || 'Not checked yet'} />
           <Info label="Last checked" value={report.verificationLastRunAt ? new Date(report.verificationLastRunAt).toLocaleString() : '-'} />
+          <Info label="Attempts" value={String(report.verificationAttempts ?? 0)} />
         </div>
         {report.stackTrace ? (
           <details className="rounded-2xl border bg-muted/30 p-4">
