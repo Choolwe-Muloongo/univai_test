@@ -69,6 +69,98 @@ function mapValidationArray(candidate: unknown[]): Record<string, string[]> {
 
 type FetchOptions = RequestInit & { parseJson?: boolean; loadingLabel?: string; successMessage?: string };
 
+type ClientCacheEntry = {
+  value: unknown;
+  expiresAt: number;
+};
+
+const clientMemoryCache = new Map<string, ClientCacheEntry>();
+const clientInflightRequests = new Map<string, Promise<unknown>>();
+
+function clientCacheStorageKey(key: string) {
+  return `univai:api-fast:${key}`;
+}
+
+function canUseSessionStorage() {
+  return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
+}
+
+function normalizedApiPath(path: string) {
+  return path.startsWith('/api/') ? path.replace(/^\/api/, '') : path;
+}
+
+function studentShortCourseTtl(path: string) {
+  const normalized = normalizedApiPath(path);
+  if (normalized === '/courses' || normalized === 'courses') return 5 * 60_000;
+  if (/^\/?courses\/[^/]+$/.test(normalized)) return 5 * 60_000;
+  if (/^\/?courses\/[^/]+\/lessons$/.test(normalized)) return 5 * 60_000;
+  if (/^\/?lessons\/[^/]+$/.test(normalized)) return 5 * 60_000;
+  if (normalized === '/students/me/short-courses' || normalized === 'students/me/short-courses') return 12_000;
+  if (/^\/?students\/me\/short-courses\/[^/]+\/progress$/.test(normalized)) return 12_000;
+  if (/^\/?students\/me\/short-courses\/[^/]+\/access-plans$/.test(normalized)) return 5 * 60_000;
+  if (normalized === '/students/me/short-courses/bundles' || normalized === 'students/me/short-courses/bundles') return 5 * 60_000;
+  if (normalized === '/students/me/gamification' || normalized === 'students/me/gamification') return 15_000;
+  return 0;
+}
+
+function shouldFastCache(path: string, method: string, parseJson: boolean) {
+  return parseJson && method.toUpperCase() === 'GET' && studentShortCourseTtl(path) > 0;
+}
+
+function readClientFastCache<T>(key: string): T | null {
+  const current = clientMemoryCache.get(key);
+  if (current && current.expiresAt > Date.now()) return current.value as T;
+
+  if (!canUseSessionStorage()) return null;
+  try {
+    const raw = window.sessionStorage.getItem(clientCacheStorageKey(key));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ClientCacheEntry;
+    if (!parsed || parsed.expiresAt <= Date.now()) {
+      window.sessionStorage.removeItem(clientCacheStorageKey(key));
+      return null;
+    }
+    clientMemoryCache.set(key, parsed);
+    return parsed.value as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeClientFastCache(key: string, value: unknown, ttlMs: number) {
+  const entry: ClientCacheEntry = { value, expiresAt: Date.now() + ttlMs };
+  clientMemoryCache.set(key, entry);
+  if (!canUseSessionStorage()) return;
+  try {
+    window.sessionStorage.setItem(clientCacheStorageKey(key), JSON.stringify(entry));
+  } catch {
+    // Ignore storage limits. Memory cache still speeds up this session.
+  }
+}
+
+function invalidateStudentShortCourseClientCache(path: string) {
+  const normalized = normalizedApiPath(path);
+  const isShortCourseMutation = normalized.includes('/students/me/short-courses') || normalized.includes('students/me/short-courses') || normalized.includes('/students/me/learning-events') || normalized.includes('students/me/learning-events');
+  if (!isShortCourseMutation) return;
+
+  const shouldDelete = (key: string) => key.includes('/students/me/short-courses') || key.includes('students/me/short-courses') || key.includes('/students/me/gamification') || key.includes('students/me/gamification');
+
+  for (const key of Array.from(clientMemoryCache.keys())) {
+    if (shouldDelete(key)) clientMemoryCache.delete(key);
+  }
+
+  if (!canUseSessionStorage()) return;
+  try {
+    for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.sessionStorage.key(index);
+      if (!key?.startsWith('univai:api-fast:')) continue;
+      const shortKey = key.replace('univai:api-fast:', '');
+      if (shouldDelete(shortKey)) window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage errors.
+  }
+}
 
 function dispatchLoadingEvent(name: 'univai:loading-start' | 'univai:loading-end', detail: Record<string, unknown>) {
   if (typeof window === 'undefined') return;
@@ -103,8 +195,6 @@ function defaultRequestCache(path: string, method: string): RequestCache {
   const alwaysFresh = [
     '/auth/me',
     'auth/me',
-    '/students/me/short-courses',
-    'students/me/short-courses',
     '/students/me/learning',
     'students/me/learning',
   ];
@@ -115,7 +205,6 @@ function defaultRequestCache(path: string, method: string): RequestCache {
 
   return 'default';
 }
-
 
 const AFFILIATE_CODE_KEYS = ['univai.affiliate.code', 'univai.referral.code'];
 
@@ -208,54 +297,84 @@ export async function apiFetch<T>(
   const guardedBody = guardReviewedPublishing(path, body);
   const affiliateCode = storedAffiliateCode();
   const method = options.method || 'GET';
-  const loadingId = `api-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const normalizedMethod = method.toUpperCase();
   const requestCache = options.cache ?? defaultRequestCache(path, method);
+  const fastCacheKey = `${normalizedMethod}:${path}`;
+  const fastCacheTtl = studentShortCourseTtl(path);
+
+  if (shouldFastCache(path, method, parseJson)) {
+    const cached = readClientFastCache<T>(fastCacheKey);
+    if (cached !== null) return cached;
+
+    const existing = clientInflightRequests.get(fastCacheKey) as Promise<T> | undefined;
+    if (existing) return existing;
+  }
+
+  const loadingId = `api-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   dispatchLoadingEvent('univai:loading-start', { id: loadingId, label: loadingLabel || loadingLabelFor(method), path, method });
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      body: guardedBody,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(affiliateCode ? { 'X-Univai-Referral-Code': affiliateCode } : {}),
-        ...(headers || {}),
-      },
-      credentials: 'include',
-      cache: requestCache,
-    });
+  const request = (async () => {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        body: guardedBody,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(affiliateCode ? { 'X-Univai-Referral-Code': affiliateCode } : {}),
+          ...(headers || {}),
+        },
+        credentials: 'include',
+        cache: requestCache,
+      });
 
-    if (!response.ok) {
-      let details: unknown = null;
-      try {
-        details = await response.json();
-      } catch (error) {
-        details = null;
-        void error;
+      if (!response.ok) {
+        let details: unknown = null;
+        try {
+          details = await response.json();
+        } catch (error) {
+          details = null;
+          void error;
+        }
+        const message = apiErrorMessage(response.status, details);
+        if (isSilentGuestAuthCheck(path, response.status)) {
+          dispatchLoadingEvent('univai:loading-end', { id: loadingId, path, method });
+        } else {
+          dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
+        }
+        throw new ApiError(message, response.status, details);
       }
-      const message = apiErrorMessage(response.status, details);
-      if (isSilentGuestAuthCheck(path, response.status)) {
-        dispatchLoadingEvent('univai:loading-end', { id: loadingId, path, method });
-      } else {
+
+      const completeMessage = successMessage || (shouldShowSuccessToast(method) ? 'Your change was saved successfully.' : undefined);
+      dispatchLoadingEvent('univai:loading-end', { id: loadingId, successMessage: completeMessage, path, method });
+
+      if (!parseJson) {
+        if (!isReadMethod(method)) invalidateStudentShortCourseClientCache(path);
+        return undefined as T;
+      }
+
+      const payload = await response.json();
+      const normalized = normalizeArrayEndpointPayload(path, payload) as T;
+
+      if (shouldFastCache(path, method, parseJson)) {
+        writeClientFastCache(fastCacheKey, normalized, fastCacheTtl);
+      }
+      if (!isReadMethod(method)) invalidateStudentShortCourseClientCache(path);
+
+      return normalized;
+    } catch (error) {
+      if (!(error instanceof ApiError)) {
+        const message = error instanceof Error ? error.message : 'Network request failed.';
         dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
       }
-      throw new ApiError(message, response.status, details);
+      throw error;
+    } finally {
+      clientInflightRequests.delete(fastCacheKey);
     }
+  })();
 
-    const completeMessage = successMessage || (shouldShowSuccessToast(method) ? 'Your change was saved successfully.' : undefined);
-    dispatchLoadingEvent('univai:loading-end', { id: loadingId, successMessage: completeMessage, path, method });
-
-    if (!parseJson) {
-      return undefined as T;
-    }
-
-    const payload = await response.json();
-    return normalizeArrayEndpointPayload(path, payload) as T;
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const message = error instanceof Error ? error.message : 'Network request failed.';
-      dispatchLoadingEvent('univai:loading-end', { id: loadingId, errorMessage: message, path, method });
-    }
-    throw error;
+  if (shouldFastCache(path, method, parseJson)) {
+    clientInflightRequests.set(fastCacheKey, request as Promise<unknown>);
   }
+
+  return request;
 }
