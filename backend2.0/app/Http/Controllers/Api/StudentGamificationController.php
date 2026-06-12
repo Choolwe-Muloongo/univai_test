@@ -130,9 +130,10 @@ class StudentGamificationController extends Controller
         $effect = $this->applyRewardEffect($studentId, $payload['code'], $payload['courseId'] ?? null);
         $nextBalance = $balance - (int) $item['cost'];
 
-        DB::table('student_reward_points')
-            ->where('student_id', $studentId)
-            ->update(['balance' => $nextBalance, 'updated_at' => now()]);
+        DB::table('student_reward_points')->where('student_id', $studentId)->update([
+            'balance' => $nextBalance,
+            'updated_at' => now(),
+        ]);
 
         DB::table('student_reward_redemptions')->insert([
             'student_id' => $studentId,
