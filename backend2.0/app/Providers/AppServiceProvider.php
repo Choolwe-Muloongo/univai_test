@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Http\Controllers\Api\AdmissionsLettersController;
 use App\Models\Application;
 use App\Observers\ApplicationObserver;
+use App\Support\Affiliates\AffiliateService;
+use App\Support\Affiliates\RuntimeAffiliateService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(AffiliateService::class, RuntimeAffiliateService::class);
     }
 
     /**
