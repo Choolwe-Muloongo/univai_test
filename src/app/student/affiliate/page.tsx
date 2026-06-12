@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Copy, ExternalLink, Link2, Share2, Trophy, Users, Wallet } from 'lucide-react';
+import { AlertCircle, Copy, ExternalLink, Link2, Share2, Trophy, Users, Wallet } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,16 +52,24 @@ export default function StudentAffiliatePage() {
       .then((data) => {
         if (mounted) setAffiliate(data);
       })
+      .catch(() => {
+        if (mounted) setAffiliate(null);
+      })
       .finally(() => {
         if (mounted) setLoading(false);
       });
     return () => { mounted = false; };
   }, []);
 
+  const affiliateStatus = String(affiliate?.status ?? '').toLowerCase();
+  const hasAffiliateAccess = Boolean(affiliate?.id && affiliateStatus === 'active');
+  const applicationIsPending = Boolean(affiliate?.id && affiliateStatus === 'pending');
+  const applicationWasRejected = Boolean(affiliate?.id && affiliateStatus === 'rejected');
+
   const referralLink = useMemo(() => {
-    if (!affiliate?.code || typeof window === 'undefined') return '';
+    if (!hasAffiliateAccess || !affiliate?.code || typeof window === 'undefined') return '';
     return `${window.location.origin}/register?ref=${encodeURIComponent(affiliate.code)}`;
-  }, [affiliate?.code]);
+  }, [affiliate?.code, hasAffiliateAccess]);
 
   const whatsappLink = useMemo(() => {
     if (!referralLink) return '';
@@ -127,49 +135,21 @@ export default function StudentAffiliatePage() {
 
   if (loading) return <PageLoading message="Loading affiliate dashboard..." />;
 
-  if (!affiliate) {
+  if (!affiliate || (!hasAffiliateAccess && !applicationIsPending)) {
     return (
-      <main className="space-y-6">
-        <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Affiliate Program</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Become a UnivAI Affiliate</h1>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Share UnivAI short courses and earn when referred learners register, pay the entry fee, and buy course access.
-          </p>
-        </section>
-        {message ? <Notice>{message}</Notice> : null}
-        {error ? <Notice tone="error">{error}</Notice> : null}
-        <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Apply to become an affiliate</CardTitle>
-            <CardDescription>Approved students start as Starter Affiliates. Elite recurring commission is locked until serious performance is proven.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Display name"><Input value={applyForm.displayName} onChange={(event) => setApplyForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Your public affiliate name" /></Field>
-              <Field label="Mobile money phone"><Input value={applyForm.payoutPhone} onChange={(event) => setApplyForm((current) => ({ ...current, payoutPhone: event.target.value }))} placeholder="097..." /></Field>
-              <Field label="Provider">
-                <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={applyForm.payoutOperator} onChange={(event) => setApplyForm((current) => ({ ...current, payoutOperator: event.target.value as ApplyForm['payoutOperator'] }))}>
-                  <option value="airtel">Airtel Money</option>
-                  <option value="mtn">MTN Money</option>
-                  <option value="zamtel">Zamtel Money</option>
-                </select>
-              </Field>
-              <Field label="Promotion channels"><Input value={applyForm.promotionChannels} onChange={(event) => setApplyForm((current) => ({ ...current, promotionChannels: event.target.value }))} placeholder="WhatsApp, Facebook, campus groups" /></Field>
-            </div>
-            <Field label="Why should UnivAI approve you?"><Textarea rows={4} value={applyForm.applicationReason} onChange={(event) => setApplyForm((current) => ({ ...current, applicationReason: event.target.value }))} /></Field>
-            <label className="flex items-start gap-3 text-sm text-muted-foreground">
-              <input type="checkbox" className="mt-1" checked={applyForm.acceptedTerms} onChange={(event) => setApplyForm((current) => ({ ...current, acceptedTerms: event.target.checked }))} />
-              I agree not to create fake accounts, self-referrals, or misleading promotions. Suspicious commissions can be reversed.
-            </label>
-            <Button onClick={submitApplication} disabled={saving || !applyForm.acceptedTerms} className="w-full">{saving ? 'Submitting...' : 'Submit affiliate application'}</Button>
-          </CardContent>
-        </Card>
-      </main>
+      <AffiliateApplicationView
+        rejected={applicationWasRejected}
+        message={message}
+        error={error}
+        applyForm={applyForm}
+        setApplyForm={setApplyForm}
+        saving={saving}
+        onSubmit={submitApplication}
+      />
     );
   }
 
-  if (affiliate.status === 'pending') {
+  if (applicationIsPending) {
     return (
       <main className="space-y-6">
         <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
@@ -180,8 +160,8 @@ export default function StudentAffiliatePage() {
         <Card className="rounded-3xl">
           <CardHeader><CardTitle>Application details</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p><strong>Name:</strong> {affiliate.displayName}</p>
-            <p><strong>Payout:</strong> {affiliate.payoutOperator} · {affiliate.payoutPhone}</p>
+            <p><strong>Name:</strong> {affiliate.displayName || 'Pending affiliate'}</p>
+            <p><strong>Payout:</strong> {affiliate.payoutOperator || 'provider pending'} · {affiliate.payoutPhone || 'phone pending'}</p>
             <p><strong>Status:</strong> pending approval</p>
           </CardContent>
         </Card>
@@ -229,11 +209,11 @@ export default function StudentAffiliatePage() {
             <CardDescription>Share this with students who want to register or buy short courses.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-2xl border bg-muted/30 p-4 text-sm break-all">{referralLink}</div>
+            <div className="rounded-2xl border bg-muted/30 p-4 text-sm break-all">{referralLink || 'Referral link unlocks after approval.'}</div>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button onClick={copyLink} disabled={!referralLink} className="gap-2"><Copy className="h-4 w-4" /> {copied ? 'Copied!' : 'Copy link'}</Button>
-              <Button asChild variant="outline" className="gap-2"><a href={whatsappLink} target="_blank" rel="noreferrer"><Share2 className="h-4 w-4" /> Share WhatsApp</a></Button>
-              <Button asChild variant="outline" className="gap-2"><a href={referralLink} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Open</a></Button>
+              <Button asChild variant="outline" className="gap-2"><a href={whatsappLink || '#'} target="_blank" rel="noreferrer"><Share2 className="h-4 w-4" /> Share WhatsApp</a></Button>
+              <Button asChild variant="outline" className="gap-2"><a href={referralLink || '#'} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Open</a></Button>
             </div>
           </CardContent>
         </Card>
@@ -285,6 +265,65 @@ export default function StudentAffiliatePage() {
           <p>Elite Partner unlocks 5% recurring commission for 12 months, only after strict admin approval.</p>
           <p>No self-referrals, fake accounts, duplicate abuse, or misleading promotions.</p>
           <p>Suspicious withdrawals can be sent to admin review before Lenco payout.</p>
+        </CardContent>
+      </Card>
+    </main>
+  );
+}
+
+function AffiliateApplicationView({
+  rejected,
+  message,
+  error,
+  applyForm,
+  setApplyForm,
+  saving,
+  onSubmit,
+}: {
+  rejected: boolean;
+  message: string | null;
+  error: string | null;
+  applyForm: ApplyForm;
+  setApplyForm: React.Dispatch<React.SetStateAction<ApplyForm>>;
+  saving: boolean;
+  onSubmit: () => void;
+}) {
+  return (
+    <main className="space-y-6">
+      <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-primary">Affiliate Program</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">{rejected ? 'Request affiliate access again' : 'Become a UnivAI Affiliate'}</h1>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          Share UnivAI short courses and earn when referred learners register, pay the entry fee, and buy course access.
+        </p>
+      </section>
+      {rejected ? <Notice tone="error"><span className="inline-flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> Your previous affiliate request was not approved. Update your reason, payout details, and channels, then request access again.</span></Notice> : null}
+      {message ? <Notice>{message}</Notice> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle>Apply to become an affiliate</CardTitle>
+          <CardDescription>Approved students start as Starter Affiliates. Elite recurring commission is locked until serious performance is proven.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Display name"><Input value={applyForm.displayName} onChange={(event) => setApplyForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Your public affiliate name" /></Field>
+            <Field label="Mobile money phone"><Input value={applyForm.payoutPhone} onChange={(event) => setApplyForm((current) => ({ ...current, payoutPhone: event.target.value }))} placeholder="097..." /></Field>
+            <Field label="Provider">
+              <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={applyForm.payoutOperator} onChange={(event) => setApplyForm((current) => ({ ...current, payoutOperator: event.target.value as ApplyForm['payoutOperator'] }))}>
+                <option value="airtel">Airtel Money</option>
+                <option value="mtn">MTN Money</option>
+                <option value="zamtel">Zamtel Money</option>
+              </select>
+            </Field>
+            <Field label="Promotion channels"><Input value={applyForm.promotionChannels} onChange={(event) => setApplyForm((current) => ({ ...current, promotionChannels: event.target.value }))} placeholder="WhatsApp, Facebook, campus groups" /></Field>
+          </div>
+          <Field label="Why should UnivAI approve you?"><Textarea rows={4} value={applyForm.applicationReason} onChange={(event) => setApplyForm((current) => ({ ...current, applicationReason: event.target.value }))} /></Field>
+          <label className="flex items-start gap-3 text-sm text-muted-foreground">
+            <input type="checkbox" className="mt-1" checked={applyForm.acceptedTerms} onChange={(event) => setApplyForm((current) => ({ ...current, acceptedTerms: event.target.checked }))} />
+            I agree not to create fake accounts, self-referrals, or misleading promotions. Suspicious commissions can be reversed.
+          </label>
+          <Button onClick={onSubmit} disabled={saving || !applyForm.acceptedTerms || !applyForm.payoutPhone.trim() || !applyForm.applicationReason.trim()} className="w-full">{saving ? 'Submitting...' : 'Submit affiliate application'}</Button>
         </CardContent>
       </Card>
     </main>
