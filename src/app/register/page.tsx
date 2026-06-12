@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, GraduationCap, Loader2, Sparkles } from 'lucide-react';
+import { BookOpen, Gift, GraduationCap, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,10 @@ import type { Program, School } from '@/lib/api/types';
 
 type Choice = 'short-course' | 'formal-programme' | null;
 
+function cleanReferralCode(value: string | null | undefined) {
+  return (value ?? '').replace(/[^A-Za-z0-9]+/g, '').toUpperCase().slice(0, 32);
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const [choice, setChoice] = useState<Choice>(null);
@@ -26,6 +30,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,10 +43,21 @@ export default function RegisterPage() {
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const search = new URLSearchParams(window.location.search);
+    const code = cleanReferralCode(search.get('ref') || search.get('affiliateCode') || search.get('referralCode'));
+    if (code) setReferralCode(code);
+  }, []);
+
   const filteredPrograms = useMemo(
     () => programs.filter((program) => program.schoolId === schoolId),
     [programs, schoolId]
   );
+
+  const shortCourseHref = referralCode
+    ? `/register/short-courses?ref=${encodeURIComponent(referralCode)}`
+    : '/register/short-courses';
 
   async function submitFormalApplication(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,7 +74,13 @@ export default function RegisterPage() {
         return;
       }
 
-      await registerAccount({ name: fullName, email, password });
+      const cleanCode = cleanReferralCode(referralCode);
+      await registerAccount({
+        name: fullName,
+        email,
+        password,
+        ...(cleanCode ? { affiliateCode: cleanCode, referralCode: cleanCode } : {}),
+      } as any);
       await submitApplication({
         fullName,
         email,
@@ -101,6 +123,21 @@ export default function RegisterPage() {
           <Button asChild variant="outline"><Link href="/login">Already have an account?</Link></Button>
         </div>
 
+        {referralCode ? (
+          <section className="rounded-3xl border border-primary/30 bg-primary/5 p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary"><ShieldCheck className="size-4" /> Referral code applied</p>
+                <h2 className="mt-1 text-2xl font-bold">Code: {referralCode}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Use this code for short courses to get 10% off your first access payment, capped at K10. The discount applies to access, not the entry fee.</p>
+              </div>
+              <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
+                Entry fees qualify the affiliate. Access payments unlock your course and help the affiliate rank on their tier leaderboard.
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {!choice ? (
           <section className="space-y-6 py-8">
             <div className="max-w-3xl space-y-3">
@@ -120,8 +157,9 @@ export default function RegisterPage() {
                     <li>No admission documents required</li>
                     <li>Create a simple learner account</li>
                     <li>Browse and enroll in published short courses</li>
+                    <li>Affiliate codes give 10% off first access payment, capped at K10</li>
                   </ul>
-                  <Button asChild className="w-full"><Link href="/register/short-courses">Register for short courses</Link></Button>
+                  <Button asChild className="w-full"><Link href={shortCourseHref}>Register for short courses</Link></Button>
                   <Button asChild variant="outline" className="w-full"><Link href="/short-courses">Browse short courses first</Link></Button>
                 </CardContent>
               </Card>
@@ -153,6 +191,10 @@ export default function RegisterPage() {
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-muted-foreground">
                 <p>You will create an applicant account, choose a school and programme, upload documents, and wait for admissions review.</p>
+                <div className="rounded-2xl border bg-background p-4">
+                  <p className="flex items-center gap-2 font-semibold text-foreground"><Gift className="size-4 text-primary" /> Affiliate code note</p>
+                  <p className="mt-1">Affiliate discounts are focused on short-course access payments. Formal programme referrals can still be tracked for internal reporting.</p>
+                </div>
                 <Button variant="outline" onClick={() => setChoice(null)}>Back to registration choices</Button>
               </CardContent>
             </Card>
@@ -170,6 +212,12 @@ export default function RegisterPage() {
                     <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></div>
                     <div className="space-y-2"><Label>Password</Label><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div>
                     <div className="space-y-2"><Label>Country</Label><Input value="Zambia" readOnly /></div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Referral code</Label>
+                    <Input value={referralCode} onChange={(event) => setReferralCode(cleanReferralCode(event.target.value))} placeholder="Optional affiliate code" />
+                    <p className="text-xs text-muted-foreground">Optional. Short-course access discounts apply when you use this code on short-course access payment.</p>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
