@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { LifeBuoy, MessageCircle, FileWarning } from "lucide-react";
+import { BookOpen, LifeBuoy, MessageCircle, FileWarning } from "lucide-react";
 import { createSupportTicket, getSupportTickets } from "@/lib/api";
 import type { SupportTicket } from "@/lib/api/types";
 import { useToast } from "@/hooks/use-toast";
@@ -57,7 +57,7 @@ export default function SupportPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Support</h1>
         <p className="text-muted-foreground">
-          Contact helpdesk, log tickets, and track your requests.
+          Contact helpdesk, log tickets, read the help guide, and track your requests.
         </p>
       </div>
 
@@ -97,6 +97,15 @@ export default function SupportPage() {
             <CardDescription>Get fast answers or escalation.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Link href="/student/help" className="flex items-start gap-3 rounded-lg border p-4 transition hover:border-primary/60 hover:bg-primary/5">
+              <BookOpen className="mt-1 h-5 w-5 text-primary" />
+              <div>
+                <p className="font-semibold">Help Center</p>
+                <p className="text-sm text-muted-foreground">
+                  Learn how to use Mission Home, Journeys, Nova, billing, notifications, and affiliate requests.
+                </p>
+              </div>
+            </Link>
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <LifeBuoy className="mt-1 h-5 w-5 text-primary" />
               <div>
@@ -156,4 +165,3 @@ export default function SupportPage() {
     </div>
   );
 }
-
