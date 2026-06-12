@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserProfile;
 use App\Support\Access\AccessControl;
 use App\Support\Affiliates\AffiliateService;
+use App\Support\Onboarding\UserOnboardingMessenger;
 use Illuminate\Http\Request;
 use App\Support\StudentAccess;
 use Illuminate\Support\Facades\Hash;
@@ -23,12 +24,15 @@ class AuthController extends Controller
             'role' => ['nullable', 'string'],
         ]);
 
+        $persistedUser = null;
+
         if (!empty($payload['email'])) {
             $email = strtolower(trim($payload['email']));
             $password = $payload['password'] ?? '';
             $user = User::with(['activeSubscription', 'activeEntitlements'])->where('email', $email)->first();
 
             if ($user && Hash::check($password, $user->password)) {
+                $persistedUser = $user;
                 $sessionUser = $this->mapUser($user);
             } elseif ($this->isDemoCredential($email, $password)) {
                 $sessionUser = $this->demoUser($this->demoRoleFromEmail($email));
@@ -45,6 +49,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
         $request->session()->put('user', $sessionUser);
+        app(UserOnboardingMessenger::class)->sendWelcomeOnce($sessionUser, $persistedUser);
 
         return response()->json(['user' => $sessionUser]);
     }
@@ -85,9 +90,11 @@ class AuthController extends Controller
             $this->syncRoleEntitlements($user, $role);
         }
 
-        $sessionUser = $this->mapUser($user->fresh(['activeSubscription', 'activeEntitlements']));
+        $freshUser = $user->fresh(['activeSubscription', 'activeEntitlements']);
+        $sessionUser = $this->mapUser($freshUser);
         $request->session()->regenerate();
         $request->session()->put('user', $sessionUser);
+        app(UserOnboardingMessenger::class)->sendWelcomeOnce($sessionUser, $freshUser);
 
         return response()->json(['user' => $sessionUser], 201);
     }
