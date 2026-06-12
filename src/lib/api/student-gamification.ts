@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api/client';
+import { apiFetch, buildApiUrl } from '@/lib/api/client';
 
 export type LearningEventType =
   | 'card_completed'
@@ -119,6 +119,33 @@ export type MistakeBankItem = {
   createdAt?: string | null;
 };
 
+async function silentPostJson<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(buildApiUrl(path), {
+    method: 'POST',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let message = `Request failed: ${response.status}`;
+
+    try {
+      const details = (await response.json()) as { message?: unknown } | null;
+      if (typeof details?.message === 'string') message = details.message;
+    } catch {
+      // Keep the generic status message when the response body is not JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export async function getStudentGamification(): Promise<GamificationState> {
   return apiFetch<GamificationState>('/students/me/gamification');
 }
@@ -133,10 +160,7 @@ export async function recordLearningEvent(payload: {
   lessonId?: string | null;
   metadata?: Record<string, unknown>;
 }): Promise<GamificationState> {
-  return apiFetch<GamificationState>('/students/me/learning-events', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  return silentPostJson<GamificationState>('/students/me/learning-events', payload);
 }
 
 export async function getStudentRewards(): Promise<{ balance: number; shop: RewardShopItem[]; history: RewardHistoryItem[] }> {
