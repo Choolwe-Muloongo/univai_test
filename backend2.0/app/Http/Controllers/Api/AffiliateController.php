@@ -34,12 +34,12 @@ class AffiliateController extends Controller
     {
         $userId = $this->sessionUserId($request);
         if (!$userId) {
-            return response()->json(null, 404);
+            return response()->json(null);
         }
 
         $affiliate = Affiliate::with(['user', 'earnings', 'payouts', 'referrals'])->where('user_id', $userId)->first();
         if (!$affiliate) {
-            return response()->json(null, 404);
+            return response()->json(null);
         }
 
         return response()->json($this->mapAffiliate($affiliate, $affiliates));
@@ -271,43 +271,36 @@ class AffiliateController extends Controller
     {
         return [
             'id' => $payout->id,
-            'reference' => $payout->reference,
             'affiliateId' => $payout->affiliate_id,
             'amount' => (string) $payout->amount,
-            'fee' => (string) $payout->fee,
             'currency' => $payout->currency,
-            'method' => $payout->method,
-            'phone' => $payout->phone,
-            'operator' => $payout->operator,
-            'country' => $payout->country,
             'status' => $payout->status,
-            'lencoReference' => $payout->lenco_reference,
+            'providerReference' => $payout->provider_reference,
             'failureReason' => $payout->failure_reason,
-            'requestedAt' => optional($payout->requested_at)->toISOString(),
-            'completedAt' => optional($payout->completed_at)->toISOString(),
+            'requestedAt' => optional($payout->created_at)->toISOString(),
+            'paidAt' => optional($payout->paid_at)->toISOString(),
         ];
+    }
+
+    private function uniqueCode(string $seed): string
+    {
+        $base = strtoupper(substr(preg_replace('/[^A-Za-z0-9]+/', '', $seed), 0, 8) ?: 'UNIVAI');
+        do {
+            $code = $base . random_int(100, 999);
+        } while (Affiliate::where('code', $code)->exists());
+
+        return $code;
     }
 
     private function sessionUserId(Request $request): ?int
     {
-        $sessionUser = $request->session()->get('user');
-        if (!is_array($sessionUser) || !isset($sessionUser['id']) || !is_numeric($sessionUser['id'])) {
-            return null;
-        }
-        return (int) $sessionUser['id'];
+        $user = $request->session()->get('user');
+        $id = is_array($user) ? ($user['id'] ?? null) : null;
+        return is_numeric($id) ? (int) $id : null;
     }
 
     private function adminUserId(Request $request): ?int
     {
         return $this->sessionUserId($request);
-    }
-
-    private function uniqueCode(string $displayName): string
-    {
-        $base = strtoupper(substr(preg_replace('/[^A-Za-z0-9]+/', '', $displayName) ?: 'UNI', 0, 5));
-        do {
-            $code = $base . strtoupper(Str::random(4));
-        } while (Affiliate::where('code', $code)->exists());
-        return $code;
     }
 }
