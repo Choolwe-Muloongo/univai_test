@@ -35,6 +35,16 @@ class AffiliatePayout extends Model
         'completed_at' => 'datetime',
     ];
 
+    public function getProviderReferenceAttribute(): ?string
+    {
+        return $this->lenco_reference;
+    }
+
+    public function getPaidAtAttribute()
+    {
+        return $this->completed_at;
+    }
+
     public function affiliate(): BelongsTo
     {
         return $this->belongsTo(Affiliate::class);
