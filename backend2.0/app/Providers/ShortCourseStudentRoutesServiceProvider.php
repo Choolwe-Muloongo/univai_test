@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AiController;
 use App\Http\Controllers\Api\BetaReportController;
 use App\Http\Controllers\Api\ShortCourseAccessController;
 use App\Http\Controllers\Api\ShortCourseController;
+use App\Http\Controllers\Api\ShortCourseLeaderboardController;
 use App\Http\Controllers\Api\StudentGamificationController;
 use App\Http\Controllers\Api\StudentGamificationReadController;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +51,7 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
                 Route::post('/{courseId}/ai', [AiController::class, 'generate'])->middleware('throttle:ai');
                 Route::get('/{courseId}/access-plans', [ShortCourseAccessController::class, 'plans']);
                 Route::post('/{courseId}/access-plans/purchase', [ShortCourseAccessController::class, 'purchase']);
+                Route::get('/{courseId}/leaderboard', [ShortCourseLeaderboardController::class, 'show']);
                 Route::post('/{courseId}/lessons/{lessonId}/complete', [ShortCourseController::class, 'completeLesson']);
                 Route::post('/{courseId}/practice', [ShortCourseController::class, 'practice']);
                 Route::post('/{courseId}/practice/submit', [ShortCourseController::class, 'submitPractice']);
