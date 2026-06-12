@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertCircle, Copy, ExternalLink, Link2, Share2, Trophy, Users, Wallet } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
