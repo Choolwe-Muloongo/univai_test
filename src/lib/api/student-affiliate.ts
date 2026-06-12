@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api/client';
+import { apiFetch, buildApiUrl } from '@/lib/api/client';
 import type { AffiliatePayout, AffiliateRecord } from '@/lib/api/types';
 
 export type AffiliateApplicationPayload = {
@@ -20,11 +20,17 @@ export type AffiliatePayoutPayload = {
 };
 
 export async function getMyAffiliate(): Promise<AffiliateRecord | null> {
-  try {
-    return await apiFetch<AffiliateRecord | null>('/students/me/affiliate');
-  } catch (error) {
-    return null;
-  }
+  const response = await fetch(buildApiUrl('/students/me/affiliate'), {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (response.status === 404) return null;
+  if (!response.ok) return null;
+
+  return response.json() as Promise<AffiliateRecord | null>;
 }
 
 export async function applyForAffiliate(payload: AffiliateApplicationPayload): Promise<AffiliateRecord> {
