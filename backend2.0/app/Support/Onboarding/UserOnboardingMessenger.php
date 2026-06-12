@@ -40,10 +40,9 @@ class UserOnboardingMessenger
                 'welcome_guide'
             );
 
-            $email = $user?->email ?: ($sessionUser['email'] ?? null);
-            if ($email) {
+            if ($user?->email) {
                 try {
-                    Mail::to($email)->send(new WelcomeGuideMail($sessionUser, $guide));
+                    Mail::to($user->email)->send(new WelcomeGuideMail($sessionUser, $guide));
                 } catch (\Throwable $exception) {
                     report($exception);
                 }
