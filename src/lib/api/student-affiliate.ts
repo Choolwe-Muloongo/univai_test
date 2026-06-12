@@ -19,6 +19,13 @@ export type AffiliatePayoutPayload = {
   country?: string;
 };
 
+function isUsableAffiliate(value: unknown): value is AffiliateRecord {
+  if (!value || typeof value !== 'object') return false;
+
+  const record = value as Partial<AffiliateRecord> & Record<string, unknown>;
+  return Boolean(record.id && record.status);
+}
+
 export async function getMyAffiliate(): Promise<AffiliateRecord | null> {
   const response = await fetch(buildApiUrl('/students/me/affiliate'), {
     method: 'GET',
@@ -30,7 +37,8 @@ export async function getMyAffiliate(): Promise<AffiliateRecord | null> {
   if (response.status === 404) return null;
   if (!response.ok) return null;
 
-  return response.json() as Promise<AffiliateRecord | null>;
+  const data = await response.json();
+  return isUsableAffiliate(data) ? data : null;
 }
 
 export async function applyForAffiliate(payload: AffiliateApplicationPayload): Promise<AffiliateRecord> {
