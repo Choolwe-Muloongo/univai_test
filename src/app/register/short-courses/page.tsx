@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Gift, ShieldCheck, Users } from 'lucide-react';
 
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
@@ -27,16 +28,31 @@ function safeNext(value: string | null) {
   return value;
 }
 
+function cleanReferralCode(value: string | null | undefined) {
+  return (value ?? '').replace(/[^A-Za-z0-9]+/g, '').toUpperCase().slice(0, 32);
+}
+
 function ShortCourseRegisterContent() {
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get('next'));
+  const initialReferralCode = cleanReferralCode(params.get('ref') || params.get('affiliateCode') || params.get('referralCode'));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [country, setCountry] = useState('Zambia');
+  const [referralCode, setReferralCode] = useState(initialReferralCode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const referralBenefit = useMemo(() => {
+    if (!referralCode) return null;
+    return {
+      code: referralCode,
+      discount: '10% off your first access payment, capped at K10',
+      reminder: 'Entry fees qualify the affiliate, but your access payment unlocks learning and supports their leaderboard rank.',
+    };
+  }, [referralCode]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,7 +63,14 @@ function ShortCourseRegisterContent() {
         setError('Password must be at least 6 characters.');
         return;
       }
-      await registerAccount({ name, email, password, role: 'free-student' });
+      const cleanCode = cleanReferralCode(referralCode);
+      await registerAccount({
+        name,
+        email,
+        password,
+        role: 'free-student',
+        ...(cleanCode ? { affiliateCode: cleanCode, referralCode: cleanCode } : {}),
+      } as any);
       router.replace(next);
       router.refresh();
     } catch (cause) {
@@ -80,6 +103,14 @@ function ShortCourseRegisterContent() {
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <p>You can browse courses, enrol, learn with card-based lessons, practise with quizzes, and earn certificates after passing assessments.</p>
               <div className="rounded-2xl border bg-background p-4">
+                <p className="flex items-center gap-2 font-medium text-foreground"><Gift className="size-4 text-primary" /> Referral code benefit</p>
+                <p className="mt-1">If you have an affiliate code, you get <strong>10% off your first access payment, capped at K10</strong>. The discount applies to access, not the entry fee.</p>
+              </div>
+              <div className="rounded-2xl border bg-background p-4">
+                <p className="flex items-center gap-2 font-medium text-foreground"><Users className="size-4 text-primary" /> How it helps your inviter</p>
+                <p className="mt-1">Entry fee payment helps them qualify. Access payment helps them rank on their tier leaderboard and earn proper commission.</p>
+              </div>
+              <div className="rounded-2xl border bg-background p-4">
                 <p className="font-medium text-foreground">Already browsing?</p>
                 <p className="mt-1">You can go back to the short-course catalogue anytime. Creating an account only unlocks enrolment and progress tracking.</p>
                 <Button asChild variant="outline" className="mt-3"><Link href="/short-courses">Go to short courses</Link></Button>
@@ -99,11 +130,23 @@ function ShortCourseRegisterContent() {
             </CardHeader>
             <CardContent>
               {error ? <PageError message={error} /> : null}
+              {referralBenefit ? (
+                <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
+                  <p className="flex items-center gap-2 font-semibold text-primary"><ShieldCheck className="size-4" /> Referral code applied: {referralBenefit.code}</p>
+                  <p className="mt-1 text-muted-foreground">{referralBenefit.discount}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{referralBenefit.reminder}</p>
+                </div>
+              ) : null}
               <form onSubmit={submit} className="space-y-4">
                 <div className="space-y-2"><Label>Full name</Label><Input value={name} onChange={(event) => setName(event.target.value)} required /></div>
                 <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></div>
                 <div className="space-y-2"><Label>Password</Label><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div>
                 <div className="space-y-2"><Label>Country</Label><Input value={country} onChange={(event) => setCountry(event.target.value)} /></div>
+                <div className="space-y-2">
+                  <Label>Referral code</Label>
+                  <Input value={referralCode} onChange={(event) => setReferralCode(cleanReferralCode(event.target.value))} placeholder="Optional affiliate code" />
+                  <p className="text-xs text-muted-foreground">Use a valid UnivAI affiliate code to unlock the first-access discount.</p>
+                </div>
                 <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Creating account...' : 'Create account and continue'}</Button>
               </form>
               <p className="mt-4 text-center text-sm text-muted-foreground">Already have an account? <Link className="text-primary" href={`/login?next=${encodeURIComponent(next)}`}>Log in and continue</Link></p>
