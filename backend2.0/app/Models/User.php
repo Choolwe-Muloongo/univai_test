@@ -47,6 +47,42 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected static function booted(): void
+    {
+        static::created(function (User $user): void {
+            $code = strtoupper(trim((string) $user->referred_by_affiliate_code));
+            if ($code === '') {
+                return;
+            }
+
+            $affiliate = Affiliate::query()
+                ->where('code', $code)
+                ->where('status', 'active')
+                ->first();
+
+            if (!$affiliate || (int) $affiliate->user_id === (int) $user->id) {
+                return;
+            }
+
+            AffiliateReferral::query()->updateOrCreate(
+                [
+                    'affiliate_id' => $affiliate->id,
+                    'referred_user_id' => $user->id,
+                    'source_type' => $user->role === 'free-student' ? 'short_course_registration' : 'registration',
+                    'source_reference' => null,
+                ],
+                [
+                    'referral_code' => $affiliate->code,
+                    'metadata' => [
+                        'source' => 'user_created',
+                        'captured_at' => now()->toISOString(),
+                        'status' => 'signed_up',
+                    ],
+                ]
+            );
+        });
+    }
+
     /**
      * Get the attributes that should be cast.
      *
