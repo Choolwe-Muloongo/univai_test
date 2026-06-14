@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GraduationCap, Loader2 } from 'lucide-react';
 
+import { WhatsAppChannelRequirement } from '@/components/auth/whatsapp-channel-requirement';
 import { Logo } from '@/components/icons/logo';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { registerAccount, submitInstructorApplication } from '@/lib/api';
 export default function InstructorApplicationPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [joinedChannel, setJoinedChannel] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -32,12 +34,17 @@ export default function InstructorApplicationPage() {
     const password = String(formData.get('password') || '');
 
     try {
+      if (!joinedChannel) {
+        setError('Join the UnivAI WhatsApp channel before creating an account.');
+        return;
+      }
       await registerAccount({
         name: fullName,
         email,
         password,
         role: 'instructor-applicant',
-      });
+        acceptedWhatsappChannel: joinedChannel,
+      } as any);
       await submitInstructorApplication({
         fullName,
         email,
@@ -127,9 +134,10 @@ export default function InstructorApplicationPage() {
               <Label htmlFor="bio">Teaching bio</Label>
               <Textarea id="bio" name="bio" rows={6} required />
             </div>
+            <WhatsAppChannelRequirement checked={joinedChannel} onCheckedChange={setJoinedChannel} />
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button className="w-full" disabled={loading}>
+            <Button className="w-full" disabled={loading || !joinedChannel}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Submit instructor application
             </Button>
