@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, GraduationCap, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 
+import { WhatsAppChannelRequirement } from '@/components/auth/whatsapp-channel-requirement';
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [referralCode, setReferralCode] = useState('');
+  const [joinedChannel, setJoinedChannel] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,14 +75,19 @@ export default function RegisterPage() {
         setError('Choose a school and programme before submitting.');
         return;
       }
+      if (!joinedChannel) {
+        setError('Join the UnivAI WhatsApp channel before creating an account.');
+        return;
+      }
 
       const cleanCode = cleanReferralCode(referralCode);
       await registerAccount({
         name: fullName,
         email,
         password,
+        acceptedWhatsappChannel: joinedChannel,
         ...(cleanCode ? { affiliateCode: cleanCode, referralCode: cleanCode } : {}),
-      });
+      } as any);
       await submitApplication({
         fullName,
         email,
@@ -232,7 +239,8 @@ export default function RegisterPage() {
                     <div className="space-y-2"><Label>Certified results</Label><Input name="certifiedResults" type="file" required /></div>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={loading}>{loading ? <><Loader2 className="mr-2 size-4 animate-spin" /> Submitting...</> : 'Submit formal programme application'}</Button>
+                  <WhatsAppChannelRequirement checked={joinedChannel} onCheckedChange={setJoinedChannel} />
+                  <Button type="submit" className="w-full" disabled={loading || !joinedChannel}>{loading ? <><Loader2 className="mr-2 size-4 animate-spin" /> Submitting...</> : 'Submit formal programme application'}</Button>
                 </form>
               </CardContent>
             </Card>
