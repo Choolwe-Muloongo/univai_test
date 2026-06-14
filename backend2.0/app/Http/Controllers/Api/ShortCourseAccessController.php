@@ -261,7 +261,7 @@ class ShortCourseAccessController extends Controller
             return ['amount' => $amount, 'discount' => 0, 'affiliateCode' => $affiliate?->code];
         }
 
-        $discount = round(min($amount * 0.10, 10, $amount), 2);
+        $discount = round($amount * 0.10, 2);
         return [
             'amount' => round(max(0, $amount - $discount), 2),
             'discount' => $discount,
