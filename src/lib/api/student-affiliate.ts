@@ -54,3 +54,10 @@ export async function requestMyAffiliatePayout(payload: AffiliatePayoutPayload):
     body: JSON.stringify(payload),
   });
 }
+
+export async function requestAffiliateUpgrade(message?: string): Promise<Record<string, any>> {
+  return apiFetch('/students/me/affiliate/upgrade-request', {
+    method: 'POST',
+    body: JSON.stringify({ message: message ?? '' }),
+  });
+}
