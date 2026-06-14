@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BadgeCheck, Landmark, Loader2, RefreshCw, Wallet, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Landmark, Loader2, RefreshCw, Trophy, Wallet, type LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PageError, PageLoading } from '@/components/ui/page-feedback';
 import {
+  approveAffiliateUpgrade,
+  calculateAffiliateRewards,
   createAffiliate,
+  downgradeAffiliateFromReview,
   getAffiliateOverview,
+  rejectAffiliateUpgrade,
   requestAffiliatePayout,
+  updateAffiliateBonus,
   verifyAffiliatePayout,
 } from '@/lib/api/admin-affiliate';
 import type { AffiliateOverview, AffiliateRecord } from '@/lib/api/types';
@@ -49,6 +54,13 @@ const defaultForm: CreateForm = {
   notes: '',
 };
 
+const tierLabels: Record<string, string> = {
+  starter: 'Starter',
+  campus_promoter: 'Campus Promoter',
+  ambassador: 'Ambassador',
+  elite_partner: 'Elite Affiliate',
+};
+
 export default function AdminAffiliatesPage() {
   const [data, setData] = useState<AffiliateOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,13 +86,32 @@ export default function AdminAffiliatesPage() {
 
   const affiliates = useMemo(() => data?.affiliates ?? [], [data]);
   const pendingAffiliates = affiliates.filter((affiliate) => affiliate.status === 'pending');
+  const monthlyBonuses = Array.isArray(data?.monthlyBonuses) ? data.monthlyBonuses : [];
+  const upgradeRequests = Array.isArray(data?.upgradeRequests) ? data.upgradeRequests : [];
+  const tierReviews = Array.isArray(data?.tierReviews) ? data.tierReviews : [];
+  const financeBuckets = Array.isArray(data?.financeBuckets) ? data.financeBuckets : [];
+  const leaderboards = data?.leaderboards ?? {};
 
-  async function submitAffiliate(custom?: Partial<CreateForm>) {
-    const payloadForm = { ...form, ...(custom ?? {}) };
+  async function guarded(action: () => Promise<unknown>, success: string, busy?: number) {
+    setBusyId(busy ?? null);
     setSaving(true);
     setError(null);
     setMessage(null);
     try {
+      await action();
+      setMessage(success);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Action failed.');
+    } finally {
+      setSaving(false);
+      setBusyId(null);
+    }
+  }
+
+  async function submitAffiliate(custom?: Partial<CreateForm>) {
+    const payloadForm = { ...form, ...(custom ?? {}) };
+    await guarded(async () => {
       await createAffiliate({
         userId: payloadForm.userId ? Number(payloadForm.userId) : undefined,
         code: payloadForm.code || undefined,
@@ -97,13 +128,7 @@ export default function AdminAffiliatesPage() {
         notes: payloadForm.notes || undefined,
       });
       setForm(defaultForm);
-      setMessage('Affiliate saved.');
-      await refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to save affiliate.');
-    } finally {
-      setSaving(false);
-    }
+    }, 'Affiliate saved.');
   }
 
   function loadAffiliate(affiliate: AffiliateRecord, status?: CreateForm['status']) {
@@ -127,10 +152,7 @@ export default function AdminAffiliatesPage() {
   async function submitPayout(affiliate: AffiliateRecord) {
     const amount = Number(payoutAmounts[affiliate.id] || 0);
     if (amount <= 0) return;
-    setBusyId(affiliate.id);
-    setError(null);
-    setMessage(null);
-    try {
+    await guarded(async () => {
       await requestAffiliatePayout(affiliate.id, {
         amount,
         currency: 'ZMW',
@@ -139,28 +161,11 @@ export default function AdminAffiliatesPage() {
         country: affiliate.payoutCountry || 'zm',
       });
       setPayoutAmounts((current) => ({ ...current, [affiliate.id]: '' }));
-      setMessage(`Payout requested for ${affiliate.displayName}.`);
-      await refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to request payout.');
-    } finally {
-      setBusyId(null);
-    }
+    }, `Payout requested for ${affiliate.displayName}.`, affiliate.id);
   }
 
   async function verifyPayout(payoutId: number) {
-    setBusyId(payoutId);
-    setError(null);
-    setMessage(null);
-    try {
-      await verifyAffiliatePayout(payoutId);
-      setMessage('Payout status refreshed.');
-      await refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to verify payout.');
-    } finally {
-      setBusyId(null);
-    }
+    await guarded(() => verifyAffiliatePayout(payoutId), 'Payout status refreshed.', payoutId);
   }
 
   if (loading) return <PageLoading message="Loading affiliates..." />;
@@ -171,7 +176,7 @@ export default function AdminAffiliatesPage() {
       <section className="space-y-2">
         <p className="text-sm font-medium uppercase tracking-normal text-primary">Revenue operations</p>
         <h1 className="text-3xl font-bold text-foreground">Affiliate Program</h1>
-        <p className="max-w-3xl text-muted-foreground">Approve affiliate applications, assign tiers, track commissions, and process Lenco withdrawals.</p>
+        <p className="max-w-3xl text-muted-foreground">Approve applications, manage tiers, calculate monthly leaderboards, review bonuses, process upgrades, and monitor finance buckets.</p>
       </section>
 
       {message ? <div className="rounded-2xl border bg-primary/5 p-4 text-sm">{message}</div> : null}
@@ -182,6 +187,68 @@ export default function AdminAffiliatesPage() {
         <SummaryCard icon={BadgeCheck} label="Active" value={data?.summary.active ?? 0} />
         <SummaryCard icon={BadgeCheck} label="Pending" value={data?.summary.pending ?? pendingAffiliates.length} />
         <SummaryCard icon={Landmark} label="Available" value={`ZMW ${Number(data?.summary.totalAvailable ?? 0).toLocaleString()}`} />
+      </div>
+
+      <Card className="rounded-3xl border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Trophy className="size-5 text-primary" /> Monthly rewards control</CardTitle>
+          <CardDescription>Calculate leaderboard scores, generate top-3 pending bonuses, award monthly badges, and refresh tier reviews.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+          <p className="text-sm text-muted-foreground">Use this after payments have been verified for the month. Bonuses stay pending until admin approves or rejects them.</p>
+          <Button disabled={saving} onClick={() => guarded(() => calculateAffiliateRewards(), 'Monthly rewards recalculated.')}>{saving ? 'Working...' : 'Calculate this month'}</Button>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RecordPanel title="Finance buckets" empty="No finance buckets yet. Run migrations and process payments.">
+          {financeBuckets.map((bucket: Record<string, any>) => <MiniRow key={bucket.id ?? bucket.bucket_key} title={bucket.bucket_name ?? bucket.bucket_key} meta={`${bucket.currency ?? 'ZMW'} ${Number(bucket.balance ?? 0).toLocaleString()}`} />)}
+        </RecordPanel>
+        <RecordPanel title="Monthly bonuses" empty="No monthly bonuses yet.">
+          {monthlyBonuses.map((bonus: Record<string, any>) => (
+            <div key={bonus.id} className="rounded-2xl border p-4 text-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div><p className="font-semibold">{tierLabels[bonus.tier] ?? bonus.tier} · Rank #{bonus.rank}</p><p className="text-muted-foreground">Affiliate #{bonus.affiliate_id} · {bonus.currency ?? 'ZMW'} {Number(bonus.bonus_amount ?? 0).toLocaleString()} · {bonus.status}</p></div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => guarded(() => updateAffiliateBonus(Number(bonus.id), 'approved'), 'Bonus approved.', Number(bonus.id))}>Approve</Button>
+                  <Button size="sm" variant="outline" onClick={() => guarded(() => updateAffiliateBonus(Number(bonus.id), 'paid'), 'Bonus marked paid.', Number(bonus.id))}>Paid</Button>
+                  <Button size="sm" variant="outline" onClick={() => guarded(() => updateAffiliateBonus(Number(bonus.id), 'rejected'), 'Bonus rejected.', Number(bonus.id))}>Reject</Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </RecordPanel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RecordPanel title="Upgrade requests" empty="No upgrade requests yet.">
+          {upgradeRequests.map((request: Record<string, any>) => (
+            <div key={request.id} className="rounded-2xl border p-4 text-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div><p className="font-semibold">Affiliate #{request.affiliate_id}: {tierLabels[request.from_tier] ?? request.from_tier} → {tierLabels[request.to_tier] ?? request.to_tier}</p><p className="text-muted-foreground">Access {request.paid_access_purchases} · Revenue ZMW {Number(request.access_revenue ?? 0).toLocaleString()} · {request.status}</p></div>
+                {request.status === 'pending' ? <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => guarded(() => approveAffiliateUpgrade(Number(request.id)), 'Upgrade approved.', Number(request.id))}>Approve</Button><Button size="sm" variant="outline" onClick={() => guarded(() => rejectAffiliateUpgrade(Number(request.id)), 'Upgrade rejected.', Number(request.id))}>Reject</Button></div> : null}
+              </div>
+            </div>
+          ))}
+        </RecordPanel>
+        <RecordPanel title="Tier reviews" empty="No tier reviews yet.">
+          {tierReviews.map((review: Record<string, any>) => (
+            <div key={review.id} className="rounded-2xl border p-4 text-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div><p className="font-semibold">Affiliate #{review.affiliate_id} · {tierLabels[review.tier_at_review] ?? review.tier_at_review}</p><p className="text-muted-foreground">Entry {review.entry_fees_paid} · Access {review.access_purchases_paid} · {review.maintenance_status}</p><p className="text-xs text-muted-foreground">{review.notes}</p></div>
+                {review.maintenance_status === 'warning' ? <Button size="sm" variant="outline" onClick={() => guarded(() => downgradeAffiliateFromReview(Number(review.id)), 'Affiliate downgraded from review.', Number(review.id))}>Downgrade</Button> : null}
+              </div>
+            </div>
+          ))}
+        </RecordPanel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-4">
+        {Object.entries(leaderboards).map(([tier, rows]) => (
+          <RecordPanel key={tier} title={`${tierLabels[tier] ?? tier} leaderboard`} empty="No ranked affiliates yet.">
+            {Array.isArray(rows) ? rows.slice(0, 8).map((row: Record<string, any>, index: number) => <MiniRow key={`${tier}-${index}`} title={`#${row.rank ?? index + 1} ${row.affiliateName ?? 'Affiliate'}`} meta={`${row.accessPaymentsPaid ?? 0} access · ${row.score ?? 0} pts · ${row.prizeAmount ? `Prize ZMW ${Number(row.prizeAmount).toLocaleString()}` : 'No prize'}`} />) : null}
+          </RecordPanel>
+        ))}
       </div>
 
       {pendingAffiliates.length ? (
@@ -209,7 +276,7 @@ export default function AdminAffiliatesPage() {
               <Field label="Affiliate code"><Input value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))} placeholder="AUTO if blank" /></Field>
               <Field label="Display name"><Input value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Affiliate name" /></Field>
               <Field label="Status"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as CreateForm['status'] }))}><option value="pending">Pending</option><option value="active">Active / approved</option><option value="inactive">Inactive</option><option value="rejected">Rejected</option></select></Field>
-              <Field label="Tier"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.tier} onChange={(event) => setForm((current) => ({ ...current, tier: event.target.value as CreateForm['tier'] }))}><option value="starter">Starter</option><option value="campus_promoter">Campus Promoter</option><option value="ambassador">UnivAI Ambassador</option><option value="elite_partner">Elite Partner - recurring</option></select></Field>
+              <Field label="Tier"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.tier} onChange={(event) => setForm((current) => ({ ...current, tier: event.target.value as CreateForm['tier'] }))}><option value="starter">Starter</option><option value="campus_promoter">Campus Promoter</option><option value="ambassador">UnivAI Ambassador</option><option value="elite_partner">Elite Affiliate - recurring</option></select></Field>
               <Field label="Scope"><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.scope} onChange={(event) => setForm((current) => ({ ...current, scope: event.target.value as CreateForm['scope'] }))}><option value="all">All</option><option value="formal_programmes">Formal programmes only</option><option value="short_courses">Short courses only</option></select></Field>
               <Field label="Formal rate %"><Input type="number" min={0} max={100} step={0.1} value={form.formalProgrammeRate} onChange={(event) => setForm((current) => ({ ...current, formalProgrammeRate: event.target.value }))} /></Field>
               <Field label="Short-course first purchase %"><Input type="number" min={0} max={100} step={0.1} value={form.shortCourseRate} onChange={(event) => setForm((current) => ({ ...current, shortCourseRate: event.target.value }))} /></Field>
@@ -235,7 +302,7 @@ export default function AdminAffiliatesPage() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-semibold">{affiliate.displayName}</p><p className="text-sm text-muted-foreground">{affiliate.code} - {affiliate.scope} - {affiliate.status}</p><p className="text-xs text-muted-foreground">{affiliate.tierLabel ?? affiliate.tier} · First purchase {affiliate.shortCourseRate}% · Recurring {affiliate.recurringCommissionEnabled ? 'enabled' : 'locked'}</p></div><div className="text-right text-sm"><p className="font-semibold">ZMW {available.toLocaleString()}</p><p className="text-muted-foreground">Available</p></div></div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-3"><Input value={payoutAmounts[affiliate.id] ?? ''} onChange={(event) => setPayoutAmounts((current) => ({ ...current, [affiliate.id]: event.target.value }))} placeholder="Payout amount" /><Button onClick={() => submitPayout(affiliate)} disabled={busyId === affiliate.id || available <= 0}>{busyId === affiliate.id ? 'Working...' : 'Create payout'}</Button><Button variant="outline" onClick={() => loadAffiliate(affiliate)}>Edit</Button></div>
                     <div className="mt-3 space-y-2 text-xs text-muted-foreground"><p>Signups: {affiliate.summary.verifiedSignups ?? 0} | Paid referrals: {affiliate.summary.paidReferrals ?? 0}</p><p>Gross: {affiliate.summary.grossEarned} | Commission: {affiliate.summary.commissionEarned}</p><p>Pending: {affiliate.summary.pendingPayouts} | Processing: {affiliate.summary.processingPayouts} | Paid: {affiliate.summary.successfulPayouts}</p></div>
-                    {affiliate.recentPayouts.length ? <div className="mt-4 space-y-2">{affiliate.recentPayouts.map((payout) => <div key={payout.id} className="rounded-xl border bg-muted/30 p-3 text-sm"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{payout.reference}</p><p className="text-xs text-muted-foreground">{payout.status} - {payout.currency} {payout.amount}</p></div><Button size="sm" variant="outline" onClick={() => verifyPayout(payout.id)} disabled={busyId === payout.id}>{busyId === payout.id ? 'Checking...' : 'Verify'}</Button></div></div>)}</div> : null}
+                    {affiliate.recentPayouts.length ? <div className="mt-4 space-y-2">{affiliate.recentPayouts.map((payout: Record<string, any>) => <div key={payout.id} className="rounded-xl border bg-muted/30 p-3 text-sm"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{payout.reference ?? payout.providerReference ?? 'Payout'}</p><p className="text-xs text-muted-foreground">{payout.status} - {payout.currency} {payout.amount}</p></div><Button size="sm" variant="outline" onClick={() => verifyPayout(payout.id)} disabled={busyId === payout.id}>{busyId === payout.id ? 'Checking...' : 'Verify'}</Button></div></div>)}</div> : null}
                   </div>
                 );
               })}
@@ -250,6 +317,15 @@ export default function AdminAffiliatesPage() {
 
 function SummaryCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string | number }) {
   return <Card className="rounded-3xl"><CardContent className="flex items-center gap-4 p-5"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10"><Icon className="size-5 text-primary" /></div><div><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-semibold">{value}</p></div></CardContent></Card>;
+}
+
+function RecordPanel({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
+  const hasItems = Array.isArray(children) ? children.some(Boolean) : Boolean(children);
+  return <Card className="rounded-3xl"><CardHeader><CardTitle>{title}</CardTitle></CardHeader><CardContent className="space-y-3">{hasItems ? children : <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">{empty}</p>}</CardContent></Card>;
+}
+
+function MiniRow({ title, meta }: { title: string; meta: string }) {
+  return <div className="rounded-2xl border p-4 text-sm"><p className="font-semibold">{title}</p><p className="text-muted-foreground">{meta}</p></div>;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
