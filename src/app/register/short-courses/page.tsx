@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Gift, ShieldCheck, Users } from 'lucide-react';
+import { Gift, ShieldCheck } from 'lucide-react';
 
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,6 @@ function ShortCourseRegisterContent() {
     return {
       code: referralCode,
       discount: '10% off your first access payment, capped at K10',
-      reminder: 'Entry fees qualify the affiliate, but your access payment unlocks learning and supports their leaderboard rank.',
     };
   }, [referralCode]);
 
@@ -70,7 +69,7 @@ function ShortCourseRegisterContent() {
         password,
         role: 'free-student',
         ...(cleanCode ? { affiliateCode: cleanCode, referralCode: cleanCode } : {}),
-      } as any);
+      });
       router.replace(next);
       router.refresh();
     } catch (cause) {
@@ -104,11 +103,7 @@ function ShortCourseRegisterContent() {
               <p>You can browse courses, enrol, learn with card-based lessons, practise with quizzes, and earn certificates after passing assessments.</p>
               <div className="rounded-2xl border bg-background p-4">
                 <p className="flex items-center gap-2 font-medium text-foreground"><Gift className="size-4 text-primary" /> Referral code benefit</p>
-                <p className="mt-1">If you have an affiliate code, you get <strong>10% off your first access payment, capped at K10</strong>. The discount applies to access, not the entry fee.</p>
-              </div>
-              <div className="rounded-2xl border bg-background p-4">
-                <p className="flex items-center gap-2 font-medium text-foreground"><Users className="size-4 text-primary" /> How it helps your inviter</p>
-                <p className="mt-1">Entry fee payment helps them qualify. Access payment helps them rank on their tier leaderboard and earn proper commission.</p>
+                <p className="mt-1">Have a referral code? Add it to save <strong>10% on your first access payment, capped at K10</strong>.</p>
               </div>
               <div className="rounded-2xl border bg-background p-4">
                 <p className="font-medium text-foreground">Already browsing?</p>
@@ -134,7 +129,6 @@ function ShortCourseRegisterContent() {
                 <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
                   <p className="flex items-center gap-2 font-semibold text-primary"><ShieldCheck className="size-4" /> Referral code applied: {referralBenefit.code}</p>
                   <p className="mt-1 text-muted-foreground">{referralBenefit.discount}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{referralBenefit.reminder}</p>
                 </div>
               ) : null}
               <form onSubmit={submit} className="space-y-4">
@@ -144,8 +138,8 @@ function ShortCourseRegisterContent() {
                 <div className="space-y-2"><Label>Country</Label><Input value={country} onChange={(event) => setCountry(event.target.value)} /></div>
                 <div className="space-y-2">
                   <Label>Referral code</Label>
-                  <Input value={referralCode} onChange={(event) => setReferralCode(cleanReferralCode(event.target.value))} placeholder="Optional affiliate code" />
-                  <p className="text-xs text-muted-foreground">Use a valid UnivAI affiliate code to unlock the first-access discount.</p>
+                  <Input value={referralCode} onChange={(event) => setReferralCode(cleanReferralCode(event.target.value))} placeholder="Optional referral code" />
+                  <p className="text-xs text-muted-foreground">Optional. A valid code gives a first-access discount.</p>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Creating account...' : 'Create account and continue'}</Button>
               </form>
