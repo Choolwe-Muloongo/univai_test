@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Invoice;
 use App\Models\ShortCourseEnrollment;
+use App\Models\User;
 use App\Services\LencoPaymentService;
 use App\Support\Affiliates\AffiliateService;
 use App\Support\Payments\PaidInvoiceUnlocker;
@@ -44,23 +45,33 @@ class ShortCourseAccessController extends Controller
             return response()->json(['status' => 'active', 'checkout_url' => null, 'plan' => $plan]);
         }
 
+        $referral = $this->referralPricing($studentId, (float) $plan['amount'], $this->referralCode($request, $studentId, $affiliates), $affiliates);
+        $planForResponse = array_merge($plan, [
+            'originalAmount' => (float) $plan['amount'],
+            'amount' => $referral['amount'],
+            'referralDiscountAmount' => $referral['discount'],
+        ]);
+
         $invoice = $this->freshInvoice(
             $studentId,
             'short_course_access_plan',
             $plan['name'] . ': ' . $course->title,
             $plan['name'] . ' for ' . $course->title,
-            (float) $plan['amount'],
+            $referral['amount'],
             strtoupper($plan['currency'] ?? $course->currency ?? 'ZMW'),
             [
                 'short_course_id' => $course->id,
                 'short_course_title' => $course->title,
                 'access_plan' => $plan['code'],
-                'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code'),
+                'affiliate_code' => $referral['affiliateCode'],
+                'original_amount' => (float) $plan['amount'],
+                'referral_discount_amount' => $referral['discount'],
+                'referral_discount_applied' => $referral['discount'] > 0,
             ]
         );
 
         if ($invoice->status === 'paid') {
-            return response()->json(['status' => 'active', 'checkout_url' => null, 'invoiceId' => $invoice->id, 'plan' => $plan]);
+            return response()->json(['status' => 'active', 'checkout_url' => null, 'invoiceId' => $invoice->id, 'plan' => $planForResponse]);
         }
 
         if (!PaymentSettings::lencoCollectionsEnabled()) {
@@ -74,11 +85,11 @@ class ShortCourseAccessController extends Controller
                 'reference' => $paidInvoice->transaction_reference,
                 'testMode' => true,
                 'message' => $settings->test_mode_message ?: 'Payment confirmed in test mode.',
-                'plan' => $plan,
+                'plan' => $planForResponse,
             ]);
         }
 
-        return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id, 'plan' => $plan]);
+        return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id, 'plan' => $planForResponse]);
     }
 
     public static function applyPlan(ShortCourseEnrollment $enrollment, array $plan): void
@@ -141,23 +152,33 @@ class ShortCourseAccessController extends Controller
 
         $courseTitles = $courses->pluck('title')->values();
         $bundleTitle = $plan['name'] . ' Bundle';
+        $referral = $this->referralPricing($studentId, (float) $plan['amount'], $this->referralCode($request, $studentId, $affiliates), $affiliates);
+        $planForResponse = array_merge($plan, [
+            'originalAmount' => (float) $plan['amount'],
+            'amount' => $referral['amount'],
+            'referralDiscountAmount' => $referral['discount'],
+        ]);
+
         $invoice = $this->freshInvoice(
             $studentId,
             'short_course_bundle',
             $bundleTitle,
             $plan['name'] . ' for ' . $courseTitles->implode(', '),
-            (float) $plan['amount'],
+            $referral['amount'],
             strtoupper($plan['currency'] ?? 'ZMW'),
             [
                 'short_course_ids' => $courseIds->all(),
                 'short_course_titles' => $courseTitles->all(),
                 'bundle_plan' => $plan['code'],
-                'affiliate_code' => $affiliates->captureReferralCode($request) ?? $request->session()->get('affiliate_code'),
+                'affiliate_code' => $referral['affiliateCode'],
+                'original_amount' => (float) $plan['amount'],
+                'referral_discount_amount' => $referral['discount'],
+                'referral_discount_applied' => $referral['discount'] > 0,
             ]
         );
 
         if ($invoice->status === 'paid') {
-            return response()->json(['status' => 'active', 'checkout_url' => null, 'invoiceId' => $invoice->id, 'plan' => $plan]);
+            return response()->json(['status' => 'active', 'checkout_url' => null, 'invoiceId' => $invoice->id, 'plan' => $planForResponse]);
         }
 
         if (!PaymentSettings::lencoCollectionsEnabled()) {
@@ -171,11 +192,11 @@ class ShortCourseAccessController extends Controller
                 'reference' => $paidInvoice->transaction_reference,
                 'testMode' => true,
                 'message' => $settings->test_mode_message ?: 'Payment confirmed in test mode.',
-                'plan' => $plan,
+                'plan' => $planForResponse,
             ]);
         }
 
-        return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id, 'plan' => $plan]);
+        return response()->json($lenco->initiatePayment($invoice) + ['invoiceId' => $invoice->id, 'plan' => $planForResponse]);
     }
 
     public static function applyBundlePlan(ShortCourseEnrollment $enrollment, array $plan): void
@@ -224,6 +245,38 @@ class ShortCourseAccessController extends Controller
         ])->save();
 
         return $invoice;
+    }
+
+    private function referralCode(Request $request, int $studentId, AffiliateService $affiliates): ?string
+    {
+        return $affiliates->captureReferralCode($request)
+            ?? $request->session()->get('affiliate_code')
+            ?? User::query()->where('id', $studentId)->value('referred_by_affiliate_code');
+    }
+
+    private function referralPricing(int $studentId, float $amount, ?string $code, AffiliateService $affiliates): array
+    {
+        $affiliate = $affiliates->affiliateForCode($code);
+        if (!$affiliate || (int) $affiliate->user_id === $studentId || $this->hasUsedReferralAccessDiscount($studentId)) {
+            return ['amount' => $amount, 'discount' => 0, 'affiliateCode' => $affiliate?->code];
+        }
+
+        $discount = round(min($amount * 0.10, 10, $amount), 2);
+        return [
+            'amount' => round(max(0, $amount - $discount), 2),
+            'discount' => $discount,
+            'affiliateCode' => $affiliate->code,
+        ];
+    }
+
+    private function hasUsedReferralAccessDiscount(int $studentId): bool
+    {
+        return Invoice::query()
+            ->where('student_id', $studentId)
+            ->whereIn('type', ['short_course_access_plan', 'short_course_bundle'])
+            ->where('status', 'paid')
+            ->get()
+            ->contains(fn (Invoice $invoice) => (bool) data_get($invoice->metadata ?? [], 'referral_discount_applied'));
     }
 
     private function studentId(Request $request): int
