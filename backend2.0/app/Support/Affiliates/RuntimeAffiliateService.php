@@ -9,6 +9,7 @@ use App\Models\AffiliateReferral;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\User;
+use App\Support\Payments\PaidInvoiceUnlocker;
 
 class RuntimeAffiliateService extends AffiliateService
 {
@@ -185,6 +186,8 @@ class RuntimeAffiliateService extends AffiliateService
                 'metadata' => ['invoice_id' => $invoice->id, 'status' => 'paid'],
             ]
         );
+
+        app(PaidInvoiceUnlocker::class)->recordFinanceAllocation($invoice->fresh() ?? $invoice, $payment);
 
         return $earning;
     }
