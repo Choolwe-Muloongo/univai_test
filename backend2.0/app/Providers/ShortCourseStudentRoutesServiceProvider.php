@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Http\Controllers\Api\AffiliateController;
 use App\Http\Controllers\Api\AiController;
 use App\Http\Controllers\Api\BetaReportController;
+use App\Http\Controllers\Api\ChannelRequiredAuthController;
 use App\Http\Controllers\Api\ShortCourseAccessController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\ShortCourseLeaderboardController;
@@ -22,6 +23,12 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
             ->prefix('api')
             ->group(function () {
                 Route::post('/beta-reports', [BetaReportController::class, 'store'])->middleware('throttle:general');
+            });
+
+        Route::middleware(['api'])
+            ->prefix('api')
+            ->group(function () {
+                Route::post('/auth/register', [ChannelRequiredAuthController::class, 'register'])->middleware('throttle:login');
             });
 
         Route::middleware(['api', 'session.auth', 'access:student.portal'])
