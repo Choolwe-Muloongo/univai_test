@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\BetaReportController;
 use App\Http\Controllers\Api\ShortCourseAccessController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\ShortCourseLeaderboardController;
+use App\Http\Controllers\Api\StudentAffiliateApplicationController;
 use App\Http\Controllers\Api\StudentGamificationController;
 use App\Http\Controllers\Api\StudentGamificationReadController;
 use Illuminate\Support\Facades\Route;
@@ -27,7 +28,7 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
             ->prefix('api/students/me')
             ->group(function () {
                 Route::get('/affiliate', [AffiliateController::class, 'me']);
-                Route::post('/affiliate/apply', [AffiliateController::class, 'apply'])->middleware('throttle:general');
+                Route::post('/affiliate/apply', [StudentAffiliateApplicationController::class, 'apply'])->middleware('throttle:general');
                 Route::post('/affiliate/payouts', [AffiliateController::class, 'requestMyPayout'])->middleware('throttle:general');
                 Route::post('/affiliate/upgrade-request', [AffiliateController::class, 'requestUpgrade'])->middleware('throttle:general');
                 Route::post('/beta-reports', [BetaReportController::class, 'store'])->middleware('throttle:general');
