@@ -117,6 +117,11 @@ class PaidInvoiceUnlocker
                 ->when($invoice->intake_id, fn ($query) => $query->where('intake_id', $invoice->intake_id))
                 ->update(['status' => 'active', 'enrolled_at' => now(), 'confirmed_at' => now()]);
         }
+
+        $payment = $invoice->transaction_reference
+            ? Payment::where('transaction_reference', $invoice->transaction_reference)->first()
+            : Payment::where('invoice_id', $invoice->id)->latest('paid_at')->first();
+        $this->recordFinanceAllocation($invoice->fresh() ?? $invoice, $payment);
     }
 
     public function recordFinanceAllocation(Invoice $invoice, ?Payment $payment): void
