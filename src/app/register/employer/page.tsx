@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BriefcaseBusiness, Loader2 } from 'lucide-react';
 
+import { WhatsAppChannelRequirement } from '@/components/auth/whatsapp-channel-requirement';
 import { Logo } from '@/components/icons/logo';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { registerAccount } from '@/lib/api';
 export default function EmployerRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [joinedChannel, setJoinedChannel] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -31,12 +33,17 @@ export default function EmployerRegisterPage() {
     const password = String(formData.get('password') || '');
 
     try {
+      if (!joinedChannel) {
+        setError('Join the UnivAI WhatsApp channel before creating an account.');
+        return;
+      }
       await registerAccount({
         name: contactName ? `${name} - ${contactName}` : name,
         email,
         password,
         role: 'employer',
-      });
+        acceptedWhatsappChannel: joinedChannel,
+      } as any);
       router.push('/employer/dashboard');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to register employer account.');
@@ -94,9 +101,11 @@ export default function EmployerRegisterPage() {
               <Label htmlFor="profile">Organization profile</Label>
               <Textarea id="profile" name="profile" rows={5} placeholder="Industries, hiring focus, research interests, and partnership goals." />
             </div>
+
+            <WhatsAppChannelRequirement checked={joinedChannel} onCheckedChange={setJoinedChannel} />
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button className="w-full" disabled={loading}>
+            <Button className="w-full" disabled={loading || !joinedChannel}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create employer account
             </Button>
