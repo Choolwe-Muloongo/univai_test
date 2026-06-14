@@ -12,11 +12,90 @@ use App\Models\User;
 
 class RuntimeAffiliateService extends AffiliateService
 {
+    public function tierConfig(?string $tier): array
+    {
+        return match ($tier ?: 'starter') {
+            'campus_promoter' => [
+                'label' => 'Campus Promoter',
+                'entryBonus' => 1,
+                'entryRate' => 10,
+                'entryMin' => 1,
+                'entryMax' => 5,
+                'firstPurchaseRate' => 20,
+                'accessMin' => 7,
+                'accessCapRate' => 28,
+                'recurringEnabled' => false,
+                'recurringRate' => 0,
+                'recurringMonths' => 0,
+                'dailyPayoutLimit' => 300,
+                'nextTier' => 'ambassador',
+                'requirements' => ['paidReferrals' => 50, 'referredRevenue' => 5000, 'retentionRate' => 0],
+                'leaderboard' => ['entryFees' => 12, 'accessPayments' => 7],
+                'maintenance' => ['entryFees' => 5, 'accessPayments' => 2],
+            ],
+            'ambassador' => [
+                'label' => 'UnivAI Ambassador',
+                'entryBonus' => 1,
+                'entryRate' => 10,
+                'entryMin' => 1,
+                'entryMax' => 5,
+                'firstPurchaseRate' => 25,
+                'accessMin' => 8,
+                'accessCapRate' => 30,
+                'recurringEnabled' => false,
+                'recurringRate' => 0,
+                'recurringMonths' => 0,
+                'dailyPayoutLimit' => 700,
+                'nextTier' => 'elite_partner',
+                'requirements' => ['paidReferrals' => 150, 'referredRevenue' => 15000, 'retentionRate' => 0],
+                'leaderboard' => ['entryFees' => 25, 'accessPayments' => 15],
+                'maintenance' => ['entryFees' => 15, 'accessPayments' => 7],
+            ],
+            'elite_partner' => [
+                'label' => 'Elite Affiliate',
+                'entryBonus' => 1,
+                'entryRate' => 10,
+                'entryMin' => 1,
+                'entryMax' => 5,
+                'firstPurchaseRate' => 25,
+                'accessMin' => 9,
+                'accessCapRate' => 30,
+                'recurringEnabled' => true,
+                'recurringRate' => 5,
+                'recurringMonths' => 12,
+                'dailyPayoutLimit' => 2000,
+                'nextTier' => null,
+                'requirements' => ['paidReferrals' => 150, 'referredRevenue' => 15000, 'retentionRate' => 0],
+                'leaderboard' => ['entryFees' => 50, 'accessPayments' => 30],
+                'maintenance' => ['entryFees' => 30, 'accessPayments' => 15],
+            ],
+            default => [
+                'label' => 'Starter Affiliate',
+                'entryBonus' => 1,
+                'entryRate' => 10,
+                'entryMin' => 1,
+                'entryMax' => 5,
+                'firstPurchaseRate' => 15,
+                'accessMin' => 5,
+                'accessCapRate' => 25,
+                'recurringEnabled' => false,
+                'recurringRate' => 0,
+                'recurringMonths' => 0,
+                'dailyPayoutLimit' => 100,
+                'nextTier' => 'campus_promoter',
+                'requirements' => ['paidReferrals' => 10, 'referredRevenue' => 1000, 'retentionRate' => 0],
+                'leaderboard' => ['entryFees' => 5, 'accessPayments' => 3],
+                'maintenance' => ['entryFees' => 0, 'accessPayments' => 0],
+            ],
+        };
+    }
+
     public function recordShortCourseCommission(Affiliate $affiliate, Invoice $invoice, Payment $payment, array $context = []): ?AffiliateEarning
     {
         $metadata = $invoice->metadata ?? [];
         $studentId = (int) $invoice->student_id;
-        $tier = $this->tierConfig($affiliate->tier);
+        $tierKey = $affiliate->tier ?: 'starter';
+        $tier = $this->tierConfig($tierKey);
         $gross = (float) $payment->amount;
         $courseId = (string) ($metadata['short_course_id'] ?? '');
         if ($courseId === '' && isset($metadata['short_course_ids']) && is_array($metadata['short_course_ids']) && count($metadata['short_course_ids']) > 0) {
@@ -33,13 +112,13 @@ class RuntimeAffiliateService extends AffiliateService
             ->exists();
 
         $sourceType = self::SOURCE_SHORT_COURSE;
-        $rate = max(0, (float) ($affiliate->short_course_rate ?? $tier['firstPurchaseRate']));
-        $fixedCommission = null;
+        $rate = (float) $tier['firstPurchaseRate'];
+        $commission = $this->calculateAccessCommission($gross, $tier);
 
         if ($invoice->type === 'short_course_entry') {
             $sourceType = self::SOURCE_SHORT_COURSE_ENTRY;
-            $rate = 0;
-            $fixedCommission = (float) $tier['entryBonus'];
+            $rate = (float) ($tier['entryRate'] ?? 10);
+            $commission = $this->calculateEntryCommission($gross, $tier);
             $sourceReference = 'entry:' . $sourceReference;
             if (AffiliateEarning::query()->where('referred_user_id', $studentId)->where('source_type', self::SOURCE_SHORT_COURSE_ENTRY)->exists()) {
                 return null;
@@ -59,10 +138,10 @@ class RuntimeAffiliateService extends AffiliateService
             }
             $sourceType = self::SOURCE_SHORT_COURSE_RECURRING;
             $rate = (float) $tier['recurringRate'];
+            $commission = round(($gross * $rate) / 100, 2);
             $sourceReference = $sourceReference . ':renewal:' . $invoice->id;
         }
 
-        $commission = $fixedCommission !== null ? $fixedCommission : round(($gross * $rate) / 100, 2);
         if ($commission <= 0) {
             return null;
         }
@@ -86,8 +165,9 @@ class RuntimeAffiliateService extends AffiliateService
                     'short_course_id' => $courseId ?: null,
                     'short_course_ids' => $metadata['short_course_ids'] ?? null,
                     'invoice_type' => $invoice->type,
-                    'tier' => $affiliate->tier ?: 'starter',
-                    'fixed_commission' => $fixedCommission,
+                    'tier' => $tierKey,
+                    'entry_commission_rule' => '10_percent_min_1_max_5',
+                    'access_commission_rule' => 'tier_rate_with_minimum_and_cap',
                 ]),
             ]
         );
@@ -133,5 +213,18 @@ class RuntimeAffiliateService extends AffiliateService
             'verifiedSignups' => $verifiedSignupCount,
             'paidReferrals' => $paidReferralCount,
         ];
+    }
+
+    private function calculateEntryCommission(float $gross, array $tier): float
+    {
+        $raw = round(($gross * (float) ($tier['entryRate'] ?? 10)) / 100, 2);
+        return round(min(max($raw, (float) ($tier['entryMin'] ?? 1)), (float) ($tier['entryMax'] ?? 5), $gross), 2);
+    }
+
+    private function calculateAccessCommission(float $gross, array $tier): float
+    {
+        $raw = round(($gross * (float) ($tier['firstPurchaseRate'] ?? 15)) / 100, 2);
+        $cap = round(($gross * (float) ($tier['accessCapRate'] ?? 25)) / 100, 2);
+        return round(min(max($raw, (float) ($tier['accessMin'] ?? 5)), $cap, $gross), 2);
     }
 }
