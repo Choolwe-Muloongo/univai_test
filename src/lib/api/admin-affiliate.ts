@@ -51,3 +51,37 @@ export async function verifyAffiliatePayout(payoutId: number): Promise<Affiliate
     method: 'PATCH',
   });
 }
+
+export async function calculateAffiliateRewards(payload: { month?: number; year?: number } = {}): Promise<Record<string, any>> {
+  return apiFetch('/admin/affiliates/rewards/calculate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function approveAffiliateUpgrade(requestId: number, notes?: string): Promise<AffiliateRecord> {
+  return apiFetch(`/admin/affiliates/upgrade-requests/${requestId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ notes: notes ?? '' }),
+  });
+}
+
+export async function rejectAffiliateUpgrade(requestId: number, notes?: string): Promise<Record<string, any>> {
+  return apiFetch(`/admin/affiliates/upgrade-requests/${requestId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ notes: notes ?? '' }),
+  });
+}
+
+export async function updateAffiliateBonus(bonusId: number, status: 'approved' | 'rejected' | 'paid' | 'cancelled', notes?: string): Promise<Record<string, any>> {
+  return apiFetch(`/admin/affiliates/monthly-bonuses/${bonusId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes: notes ?? '' }),
+  });
+}
+
+export async function downgradeAffiliateFromReview(reviewId: number): Promise<AffiliateRecord> {
+  return apiFetch(`/admin/affiliates/tier-reviews/${reviewId}/downgrade`, {
+    method: 'POST',
+  });
+}
