@@ -49,7 +49,7 @@ function ShortCourseRegisterContent() {
     if (!referralCode) return null;
     return {
       code: referralCode,
-      discount: '10% off your first access payment, capped at K10',
+      discount: '10% off your first access payment',
     };
   }, [referralCode]);
 
@@ -103,7 +103,7 @@ function ShortCourseRegisterContent() {
               <p>You can browse courses, enrol, learn with card-based lessons, practise with quizzes, and earn certificates after passing assessments.</p>
               <div className="rounded-2xl border bg-background p-4">
                 <p className="flex items-center gap-2 font-medium text-foreground"><Gift className="size-4 text-primary" /> Referral code benefit</p>
-                <p className="mt-1">Have a referral code? Add it to save <strong>10% on your first access payment, capped at K10</strong>.</p>
+                <p className="mt-1">Have a referral code? Add it to save <strong>10% on your first access payment</strong>.</p>
               </div>
               <div className="rounded-2xl border bg-background p-4">
                 <p className="font-medium text-foreground">Already browsing?</p>
