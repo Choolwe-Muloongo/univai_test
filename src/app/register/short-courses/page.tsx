@@ -5,6 +5,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Gift, ShieldCheck } from 'lucide-react';
 
+import { WhatsAppChannelRequirement } from '@/components/auth/whatsapp-channel-requirement';
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,15 +43,13 @@ function ShortCourseRegisterContent() {
   const [password, setPassword] = useState('');
   const [country, setCountry] = useState('Zambia');
   const [referralCode, setReferralCode] = useState(initialReferralCode);
+  const [joinedChannel, setJoinedChannel] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const referralBenefit = useMemo(() => {
     if (!referralCode) return null;
-    return {
-      code: referralCode,
-      discount: '10% off your first access payment',
-    };
+    return { code: referralCode, discount: '10% off your first access payment' };
   }, [referralCode]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -62,14 +61,19 @@ function ShortCourseRegisterContent() {
         setError('Password must be at least 6 characters.');
         return;
       }
+      if (!joinedChannel) {
+        setError('Join the UnivAI WhatsApp channel before creating an account.');
+        return;
+      }
       const cleanCode = cleanReferralCode(referralCode);
       await registerAccount({
         name,
         email,
         password,
         role: 'free-student',
+        acceptedWhatsappChannel: joinedChannel,
         ...(cleanCode ? { affiliateCode: cleanCode, referralCode: cleanCode } : {}),
-      });
+      } as any);
       router.replace(next);
       router.refresh();
     } catch (cause) {
@@ -141,7 +145,8 @@ function ShortCourseRegisterContent() {
                   <Input value={referralCode} onChange={(event) => setReferralCode(cleanReferralCode(event.target.value))} placeholder="Optional referral code" />
                   <p className="text-xs text-muted-foreground">Optional. A valid code gives a first-access discount.</p>
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Creating account...' : 'Create account and continue'}</Button>
+                <WhatsAppChannelRequirement checked={joinedChannel} onCheckedChange={setJoinedChannel} />
+                <Button type="submit" className="w-full" disabled={loading || !joinedChannel}>{loading ? 'Creating account...' : 'Create account and continue'}</Button>
               </form>
               <p className="mt-4 text-center text-sm text-muted-foreground">Already have an account? <Link className="text-primary" href={`/login?next=${encodeURIComponent(next)}`}>Log in and continue</Link></p>
             </CardContent>
