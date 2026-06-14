@@ -127,7 +127,7 @@ export default function RegisterPage() {
           <section className="rounded-3xl border border-primary/30 bg-primary/5 p-5 shadow-sm sm:p-6">
             <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary"><ShieldCheck className="size-4" /> Referral code applied</p>
             <h2 className="mt-1 text-2xl font-bold">Code: {referralCode}</h2>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">You can use this code to save 10% on your first short-course access payment, capped at K10.</p>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">You can use this code to save 10% on your first short-course access payment.</p>
           </section>
         ) : null}
 
