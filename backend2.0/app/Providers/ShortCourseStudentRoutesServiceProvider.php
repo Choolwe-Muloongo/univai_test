@@ -29,6 +29,7 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
                 Route::get('/affiliate', [AffiliateController::class, 'me']);
                 Route::post('/affiliate/apply', [AffiliateController::class, 'apply'])->middleware('throttle:general');
                 Route::post('/affiliate/payouts', [AffiliateController::class, 'requestMyPayout'])->middleware('throttle:general');
+                Route::post('/affiliate/upgrade-request', [AffiliateController::class, 'requestUpgrade'])->middleware('throttle:general');
                 Route::post('/beta-reports', [BetaReportController::class, 'store'])->middleware('throttle:general');
                 Route::get('/gamification', [StudentGamificationReadController::class, 'state']);
                 Route::get('/daily-quests', [StudentGamificationReadController::class, 'dailyQuests']);
@@ -60,6 +61,16 @@ class ShortCourseStudentRoutesServiceProvider extends ServiceProvider
                 Route::post('/{courseId}/exam/submit', [ShortCourseController::class, 'submitExam']);
                 Route::post('/{courseId}/certificate/pay', [ShortCourseController::class, 'payCertificate']);
                 Route::get('/{courseId}/certificate', [ShortCourseController::class, 'certificate']);
+            });
+
+        Route::middleware(['api', 'session.auth', 'access:admin.portal'])
+            ->prefix('api/admin/affiliates')
+            ->group(function () {
+                Route::post('/rewards/calculate', [AffiliateController::class, 'calculateRewards'])->middleware('access:admin.finance');
+                Route::post('/upgrade-requests/{requestId}/approve', [AffiliateController::class, 'approveUpgrade'])->middleware('access:admin.finance');
+                Route::post('/upgrade-requests/{requestId}/reject', [AffiliateController::class, 'rejectUpgrade'])->middleware('access:admin.finance');
+                Route::patch('/monthly-bonuses/{bonusId}', [AffiliateController::class, 'updateBonus'])->middleware('access:admin.finance');
+                Route::post('/tier-reviews/{reviewId}/downgrade', [AffiliateController::class, 'downgradeFromReview'])->middleware('access:admin.finance');
             });
     }
 }
