@@ -37,7 +37,7 @@ type Metric = {
 };
 
 type DashboardResponse = {
-  metrics?: Metric[];
+  metrics?: unknown;
 };
 
 type Shortcut = {
@@ -137,6 +137,19 @@ function formatMetricValue(value: string | number) {
   return value;
 }
 
+function normalizeMetrics(value: unknown): Metric[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((metric): metric is Record<string, unknown> => Boolean(metric && typeof metric === 'object'))
+    .map((metric, index) => ({
+      key: String(metric.key ?? `metric-${index}`),
+      label: String(metric.label ?? metric.key ?? `Metric ${index + 1}`),
+      value: typeof metric.value === 'number' || typeof metric.value === 'string' ? metric.value : 'Unavailable',
+      note: typeof metric.note === 'string' ? metric.note : undefined,
+    }));
+}
+
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState<Metric[]>(fallbackMetrics);
   const [usingFallback, setUsingFallback] = useState(true);
@@ -149,8 +162,9 @@ export default function AdminDashboardPage() {
         const dashboard = (await getAdminDashboard()) as DashboardResponse;
         if (!isMounted) return;
 
-        if (dashboard.metrics && dashboard.metrics.length > 0) {
-          setMetrics(dashboard.metrics);
+        const safeMetrics = normalizeMetrics(dashboard.metrics);
+        if (safeMetrics.length > 0) {
+          setMetrics(safeMetrics);
           setUsingFallback(false);
         } else {
           setMetrics(fallbackMetrics);
