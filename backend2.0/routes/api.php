@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\PaymentMethodsController;
 use App\Http\Controllers\Api\PaymentSettingsController;
+use App\Http\Controllers\Api\AdminPaymentsController;
 use App\Http\Controllers\Api\ScholarshipController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ReportsController;
@@ -220,6 +221,7 @@ Route::middleware('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/payment-settings', [PaymentSettingsController::class, 'show']);
         Route::patch('/payment-settings', [PaymentSettingsController::class, 'update']);
+        Route::get('/payments', [AdminPaymentsController::class, 'index'])->middleware('access:admin.finance');
         Route::get('/document-branding', [DocumentBrandingController::class, 'show'])->middleware('access:admin.academic');
         Route::patch('/document-branding', [DocumentBrandingController::class, 'update'])->middleware('access:admin.academic');
         Route::get('/document-branding/preview/{type}', [DocumentBrandingController::class, 'preview'])->middleware('access:admin.academic');
