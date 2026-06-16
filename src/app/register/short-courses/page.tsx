@@ -93,6 +93,7 @@ function ShortCourseRegisterContent() {
           </Link>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline"><Link href="/short-courses">Browse short courses</Link></Button>
+            <Button asChild variant="ghost"><Link href="/policies">Policies</Link></Button>
             <Button asChild variant="ghost"><Link href="/login">Log in</Link></Button>
           </div>
         </div>
@@ -146,6 +147,9 @@ function ShortCourseRegisterContent() {
                   <p className="text-xs text-muted-foreground">Optional. A valid code gives a first-access discount.</p>
                 </div>
                 <WhatsAppChannelRequirement checked={joinedChannel} onCheckedChange={setJoinedChannel} />
+                <p className="rounded-2xl border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+                  Before creating an account, review the <Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link>, <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy Policy</Link>, and <Link href="/payment-rules" className="font-semibold text-primary hover:underline">Payment Rules</Link>.
+                </p>
                 <Button type="submit" className="w-full" disabled={loading || !joinedChannel}>{loading ? 'Creating account...' : 'Create account and continue'}</Button>
               </form>
               <p className="mt-4 text-center text-sm text-muted-foreground">Already have an account? <Link className="text-primary" href={`/login?next=${encodeURIComponent(next)}`}>Log in and continue</Link></p>
