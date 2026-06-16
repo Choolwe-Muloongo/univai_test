@@ -10,12 +10,14 @@ use App\Models\Enrollment;
 use App\Models\Intake;
 use App\Models\Program;
 use App\Models\ProgramModule;
+use App\Models\User;
+use App\Support\Academics\StudentAcademicGate;
 use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
 
 class ProgramController extends Controller
 {
-    public function program(Request $request)
+    public function program(Request $request, StudentAcademicGate $gate)
     {
         $user = $request->session()->get('user');
         $programId = $user['programId'] ?? null;
@@ -31,6 +33,16 @@ class ProgramController extends Controller
         if (!$program) {
             return response()->json(null, 404);
         }
+
+        $academicGate = null;
+        if ($studentId && is_numeric($studentId)) {
+            $student = User::find((int) $studentId);
+            if ($student) {
+                $academicGate = $gate->forStudent($student, $intakeId);
+            }
+        }
+        $canViewModules = (bool) data_get($academicGate, 'permissions.canViewModules', true);
+        $modulesLockReason = data_get($academicGate, 'reasons.modules') ?: data_get($academicGate, 'reasons.lessons');
 
         $curriculumVersion = null;
         $intake = null;
@@ -66,10 +78,12 @@ class ProgramController extends Controller
 
         $modules = $modules->filter(fn (ProgramModule $module) => DeliveryModes::supports($module->supported_delivery_modes ?? $program->supported_delivery_modes, $selectedMode));
 
-        $mappedModules = $modules->map(function (ProgramModule $module) use ($attemptsByModule, $selectedMode) {
-            $attempts = $attemptsByModule->get($module->id, collect());
-            return $this->mapModule($module, $attempts, $selectedMode);
-        });
+        $mappedModules = $canViewModules
+            ? $modules->map(function (ProgramModule $module) use ($attemptsByModule, $selectedMode) {
+                $attempts = $attemptsByModule->get($module->id, collect());
+                return $this->mapModule($module, $attempts, $selectedMode);
+            })
+            : collect();
 
         $totalCredits = $mappedModules->sum(fn (array $module) => (int) ($module['credits'] ?? 0));
         $earnedCredits = $mappedModules->sum(function (array $module) {
@@ -92,6 +106,8 @@ class ProgramController extends Controller
             'durationSemesters' => $program->duration_semesters,
             'totalCredits' => $program->total_credits,
             'intakeId' => $intakeId,
+            'modulesLocked' => !$canViewModules,
+            'modulesLockReason' => $modulesLockReason,
             'curriculumVersion' => $curriculumVersion ? [
                 'id' => $curriculumVersion->id,
                 'name' => $curriculumVersion->name,
@@ -101,7 +117,7 @@ class ProgramController extends Controller
         ];
     }
 
-    public function modules(Request $request)
+    public function modules(Request $request, StudentAcademicGate $gate)
     {
         $user = $request->session()->get('user');
         $programId = $user['programId'] ?? null;
@@ -110,6 +126,19 @@ class ProgramController extends Controller
 
         if (!$programId) {
             return response()->json(['message' => 'Programme access is required.'], 404);
+        }
+
+        if ($studentId && is_numeric($studentId)) {
+            $student = User::find((int) $studentId);
+            if ($student) {
+                $academicGate = $gate->forStudent($student, $intakeId);
+                if (!data_get($academicGate, 'permissions.canViewModules')) {
+                    return response()->json([
+                        'message' => data_get($academicGate, 'reasons.modules') ?: 'Modules are not open yet.',
+                        'academicGate' => $academicGate,
+                    ], 423);
+                }
+            }
         }
 
         $selectedMode = DeliveryModes::HYBRID;
@@ -175,8 +204,25 @@ class ProgramController extends Controller
             ->map(fn (ProgramModule $module) => $this->mapModule($module));
     }
 
-    public function semesterExam(string $semesterId)
+    public function semesterExam(Request $request, string $semesterId, StudentAcademicGate $gate)
     {
+        $user = $request->session()->get('user');
+        $studentId = is_array($user) ? ($user['id'] ?? null) : null;
+        $intakeId = is_array($user) ? ($user['intakeId'] ?? null) : null;
+
+        if ($studentId && is_numeric($studentId)) {
+            $student = User::find((int) $studentId);
+            if ($student) {
+                $academicGate = $gate->forStudent($student, $intakeId);
+                if (!data_get($academicGate, 'permissions.canWriteExam')) {
+                    return response()->json([
+                        'message' => data_get($academicGate, 'reasons.exams') ?: 'Exam access is not open yet.',
+                        'academicGate' => $academicGate,
+                    ], 423);
+                }
+            }
+        }
+
         $semester = (int) $semesterId;
 
         return ExamQuestion::query()
