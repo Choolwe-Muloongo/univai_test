@@ -3,12 +3,14 @@
 namespace App\Support\Payments;
 
 use App\Models\AffiliateEarning;
+use App\Models\Application;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\ShortCourseEnrollment;
 use App\Support\Affiliates\AffiliateService;
+use App\Support\Finance\FormalFinancialClearance;
 use App\Support\Pricing\ShortCourseAccessPlans;
 use App\Support\Payments\PaymentReceiptMailer;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +75,10 @@ class PaidInvoiceUnlocker
     {
         $metadata = $invoice->metadata ?? [];
 
+        if ($invoice->type === 'application_fee') {
+            $this->markApplicationFeePaid($invoice);
+        }
+
         if ($invoice->type === 'short_course_entry' && isset($metadata['short_course_id'])) {
             $course = Course::find($metadata['short_course_id']);
             $entry = ShortCourseAccessPlans::initialEntryAccess($course);
@@ -111,17 +117,55 @@ class PaidInvoiceUnlocker
             );
         }
 
-        if ($invoice->type === 'tuition_fee') {
-            Enrollment::query()
-                ->where('user_id', $invoice->student_id)
-                ->when($invoice->intake_id, fn ($query) => $query->where('intake_id', $invoice->intake_id))
-                ->update(['status' => 'active', 'enrolled_at' => now(), 'confirmed_at' => now()]);
+        if (in_array($invoice->type, ['registration_deposit', 'registration_fee', 'tuition_fee'], true)) {
+            $this->refreshProgrammeEnrollmentClearance($invoice);
         }
 
         $payment = $invoice->transaction_reference
             ? Payment::where('transaction_reference', $invoice->transaction_reference)->first()
             : Payment::where('invoice_id', $invoice->id)->latest('paid_at')->first();
         $this->recordFinanceAllocation($invoice->fresh() ?? $invoice, $payment);
+    }
+
+    private function markApplicationFeePaid(Invoice $invoice): void
+    {
+        $reference = $invoice->metadata['application_reference'] ?? null;
+        if (!$reference) {
+            return;
+        }
+
+        $application = Application::where('reference', $reference)->first();
+        if (!$application) {
+            return;
+        }
+
+        $updates = ['admission_fee_paid' => true];
+        if (in_array($application->status, ['draft', 'submitted'], true)) {
+            $updates['status'] = 'fee_paid';
+        }
+
+        $application->forceFill($updates)->save();
+    }
+
+    private function refreshProgrammeEnrollmentClearance(Invoice $invoice): void
+    {
+        if (!$invoice->intake_id) {
+            return;
+        }
+
+        $clearance = app(FormalFinancialClearance::class)->forStudentIntake($invoice->student_id, $invoice->intake_id);
+        if (!data_get($clearance, 'registrationClearance.cleared')) {
+            return;
+        }
+
+        Enrollment::query()
+            ->where('user_id', $invoice->student_id)
+            ->where('intake_id', $invoice->intake_id)
+            ->update([
+                'status' => 'active',
+                'enrolled_at' => now(),
+                'confirmed_at' => now(),
+            ]);
     }
 
     public function recordFinanceAllocation(Invoice $invoice, ?Payment $payment): void
@@ -206,6 +250,7 @@ class PaidInvoiceUnlocker
             'short_course_access_plan', 'short_course_bundle' => 'short_course_access',
             'certificate_fee' => 'certificate',
             'application_fee', 'admission_fee' => 'application',
+            'registration_deposit', 'registration_fee' => 'programme_registration',
             'tuition_fee' => 'programme',
             default => $invoice->type ?: 'other',
         };
