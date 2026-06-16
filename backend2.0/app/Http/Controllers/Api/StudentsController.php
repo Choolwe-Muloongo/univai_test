@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\CourseAttempt;
 use App\Models\CourseLecturerAssignment;
 use App\Models\Enrollment;
-use App\Models\Invoice;
 use App\Models\Intake;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
+use App\Support\DeliveryModes;
+use App\Support\Finance\FormalFinancialClearance;
 use App\Support\StudentAccess;
 use Illuminate\Http\Request;
 
@@ -117,6 +118,27 @@ class StudentsController extends Controller
         ]);
     }
 
+    public function financialClearance(Request $request, FormalFinancialClearance $clearance)
+    {
+        $sessionUser = $request->session()->get('user');
+        $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+        $intakeId = is_array($sessionUser) ? ($sessionUser['intakeId'] ?? null) : null;
+
+        if (!$userId || !is_numeric($userId)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!$intakeId) {
+            $intakeId = Enrollment::query()->where('user_id', $userId)->latest('created_at')->value('intake_id');
+        }
+
+        if (!$intakeId) {
+            return response()->json(['message' => 'No programme intake found for this student.'], 404);
+        }
+
+        return response()->json($clearance->forStudentIntake((int) $userId, $intakeId));
+    }
+
     public function saveEnrollmentModules(Request $request)
     {
         $sessionUser = $request->session()->get('user');
@@ -181,7 +203,7 @@ class StudentsController extends Controller
         ]);
     }
 
-    public function confirmEnrollment(Request $request)
+    public function confirmEnrollment(Request $request, FormalFinancialClearance $clearance)
     {
         $sessionUser = $request->session()->get('user');
         $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
@@ -195,13 +217,16 @@ class StudentsController extends Controller
             return response()->json(['message' => 'Enrollment not found'], 404);
         }
 
-        $hasPaidInvoice = Invoice::query()
-            ->where('student_id', $userId)
-            ->where('status', 'paid')
-            ->exists();
+        if (!$enrollment->intake_id) {
+            return response()->json(['message' => 'Enrollment has no intake assigned.'], 422);
+        }
 
-        if (!$hasPaidInvoice) {
-            return response()->json(['message' => 'Please complete tuition payment before confirming enrollment.'], 422);
+        $finance = $clearance->forStudentIntake((int) $userId, $enrollment->intake_id);
+        if (!data_get($finance, 'registrationClearance.cleared')) {
+            return response()->json([
+                'message' => data_get($finance, 'registrationClearance.message') ?: 'Minimum registration deposit has not been cleared.',
+                'finance' => $finance,
+            ], 422);
         }
 
         $enrollment->update([
@@ -235,6 +260,7 @@ class StudentsController extends Controller
             'deliveryMode' => DeliveryModes::normalize($enrollment->delivery_mode),
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
+            'finance' => $finance,
         ]);
     }
 
