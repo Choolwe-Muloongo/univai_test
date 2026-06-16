@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ConsultantsController;
 use App\Http\Controllers\Api\AdmissionsController;
 use App\Http\Controllers\Api\AdmissionsLettersController;
 use App\Http\Controllers\Api\AdmissionsFeeController;
+use App\Http\Controllers\Api\AdmissionsStatusController;
 use App\Http\Controllers\Api\AdminAdmissionsDecisionController;
 use App\Http\Controllers\Api\AdminCatalogController;
 use App\Http\Controllers\Api\AdminAcademicStructureController;
@@ -41,7 +42,6 @@ use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\PaymentMethodsController;
 use App\Http\Controllers\Api\PaymentSettingsController;
-use App\Http\Controllers\Api\AdminPaymentsController;
 use App\Http\Controllers\Api\ScholarshipController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ReportsController;
@@ -205,7 +205,7 @@ Route::middleware('api')->group(function () {
 
     Route::middleware('session.auth')->group(function () {
         Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
-        Route::get('/admissions/status', [AdmissionsController::class, 'status'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/status', AdmissionsStatusController::class)->middleware('access:admissions.applicant');
         Route::post('/admissions/fee', AdmissionsFeeController::class)->middleware('access:admissions.applicant');
         Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware('access:admissions.applicant');
         Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter'])->middleware('access:admissions.applicant');
@@ -221,7 +221,6 @@ Route::middleware('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/payment-settings', [PaymentSettingsController::class, 'show']);
         Route::patch('/payment-settings', [PaymentSettingsController::class, 'update']);
-        Route::get('/payments', [AdminPaymentsController::class, 'index'])->middleware('access:admin.finance');
         Route::get('/document-branding', [DocumentBrandingController::class, 'show'])->middleware('access:admin.academic');
         Route::patch('/document-branding', [DocumentBrandingController::class, 'update'])->middleware('access:admin.academic');
         Route::get('/document-branding/preview/{type}', [DocumentBrandingController::class, 'preview'])->middleware('access:admin.academic');
