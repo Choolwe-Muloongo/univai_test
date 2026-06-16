@@ -8,4 +8,5 @@ return [
     App\Providers\FeedbackRoutesServiceProvider::class,
     App\Providers\AdminUserCareRoutesServiceProvider::class,
     App\Providers\AffiliatePatchRoutesServiceProvider::class,
+    App\Providers\CorsPatchServiceProvider::class,
 ];
