@@ -10,6 +10,7 @@ use App\Models\Intake;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
+use App\Support\Academics\StudentAcademicGate;
 use App\Support\DeliveryModes;
 use App\Support\Finance\FormalFinancialClearance;
 use App\Support\StudentAccess;
@@ -116,6 +117,24 @@ class StudentsController extends Controller
             'enrolledAt' => optional($enrollment->enrolled_at)->toISOString(),
             'confirmedAt' => optional($enrollment->confirmed_at)->toISOString(),
         ]);
+    }
+
+    public function academicGate(Request $request, StudentAcademicGate $gate)
+    {
+        $sessionUser = $request->session()->get('user');
+        $userId = is_array($sessionUser) ? ($sessionUser['id'] ?? null) : null;
+        $intakeId = is_array($sessionUser) ? ($sessionUser['intakeId'] ?? null) : null;
+
+        if (!$userId || !is_numeric($userId)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $student = User::find((int) $userId);
+        if (!$student) {
+            return response()->json(['message' => 'Student not found'], 404);
+        }
+
+        return response()->json($gate->forStudent($student, $intakeId));
     }
 
     public function financialClearance(Request $request, FormalFinancialClearance $clearance)
