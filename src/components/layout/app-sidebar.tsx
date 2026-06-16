@@ -248,7 +248,7 @@ export function AppSidebar() {
   const navRole = isStudentRole(role)
     ? hasStudentEntitlement(STUDENT_ENTITLEMENT.PROGRAMME, entitlements, accessTier)
       ? 'formal-student'
-      : accessTier === 'short-course'
+      : accessTier === 'free-learning'
         ? 'short-course-student'
         : role
     : role;
