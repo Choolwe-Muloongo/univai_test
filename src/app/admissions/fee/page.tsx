@@ -1,43 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2, CreditCard, ShieldCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
 import { Logo } from '@/components/icons/logo';
-import { payAdmissionFee } from '@/lib/api';
+import { getAdmissionStatus, payAdmissionFee } from '@/lib/api';
 
 export default function AdmissionFeePage() {
   const router = useRouter();
-  const [paymentMethod, setPaymentMethod] = useState('bank');
-  const [referenceId, setReferenceId] = useState('');
-  const [payerName, setPayerName] = useState('');
+  const [status, setStatus] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
 
-  const handlePayment = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-
-    if (!referenceId.trim()) {
-      setError('Please enter a valid transaction reference.');
-      return;
-    }
-
-    setLoading(true);
-    payAdmissionFee(referenceId)
-      .then(() => router.push('/admissions/status'))
-      .catch((err) => {
-        console.error('Payment error', err);
-        setError('Unable to verify payment. Please try again.');
-      })
+  useEffect(() => {
+    getAdmissionStatus()
+      .then(setStatus)
+      .catch(() => setError('Unable to load your admissions fee status. Please sign in again.'))
       .finally(() => setLoading(false));
+  }, []);
+
+  const invoice = status?.invoice;
+  const feePaid = Boolean(status?.admissionFeePaid || invoice?.status === 'paid');
+  const amount = invoice ? `${invoice.currency ?? 'ZMW'} ${invoice.amount}` : 'Application fee invoice';
+
+  const handlePayment = async () => {
+    setError(null);
+    setPaying(true);
+    try {
+      const response: any = await payAdmissionFee(status?.id ?? 'application_fee');
+      if (response?.checkoutUrl || response?.checkout_url) {
+        window.location.href = response.checkoutUrl ?? response.checkout_url;
+        return;
+      }
+      const updated = await getAdmissionStatus();
+      setStatus(updated);
+      router.push('/admissions/status');
+    } catch (err: any) {
+      setError(err?.details?.message || err?.message || 'Unable to start or confirm the application fee payment.');
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (
@@ -47,98 +55,65 @@ export default function AdmissionFeePage() {
           <Logo className="h-8 w-8 text-primary" />
           <div>
             <p className="text-sm font-semibold text-primary">UnivAI Admissions</p>
-            <h1 className="text-2xl font-semibold">Admission Fee Payment</h1>
+            <h1 className="text-2xl font-semibold">Application Fee</h1>
           </div>
         </div>
 
         <Alert>
           <ShieldCheck className="h-4 w-4" />
-          <AlertTitle>Required to Continue</AlertTitle>
+          <AlertTitle>Required before academic review</AlertTitle>
           <AlertDescription>
-            The admission fee confirms your application and unlocks academic review. Payment details are verified by the registrar.
+            This fee confirms your application and moves your file into admissions review. The amount should match the programme fee configured by admin.
           </AlertDescription>
         </Alert>
 
         <Card>
           <CardHeader>
-            <CardTitle>Payment Details</CardTitle>
-            <CardDescription>Upload proof of payment or enter your transaction ID.</CardDescription>
+            <CardTitle>Fee Summary</CardTitle>
+            <CardDescription>Pay your application fee, then return to your status page.</CardDescription>
           </CardHeader>
-          <form onSubmit={handlePayment}>
-            <CardContent className="space-y-5">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertTitle>Payment Error</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+          <CardContent className="space-y-5">
+            {error && (
+              <Alert variant="destructive">
+                <AlertTitle>Payment Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="payerName">Payer Full Name</Label>
-                <Input
-                  id="payerName"
-                  value={payerName}
-                  onChange={(event) => setPayerName(event.target.value)}
-                  placeholder="Enter payer name"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Payment Method</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bank">Bank Deposit</SelectItem>
-                    <SelectItem value="mobile">Mobile Money</SelectItem>
-                    <SelectItem value="card">Card / Online Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="referenceId">Transaction Reference</Label>
-                  <Input
-                    id="referenceId"
-                    value={referenceId}
-                    onChange={(event) => setReferenceId(event.target.value)}
-                    placeholder="Enter reference ID"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="receipt">Upload Payment Receipt</Label>
-                  <Input id="receipt" type="file" />
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2 font-semibold text-foreground">
-                  <CreditCard className="h-4 w-4 text-primary" />
-                  Admission Fee Summary
-                </div>
-                <div className="mt-2 space-y-1">
-                  <p>Amount: ZMW 250 (local currency)</p>
-                  <p>Verified by registrar before offer letter is issued.</p>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-3">
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Verifying...' : 'Confirm Payment'}
-              </Button>
+            {loading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Receipts are reviewed within 1-2 business days.</span>
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading fee status...
               </div>
-              <Button variant="outline" asChild>
-                <Link href="/admissions/status">Back to Status</Link>
-              </Button>
-            </CardFooter>
-          </form>
+            ) : (
+              <div className="rounded-lg border p-4 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    Application Fee
+                  </div>
+                  <Badge variant={feePaid ? 'default' : 'secondary'}>{feePaid ? 'Paid' : 'Pending'}</Badge>
+                </div>
+                <div className="mt-4 grid gap-2 text-muted-foreground sm:grid-cols-2">
+                  <p>Amount: <span className="font-semibold text-foreground">{amount}</span></p>
+                  <p>Status: <span className="font-semibold text-foreground">{invoice?.status ?? status?.status ?? 'pending'}</span></p>
+                  {invoice?.dueDate ? <p>Due date: <span className="font-semibold text-foreground">{invoice.dueDate}</span></p> : null}
+                  {invoice?.paidAt ? <p>Paid at: <span className="font-semibold text-foreground">{invoice.paidAt}</span></p> : null}
+                </div>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex flex-wrap items-center justify-between gap-3">
+            <Button onClick={handlePayment} disabled={loading || paying || feePaid}>
+              {paying ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : feePaid ? 'Fee Paid' : 'Pay Application Fee'}
+            </Button>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Your status updates after payment is confirmed.</span>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/admissions/status">Back to Status</Link>
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     </div>
