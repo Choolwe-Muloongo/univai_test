@@ -17,18 +17,7 @@ class IntakesController extends Controller
         return Intake::query()
             ->orderBy('start_date')
             ->get()
-            ->map(fn (Intake $intake) => [
-                'id' => $intake->id,
-                'programId' => $intake->program_id,
-                'curriculumVersionId' => $intake->curriculum_version_id,
-                'name' => $intake->name,
-                'deliveryMode' => DeliveryModes::normalize($intake->delivery_mode),
-                'campus' => $intake->campus,
-                'capacity' => $intake->capacity,
-                'startDate' => optional($intake->start_date)->toDateString(),
-                'endDate' => optional($intake->end_date)->toDateString(),
-                'status' => $intake->status,
-            ]);
+            ->map(fn (Intake $intake) => $this->mapIntake($intake));
     }
 
     public function store(Request $request)
@@ -43,6 +32,19 @@ class IntakesController extends Controller
             'startDate' => ['required', 'date'],
             'endDate' => ['nullable', 'date'],
             'status' => ['nullable', 'string'],
+            'registrationOpensAt' => ['nullable', 'date'],
+            'registrationClosesAt' => ['nullable', 'date'],
+            'orientationDate' => ['nullable', 'date'],
+            'classesStartDate' => ['nullable', 'date'],
+            'addDropDeadline' => ['nullable', 'date'],
+            'caStartsAt' => ['nullable', 'date'],
+            'caEndsAt' => ['nullable', 'date'],
+            'examRegistrationDeadline' => ['nullable', 'date'],
+            'examStartsAt' => ['nullable', 'date'],
+            'examEndsAt' => ['nullable', 'date'],
+            'resultsReleaseDate' => ['nullable', 'date'],
+            'progressionOpensAt' => ['nullable', 'date'],
+            'calendarStatus' => ['nullable', 'string'],
         ]);
 
         $program = Program::find($payload['programId']);
@@ -74,6 +76,19 @@ class IntakesController extends Controller
             'start_date' => $payload['startDate'],
             'end_date' => $payload['endDate'] ?? null,
             'status' => $payload['status'] ?? 'open',
+            'registration_opens_at' => $payload['registrationOpensAt'] ?? null,
+            'registration_closes_at' => $payload['registrationClosesAt'] ?? null,
+            'orientation_date' => $payload['orientationDate'] ?? null,
+            'classes_start_date' => $payload['classesStartDate'] ?? null,
+            'add_drop_deadline' => $payload['addDropDeadline'] ?? null,
+            'ca_starts_at' => $payload['caStartsAt'] ?? null,
+            'ca_ends_at' => $payload['caEndsAt'] ?? null,
+            'exam_registration_deadline' => $payload['examRegistrationDeadline'] ?? null,
+            'exam_starts_at' => $payload['examStartsAt'] ?? null,
+            'exam_ends_at' => $payload['examEndsAt'] ?? null,
+            'results_release_date' => $payload['resultsReleaseDate'] ?? null,
+            'progression_opens_at' => $payload['progressionOpensAt'] ?? null,
+            'calendar_status' => $payload['calendarStatus'] ?? 'draft',
         ]);
 
         AuditLogger::log($request, 'intake.created', 'intake', $intake->id, [
@@ -81,18 +96,7 @@ class IntakesController extends Controller
             'deliveryMode' => DeliveryModes::normalize($intake->delivery_mode),
         ]);
 
-        return response()->json([
-            'id' => $intake->id,
-            'programId' => $intake->program_id,
-            'curriculumVersionId' => $intake->curriculum_version_id,
-            'name' => $intake->name,
-            'deliveryMode' => DeliveryModes::normalize($intake->delivery_mode),
-            'campus' => $intake->campus,
-            'capacity' => $intake->capacity,
-            'startDate' => optional($intake->start_date)->toDateString(),
-            'endDate' => optional($intake->end_date)->toDateString(),
-            'status' => $intake->status,
-        ], 201);
+        return response()->json($this->mapIntake($intake), 201);
     }
 
     public function availableForStudent(Request $request)
@@ -107,7 +111,12 @@ class IntakesController extends Controller
             $query->where('program_id', $programId);
         }
 
-        return $query->orderBy('start_date')->get()->map(fn (Intake $intake) => [
+        return $query->orderBy('start_date')->get()->map(fn (Intake $intake) => $this->mapIntake($intake));
+    }
+
+    private function mapIntake(Intake $intake): array
+    {
+        return [
             'id' => $intake->id,
             'programId' => $intake->program_id,
             'curriculumVersionId' => $intake->curriculum_version_id,
@@ -118,6 +127,19 @@ class IntakesController extends Controller
             'startDate' => optional($intake->start_date)->toDateString(),
             'endDate' => optional($intake->end_date)->toDateString(),
             'status' => $intake->status,
-        ]);
+            'calendarStatus' => $intake->calendar_status ?? 'draft',
+            'registrationOpensAt' => optional($intake->registration_opens_at)->toDateString(),
+            'registrationClosesAt' => optional($intake->registration_closes_at)->toDateString(),
+            'orientationDate' => optional($intake->orientation_date)->toDateString(),
+            'classesStartDate' => optional($intake->classes_start_date)->toDateString(),
+            'addDropDeadline' => optional($intake->add_drop_deadline)->toDateString(),
+            'caStartsAt' => optional($intake->ca_starts_at)->toDateString(),
+            'caEndsAt' => optional($intake->ca_ends_at)->toDateString(),
+            'examRegistrationDeadline' => optional($intake->exam_registration_deadline)->toDateString(),
+            'examStartsAt' => optional($intake->exam_starts_at)->toDateString(),
+            'examEndsAt' => optional($intake->exam_ends_at)->toDateString(),
+            'resultsReleaseDate' => optional($intake->results_release_date)->toDateString(),
+            'progressionOpensAt' => optional($intake->progression_opens_at)->toDateString(),
+        ];
     }
 }
