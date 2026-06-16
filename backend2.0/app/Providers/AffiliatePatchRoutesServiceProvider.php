@@ -27,5 +27,12 @@ class AffiliatePatchRoutesServiceProvider extends ServiceProvider
                 Route::get('/affiliate', [\App\Http\Controllers\Api\AffiliateGateController::class, 'me']);
                 Route::post('/affiliate/apply', [\App\Http\Controllers\Api\AffiliateGateController::class, 'apply'])->middleware('throttle:general');
             });
+
+        Route::middleware(['api', 'session.auth', 'access:admin.portal', 'access:admin.finance'])
+            ->prefix('api/admin/affiliates')
+            ->group(function () {
+                Route::get('/', [\App\Http\Controllers\Api\AdminAffiliateRequirementsController::class, 'index']);
+                Route::patch('/{affiliate}/status', [\App\Http\Controllers\Api\AdminAffiliateRequirementsController::class, 'updateStatus']);
+            });
     }
 }
