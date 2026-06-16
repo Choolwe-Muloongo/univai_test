@@ -7,11 +7,12 @@ use App\Models\CourseAttempt;
 use App\Models\ProgramModule;
 use App\Models\User;
 use App\Services\AcademicPolicyEngine;
+use App\Support\Academics\StudentAcademicGate;
 use Illuminate\Http\Request;
 
 class GradesController extends Controller
 {
-    public function studentGrades(Request $request)
+    public function studentGrades(Request $request, StudentAcademicGate $gate)
     {
         $sessionUser = $request->session()->get('user');
         if (!$sessionUser) {
@@ -21,6 +22,15 @@ class GradesController extends Controller
         $student = User::find($sessionUser['id']);
         if (!$student) {
             return response()->json(['message' => 'Student not found'], 404);
+        }
+
+        $academicGate = $gate->forStudent($student, $sessionUser['intakeId'] ?? null);
+        if (!data_get($academicGate, 'permissions.canViewResults')) {
+            return response()->json([
+                'message' => data_get($academicGate, 'reasons.results') ?: 'Results are not available yet.',
+                'academicGate' => $academicGate,
+                'grades' => [],
+            ], 423);
         }
 
         $attempts = CourseAttempt::query()
@@ -118,33 +128,21 @@ class GradesController extends Controller
         $attemptPayload = [
             'student_id' => $student->id,
             'module_id' => $module->id,
-            'intake_id' => $student->intake_id,
             'attempt_no' => $attemptNo,
             'final_percentage' => $payload['final_percentage'],
             'exam_score' => $payload['exam_score'] ?? null,
-            'letter_grade' => $evaluation['letter'],
-            'grade_points' => $evaluation['points'],
+            'letter_grade' => $evaluation['letter_grade'],
+            'grade_points' => $evaluation['grade_points'],
+            'status' => $evaluation['status'],
             'credits_attempted' => $credits,
             'credits_earned' => $evaluation['credits_earned'],
-            'status' => $evaluation['status'],
-            'result_status' => $payload['result_status'] ?? 'draft',
-            'recorded_by' => $request->session()->get('user')['id'] ?? null,
+            'result_status' => $payload['result_status'] ?? 'published',
         ];
 
         $attempt = $existingDraftAttempt
             ? tap($existingDraftAttempt)->update($attemptPayload)
             : CourseAttempt::create($attemptPayload);
 
-        if ($attempt->result_status === 'published') {
-            $publishedAttempts = CourseAttempt::query()
-                ->where('student_id', $student->id)
-                ->where('result_status', 'published')
-                ->get();
-
-            $gpaSummary = $engine->calculateGpa($publishedAttempts->all(), $policy);
-            $engine->updateStanding($student, $policy, $gpaSummary);
-        }
-
-        return response()->json($attempt, 201);
+        return response()->json($attempt->fresh('module'));
     }
 }
