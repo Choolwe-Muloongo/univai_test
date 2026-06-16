@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Support\DeliveryModes;
 use App\Support\Finance\FormalFinancialClearance;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Carbon;
 
 class StudentAcademicGate
 {
@@ -56,7 +55,7 @@ class StudentAcademicGate
         $canViewTimetable = $enrollmentActive && $modulesSelected;
         $canViewModules = $enrollmentActive && $modulesSelected;
         $canOpenLessons = $canViewModules && $this->onOrAfter($today, $calendar['classesStartDate']) && $this->beforeOrOn($today, $calendar['examEndsAt'] ?? $calendar['endDate']);
-        $canJoinLiveClass = $canOpenLessons && in_array($deliveryMode, [DeliveryModes::ONLINE, DeliveryModes::HYBRID], true);
+        $canJoinLiveClass = $canOpenLessons && in_array($deliveryMode, [DeliveryModes::SOFTWARE_ONLY, DeliveryModes::HYBRID], true);
         $canUsePhysicalVenue = $canOpenLessons && in_array($deliveryMode, [DeliveryModes::PHYSICAL, DeliveryModes::HYBRID], true);
         $canSubmitAssignment = $canOpenLessons && $this->between($today, $calendar['caStartsAt'], $calendar['caEndsAt']);
         $canWriteTest = $canSubmitAssignment;
@@ -206,7 +205,7 @@ class StudentAcademicGate
     private function deliveryRules(string $deliveryMode): array
     {
         return match ($deliveryMode) {
-            DeliveryModes::ONLINE => [
+            DeliveryModes::SOFTWARE_ONLY => [
                 'label' => 'Online',
                 'requiresMeetingLink' => true,
                 'requiresVenue' => false,
