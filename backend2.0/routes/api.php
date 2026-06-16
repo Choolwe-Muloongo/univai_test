@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\AdmissionsStatusController;
 use App\Http\Controllers\Api\AdminAdmissionsDecisionController;
 use App\Http\Controllers\Api\AdminCatalogController;
 use App\Http\Controllers\Api\AdminAcademicStructureController;
+use App\Http\Controllers\Api\AdminWorkspaceController;
 use App\Http\Controllers\Api\PlatformExpansionController;
 use App\Http\Controllers\Api\PlatformOperationsController;
 use App\Http\Controllers\Api\ExamController;
@@ -137,6 +138,7 @@ Route::middleware('api')->group(function () {
     Route::get('/students/me/badges', [BadgesController::class, 'index'])->middleware(['session.auth', 'access:student.portal']);
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/admissions/settings', [AdmissionsController::class, 'settings']);
+    Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit'])->middleware('throttle:admissions');
     Route::post('/payments/lenco/webhook', LencoWebhookController::class);
 
     Route::middleware(['session.auth', 'access:student.portal'])->group(function () {
@@ -220,6 +222,7 @@ Route::middleware('api')->group(function () {
 
     Route::prefix('admin')->middleware(['session.auth', 'access:admin.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
+        Route::get('/today', [AdminWorkspaceController::class, 'today']);
         Route::get('/payment-settings', [PaymentSettingsController::class, 'show']);
         Route::patch('/payment-settings', [PaymentSettingsController::class, 'update']);
         Route::get('/document-branding', [DocumentBrandingController::class, 'show'])->middleware('access:admin.academic');
@@ -231,6 +234,7 @@ Route::middleware('api')->group(function () {
         Route::get('/assignments', [AdminAssignmentsController::class, 'index']);
         Route::post('/assignments', [AdminAssignmentsController::class, 'store']);
         Route::get('/audit-logs', [AdminAuditController::class, 'index']);
+        Route::get('/audit', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'audit');
         Route::get('/route-change-requests', [RouteChangeController::class, 'adminIndex']);
         Route::patch('/route-change-requests/{routeChangeRequest}', [RouteChangeController::class, 'adminUpdate']);
         Route::get('/curriculum/versions', [AdminCurriculumController::class, 'versions']);
@@ -247,6 +251,11 @@ Route::middleware('api')->group(function () {
         Route::post('/users', [AdminUsersController::class, 'store'])->middleware('access:admin.users.manage');
         Route::patch('/users/{user}', [AdminUsersController::class, 'update'])->middleware('access:admin.users.manage');
         Route::post('/users/{user}/transition', [AdminUsersController::class, 'transition'])->middleware('access:admin.users.manage');
+        Route::get('/learners', [AdminWorkspaceController::class, 'usersByGroup'])->defaults('group', 'learners')->middleware('access:admin.users.manage');
+        Route::get('/programme-students', [AdminWorkspaceController::class, 'usersByGroup'])->defaults('group', 'programme-students')->middleware('access:admin.users.manage');
+        Route::get('/lecturers', [AdminWorkspaceController::class, 'usersByGroup'])->defaults('group', 'lecturers')->middleware('access:admin.users.manage');
+        Route::get('/instructors', [AdminWorkspaceController::class, 'usersByGroup'])->defaults('group', 'instructors')->middleware('access:admin.users.manage');
+        Route::get('/employers', [AdminWorkspaceController::class, 'usersByGroup'])->defaults('group', 'employers')->middleware('access:admin.users.manage');
         Route::post('/schools', [AdminCatalogController::class, 'createSchool'])->middleware('access:admin.academic');
         Route::patch('/schools/{id}', [AdminCatalogController::class, 'updateSchool'])->middleware('access:admin.academic');
         Route::post('/programs', [AdminCatalogController::class, 'createProgram'])->middleware('access:admin.academic');
@@ -267,17 +276,28 @@ Route::middleware('api')->group(function () {
         Route::post('/venues', [AdminAcademicStructureController::class, 'storeVenue'])->middleware('access:admin.academic');
         Route::post('/partner-institutions', [AdminAcademicStructureController::class, 'storePartnerInstitution'])->middleware('access:admin.academic');
         Route::post('/practical-sessions', [AdminAcademicStructureController::class, 'storePracticalSession'])->middleware('access:admin.academic');
+        Route::get('/results', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'results')->middleware('access:admin.academic');
+        Route::get('/financial-clearance', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'financial-clearance')->middleware('access:admin.finance');
+        Route::get('/progression', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'progression')->middleware('access:admin.academic');
         Route::get('/platform-expansion', [PlatformExpansionController::class, 'adminOverview']);
         Route::get('/platform-operations', [PlatformOperationsController::class, 'overview']);
         Route::post('/course-offerings', [PlatformExpansionController::class, 'storeCourseOffering'])->middleware('access:admin.academic');
         Route::post('/course-delivery-groups', [PlatformExpansionController::class, 'storeDeliveryGroup'])->middleware('access:admin.academic');
         Route::post('/assessments', [PlatformExpansionController::class, 'storeAssessment'])->middleware('access:admin.academic');
         Route::post('/grading-policies', [PlatformExpansionController::class, 'storeGradingPolicy'])->middleware('access:admin.academic');
+        Route::get('/delivery-groups', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'delivery-groups')->middleware('access:admin.academic');
+        Route::get('/timetables', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'timetables')->middleware('access:admin.academic');
+        Route::get('/attendance', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'attendance')->middleware('access:admin.academic');
+        Route::get('/live-classes', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'live-classes')->middleware('access:admin.academic');
         Route::post('/fee-rules', [PlatformOperationsController::class, 'storeFeeRule']);
         Route::post('/certificates', [PlatformOperationsController::class, 'storeCertificate']);
         Route::post('/message-templates', [PlatformOperationsController::class, 'storeMessageTemplate']);
         Route::post('/announcements', [PlatformOperationsController::class, 'storeAnnouncement']);
         Route::post('/saved-reports', [PlatformOperationsController::class, 'storeSavedReport']);
+        Route::get('/notifications-admin', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'notifications');
+        Route::post('/workspace/notifications', [AdminWorkspaceController::class, 'createWorkspaceRecord'])->defaults('workspace', 'notifications');
+        Route::get('/delivery-logs', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'delivery-logs');
+        Route::post('/workspace/delivery-logs', [AdminWorkspaceController::class, 'createWorkspaceRecord'])->defaults('workspace', 'delivery-logs');
         Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);
         Route::get('/admissions/{id}', [AdmissionsController::class, 'adminShow']);
         Route::patch('/admissions/{id}', AdminAdmissionsDecisionController::class);
@@ -300,6 +320,7 @@ Route::middleware('api')->group(function () {
         Route::get('/consultants', [ConsultantsController::class, 'index']);
         Route::get('/consultants/{id}', [ConsultantsController::class, 'show']);
         Route::get('/reports/finance', [ReportsController::class, 'finance']);
+        Route::get('/reports/{type}', [AdminWorkspaceController::class, 'report']);
         Route::get('/affiliates', [AffiliateController::class, 'index'])->middleware('access:admin.finance');
         Route::post('/affiliates', [AffiliateController::class, 'store'])->middleware('access:admin.finance');
         Route::get('/affiliates/{affiliate}', [AffiliateController::class, 'show'])->middleware('access:admin.finance');
@@ -308,6 +329,9 @@ Route::middleware('api')->group(function () {
         Route::get('/system-health', [SystemHealthController::class, 'status']);
         Route::post('/system-health/diagnostics', [SystemHealthController::class, 'diagnostics']);
         Route::post('/system/email/test', [SystemHealthController::class, 'testEmail']);
+        Route::get('/integrations', [AdminWorkspaceController::class, 'workspace'])->defaults('workspace', 'integrations');
         Route::get('/short-courses/manual-guide', [ShortCourseManualGuideController::class, 'download'])->middleware('access:admin.academic');
+        Route::get('/workspace/{workspace?}', [AdminWorkspaceController::class, 'workspace'])->where('workspace', '.*');
+        Route::post('/workspace/{workspace}', [AdminWorkspaceController::class, 'createWorkspaceRecord'])->where('workspace', '.*');
     });
 });
