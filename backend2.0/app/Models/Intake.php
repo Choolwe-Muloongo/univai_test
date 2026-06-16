@@ -22,11 +22,36 @@ class Intake extends Model
         'start_date',
         'end_date',
         'status',
+        'registration_opens_at',
+        'registration_closes_at',
+        'orientation_date',
+        'classes_start_date',
+        'add_drop_deadline',
+        'ca_starts_at',
+        'ca_ends_at',
+        'exam_registration_deadline',
+        'exam_starts_at',
+        'exam_ends_at',
+        'results_release_date',
+        'progression_opens_at',
+        'calendar_status',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'registration_opens_at' => 'date',
+        'registration_closes_at' => 'date',
+        'orientation_date' => 'date',
+        'classes_start_date' => 'date',
+        'add_drop_deadline' => 'date',
+        'ca_starts_at' => 'date',
+        'ca_ends_at' => 'date',
+        'exam_registration_deadline' => 'date',
+        'exam_starts_at' => 'date',
+        'exam_ends_at' => 'date',
+        'results_release_date' => 'date',
+        'progression_opens_at' => 'date',
     ];
 
     public function program(): BelongsTo
