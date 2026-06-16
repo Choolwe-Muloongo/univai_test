@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookOpen, Building2, CalendarDays, GraduationCap, Layers, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,6 +54,10 @@ const blankIntake = {
   progressionOpensAt: "",
   calendarStatus: "published",
 };
+
+function schoolLabel(school: School) {
+  return school.name ?? (school as any).title ?? String(school.id);
+}
 
 export default function FormalProgramsAdminPage() {
   const [schools, setSchools] = useState<School[]>([]);
@@ -131,7 +135,7 @@ export default function FormalProgramsAdminPage() {
         fullClearanceRequiredForResults: true,
         fullClearanceRequiredForProgression: true,
         graduationClearanceRequired: true,
-      });
+      } as any);
       setProgramForm({ ...blankProgram, schoolId: programForm.schoolId });
       setMessage("Programme created successfully.");
       await reload();
@@ -195,7 +199,7 @@ export default function FormalProgramsAdminPage() {
           <CardHeader><CardTitle>Create Department</CardTitle><CardDescription>Attach the department to a school.</CardDescription></CardHeader>
           <CardContent>
             <form onSubmit={saveDepartment} className="space-y-4">
-              <div className="space-y-2"><Label>School</Label><Select value={departmentForm.schoolId} onValueChange={(value) => setDepartmentForm({ ...departmentForm, schoolId: value })}><SelectTrigger><SelectValue placeholder="Select school" /></SelectTrigger><SelectContent>{schools.map((school) => <SelectItem key={school.id} value={String(school.id)}>{school.name ?? school.title}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>School</Label><Select value={departmentForm.schoolId} onValueChange={(value) => setDepartmentForm({ ...departmentForm, schoolId: value })}><SelectTrigger><SelectValue placeholder="Select school" /></SelectTrigger><SelectContent>{schools.map((school) => <SelectItem key={school.id} value={String(school.id)}>{schoolLabel(school)}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-2"><Label>Name</Label><Input value={departmentForm.name} onChange={(e) => setDepartmentForm({ ...departmentForm, name: e.target.value })} required /></div>
               <div className="space-y-2"><Label>Description</Label><Textarea value={departmentForm.description} onChange={(e) => setDepartmentForm({ ...departmentForm, description: e.target.value })} /></div>
               <Button disabled={saving === "department"}>{saving === "department" ? "Saving..." : "Create department"}</Button>
@@ -208,7 +212,7 @@ export default function FormalProgramsAdminPage() {
         <CardHeader><CardTitle>Create Formal Programme</CardTitle><CardDescription>Programme rules feed admissions, fees, enrollment clearance, exams, results, and progression.</CardDescription></CardHeader>
         <CardContent>
           <form onSubmit={saveProgram} className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2"><Label>School</Label><Select value={programForm.schoolId} onValueChange={(value) => setProgramForm({ ...programForm, schoolId: value })}><SelectTrigger><SelectValue placeholder="Select school" /></SelectTrigger><SelectContent>{schools.map((school) => <SelectItem key={school.id} value={String(school.id)}>{school.name ?? school.title}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>School</Label><Select value={programForm.schoolId} onValueChange={(value) => setProgramForm({ ...programForm, schoolId: value })}><SelectTrigger><SelectValue placeholder="Select school" /></SelectTrigger><SelectContent>{schools.map((school) => <SelectItem key={school.id} value={String(school.id)}>{schoolLabel(school)}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-2"><Label>Programme title</Label><Input value={programForm.title} onChange={(e) => setProgramForm({ ...programForm, title: e.target.value })} required /></div>
             <div className="space-y-2"><Label>Award type</Label><Input value={programForm.awardType} onChange={(e) => setProgramForm({ ...programForm, awardType: e.target.value })} /></div>
             <div className="space-y-2"><Label>Qualification level</Label><Input value={programForm.qualificationLevel} onChange={(e) => setProgramForm({ ...programForm, qualificationLevel: e.target.value })} /></div>
