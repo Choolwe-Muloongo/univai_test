@@ -3,11 +3,15 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class LencoPaymentService
 {
+    private const SUCCESS_STATUSES = ['successful', 'success', 'paid', 'completed'];
+    private const PROCESSING_STATUSES = ['pending', 'processing', 'queued', 'created'];
+
     public function initiatePayment(Invoice $invoice): array
     {
         $reference = $invoice->transaction_reference ?: 'univai-' . Str::orderedUuid();
@@ -98,7 +102,7 @@ class LencoPaymentService
         $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? 'unknown'));
 
         return [
-            'verified' => in_array($status, ['successful', 'success', 'paid', 'completed'], true),
+            'verified' => in_array($status, self::SUCCESS_STATUSES, true),
             'status' => $status,
             'message' => (string) (data_get($payload, 'message') ?? ''),
             'payload' => $payload,
@@ -111,31 +115,39 @@ class LencoPaymentService
         if (!$secret) {
             return [
                 'successful' => false,
+                'processing' => false,
                 'status' => 'unknown',
                 'message' => 'Lenco secret key is not configured.',
+                'reference' => (string) ($payload['reference'] ?? ''),
                 'payload' => null,
             ];
         }
 
-        $endpoint = rtrim((string) config('services.lenco.base_url', env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2')), '/') . '/transfers/mobile-money';
+        $endpoint = $this->payoutCreateEndpoint();
         $response = Http::withToken($secret)->acceptJson()->post($endpoint, $payload);
+
         if (!$response->successful()) {
             return [
                 'successful' => false,
+                'processing' => false,
                 'status' => 'failed',
-                'message' => 'Lenco transfer could not be started.',
+                'message' => $this->responseMessage($response) ?: 'Lenco transfer could not be started.',
+                'reference' => (string) ($payload['reference'] ?? ''),
                 'payload' => $response->json(),
             ];
         }
 
-        $json = $response->json();
-        $status = strtolower((string) (data_get($json, 'data.status') ?? data_get($json, 'status') ?? 'unknown'));
+        $json = $response->json() ?? [];
+        $status = $this->transferStatus($json);
+        $successful = in_array($status, self::SUCCESS_STATUSES, true);
+        $processing = in_array($status, self::PROCESSING_STATUSES, true);
 
         return [
-            'successful' => in_array($status, ['successful', 'success', 'paid', 'completed'], true),
+            'successful' => $successful,
+            'processing' => $processing,
             'status' => $status,
             'message' => (string) (data_get($json, 'message') ?? ''),
-            'reference' => (string) (data_get($json, 'data.reference') ?? data_get($json, 'reference') ?? ''),
+            'reference' => $this->transferReference($json, (string) ($payload['reference'] ?? '')),
             'payload' => $json,
         ];
     }
@@ -146,30 +158,44 @@ class LencoPaymentService
         if (!$secret) {
             return [
                 'verified' => false,
+                'processing' => false,
                 'status' => 'unknown',
                 'message' => 'Lenco secret key is not configured.',
                 'payload' => null,
             ];
         }
 
-        $endpoint = rtrim((string) config('services.lenco.base_url', env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2')), '/') . '/transfers/status/' . rawurlencode($reference);
-        $response = Http::withToken($secret)->acceptJson()->get($endpoint);
+        $response = Http::withToken($secret)->acceptJson()->get($this->payoutVerifyEndpoint($reference));
+
+        if (!$response->successful()) {
+            $fallback = $this->publicTransferVerifyEndpoint($reference);
+            if ($fallback !== $this->payoutVerifyEndpoint($reference)) {
+                $fallbackResponse = Http::withToken($secret)->acceptJson()->get($fallback);
+                if ($fallbackResponse->successful()) {
+                    $response = $fallbackResponse;
+                }
+            }
+        }
+
         if (!$response->successful()) {
             return [
                 'verified' => false,
+                'processing' => true,
                 'status' => 'unknown',
-                'message' => 'Payout verification is not available yet.',
+                'message' => $this->responseMessage($response) ?: 'Payout verification is not available yet.',
                 'payload' => $response->json(),
             ];
         }
 
-        $payload = $response->json();
-        $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? 'unknown'));
+        $payload = $response->json() ?? [];
+        $status = $this->transferStatus($payload);
 
         return [
-            'verified' => in_array($status, ['successful', 'success', 'paid', 'completed'], true),
+            'verified' => in_array($status, self::SUCCESS_STATUSES, true),
+            'processing' => in_array($status, self::PROCESSING_STATUSES, true),
             'status' => $status,
             'message' => (string) (data_get($payload, 'message') ?? ''),
+            'reference' => $this->transferReference($payload, $reference),
             'payload' => $payload,
         ];
     }
@@ -196,6 +222,71 @@ class LencoPaymentService
         $payload['data'] = $data;
 
         return $payload;
+    }
+
+    private function payoutCreateEndpoint(): string
+    {
+        $path = (string) config('services.lenco.payout_create_path', env('LENCO_PAYOUT_CREATE_PATH', '/transfers/mobile-money'));
+        return $this->urlFromPath($path, $this->payoutBaseUrl());
+    }
+
+    private function payoutVerifyEndpoint(string $reference): string
+    {
+        $path = (string) config('services.lenco.payout_verify_path', env('LENCO_PAYOUT_VERIFY_PATH', '/transfers/status/{reference}'));
+        $path = str_replace('{reference}', rawurlencode($reference), $path);
+        return $this->urlFromPath($path, $this->payoutBaseUrl());
+    }
+
+    private function publicTransferVerifyEndpoint(string $reference): string
+    {
+        $base = rtrim((string) config('services.lenco.transfer_base_url', env('LENCO_TRANSFER_BASE_URL', 'https://api.lenco.co/access/v1')), '/');
+        return $base . '/transfer/by-reference/' . rawurlencode($reference);
+    }
+
+    private function payoutBaseUrl(): string
+    {
+        return rtrim((string) config('services.lenco.payout_base_url', env('LENCO_PAYOUT_BASE_URL', config('services.lenco.base_url', 'https://api.lenco.co/access/v2'))), '/');
+    }
+
+    private function urlFromPath(string $path, string $baseUrl): string
+    {
+        if (preg_match('/^https?:\/\//i', $path)) {
+            return $path;
+        }
+
+        return rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
+    }
+
+    private function transferStatus(array $payload): string
+    {
+        return strtolower((string) (
+            data_get($payload, 'data.transaction.status')
+            ?? data_get($payload, 'data.request.status')
+            ?? data_get($payload, 'data.status')
+            ?? data_get($payload, 'transaction.status')
+            ?? data_get($payload, 'request.status')
+            ?? data_get($payload, 'status')
+            ?? 'unknown'
+        ));
+    }
+
+    private function transferReference(array $payload, string $fallbackReference): string
+    {
+        return (string) (
+            data_get($payload, 'data.transaction.reference')
+            ?? data_get($payload, 'data.transaction.transactionReference')
+            ?? data_get($payload, 'data.reference')
+            ?? data_get($payload, 'data.request.reference')
+            ?? data_get($payload, 'transaction.reference')
+            ?? data_get($payload, 'reference')
+            ?? $fallbackReference
+        );
+    }
+
+    private function responseMessage(Response $response): string
+    {
+        $json = $response->json();
+        return (string) (data_get($json, 'message') ?? data_get($json, 'error') ?? '');
     }
 
     private function returnUrlFor(Invoice $invoice): string
