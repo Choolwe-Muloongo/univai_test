@@ -77,6 +77,32 @@ type NotificationsResponse = {
   unreadCount: number;
 };
 
+function normalizeNotificationsResponse(value: unknown): NotificationsResponse {
+  if (!value || typeof value !== 'object') {
+    return { items: [], unreadCount: 0 };
+  }
+
+  const record = value as Record<string, unknown>;
+  const itemsCandidate = Array.isArray(record.items)
+    ? record.items
+    : Array.isArray(record.notifications)
+      ? record.notifications
+      : Array.isArray(record.data)
+        ? record.data
+        : [];
+
+  const items = itemsCandidate.filter((item): item is InAppNotification => {
+    return Boolean(item && typeof item === 'object' && 'id' in item && 'title' in item);
+  });
+  const unreadCount = typeof record.unreadCount === 'number'
+    ? record.unreadCount
+    : typeof record.unread_count === 'number'
+      ? record.unread_count
+      : items.filter((item) => !item.readAt).length;
+
+  return { items, unreadCount };
+}
+
 export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string; hideSidebarTrigger?: boolean }) {
   const router = useRouter();
   const { session, refresh } = useSession();
@@ -104,11 +130,13 @@ export function AppHeader({ role, hideSidebarTrigger = false }: { role?: string;
   async function loadNotifications() {
     if (!session?.user) return;
     try {
-      const data = await apiFetch<NotificationsResponse>('/notifications');
+      const data = normalizeNotificationsResponse(await apiFetch<unknown>('/notifications'));
       setNotifications(data.items);
       setUnreadCount(data.unreadCount);
     } catch (error) {
       console.error('Failed to load notifications', error);
+      setNotifications([]);
+      setUnreadCount(0);
     }
   }
 
