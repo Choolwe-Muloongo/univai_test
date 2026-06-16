@@ -7,6 +7,8 @@ use App\Models\AttendanceRecord;
 use App\Models\CourseLecturerAssignment;
 use App\Models\CourseSession;
 use App\Models\Enrollment;
+use App\Models\User;
+use App\Support\Academics\StudentAcademicGate;
 use App\Support\AuditLogger;
 use App\Support\DeliveryModes;
 use Illuminate\Http\Request;
@@ -169,14 +171,31 @@ class CourseSessionsController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    public function studentTimetable(Request $request)
+    public function studentTimetable(Request $request, StudentAcademicGate $gate)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
         $intakeId = is_array($user) ? ($user['intakeId'] ?? null) : null;
 
+        if (!$studentId || !is_numeric($studentId)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         if (!$intakeId) {
             return [];
+        }
+
+        $student = User::find((int) $studentId);
+        if (!$student) {
+            return response()->json(['message' => 'Student not found'], 404);
+        }
+
+        $academicGate = $gate->forStudent($student, $intakeId);
+        if (!data_get($academicGate, 'permissions.canViewTimetable')) {
+            return response()->json([
+                'message' => data_get($academicGate, 'reasons.modules') ?: 'Timetable is not available until enrollment and module registration are complete.',
+                'academicGate' => $academicGate,
+            ], 423);
         }
 
         $selectedMode = DeliveryModes::normalize(Enrollment::query()
