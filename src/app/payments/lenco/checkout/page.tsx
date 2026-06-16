@@ -8,7 +8,7 @@ import { CreditCard, Loader2, ShieldCheck, Smartphone, Sparkles, WalletCards } f
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { verifyInvoicePayment } from '@/lib/api';
+import { verifyInvoicePayment } from '@/lib/api/payments';
 
 declare global {
   interface Window {
@@ -69,23 +69,24 @@ function LencoCheckoutClient() {
 
   const [firstName, ...restName] = checkout.name.trim().split(/\s+/).filter(Boolean);
   const lastName = restName.join(' ');
-  const canPay = Boolean(
-    publicKey &&
-      scriptReady &&
-      checkout.reference &&
-      checkout.amount > 0 &&
-      checkout.email &&
-      checkout.invoice > 0,
-  );
+  const canPay = Boolean(publicKey && scriptReady && checkout.reference && checkout.amount > 0 && checkout.email && checkout.invoice > 0);
 
   async function verifyAndReturn() {
     if (checkout.invoice <= 0) {
       setMessage('Invalid invoice. Please return and start checkout again.');
       return;
     }
+
+    setBusy(true);
     const result = await verifyInvoicePayment(checkout.invoice);
-    setMessage(result.message ?? 'Payment confirmed.');
-    window.location.href = checkout.returnUrl;
+    setMessage(result.message ?? 'Payment status checked.');
+
+    if (String(result.status ?? '').toLowerCase() === 'paid') {
+      window.location.href = checkout.returnUrl;
+      return;
+    }
+
+    setBusy(false);
   }
 
   function startPayment(selectedMode: PayMode = mode) {
@@ -116,16 +117,16 @@ function LencoCheckoutClient() {
           await verifyAndReturn();
         } catch (error) {
           setBusy(false);
-          setMessage(error instanceof Error ? error.message : 'Payment was completed, but verification is still pending.');
+          setMessage(error instanceof Error ? error.message : 'Payment was completed, but verification is still pending. Tap Check payment status.');
         }
       },
       onClose: () => {
         setBusy(false);
-        setMessage('Payment was not completed. You can reopen UnivAI Pay when ready.');
+        setMessage('Payment window closed. If money was deducted, tap Check payment status before trying again.');
       },
       onConfirmationPending: () => {
         setBusy(false);
-        setMessage('Your mobile money payment is pending confirmation. Access will activate once the provider confirms it.');
+        setMessage('Your mobile money payment is pending confirmation. If money was deducted, tap Check payment status after a few seconds.');
       },
     });
   }
@@ -142,7 +143,7 @@ function LencoCheckoutClient() {
           <div>
             <h1 className="text-3xl font-black tracking-tight sm:text-5xl">Complete your payment securely.</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Pay with mobile money first, or continue with card exactly as before. UnivAI verifies the payment before unlocking access.
+              Pay with mobile money or card. UnivAI verifies the payment before unlocking access.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -153,13 +154,13 @@ function LencoCheckoutClient() {
             </div>
             <div className="rounded-3xl border bg-background/80 p-4 shadow-sm">
               <CreditCard className="mx-auto h-6 w-6 text-primary lg:mx-0" />
-              <p className="mt-2 font-semibold">Cards unchanged</p>
-              <p className="mt-1 text-xs text-muted-foreground">Card checkout still uses Lenco securely.</p>
+              <p className="mt-2 font-semibold">Card checkout</p>
+              <p className="mt-1 text-xs text-muted-foreground">Secure Lenco card flow.</p>
             </div>
             <div className="rounded-3xl border bg-background/80 p-4 shadow-sm">
               <ShieldCheck className="mx-auto h-6 w-6 text-primary lg:mx-0" />
-              <p className="mt-2 font-semibold">Verified access</p>
-              <p className="mt-1 text-xs text-muted-foreground">Server confirmation before unlock.</p>
+              <p className="mt-2 font-semibold">Manual status check</p>
+              <p className="mt-1 text-xs text-muted-foreground">If money was deducted, check status here.</p>
             </div>
           </div>
         </section>
@@ -176,64 +177,30 @@ function LencoCheckoutClient() {
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid grid-cols-2 gap-2 rounded-2xl border bg-muted/30 p-1">
-              <button
-                type="button"
-                onClick={() => setMode('mobile-money')}
-                className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'mobile-money' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground'}`}
-              >
-                Mobile Money
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('card')}
-                className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'card' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground'}`}
-              >
-                Card
-              </button>
+              <button type="button" onClick={() => setMode('mobile-money')} className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'mobile-money' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground'}`}>Mobile Money</button>
+              <button type="button" onClick={() => setMode('card')} className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'card' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground'}`}>Card</button>
             </div>
 
             <div className="rounded-3xl border bg-muted/20 p-4 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Reference</span>
-                <span className="break-all text-right font-medium">{checkout.reference || 'Missing'}</span>
-              </div>
-              <div className="mt-3 flex justify-between gap-4">
-                <span className="text-muted-foreground">Amount</span>
-                <span className="font-bold">{checkout.currency} {checkout.amount.toFixed(2)}</span>
-              </div>
-              <div className="mt-3 flex justify-between gap-4">
-                <span className="text-muted-foreground">Email</span>
-                <span className="break-all text-right font-medium">{checkout.email || 'Missing'}</span>
-              </div>
-              <div className="mt-3 flex justify-between gap-4">
-                <span className="text-muted-foreground">Method</span>
-                <span className="font-medium">{mode === 'mobile-money' ? 'Mobile Money' : 'Card'}</span>
-              </div>
+              <div className="flex justify-between gap-4"><span className="text-muted-foreground">Reference</span><span className="break-all text-right font-medium">{checkout.reference || 'Missing'}</span></div>
+              <div className="mt-3 flex justify-between gap-4"><span className="text-muted-foreground">Amount</span><span className="font-bold">{checkout.currency} {checkout.amount.toFixed(2)}</span></div>
+              <div className="mt-3 flex justify-between gap-4"><span className="text-muted-foreground">Email</span><span className="break-all text-right font-medium">{checkout.email || 'Missing'}</span></div>
+              <div className="mt-3 flex justify-between gap-4"><span className="text-muted-foreground">Method</span><span className="font-medium">{mode === 'mobile-money' ? 'Mobile Money' : 'Card'}</span></div>
             </div>
 
-            <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4 text-sm">
-              <p className="font-semibold">{mode === 'mobile-money' ? 'Mobile money payment' : 'Card payment'}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {mode === 'mobile-money'
-                  ? 'Tap the button, choose your mobile money provider in Lenco, approve the prompt, and wait for confirmation.'
-                  : 'Card payments remain the same secure Lenco card checkout flow.'}
-              </p>
-            </div>
-
-            {!publicKey ? (
-              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                Lenco public key is not configured. Set NEXT_PUBLIC_LENCO_PUBLIC_KEY before enabling live collections.
-              </div>
-            ) : null}
-
+            {!publicKey ? <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">Lenco public key is not configured. Set NEXT_PUBLIC_LENCO_PUBLIC_KEY before enabling live collections.</div> : null}
             {message ? <div className="rounded-2xl border bg-background p-3 text-sm">{message}</div> : null}
 
             <Button onClick={() => startPayment(mode)} disabled={!canPay || busy} className="h-12 w-full rounded-2xl text-base">
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : mode === 'mobile-money' ? <Smartphone className="mr-2 h-4 w-4" /> : <CreditCard className="mr-2 h-4 w-4" />}
-              {busy ? 'Confirming payment...' : mode === 'mobile-money' ? 'Pay with Mobile Money' : 'Pay with Card'}
+              {busy ? 'Checking payment...' : mode === 'mobile-money' ? 'Pay with Mobile Money' : 'Pay with Card'}
             </Button>
 
-            <Button asChild variant="outline" className="h-11 w-full rounded-2xl">
+            <Button type="button" variant="outline" onClick={() => void verifyAndReturn()} disabled={busy || checkout.invoice <= 0} className="h-11 w-full rounded-2xl">
+              {busy ? 'Checking...' : 'Check payment status'}
+            </Button>
+
+            <Button asChild variant="ghost" className="h-11 w-full rounded-2xl">
               <Link href={checkout.returnUrl}>Return without payment</Link>
             </Button>
           </CardContent>
