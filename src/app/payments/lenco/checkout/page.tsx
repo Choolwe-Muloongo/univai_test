@@ -188,6 +188,10 @@ function LencoCheckoutClient() {
               <div className="mt-3 flex justify-between gap-4"><span className="text-muted-foreground">Method</span><span className="font-medium">{mode === 'mobile-money' ? 'Mobile Money' : 'Card'}</span></div>
             </div>
 
+            <p className="rounded-2xl border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+              Before paying, review the <Link href="/payment-rules" className="font-semibold text-primary hover:underline">Payment Rules</Link>, <Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link>, and <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy Policy</Link>.
+            </p>
+
             {!publicKey ? <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">Lenco public key is not configured. Set NEXT_PUBLIC_LENCO_PUBLIC_KEY before enabling live collections.</div> : null}
             {message ? <div className="rounded-2xl border bg-background p-3 text-sm">{message}</div> : null}
 
