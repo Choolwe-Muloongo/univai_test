@@ -40,9 +40,17 @@ class LaunchFeeSchedule
         ];
     }
 
-    public static function programTuitionFee(?Program $program = null, ?Application $application = null): array
+    public static function programRegistrationFee(?Program $program = null): array
     {
-        $mode = $application?->delivery_mode;
+        return [
+            'amount' => (float) ($program?->registration_fee ?? 0),
+            'currency' => strtoupper($program?->registration_currency ?? $program?->tuition_currency ?? self::DEFAULT_PROGRAM_CURRENCY),
+        ];
+    }
+
+    public static function programTuitionFee(?Program $program = null, ?Application $application = null, ?string $deliveryMode = null): array
+    {
+        $mode = $application?->delivery_mode ?? $deliveryMode ?? $program?->delivery_mode;
         $baseAmount = (float) ($program?->tuition_fee ?? env('DEFAULT_TUITION_FEE', self::DEFAULT_PROGRAM_TUITION_FEE));
         $currency = strtoupper($program?->tuition_currency ?? self::DEFAULT_PROGRAM_CURRENCY);
 
@@ -50,6 +58,38 @@ class LaunchFeeSchedule
             'amount' => round($baseAmount * self::deliveryModeMultiplier($mode), 2),
             'currency' => $currency,
         ];
+    }
+
+    public static function minimumRegistrationDeposit(?Program $program = null, float $billingBase = 0): float
+    {
+        if (!$program) {
+            return round(max($billingBase, 0), 2);
+        }
+
+        $value = (float) ($program->minimum_registration_deposit ?? 0);
+        $type = strtolower((string) ($program->minimum_registration_deposit_type ?? 'fixed'));
+
+        if ($type === 'percent') {
+            return round(max($billingBase, 0) * max(0, min($value, 100)) / 100, 2);
+        }
+
+        return round(max($value, 0), 2);
+    }
+
+    public static function examClearanceRequiredAmount(?Program $program = null, float $billingBase = 0): float
+    {
+        if (!$program) {
+            return round(max($billingBase, 0), 2);
+        }
+
+        $value = (float) ($program->exam_clearance_value ?? 100);
+        $type = strtolower((string) ($program->exam_clearance_type ?? 'percent'));
+
+        if ($type === 'fixed') {
+            return round(max($value, 0), 2);
+        }
+
+        return round(max($billingBase, 0) * max(0, min($value, 100)) / 100, 2);
     }
 
     public static function deliveryModeMultiplier(?string $mode): float
