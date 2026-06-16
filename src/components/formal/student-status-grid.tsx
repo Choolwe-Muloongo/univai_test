@@ -10,9 +10,12 @@ function fmt(value?: string | null) {
 
 export function StudentStatusGrid() {
   const [gate, setGate] = useState<StudentAcademicGate | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getStudentAcademicGate().then(setGate);
+    getStudentAcademicGate()
+      .then(setGate)
+      .catch(() => setError('Academic access rules are not available yet.'));
   }, []);
 
   const calendar = gate?.calendar ?? {};
@@ -20,6 +23,7 @@ export function StudentStatusGrid() {
 
   return (
     <div className="space-y-4">
+      {error ? <div className="rounded-lg border p-4 text-sm text-muted-foreground">{error}</div> : null}
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-lg border p-4"><p className="font-semibold">Academic status</p><p className="text-sm text-muted-foreground">{gate?.academicStatus ?? 'Loading'}</p></div>
         <div className="rounded-lg border p-4"><p className="font-semibold">Intake</p><p className="text-sm text-muted-foreground">{gate?.intake?.name ?? 'Not assigned'}</p></div>
