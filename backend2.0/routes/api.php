@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\BadgesController;
 use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\ConsultantsController;
 use App\Http\Controllers\Api\AdmissionsController;
+use App\Http\Controllers\Api\AdmissionsLettersController;
 use App\Http\Controllers\Api\AdminCatalogController;
 use App\Http\Controllers\Api\AdminAcademicStructureController;
 use App\Http\Controllers\Api\PlatformExpansionController;
@@ -201,6 +202,11 @@ Route::middleware('api')->group(function () {
 
     Route::middleware('session.auth')->group(function () {
         Route::post('/admissions/applications', [AdmissionsController::class, 'submit'])->middleware(['access:admissions.applicant', 'throttle:admissions']);
+        Route::get('/admissions/status', [AdmissionsController::class, 'status'])->middleware('access:admissions.applicant');
+        Route::post('/admissions/fee', [AdmissionsController::class, 'payFee'])->middleware('access:admissions.applicant');
+        Route::post('/admissions/offer/accept', [AdmissionsController::class, 'acceptOffer'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/offer-letter', [AdmissionsController::class, 'downloadOfferLetter'])->middleware('access:admissions.applicant');
+        Route::get('/admissions/admission-letter', [AdmissionsLettersController::class, 'downloadAdmissionLetter'])->middleware('access:admissions.applicant');
         Route::get('/admissions/me', [AdmissionsController::class, 'me'])->middleware('access:admissions.applicant');
         Route::get('/admissions/me/documents', [AdmissionsController::class, 'documents'])->middleware('access:admissions.applicant');
         Route::post('/admissions/me/documents', [AdmissionsController::class, 'uploadDocument'])->middleware('access:admissions.applicant');
