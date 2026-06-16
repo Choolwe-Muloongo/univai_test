@@ -1,7 +1,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  productionBrowserSourceMaps: true,
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-       {
+      {
         protocol: 'https',
         hostname: 'api.qrserver.com',
         port: '',
@@ -45,10 +45,6 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
-      // Increase timeout for slow video generation
-      // Type error: Object literal may only specify known properties, and 'timeout' does not exist
-      // in type '{ bodySizeLimit?: SizeLimit | undefined; allowedOrigins?: string[] | undefined; }'.
-      //timeout: 120,
     },
   },
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', '172.23.128.1'],
