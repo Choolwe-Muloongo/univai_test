@@ -111,6 +111,9 @@ export function AuthLoginPage({
             <Button asChild variant="ghost" size="sm" className="px-3">
               <Link href="/">Home</Link>
             </Button>
+            <Button asChild variant="ghost" size="sm" className="px-3">
+              <Link href="/policies">Policies</Link>
+            </Button>
             <Button asChild size="sm" className="sm:h-10 sm:px-4">
               <Link href="/register">Get Started</Link>
             </Button>
@@ -175,16 +178,7 @@ export function AuthLoginPage({
 
                   <div className="space-y-2">
                     <Label htmlFor={`${currentRole}-email`}>Email address</Label>
-                    <Input
-                      id={`${currentRole}-email`}
-                      type="email"
-                      placeholder={emailPlaceholder}
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      autoComplete="email"
-                      required
-                      className="h-11"
-                    />
+                    <Input id={`${currentRole}-email`} type="email" placeholder={emailPlaceholder} value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required className="h-11" />
                   </div>
 
                   <div className="space-y-2">
@@ -196,21 +190,8 @@ export function AuthLoginPage({
                     </div>
 
                     <div className="relative">
-                      <Input
-                        id={`${currentRole}-password`}
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter your password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        autoComplete="current-password"
-                        required
-                        className="h-11 pr-16"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((value) => !value)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                      >
+                      <Input id={`${currentRole}-password`} type={showPassword ? 'text' : 'password'} placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required className="h-11 pr-16" />
+                      <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground hover:text-foreground">
                         {showPassword ? 'Hide' : 'Show'}
                       </button>
                     </div>
@@ -224,10 +205,7 @@ export function AuthLoginPage({
                     <div className="rounded-xl border border-dashed bg-muted/50 p-3 text-xs text-muted-foreground">
                       <p className="font-semibold text-foreground">Demo credentials</p>
                       {demoCredentials.map((credential) => (
-                        <p key={`${credential.email}-${credential.label ?? ''}`}>
-                          {credential.label ? `${credential.label}: ` : ''}
-                          {credential.email} / {credential.password}
-                        </p>
+                        <p key={`${credential.email}-${credential.label ?? ''}`}>{credential.label ? `${credential.label}: ` : ''}{credential.email} / {credential.password}</p>
                       ))}
                     </div>
                   ) : null}
@@ -244,6 +222,10 @@ export function AuthLoginPage({
                       </Link>
                     </p>
                   ) : null}
+
+                  <p className="text-center text-xs leading-5 text-muted-foreground">
+                    Review UnivAI <Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link>, <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy Policy</Link>, and <Link href="/policies" className="font-semibold text-primary hover:underline">Policies</Link>.
+                  </p>
                 </form>
               </CardContent>
             </Card>
