@@ -28,15 +28,25 @@ import {
   SlidersHorizontal,
   Sparkles,
   Workflow,
-  MailCheck,
   Bug,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import type { ElementType } from 'react';
 
 import { Logo } from '@/components/icons/logo';
 import { useSession } from '@/components/providers/session-provider';
+import {
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar';
 import {
   STUDENT_ENTITLEMENT,
   hasStudentEntitlement,
@@ -44,12 +54,10 @@ import {
   roleToStudentAccessTier,
 } from '@/lib/auth/roles';
 
-/* rest of sidebar intentionally preserved by app shell runtime */
-
 type NavLink = {
   href: string;
   label: string;
-  icon: React.ElementType;
+  icon: ElementType;
   key?: string;
 };
 
