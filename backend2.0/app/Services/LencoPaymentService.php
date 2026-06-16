@@ -51,15 +51,22 @@ class LencoPaymentService
         ];
     }
 
-    public function verifyWebhook(array $payload, ?string $signature): bool
+    public function verifyWebhookRaw(string $rawBody, ?string $signature): bool
     {
-        $secret = config('services.lenco.webhook_secret', env('LENCO_WEBHOOK_SECRET', env('LENCO_SECRET_KEY')));
-        if (!$secret) {
+        $secret = config('services.lenco.secret_key', env('LENCO_SECRET_KEY'));
+        if (!$secret || !$signature) {
             return false;
         }
 
-        $expected = hash_hmac('sha256', json_encode($payload), $secret);
-        return is_string($signature) && hash_equals($expected, $signature);
+        $webhookHashKey = hash('sha256', $secret);
+        $expected = hash_hmac('sha512', $rawBody, $webhookHashKey);
+
+        return hash_equals($expected, $signature);
+    }
+
+    public function verifyWebhook(array $payload, ?string $signature): bool
+    {
+        return $this->verifyWebhookRaw(json_encode($payload) ?: '', $signature);
     }
 
     public function verifyCollection(string $reference): array
@@ -74,8 +81,10 @@ class LencoPaymentService
             ];
         }
 
-        $endpoint = rtrim((string) config('services.lenco.base_url', env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2')), '/') . '/collections/status/' . rawurlencode($reference);
+        $endpoint = rtrim((string) config('services.lenco.base_url', env('LENCO_BASE_URL_V2', 'https://api.lenco.co/access/v2')), '/')
+            . '/transaction-by-reference/' . rawurlencode($reference);
         $response = Http::withToken($secret)->acceptJson()->get($endpoint);
+
         if (!$response->successful()) {
             return [
                 'verified' => false,
