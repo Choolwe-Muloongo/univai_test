@@ -11,8 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { AdminActionPanel } from '@/components/admin/admin-action-panel';
-import { getAdmissionsSettings, getApplications, updateAdmissionsSettings } from '@/lib/api';
+import { getAdmissionsSettings, getApplications, updateAdmissionsSettings, updateApplicationStatus } from '@/lib/api';
 import type { ApplicationSummary, ApplicationStatus } from '@/lib/api/types';
 import { ClipboardCheck, Filter, Search } from 'lucide-react';
 import { ImmutableHistoryPanel, type AdminHistoryEntry } from '@/components/admin/immutable-history-panel';
@@ -55,22 +54,24 @@ export default function AdmissionsDashboardPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<ApplicationStatus>('under_review');
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [recordStates, setRecordStates] = useState<Record<string, RecordState>>({});
   const [history, setHistory] = useState<AdminHistoryEntry[]>([]);
 
+  async function loadApplications() {
+    setLoading(true);
+    const [data, settings] = await Promise.all([getApplications(), getAdmissionsSettings()]);
+    setApplications(data);
+    setAdmissionsOpen(settings.isOpen);
+    setAdmissionsMessage(settings.message ?? '');
+    setLecturerApplicationsOpen(settings.lecturerApplicationsOpen ?? false);
+    setLecturerApplicationsMessage(settings.lecturerApplicationsMessage ?? '');
+    setRecordStates(Object.fromEntries(data.map((app) => [app.id, 'active'])));
+    setLoading(false);
+  }
+
   useEffect(() => {
-    const loadApplications = async () => {
-      setLoading(true);
-      const [data, settings] = await Promise.all([getApplications(), getAdmissionsSettings()]);
-      setApplications(data);
-      setAdmissionsOpen(settings.isOpen);
-      setAdmissionsMessage(settings.message ?? '');
-      setLecturerApplicationsOpen(settings.lecturerApplicationsOpen ?? false);
-      setLecturerApplicationsMessage(settings.lecturerApplicationsMessage ?? '');
-      setRecordStates(Object.fromEntries(data.map((app) => [app.id, 'active'])));
-      setLoading(false);
-    };
-    loadApplications();
+    loadApplications().catch(() => setLoading(false));
   }, []);
 
   const pushHistory = (entityId: string, action: string) => {
@@ -92,11 +93,17 @@ export default function AdmissionsDashboardPage() {
     if (next === 'active') pushHistory(id, 'restored');
   };
 
-  const handleBulkStatus = () => {
+  const handleBulkStatus = async () => {
     if (selectedIds.length === 0) return;
-    setApplications((prev) => prev.map((app) => (selectedIds.includes(app.id) ? { ...app, status: bulkStatus } : app)));
-    selectedIds.forEach((id) => pushHistory(id, `bulk status transition to ${bulkStatus}`));
-    setSelectedIds([]);
+    setBulkSaving(true);
+    try {
+      await Promise.all(selectedIds.map((id) => updateApplicationStatus(id, bulkStatus, `Bulk transition to ${bulkStatus}`)));
+      await loadApplications();
+      selectedIds.forEach((id) => pushHistory(id, `bulk status transition to ${bulkStatus}`));
+      setSelectedIds([]);
+    } finally {
+      setBulkSaving(false);
+    }
   };
 
   const handleToggleAdmissions = async (nextOpen: boolean) => {
@@ -208,7 +215,7 @@ export default function AdmissionsDashboardPage() {
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-primary" />Application Queue</CardTitle>
-            <CardDescription>Includes explicit archive/restore controls and bulk status transitions.</CardDescription>
+            <CardDescription>Bulk transitions now save to the backend. Archive/restore remains a local safety view.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search applicant" className="pl-8" /></div>
@@ -224,7 +231,7 @@ export default function AdmissionsDashboardPage() {
               <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
               <SelectContent>{Object.keys(statusLabels).map((key) => <SelectItem key={key} value={key}>{statusLabels[key as ApplicationStatus]}</SelectItem>)}</SelectContent>
             </Select>
-            <Button variant="outline" onClick={handleBulkStatus} disabled={selectedIds.length === 0}>Bulk transition ({selectedIds.length})</Button>
+            <Button variant="outline" onClick={handleBulkStatus} disabled={selectedIds.length === 0 || bulkSaving}>{bulkSaving ? 'Saving...' : `Bulk transition (${selectedIds.length})`}</Button>
           </div>
           {loading ? <p className="text-sm text-muted-foreground">Loading applications...</p> : filtered.map((app) => {
             const state = recordStates[app.id] ?? 'active';
