@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Link from 'next/link';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 import './mobile-student-course-fixes.css';
@@ -26,6 +27,21 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+function PolicyFooter() {
+  return (
+    <footer className="border-t bg-background px-4 py-4 text-center text-xs text-muted-foreground">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-4 gap-y-2">
+        <span>UnivAI policies</span>
+        <Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link>
+        <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy</Link>
+        <Link href="/payment-rules" className="font-semibold text-primary hover:underline">Payments</Link>
+        <Link href="/affiliate-terms" className="font-semibold text-primary hover:underline">Affiliates</Link>
+        <Link href="/policies" className="font-semibold text-primary hover:underline">All policies</Link>
+      </div>
+    </footer>
+  );
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -43,6 +59,7 @@ export default function RootLayout({
           <AffiliateReferralCapture />
           <ClientErrorReporter />
           <GlobalLoadingProvider><SessionProvider>{children}</SessionProvider></GlobalLoadingProvider>
+          <PolicyFooter />
         </ThemeProvider>
       </body>
     </html>
