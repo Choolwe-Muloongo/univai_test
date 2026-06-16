@@ -16,9 +16,35 @@ import { getPrograms, getSchools, registerAccount, submitApplication, uploadAdmi
 import type { Program, School } from '@/lib/api/types';
 
 type Choice = 'short-course' | 'formal-programme' | null;
+type SubjectField = { key: string; label: string; minimumPoints?: number };
+
+const fallbackSubjects: SubjectField[] = [
+  { key: 'english-language', label: 'English Language', minimumPoints: 1 },
+  { key: 'mathematics', label: 'Mathematics', minimumPoints: 1 },
+  { key: 'science', label: 'Science / Relevant Subject', minimumPoints: 1 },
+  { key: 'additional-subject', label: 'Additional Subject', minimumPoints: 1 },
+];
 
 function cleanReferralCode(value: string | null | undefined) {
   return (value ?? '').replace(/[^A-Za-z0-9]+/g, '').toUpperCase().slice(0, 32);
+}
+
+function normalizeSubjectKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function subjectFieldsForProgram(program?: Program | null): SubjectField[] {
+  const requiredSubjects = Array.isArray(program?.requiredSubjects) ? program?.requiredSubjects : [];
+  if (!requiredSubjects.length) return fallbackSubjects;
+
+  return requiredSubjects.map((subject: any, index: number) => {
+    const label = subject.subjectName || subject.name || subject.subjectId || `Required subject ${index + 1}`;
+    return {
+      key: normalizeSubjectKey(subject.subjectId || label),
+      label,
+      minimumPoints: Number(subject.minimumPoints ?? 1),
+    };
+  });
 }
 
 export default function RegisterPage() {
@@ -28,10 +54,14 @@ export default function RegisterPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [schoolId, setSchoolId] = useState('');
   const [programId, setProgramId] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState('hybrid');
+  const [learningStyle, setLearningStyle] = useState('traditional');
+  const [studyPace, setStudyPace] = useState('standard');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [referralCode, setReferralCode] = useState('');
+  const [subjectPoints, setSubjectPoints] = useState<Record<string, string>>({});
   const [joinedChannel, setJoinedChannel] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +87,22 @@ export default function RegisterPage() {
     [programs, schoolId]
   );
 
+  const selectedProgram = useMemo(
+    () => programs.find((program) => program.id === programId) ?? null,
+    [programs, programId]
+  );
+
+  const subjectFields = useMemo(() => subjectFieldsForProgram(selectedProgram), [selectedProgram]);
+  const deliveryModes = useMemo(() => {
+    const modes = selectedProgram?.deliveryModes || selectedProgram?.supportedDeliveryModes || ['hybrid'];
+    return Array.isArray(modes) && modes.length ? modes : ['hybrid'];
+  }, [selectedProgram]);
+
+  const applicationFee = selectedProgram?.applicationFee ?? 0;
+  const applicationCurrency = selectedProgram?.applicationCurrency ?? 'ZMW';
+  const tuitionFee = selectedProgram?.tuitionFee ?? 0;
+  const tuitionCurrency = selectedProgram?.tuitionCurrency ?? 'ZMW';
+
   const shortCourseHref = referralCode
     ? `/register/short-courses?ref=${encodeURIComponent(referralCode)}`
     : '/register/short-courses';
@@ -80,6 +126,15 @@ export default function RegisterPage() {
         return;
       }
 
+      const normalizedSubjectPoints = Object.fromEntries(
+        subjectFields.map((field) => [field.key, Number(subjectPoints[field.key] || 0)])
+      );
+      const missingSubjects = subjectFields.filter((field) => Number(subjectPoints[field.key] || 0) < Number(field.minimumPoints ?? 1));
+      if (missingSubjects.length) {
+        setError(`Add valid points for: ${missingSubjects.map((field) => field.label).join(', ')}.`);
+        return;
+      }
+
       const cleanCode = cleanReferralCode(referralCode);
       await registerAccount({
         name: fullName,
@@ -88,16 +143,17 @@ export default function RegisterPage() {
         acceptedWhatsappChannel: joinedChannel,
         ...(cleanCode ? { affiliateCode: cleanCode, referralCode: cleanCode } : {}),
       } as any);
+
       await submitApplication({
         fullName,
         email,
         schoolId,
         programId,
-        deliveryMode: 'hybrid',
-        learningStyle: 'traditional',
-        studyPace: 'standard',
+        deliveryMode,
+        learningStyle,
+        studyPace,
         country: 'Zambia',
-        subjectPoints: {},
+        subjectPoints: normalizedSubjectPoints,
       });
 
       const formData = new FormData(event.currentTarget);
@@ -134,7 +190,7 @@ export default function RegisterPage() {
           <section className="rounded-3xl border border-primary/30 bg-primary/5 p-5 shadow-sm sm:p-6">
             <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary"><ShieldCheck className="size-4" /> Referral code applied</p>
             <h2 className="mt-1 text-2xl font-bold">Code: {referralCode}</h2>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">You can use this code to save 10% on your first short-course access payment.</p>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">This code will be stored on your account if the programme allows referral rewards.</p>
           </section>
         ) : null}
 
@@ -143,7 +199,7 @@ export default function RegisterPage() {
             <div className="max-w-3xl space-y-3">
               <p className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary"><Sparkles className="size-4" /> Choose your registration path</p>
               <h1 className="text-4xl font-bold tracking-tight">What do you want to study?</h1>
-              <p className="text-muted-foreground">Short courses do not need formal admission documents. Formal programmes are for diploma, degree, or university pathway applications.</p>
+              <p className="text-muted-foreground">Short courses do not need formal admission documents. Formal programmes require academic eligibility checks, documents, fee clearance, and admissions review.</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -157,7 +213,6 @@ export default function RegisterPage() {
                     <li>No admission documents required</li>
                     <li>Create a simple learner account</li>
                     <li>Browse and enroll in published short courses</li>
-                    <li>Referral codes can give a first-access discount</li>
                   </ul>
                   <Button asChild className="w-full"><Link href={shortCourseHref}>Register for short courses</Link></Button>
                   <Button asChild variant="outline" className="w-full"><Link href="/short-courses">Browse short courses first</Link></Button>
@@ -167,13 +222,14 @@ export default function RegisterPage() {
               <Card className="rounded-3xl">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-2xl"><GraduationCap className="size-6 text-primary" /> Formal Programme</CardTitle>
-                  <CardDescription>For full academic programmes that require admissions review.</CardDescription>
+                  <CardDescription>For diploma, degree, and official academic programme admission.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                    <li>Submit school/programme choice</li>
+                    <li>Choose school, programme, and delivery mode</li>
+                    <li>Enter academic subject points</li>
                     <li>Upload admission documents</li>
-                    <li>Wait for offer and enrollment confirmation</li>
+                    <li>Pay application fee and wait for review</li>
                   </ul>
                   <Button className="w-full" variant="secondary" onClick={() => setChoice('formal-programme')}>Apply for a formal programme</Button>
                 </CardContent>
@@ -187,10 +243,17 @@ export default function RegisterPage() {
             <Card className="rounded-3xl border-primary/20 bg-primary/5">
               <CardHeader>
                 <CardTitle>Formal programme application</CardTitle>
-                <CardDescription>This path is for students applying to a UnivAI academic programme.</CardDescription>
+                <CardDescription>This path creates an applicant account and sends your file to admissions review.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-muted-foreground">
-                <p>You will create an applicant account, choose a school and programme, upload documents, and wait for admissions review.</p>
+                <p>After submission, your applicant portal will show fee payment, document status, offer letter, and admission letter steps.</p>
+                {selectedProgram ? (
+                  <div className="rounded-2xl border bg-background p-4 text-sm">
+                    <p className="font-semibold text-foreground">{selectedProgram.title}</p>
+                    <p>Application fee: {applicationCurrency} {applicationFee}</p>
+                    <p>Tuition guide: {tuitionCurrency} {tuitionFee}</p>
+                  </div>
+                ) : null}
                 <Button variant="outline" onClick={() => setChoice(null)}>Back to registration choices</Button>
               </CardContent>
             </Card>
@@ -210,27 +273,62 @@ export default function RegisterPage() {
                     <div className="space-y-2"><Label>Country</Label><Input value="Zambia" readOnly /></div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Referral code</Label>
-                    <Input value={referralCode} onChange={(event) => setReferralCode(cleanReferralCode(event.target.value))} placeholder="Optional referral code" />
-                    <p className="text-xs text-muted-foreground">Optional.</p>
-                  </div>
-
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>School</Label>
-                      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={schoolId} onChange={(event) => { setSchoolId(event.target.value); setProgramId(''); }} required>
+                      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={schoolId} onChange={(event) => { setSchoolId(event.target.value); setProgramId(''); setSubjectPoints({}); }} required>
                         <option value="">Choose a school</option>
                         {schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
                       <Label>Programme</Label>
-                      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={programId} onChange={(event) => setProgramId(event.target.value)} required disabled={!schoolId}>
+                      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={programId} onChange={(event) => { setProgramId(event.target.value); setSubjectPoints({}); }} required disabled={!schoolId}>
                         <option value="">{schoolId ? 'Choose a programme' : 'Choose a school first'}</option>
                         {filteredPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
                       </select>
                     </div>
+                    <div className="space-y-2">
+                      <Label>Delivery mode</Label>
+                      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value)} required>
+                        {deliveryModes.map((mode: string) => <option key={mode} value={mode}>{mode.replace(/_/g, ' ')}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Study pace</Label>
+                      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={studyPace} onChange={(event) => setStudyPace(event.target.value)}>
+                        <option value="standard">Standard</option>
+                        <option value="accelerated">Accelerated</option>
+                        <option value="part_time">Part-time</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border p-4">
+                    <div>
+                      <p className="font-semibold">Academic results</p>
+                      <p className="text-sm text-muted-foreground">Enter the points/score for each required subject. These are checked before admissions review.</p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {subjectFields.map((field) => (
+                        <div className="space-y-2" key={field.key}>
+                          <Label>{field.label}</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={subjectPoints[field.key] ?? ''}
+                            onChange={(event) => setSubjectPoints((prev) => ({ ...prev, [field.key]: event.target.value }))}
+                            placeholder={`Minimum ${field.minimumPoints ?? 1}`}
+                            required
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Referral code</Label>
+                    <Input value={referralCode} onChange={(event) => setReferralCode(cleanReferralCode(event.target.value))} placeholder="Optional referral code" />
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-3">
