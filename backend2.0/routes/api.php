@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ConsultantsController;
 use App\Http\Controllers\Api\AdmissionsController;
 use App\Http\Controllers\Api\AdmissionsLettersController;
 use App\Http\Controllers\Api\AdmissionsFeeController;
+use App\Http\Controllers\Api\AdminAdmissionsDecisionController;
 use App\Http\Controllers\Api\AdminCatalogController;
 use App\Http\Controllers\Api\AdminAcademicStructureController;
 use App\Http\Controllers\Api\PlatformExpansionController;
@@ -277,7 +278,7 @@ Route::middleware('api')->group(function () {
         Route::post('/saved-reports', [PlatformOperationsController::class, 'storeSavedReport']);
         Route::get('/admissions', [AdmissionsController::class, 'adminIndex']);
         Route::get('/admissions/{id}', [AdmissionsController::class, 'adminShow']);
-        Route::patch('/admissions/{id}', [AdmissionsController::class, 'adminUpdate']);
+        Route::patch('/admissions/{id}', AdminAdmissionsDecisionController::class);
         Route::get('/admissions/{id}/documents', [AdmissionsController::class, 'adminDocuments']);
         Route::get('/admissions/{id}/documents/{document}/download', [AdmissionsController::class, 'adminDownloadDocument']);
         Route::patch('/admissions/{id}/documents/{document}', [AdmissionsController::class, 'adminReviewDocument']);
