@@ -10,62 +10,131 @@ use App\Support\Affiliates\AffiliateService;
 use App\Support\Payments\PaidInvoiceUnlocker;
 use App\Support\Payments\PaymentReceiptMailer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class LencoWebhookController extends Controller
 {
     public function __invoke(Request $request, LencoPaymentService $lenco, PaidInvoiceUnlocker $unlocker, PaymentReceiptMailer $receiptMailer, AffiliateService $affiliates)
     {
-        $payload = $request->all();
-        $signature = $request->header('X-Lenco-Signature') ?? $request->header('X-Signature');
+        $rawBody = $request->getContent();
+        $payload = json_decode($rawBody, true) ?: $request->all();
+        $signature = $request->header('X-Lenco-Signature');
 
-        if (!$lenco->verifyWebhook($payload, $signature)) {
+        if (!$lenco->verifyWebhookRaw($rawBody, $signature)) {
+            Log::warning('Rejected Lenco webhook with invalid signature.', [
+                'has_signature' => (bool) $signature,
+                'event' => data_get($payload, 'event'),
+            ]);
+
             return response()->json(['message' => 'Invalid signature'], 401);
         }
 
-        $reference = data_get($payload, 'reference')
-            ?? data_get($payload, 'data.reference')
-            ?? data_get($payload, 'transaction.reference');
-        $status = strtolower((string) (data_get($payload, 'status') ?? data_get($payload, 'data.status') ?? ''));
+        $event = (string) data_get($payload, 'event', '');
+        $clientReference = $this->clientReference($payload);
+        $providerReference = $this->providerReference($payload);
+        $lookupReference = $clientReference ?: $providerReference;
+        $status = $this->statusFromPayload($payload);
+        $amount = $this->amountFromPayload($payload);
+        $currency = strtoupper((string) (data_get($payload, 'data.currency') ?? data_get($payload, 'currency') ?? 'ZMW'));
 
-        $invoice = Invoice::query()->where('transaction_reference', $reference)->first();
+        if (!$lookupReference) {
+            Log::warning('Lenco webhook missing reference.', [
+                'event' => $event,
+                'payload' => $payload,
+            ]);
+
+            return response()->json(['received' => true, 'status' => 'missing_reference'], 202);
+        }
+
+        $invoice = Invoice::query()
+            ->where('transaction_reference', $clientReference ?: $lookupReference)
+            ->first();
+
+        if (!$invoice && $providerReference) {
+            $invoice = Invoice::query()
+                ->where('transaction_reference', $providerReference)
+                ->first();
+        }
+
         if (!$invoice) {
-            return response()->json(['message' => 'Invoice not found'], 404);
+            Log::warning('Lenco webhook could not match an invoice.', [
+                'event' => $event,
+                'client_reference' => $clientReference,
+                'provider_reference' => $providerReference,
+                'status' => $status,
+                'amount' => $amount,
+                'currency' => $currency,
+            ]);
+
+            return response()->json(['received' => true, 'status' => 'unmatched_invoice'], 202);
         }
 
         if ($invoice->status === 'paid') {
-            $affiliates->recordForInvoice($invoice, Payment::where('transaction_reference', $reference)->first(), [
+            $payment = Payment::where('transaction_reference', $invoice->transaction_reference)->first();
+            $affiliates->recordForInvoice($invoice, $payment, [
                 'channel' => 'already-paid-webhook',
+                'event' => $event,
             ]);
-            $receiptMailer->sendForInvoice($invoice, Payment::where('transaction_reference', $reference)->first(), [
+            $receiptMailer->sendForInvoice($invoice, $payment, [
                 'channel' => 'already-paid-webhook',
+                'event' => $event,
             ]);
 
             return response()->json(['received' => true, 'status' => 'already_paid']);
         }
 
-        $amount = (float) (data_get($payload, 'data.amount') ?? data_get($payload, 'amount') ?? 0);
-        $currency = strtoupper((string) (data_get($payload, 'data.currency') ?? data_get($payload, 'currency') ?? $invoice->currency ?? 'ZMW'));
+        if ($this->isSuccessfulEvent($event, $status)) {
+            if ($amount <= 0) {
+                Log::warning('Lenco successful webhook had no usable amount.', [
+                    'event' => $event,
+                    'invoice_id' => $invoice->id,
+                    'reference' => $invoice->transaction_reference,
+                    'payload' => $payload,
+                ]);
 
-        if (in_array($status, ['successful', 'success', 'paid', 'completed'], true)) {
-            if ($reference !== $invoice->transaction_reference) {
-                return response()->json(['message' => 'Payment reference mismatch.'], 422);
+                return response()->json(['received' => true, 'status' => 'amount_missing'], 202);
             }
+
             if (abs($amount - (float) $invoice->amount) > 0.01) {
-                return response()->json(['message' => 'Payment amount mismatch.'], 422);
+                Log::warning('Lenco webhook payment amount mismatch.', [
+                    'event' => $event,
+                    'invoice_id' => $invoice->id,
+                    'expected' => (float) $invoice->amount,
+                    'received' => $amount,
+                    'client_reference' => $clientReference,
+                    'provider_reference' => $providerReference,
+                ]);
+
+                return response()->json(['received' => true, 'status' => 'amount_mismatch'], 202);
             }
+
             if ($currency !== strtoupper($invoice->currency ?? 'ZMW')) {
-                return response()->json(['message' => 'Payment currency mismatch.'], 422);
+                Log::warning('Lenco webhook payment currency mismatch.', [
+                    'event' => $event,
+                    'invoice_id' => $invoice->id,
+                    'expected' => strtoupper($invoice->currency ?? 'ZMW'),
+                    'received' => $currency,
+                    'client_reference' => $clientReference,
+                    'provider_reference' => $providerReference,
+                ]);
+
+                return response()->json(['received' => true, 'status' => 'currency_mismatch'], 202);
             }
 
             $invoice->forceFill([
                 'paid_amount' => $invoice->amount,
                 'status' => 'paid',
                 'paid_at' => now(),
-                'metadata' => array_merge($invoice->metadata ?? [], ['lenco_webhook' => $payload]),
+                'metadata' => array_merge($invoice->metadata ?? [], [
+                    'lenco_webhook' => $payload,
+                    'lenco_event' => $event,
+                    'lenco_transaction_reference' => $providerReference,
+                    'lenco_client_reference' => $clientReference,
+                ]),
             ])->save();
 
-            Payment::updateOrCreate(
-                ['transaction_reference' => $reference],
+            $payment = Payment::updateOrCreate(
+                ['transaction_reference' => $invoice->transaction_reference],
                 [
                     'invoice_id' => $invoice->id,
                     'amount' => $invoice->amount,
@@ -73,23 +142,93 @@ class LencoWebhookController extends Controller
                     'method' => 'lenco',
                     'provider' => 'lenco',
                     'status' => 'completed',
+                    'is_test' => (bool) $invoice->is_test,
+                    'payment_mode' => $invoice->payment_mode ?? 'live',
                     'payload' => $payload,
                     'paid_at' => now(),
                 ]
             );
 
-            $unlocker->unlock($invoice);
-            $affiliates->recordForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $reference)->first(), [
+            $unlocker->unlock($invoice->fresh() ?? $invoice);
+            $affiliates->recordForInvoice($invoice->fresh() ?? $invoice, $payment, [
                 'channel' => 'lenco-webhook',
+                'event' => $event,
             ]);
-            $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, Payment::where('transaction_reference', $reference)->first(), [
+            $receiptMailer->sendForInvoice($invoice->fresh() ?? $invoice, $payment, [
                 'channel' => 'lenco-webhook',
+                'event' => $event,
             ]);
-        } elseif (in_array($status, ['failed', 'cancelled', 'canceled'], true)) {
-            $invoice->forceFill(['status' => 'failed'])->save();
+        } elseif ($this->isFailedEvent($event, $status)) {
+            $invoice->forceFill([
+                'status' => 'failed',
+                'metadata' => array_merge($invoice->metadata ?? [], [
+                    'lenco_webhook' => $payload,
+                    'lenco_event' => $event,
+                    'lenco_transaction_reference' => $providerReference,
+                    'lenco_client_reference' => $clientReference,
+                ]),
+            ])->save();
         }
 
         return response()->json(['received' => true]);
     }
 
+    private function clientReference(array $payload): string
+    {
+        return (string) (
+            data_get($payload, 'data.clientReference')
+            ?? data_get($payload, 'clientReference')
+            ?? data_get($payload, 'data.reference')
+            ?? data_get($payload, 'reference')
+            ?? data_get($payload, 'data.accountReference')
+            ?? data_get($payload, 'accountReference')
+            ?? ''
+        );
+    }
+
+    private function providerReference(array $payload): string
+    {
+        return (string) (
+            data_get($payload, 'data.transactionReference')
+            ?? data_get($payload, 'transactionReference')
+            ?? data_get($payload, 'data.id')
+            ?? data_get($payload, 'id')
+            ?? ''
+        );
+    }
+
+    private function statusFromPayload(array $payload): string
+    {
+        return strtolower((string) (
+            data_get($payload, 'data.status')
+            ?? data_get($payload, 'status')
+            ?? data_get($payload, 'data.settlementStatus')
+            ?? data_get($payload, 'settlementStatus')
+            ?? ''
+        ));
+    }
+
+    private function amountFromPayload(array $payload): float
+    {
+        return (float) (
+            data_get($payload, 'data.amount')
+            ?? data_get($payload, 'data.transactionAmount')
+            ?? data_get($payload, 'data.settlementAmount')
+            ?? data_get($payload, 'amount')
+            ?? data_get($payload, 'transactionAmount')
+            ?? 0
+        );
+    }
+
+    private function isSuccessfulEvent(string $event, string $status): bool
+    {
+        return in_array($event, ['transaction.successful', 'virtual-account.transaction', 'virtual-account.transaction.settled'], true)
+            || in_array($status, ['successful', 'success', 'paid', 'completed', 'settled'], true);
+    }
+
+    private function isFailedEvent(string $event, string $status): bool
+    {
+        return in_array($event, ['transaction.failed', 'virtual-account.rejected-transaction'], true)
+            || in_array($status, ['failed', 'cancelled', 'canceled', 'rejected'], true);
+    }
 }
