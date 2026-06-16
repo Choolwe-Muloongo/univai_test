@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AffiliatePayout extends Model
 {
@@ -48,5 +49,10 @@ class AffiliatePayout extends Model
     public function affiliate(): BelongsTo
     {
         return $this->belongsTo(Affiliate::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(AffiliatePayoutItem::class, 'payout_id');
     }
 }
