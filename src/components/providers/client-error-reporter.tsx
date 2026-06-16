@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { submitBetaReport } from '@/lib/api/beta-reports';
 
 const STORAGE_KEY = 'univai.lastClientErrorReportAt';
-const MIN_INTERVAL_MS = 30_000;
+const MIN_INTERVAL_MS = 15_000;
 
 function canReportNow() {
   if (typeof window === 'undefined') return false;
@@ -21,7 +21,18 @@ function safeMessage(value: unknown) {
   try { return JSON.stringify(value); } catch { return 'Unknown client error'; }
 }
 
+function baseContext(extra: Record<string, unknown> = {}) {
+  return {
+    href: typeof window !== 'undefined' ? window.location.href : null,
+    pathname: typeof window !== 'undefined' ? window.location.pathname : null,
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    viewport: typeof window !== 'undefined' ? { width: window.innerWidth, height: window.innerHeight } : null,
+    ...extra,
+  };
+}
+
 async function reportClientError(payload: {
+  source?: string;
   title: string;
   errorName?: string;
   errorMessage?: string;
@@ -33,7 +44,7 @@ async function reportClientError(payload: {
   try {
     await submitBetaReport({
       type: 'error',
-      source: 'client-auto',
+      source: payload.source || 'client-auto',
       severity: 'high',
       title: payload.title,
       description: 'Automatically captured client-side error during beta testing.',
@@ -45,34 +56,39 @@ async function reportClientError(payload: {
       context: payload.context,
     });
   } catch {
-    // Never throw from the reporter. Reporting must not break the app.
+    // Error reporting must never break the app.
   }
 }
 
 export function ClientErrorReporter() {
   useEffect(() => {
     function onError(event: ErrorEvent) {
+      const error = event.error instanceof Error ? event.error : null;
       void reportClientError({
-        title: event.message || 'Unhandled browser error',
-        errorName: event.error?.name || 'ErrorEvent',
-        errorMessage: event.message,
-        stackTrace: event.error?.stack,
-        context: {
-          filename: event.filename,
-          lineno: event.lineno,
-          colno: event.colno,
-        },
+        source: 'client-error-event',
+        title: event.message || error?.message || 'Unhandled browser error',
+        errorName: error?.name || 'ErrorEvent',
+        errorMessage: error?.message || event.message || 'Unknown browser error',
+        stackTrace: error?.stack,
+        context: baseContext({
+          filename: event.filename || null,
+          lineno: event.lineno || null,
+          colno: event.colno || null,
+          hasErrorObject: Boolean(error),
+        }),
       });
     }
 
     function onUnhandledRejection(event: PromiseRejectionEvent) {
       const reason = event.reason;
+      const error = reason instanceof Error ? reason : null;
       void reportClientError({
-        title: 'Unhandled promise rejection',
-        errorName: reason instanceof Error ? reason.name : 'PromiseRejection',
-        errorMessage: safeMessage(reason),
-        stackTrace: reason instanceof Error ? reason.stack : undefined,
-        context: { reasonType: typeof reason },
+        source: 'client-promise-rejection',
+        title: error?.message || 'Unhandled promise rejection',
+        errorName: error?.name || 'UnhandledPromiseRejection',
+        errorMessage: error?.message || safeMessage(reason),
+        stackTrace: error?.stack,
+        context: baseContext({ reasonType: typeof reason }),
       });
     }
 
