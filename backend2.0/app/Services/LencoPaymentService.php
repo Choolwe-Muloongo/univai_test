@@ -94,7 +94,7 @@ class LencoPaymentService
             ];
         }
 
-        $payload = $response->json();
+        $payload = $this->normalizeTransactionPayload($response->json(), $reference);
         $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? 'unknown'));
 
         return [
@@ -172,6 +172,30 @@ class LencoPaymentService
             'message' => (string) (data_get($payload, 'message') ?? ''),
             'payload' => $payload,
         ];
+    }
+
+    private function normalizeTransactionPayload(?array $payload, string $fallbackReference): array
+    {
+        $payload = $payload ?? [];
+        $data = data_get($payload, 'data');
+
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        $data['reference'] = $data['reference']
+            ?? $data['clientReference']
+            ?? $data['accountReference']
+            ?? $fallbackReference;
+
+        $data['amount'] = $data['amount']
+            ?? $data['transactionAmount']
+            ?? $data['settlementAmount']
+            ?? 0;
+
+        $payload['data'] = $data;
+
+        return $payload;
     }
 
     private function returnUrlFor(Invoice $invoice): string
