@@ -204,7 +204,7 @@ class ProgramController extends Controller
             ->map(fn (ProgramModule $module) => $this->mapModule($module));
     }
 
-    public function semesterExam(Request $request, string $semesterId, StudentAcademicGate $gate)
+    public function semesterExam(Request $request, StudentAcademicGate $gate, string $semesterId)
     {
         $user = $request->session()->get('user');
         $studentId = is_array($user) ? ($user['id'] ?? null) : null;
