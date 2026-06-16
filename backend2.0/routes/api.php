@@ -166,6 +166,7 @@ Route::middleware('api')->group(function () {
             Route::get('/students/me/program/modules', [ProgramController::class, 'modules']);
             Route::get('/students/me/exams/semester-{semesterId}', [ProgramController::class, 'semesterExam']);
             Route::get('/students/me/enrollment', [StudentsController::class, 'enrollment']);
+            Route::get('/students/me/academic-gate', [StudentsController::class, 'academicGate']);
             Route::get('/students/me/financial-clearance', [StudentsController::class, 'financialClearance']);
             Route::post('/students/me/enrollment/modules', [StudentsController::class, 'saveEnrollmentModules']);
             Route::post('/students/me/enrollment/confirm', [StudentsController::class, 'confirmEnrollment']);
