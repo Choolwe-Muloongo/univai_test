@@ -53,6 +53,38 @@ function permissionBadge(can: boolean, reason?: string) {
   return can ? <Badge>Open</Badge> : <Badge variant="secondary" title={reason}>Locked</Badge>;
 }
 
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function normalizeGamification(value: unknown, progress = 0): GamificationState {
+  const fallback = fallbackGamification(progress);
+  if (!value || typeof value !== "object") return fallback;
+  const record = value as Partial<GamificationState>;
+
+  return {
+    ...fallback,
+    ...record,
+    xp: Number(record.xp ?? fallback.xp),
+    level: Number(record.level ?? fallback.level),
+    nextLevelXp: Number(record.nextLevelXp ?? fallback.nextLevelXp),
+    rewardPoints: Number(record.rewardPoints ?? fallback.rewardPoints),
+    streakDays: Number(record.streakDays ?? fallback.streakDays),
+    weeklyActivityPoints: Number(record.weeklyActivityPoints ?? fallback.weeklyActivityPoints),
+    badges: Array.isArray(record.badges) ? record.badges : fallback.badges,
+    quests: Array.isArray(record.quests) ? record.quests : fallback.quests,
+    rankings: record.rankings ?? fallback.rankings,
+    novaMessage: typeof record.novaMessage === "string" ? record.novaMessage : fallback.novaMessage,
+    levelTitle: typeof record.levelTitle === "string" ? record.levelTitle : fallback.levelTitle,
+    streakProtected: Boolean(record.streakProtected ?? fallback.streakProtected),
+    weeklyRank: record.weeklyRank ?? fallback.weeklyRank,
+  };
+}
+
 export default function DashboardPage() {
   const { session } = useSession();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -71,6 +103,12 @@ export default function DashboardPage() {
       setLoading(true);
       const resolvedRole = session?.user?.role ?? null;
       setUserRole(resolvedRole);
+      setProgram(null);
+      setAcademicGate(null);
+      setNextActions([]);
+      setUpcomingDeadlines([]);
+      setWallet(null);
+
       if (!session?.user) {
         setLoading(false);
         return;
@@ -78,23 +116,26 @@ export default function DashboardPage() {
 
       let activeEntitlements: string[] = [];
       try {
-        const entitlementData = await getStudentEntitlements();
-        activeEntitlements = entitlementData.entitlements;
+        const entitlementData = await getStudentEntitlements() as { entitlements?: unknown };
+        activeEntitlements = asStringArray(entitlementData.entitlements);
         setEntitlements(activeEntitlements);
       } catch (error) {
         console.error("Failed to load student entitlements", error);
         setEntitlements(activeEntitlements);
       }
 
-      const loadedShortCourses = await getMyShortCourses().catch((error) => {
+      const loadedShortCoursesRaw = await getMyShortCourses().catch((error) => {
         console.error("Failed to load short-course Journeys", error);
         return [];
       });
+      const loadedShortCourses = asArray<ShortCourseEnrollmentSummary>(loadedShortCoursesRaw);
       setShortCourses(loadedShortCourses);
+
       const avgProgress = loadedShortCourses.length
         ? Math.round(loadedShortCourses.reduce((sum, item) => sum + Number(item.progress ?? 0), 0) / loadedShortCourses.length)
         : 0;
-      setGamification(await getStudentGamification().catch(() => fallbackGamification(avgProgress)));
+      const gamificationData = await getStudentGamification().catch(() => fallbackGamification(avgProgress));
+      setGamification(normalizeGamification(gamificationData, avgProgress));
 
       const hasProgrammeAccess = hasStudentEntitlement(
         STUDENT_ENTITLEMENT.PROGRAMME,
@@ -107,7 +148,10 @@ export default function DashboardPage() {
         return;
       }
 
-      const gate = await getStudentAcademicGate();
+      const gate = await getStudentAcademicGate().catch((error) => {
+        console.error("Failed to load academic gate", error);
+        return null;
+      });
       setAcademicGate(gate);
 
       if (!gate?.permissions?.canViewDashboard) {
@@ -117,10 +161,11 @@ export default function DashboardPage() {
 
       try {
         const [programData, dashboardData] = await Promise.all([getProgram(), getStudentDashboard()]);
+        const dashboardRecord = dashboardData as Record<string, unknown>;
         setProgram(programData);
-        setNextActions(dashboardData.actions);
-        setUpcomingDeadlines(dashboardData.deadlines);
-        setWallet(dashboardData.wallet ?? null);
+        setNextActions(asArray<StudentDashboardAction>(dashboardRecord.actions));
+        setUpcomingDeadlines(asArray<StudentDashboardDeadline>(dashboardRecord.deadlines));
+        setWallet((dashboardRecord.wallet as StudentDashboardWallet | null | undefined) ?? null);
       } catch (error) {
         console.error("Failed to load formal dashboard data", error);
       } finally {
@@ -138,10 +183,11 @@ export default function DashboardPage() {
   const accessTier = roleToStudentAccessTier(userRole);
   const hasProgrammeAccess = hasStudentEntitlement(
     STUDENT_ENTITLEMENT.PROGRAMME,
-    entitlements ?? session?.user?.entitlements,
+    entitlements ?? asStringArray(session?.user?.entitlements),
     accessTier,
   );
-  const activeJourney = shortCourses.find((item) => item.course && Number(item.progress ?? 0) < 100) ?? shortCourses.find((item) => item.course) ?? null;
+  const safeShortCourses = asArray<ShortCourseEnrollmentSummary>(shortCourses);
+  const activeJourney = safeShortCourses.find((item) => item.course && Number(item.progress ?? 0) < 100) ?? safeShortCourses.find((item) => item.course) ?? null;
 
   if (!hasProgrammeAccess) {
     return <MissionHome learnerName={session?.user?.name ?? "Student"} activeJourney={activeJourney} gamification={gamification} />;
@@ -155,7 +201,7 @@ export default function DashboardPage() {
   const intake = academicGate?.intake ?? {};
   const deliveryRules = academicGate?.deliveryRules ?? {};
   const finance = academicGate?.finance ?? {};
-  const nextEvents = academicGate?.nextEvents ?? [];
+  const nextEvents = asArray<Record<string, any>>(academicGate?.nextEvents);
   const walletValue = wallet?.value ?? finance?.summary?.balance ?? "0";
   const walletLabel = wallet?.note ?? wallet?.label ?? "Financial balance / wallet";
 
@@ -277,7 +323,7 @@ export default function DashboardPage() {
                 nextActions.map((action) => (
                   <div key={action.id} className="flex items-center justify-between rounded-lg border p-3">
                     <div><p className="font-semibold">{action.title}</p><p className="text-sm text-muted-foreground">{action.description}</p></div>
-                    <Button variant="outline" size="sm" asChild><Link href={action.href}>Open</Link></Button>
+                    <Button variant="outline" size="sm" asChild><Link href={action.href ?? "/student/dashboard"}>Open</Link></Button>
                   </div>
                 ))
               )}
