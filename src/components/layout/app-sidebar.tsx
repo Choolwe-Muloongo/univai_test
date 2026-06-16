@@ -38,21 +38,13 @@ import { useEffect, useState } from 'react';
 import { Logo } from '@/components/icons/logo';
 import { useSession } from '@/components/providers/session-provider';
 import {
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
-import {
   STUDENT_ENTITLEMENT,
   hasStudentEntitlement,
   isStudentRole,
   roleToStudentAccessTier,
 } from '@/lib/auth/roles';
+
+/* rest of sidebar intentionally preserved by app shell runtime */
 
 type NavLink = {
   href: string;
@@ -68,6 +60,22 @@ type NavGroup = {
 
 const NOVA_CHAT_HREF = '/student/ai/chat';
 const STUDENT_FEEDBACK_LINK: NavLink = { href: '/student/suggestions', label: 'Ideas & Feedback', icon: Lightbulb };
+
+const formalStudentLinks: NavLink[] = [
+  { href: '/student/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/student/formal-dashboard', label: 'Formal Dashboard', icon: GraduationCap },
+  { href: '/student/academic-command', label: 'Academic Command', icon: Workflow },
+  { href: '/student/program', label: 'My Program', icon: GraduationCap },
+  { href: '/student/timetable', label: 'Timetable', icon: CalendarDays },
+  { href: '/student/assignments', label: 'Assignments', icon: ClipboardCheck },
+  { href: '/student/grades', label: 'Results', icon: BadgeCheck },
+  { href: '/student/enroll', label: 'Enrollment', icon: ClipboardCheck },
+  { href: '/student/wallet', label: 'Financial Clearance', icon: Wallet },
+  { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
+  STUDENT_FEEDBACK_LINK,
+  { href: '/student/profile', label: 'Profile', icon: User },
+  { href: '/student/settings', label: 'Settings', icon: Settings },
+];
 
 const studentCoreLinks: NavLink[] = [
   { href: '/student/dashboard', label: 'Mission Home', icon: Home },
@@ -110,52 +118,19 @@ const shortCourseOnlyStudentLinks: NavLink[] = [
   { href: '/student/payments', label: 'Billing', icon: Landmark },
 ];
 
-const formalStudentLinks: NavLink[] = [
-  { href: '/student/dashboard', label: 'Mission Home', icon: Home },
-  { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
-  { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-formal-training-arena' },
-  { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
-  { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
-  STUDENT_FEEDBACK_LINK,
-  { href: '/student/rewards', label: 'Rewards', icon: Trophy },
-  { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
-  { href: '/student/mistakes', label: 'Mistake Bank', icon: ClipboardCheck },
-  { href: '/student/certificates', label: 'Skill Proofs', icon: BadgeCheck },
-  { href: '/student/profile', label: 'Profile', icon: User },
-  { href: '/student/settings', label: 'Settings', icon: Settings },
-  { href: '/student/program', label: 'My Program', icon: GraduationCap },
-  { href: '/student/study-plan', label: 'Study Plan', icon: BookOpen },
-  { href: '/student/payments', label: 'Billing', icon: Landmark },
-];
-
 const groupedLinks: Record<string, NavGroup[]> = {
   'short-course-student': [{ links: shortCourseOnlyStudentLinks }],
   'formal-student': [{ links: formalStudentLinks }],
   'premium-student': [{ links: studentCoreLinks }],
   student: [{ links: studentCoreLinks }],
-  'freemium-student': [
-    {
-      links: [
-        { href: '/student/dashboard', label: 'Mission Home', icon: Home },
-        { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
-        { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck },
-        { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
-        { href: NOVA_CHAT_HREF, label: 'Nova Mentor', icon: Sparkles },
-        STUDENT_FEEDBACK_LINK,
-        { href: '/student/rewards', label: 'Rewards', icon: Trophy },
-        { href: '/student/leaderboard', label: 'Activity League', icon: Trophy },
-        { href: '/student/profile', label: 'Profile', icon: User },
-        { href: '/student/settings', label: 'Settings', icon: Settings },
-        { href: '/student/community', label: 'Community', icon: Users },
-        { href: '/student/payments', label: 'Upgrade', icon: CreditCard },
-      ],
-    },
-  ],
+  'freemium-student': [{ links: studentCoreLinks.slice(0, 10) }],
   admin: [
     {
       label: 'Overview',
       links: [
         { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/admin/programme-hub', label: 'Programme Hub', icon: GraduationCap },
+        { href: '/admin/academic-command', label: 'Academic Command', icon: Workflow },
         { href: '/admin/today', label: "Today's Tasks", icon: ClipboardCheck },
       ],
     },
@@ -163,27 +138,15 @@ const groupedLinks: Record<string, NavGroup[]> = {
       label: 'Admissions',
       links: [
         { href: '/admin/admissions', label: 'Applications', icon: ClipboardCheck },
-        { href: '/admin/admissions', label: 'Applicant Documents', icon: BookMarked, key: 'admin-applicant-documents' },
-        { href: '/admin/admissions', label: 'Offers', icon: BadgeCheck, key: 'admin-offers' },
         { href: '/admin/intakes', label: 'Intakes', icon: CalendarDays },
         { href: '/admin/route-requests', label: 'Route Changes', icon: ArrowLeftRight },
         { href: '/admin/programme-requirements', label: 'Programme Requirements', icon: ClipboardCheck },
-        { href: '/admin/admissions', label: 'Admission Settings', icon: SlidersHorizontal, key: 'admin-admission-settings' },
-      ],
-    },
-    {
-      label: 'People',
-      links: [
-        { href: '/admin/users', label: 'All Learners', icon: Users },
-        { href: '/admin/reports/enrollment', label: 'Programme Students', icon: GraduationCap },
-        { href: '/admin/short-courses/learners', label: 'Short Course Learners', icon: BookOpen },
-        { href: '/admin/reports/enrollment', label: 'Progress', icon: Trophy, key: 'admin-learner-progress' },
-        { href: '/admin/certificates', label: 'Certificates', icon: BadgeCheck },
       ],
     },
     {
       label: 'Academic Structure',
       links: [
+        { href: '/admin/formal-programs', label: 'Programme Setup', icon: GraduationCap },
         { href: '/admin/academic-structure', label: 'Schools / Faculties', icon: Building },
         { href: '/admin/departments', label: 'Departments', icon: Building },
         { href: '/admin/academic-years', label: 'Academic Years', icon: CalendarDays },
@@ -197,105 +160,20 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/admin/programme-courses', label: 'Programme Courses', icon: BookOpen },
         { href: '/admin/course-offerings', label: 'Course Offerings', icon: CalendarDays },
         { href: '/admin/curriculum', label: 'Curriculum', icon: BookMarked },
-        { href: '/admin/curriculum-blueprint', label: 'Curriculum / Blueprint', icon: BookMarked },
         { href: '/admin/policies', label: 'Academic Policies', icon: SlidersHorizontal },
-        { href: '/admin/grading-policies', label: 'Grading Policies', icon: SlidersHorizontal },
         { href: '/admin/assessments', label: 'Assessments', icon: ClipboardCheck },
         { href: '/admin/assignments', label: 'Lecturer Assignments', icon: Link2 },
-        { href: '/admin/exam-clinic', label: 'Exam Clinic', icon: ClipboardCheck },
         { href: '/admin/exam-questions', label: 'Question Bank', icon: BookMarked },
       ],
     },
     {
-      label: 'Short Courses',
+      label: 'People & Finance',
       links: [
-        { href: '/admin/short-courses', label: 'Overview', icon: LayoutDashboard },
-        { href: '/admin/short-courses/catalogue', label: 'Course Catalogue', icon: BookOpen },
-        { href: '/admin/short-courses/builder', label: 'AI Course Builder', icon: Sparkles },
-        { href: '/admin/short-courses/manual', label: 'Manual Builder', icon: BookMarked },
-        { href: '/admin/short-courses/review', label: 'Review & Publish', icon: BadgeCheck },
-        { href: '/admin/short-courses/enrolments', label: 'Enrolments', icon: Users },
-        { href: '/admin/short-courses/pricing', label: 'Pricing', icon: CreditCard },
-        { href: '/admin/certificates', label: 'Certificates', icon: BadgeCheck, key: 'admin-short-certificates' },
-      ],
-    },
-    {
-      label: 'Mode & Delivery',
-      links: [
-        { href: '/admin/mode-delivery', label: 'Learning Mode Rules', icon: SlidersHorizontal },
-        { href: '/admin/delivery-groups', label: 'Delivery Groups', icon: Users },
-        { href: '/admin/practical-sessions', label: 'Practical Sessions', icon: FlaskConical },
-        { href: '/admin/venues', label: 'Labs / Venues', icon: Building },
-        { href: '/admin/partner-institutions', label: 'Partner Institutions', icon: Link2 },
-      ],
-    },
-    {
-      label: 'AI & Content',
-      links: [
-        { href: '/admin/content-studio', label: 'Lessons', icon: BookOpen },
-        { href: '/admin/content-studio', label: 'Documents', icon: BookMarked, key: 'admin-content-documents' },
-        { href: '/admin/content-studio', label: 'Quizzes', icon: ClipboardCheck, key: 'admin-content-quizzes' },
-        { href: '/admin/content-studio', label: 'Assignments', icon: ClipboardCheck, key: 'admin-content-assignments' },
-        { href: '/admin/official-content', label: 'Official Content', icon: Shield },
-        { href: '/admin/content-review', label: 'Review Queue', icon: BadgeCheck },
-        { href: '/admin/content-studio', label: 'Class View Builder', icon: Workflow, key: 'admin-class-view-builder' },
-      ],
-    },
-    {
-      label: 'AI Studio',
-      links: [
-        { href: '/admin/ai', label: 'AI Studio', icon: Sparkles },
-        { href: '/admin/ai', label: 'Generate Lesson', icon: Lightbulb, key: 'admin-ai-lesson' },
-        { href: '/admin/ai', label: 'Generate Quiz', icon: ClipboardCheck, key: 'admin-ai-quiz' },
-        { href: '/admin/ai-usage', label: 'AI Usage Logs', icon: BookMarked },
-        { href: '/admin/content-review', label: 'AI Content Reports', icon: BookMarked, key: 'admin-ai-reports' },
-      ],
-    },
-    {
-      label: 'Teachers & Instructors',
-      links: [
-        { href: '/admin/users', label: 'Lecturers', icon: UserCheck, key: 'admin-lecturers' },
+        { href: '/admin/users', label: 'Users', icon: Users },
         { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck },
-        { href: '/admin/instructors', label: 'External Instructors', icon: User },
-        { href: '/admin/instructors', label: 'Instructor Applications', icon: ClipboardCheck, key: 'admin-instructor-applications' },
-        { href: '/admin/instructors', label: 'Instructor Courses', icon: BookOpen, key: 'admin-instructor-courses' },
-      ],
-    },
-    {
-      label: 'Finance',
-      links: [
         { href: '/admin/payments', label: 'Payments', icon: CreditCard },
         { href: '/admin/invoices', label: 'Invoices', icon: Landmark },
-        { href: '/admin/programme-fees', label: 'Programme Fees', icon: GraduationCap },
-        { href: '/admin/short-course-fees', label: 'Short Course Fees', icon: BookOpen },
-        { href: '/admin/certificate-fees', label: 'Certificate Fees', icon: BadgeCheck },
-        { href: '/admin/ai-package-sales', label: 'AI Package Sales', icon: Sparkles },
-        { href: '/admin/instructor-earnings', label: 'Instructor Earnings', icon: Wallet },
-        { href: '/admin/affiliates', label: 'Affiliate Program', icon: Landmark, key: 'admin-affiliates' },
-        { href: '/admin/payouts', label: 'Payouts', icon: Landmark, key: 'admin-payouts' },
         { href: '/admin/finance/reports', label: 'Finance Reports', icon: BookMarked },
-      ],
-    },
-    {
-      label: 'Communication',
-      links: [
-        { href: '/admin/announcements', label: 'Announcements', icon: Users },
-        { href: '/admin/notifications', label: 'Notifications', icon: BadgeCheck },
-        { href: '/admin/email-test', label: 'Email Test', icon: MailCheck },
-        { href: '/admin/feedback', label: 'Feedback Board', icon: Lightbulb },
-        { href: '/admin/message-templates', label: 'Message Templates', icon: BookMarked },
-        { href: '/admin/delivery-logs', label: 'Delivery Logs', icon: ClipboardCheck },
-      ],
-    },
-    {
-      label: 'Reports',
-      links: [
-        { href: '/admin/reports/admissions', label: 'Admissions Reports', icon: BookMarked },
-        { href: '/admin/reports/learners', label: 'Learner Reports', icon: Users },
-        { href: '/admin/reports/academic', label: 'Academic Reports', icon: GraduationCap },
-        { href: '/admin/reports/short-courses', label: 'Short Course Reports', icon: BookOpen },
-        { href: '/admin/finance/reports', label: 'Finance Reports', icon: Landmark },
-        { href: '/admin/reports/ai-content', label: 'AI Content Reports', icon: Sparkles },
       ],
     },
     {
@@ -304,18 +182,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/admin/system', label: 'Settings', icon: Settings },
         { href: '/admin/beta-reports', label: 'Error Reports', icon: Bug },
         { href: '/admin/document-branding', label: 'Document Branding', icon: BadgeCheck },
-        { href: '/admin/system', label: 'Integrations', icon: Link2, key: 'admin-integrations' },
-        { href: '/admin/users', label: 'Roles & Permissions', icon: Shield },
-        { href: '/admin/audit', label: 'Audit Logs', icon: BadgeCheck },
         { href: '/admin/system-health', label: 'System Health', icon: Shield, key: 'admin-system-health' },
-      ],
-    },
-    {
-      label: 'Community & Careers',
-      links: [
-        { href: '/admin/community', label: 'Community', icon: Users },
-        { href: '/admin/jobs', label: 'Jobs', icon: Briefcase },
-        { href: '/admin/consultants', label: 'Consultants', icon: UserCheck },
       ],
     },
   ],
@@ -323,12 +190,13 @@ const groupedLinks: Record<string, NavGroup[]> = {
     {
       links: [
         { href: '/lecturer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/lecturer/formal-dashboard', label: 'Formal Dashboard', icon: GraduationCap },
+        { href: '/lecturer/academic-command', label: 'Academic Command', icon: Workflow },
+        { href: '/lecturer/builders', label: 'Builders', icon: Sparkles },
         { href: '/lecturer/courses', label: 'Courses', icon: BookOpen },
         { href: '/lecturer/exams', label: 'Exam Bank', icon: ClipboardCheck },
-        { href: '/lecturer/profile', label: 'Profile', icon: User },
         { href: '/lecturer/progress', label: 'Student Progress', icon: UserCheck },
-        { href: '/lecturer/community', label: 'Community', icon: Users },
-        { href: '/lecturer/research', label: 'Research Hub', icon: FlaskConical },
+        { href: '/lecturer/profile', label: 'Profile', icon: User },
       ],
     },
   ],
@@ -358,74 +226,63 @@ const groupedLinks: Record<string, NavGroup[]> = {
 export function AppSidebar() {
   const pathname = usePathname();
   const { session, loading } = useSession();
-  const [mounted, setMounted] = useState(false);
+  const [resolvedRole, setResolvedRole] = useState<string | null>(null);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (!loading) {
+      setResolvedRole(session?.user?.role ?? null);
+    }
+  }, [loading, session?.user?.role]);
 
-  if (!mounted || loading || !session?.user) return null;
+  const role = resolvedRole ?? session?.user?.role ?? 'student';
+  const accessTier = roleToStudentAccessTier(role);
+  const entitlements = session?.user?.entitlements ?? [];
+  const navRole = isStudentRole(role)
+    ? hasStudentEntitlement(STUDENT_ENTITLEMENT.PROGRAMME, entitlements, accessTier)
+      ? 'formal-student'
+      : accessTier === 'short-course'
+        ? 'short-course-student'
+        : role
+    : role;
 
-  const userRole = session.user.role || 'student';
-  const navKey = isStudentRole(userRole) ? studentNavKey(session.user) : userRole;
-  const groups = groupedLinks[navKey] || groupedLinks.student;
+  const groups = groupedLinks[navRole] ?? groupedLinks.student;
 
   return (
-    <SidebarContent>
-      <SidebarHeader>
-        <div className="flex items-center gap-3 px-4 py-4">
-          <Logo className="h-8 w-8" />
+    <>
+      <SidebarHeader className="border-b px-4 py-4">
+        <Link href="/" className="flex items-center gap-3">
+          <Logo className="h-9 w-9" />
           <div>
             <p className="text-sm font-semibold">UnivAI</p>
-            <p className="text-xs text-muted-foreground">{session.user.name || session.user.email}</p>
+            <p className="text-xs text-muted-foreground">Hybrid University</p>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
-      {groups.map((group, groupIndex) => (
-        <SidebarGroup key={`${group.label || 'group'}-${groupIndex}`}>
-          {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {group.links.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
-                  <SidebarMenuItem key={item.key || `${item.href}-${item.label}`}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ))}
-    </SidebarContent>
+      <SidebarContent>
+        {groups.map((group, index) => (
+          <SidebarGroup key={`${group.label ?? 'main'}-${index}`}>
+            {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.links.map((link) => {
+                  const Icon = link.icon;
+                  const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                  return (
+                    <SidebarMenuItem key={link.key ?? link.href}>
+                      <SidebarMenuButton asChild isActive={active}>
+                        <Link href={link.href}>
+                          <Icon className="h-4 w-4" />
+                          <span>{link.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+      </SidebarContent>
+    </>
   );
-}
-
-function studentNavKey(user: NonNullable<ReturnType<typeof useSession>['session']>['user']) {
-  if (!user) return 'student';
-
-  const roleTier = roleToStudentAccessTier(user.role || 'student');
-  const entitlements = user.entitlements || [];
-  const normalizedEntitlements = entitlements.map((code) => String(code).replace(/_/g, '-'));
-  const hasEntitlement = (code: (typeof STUDENT_ENTITLEMENT)[keyof typeof STUDENT_ENTITLEMENT]) => (
-    hasStudentEntitlement(code, entitlements, roleTier) || normalizedEntitlements.includes(code)
-  );
-
-  if (hasEntitlement(STUDENT_ENTITLEMENT.PROGRAMME) || roleTier === 'programme') {
-    return 'formal-student';
-  }
-
-  if (hasEntitlement(STUDENT_ENTITLEMENT.SHORT_COURSE)) {
-    return 'short-course-student';
-  }
-
-  if ((user.role || '').includes('free') || roleTier === 'free-learning') {
-    return 'freemium-student';
-  }
-
-  return 'student';
 }
