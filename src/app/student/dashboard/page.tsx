@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowRight,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -21,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/student/page-header";
 import { StatCard } from "@/components/student/stat-card";
-import { EmptyState } from "@/components/student/empty-state";
 import { MissionHome } from "@/components/student/mission-home";
 import { getProgram, getStudentDashboard, getStudentEntitlements } from "@/lib/api";
 import { STUDENT_ENTITLEMENT, hasStudentEntitlement, roleToStudentAccessTier } from "@/lib/auth/roles";
@@ -184,7 +182,7 @@ export default function DashboardPage() {
             <CardFooter className="flex flex-wrap gap-2">
               <Button asChild><Link href="/student/enroll">Complete Enrollment</Link></Button>
               <Button variant="outline" asChild><Link href="/admissions/portal">Admissions Portal</Link></Button>
-              <Button variant="outline" asChild><Link href="/student/billing">View Payments</Link></Button>
+              <Button variant="outline" asChild><Link href="/student/wallet">View Payments</Link></Button>
             </CardFooter>
           </Card>
         </div>
