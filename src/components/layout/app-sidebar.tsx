@@ -69,6 +69,11 @@ type NavGroup = {
 const NOVA_CHAT_HREF = '/student/ai/chat';
 const STUDENT_FEEDBACK_LINK: NavLink = { href: '/student/suggestions', label: 'Ideas & Feedback', icon: Lightbulb };
 
+function safeEntitlements(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+  return [];
+}
+
 const formalStudentLinks: NavLink[] = [
   { href: '/student/dashboard', label: 'Dashboard', icon: Home },
   { href: '/student/formal-dashboard', label: 'Formal Dashboard', icon: GraduationCap },
@@ -233,6 +238,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const currentPath = pathname ?? '';
   const { session, loading } = useSession();
   const [resolvedRole, setResolvedRole] = useState<string | null>(null);
 
@@ -244,7 +250,7 @@ export function AppSidebar() {
 
   const role = resolvedRole ?? session?.user?.role ?? 'student';
   const accessTier = roleToStudentAccessTier(role);
-  const entitlements = session?.user?.entitlements ?? [];
+  const entitlements = safeEntitlements(session?.user?.entitlements);
   const navRole = isStudentRole(role)
     ? hasStudentEntitlement(STUDENT_ENTITLEMENT.PROGRAMME, entitlements, accessTier)
       ? 'formal-student'
@@ -274,7 +280,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {group.links.map((link) => {
                   const Icon = link.icon;
-                  const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                  const active = currentPath === link.href || currentPath.startsWith(`${link.href}/`);
                   return (
                     <SidebarMenuItem key={link.key ?? link.href}>
                       <SidebarMenuButton asChild isActive={active}>
