@@ -29,6 +29,10 @@ export default function SignupPage() {
           </CardContent>
         </Card>
       </div>
+
+      <p className="text-center text-xs leading-5 text-muted-foreground">
+        Links: <Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link> · <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy</Link> · <Link href="/payment-rules" className="font-semibold text-primary hover:underline">Payments</Link> · <Link href="/policies" className="font-semibold text-primary hover:underline">Policies</Link>
+      </p>
     </main>
   );
 }
