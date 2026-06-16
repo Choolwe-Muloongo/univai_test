@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Models\AdmissionsSetting;
 use App\Services\LencoPaymentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AffiliateService
@@ -21,6 +23,11 @@ class AffiliateService
     public const SOURCE_SHORT_COURSE = 'short_course_first_purchase';
     public const SOURCE_SHORT_COURSE_RECURRING = 'short_course_recurring_purchase';
     public const SOURCE_SHORT_COURSE_ENTRY = 'short_course_entry_bonus';
+
+    private const SUCCESS_TRANSFER_STATUSES = ['successful', 'success', 'paid', 'completed'];
+    private const PROCESSING_TRANSFER_STATUSES = ['pending', 'processing', 'queued', 'created', 'unknown'];
+    private const FAILED_TRANSFER_STATUSES = ['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'declined'];
+    private const ACTIVE_ITEM_STATUSES = ['reserved', 'processing', 'paid'];
 
     public function tierConfig(?string $tier): array
     {
@@ -320,14 +327,12 @@ class AffiliateService
 
     public function summaryForAffiliate(Affiliate $affiliate): array
     {
-        $available = AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->where('status', 'available')->sum('commission_amount');
-        $reserved = AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->whereIn('status', ['pending', 'pending_review', 'processing', 'successful'])->sum('amount');
         $paidReferralCount = AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->distinct('referred_user_id')->count('referred_user_id');
 
         return [
             'grossEarned' => (string) AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->sum('gross_amount'),
             'commissionEarned' => (string) AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->sum('commission_amount'),
-            'availableToWithdraw' => (string) max(0, $available - $reserved),
+            'availableToWithdraw' => (string) $this->availableToWithdraw($affiliate),
             'pendingPayouts' => (string) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->whereIn('status', ['pending', 'pending_review'])->sum('amount'),
             'processingPayouts' => (string) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->where('status', 'processing')->sum('amount'),
             'successfulPayouts' => (string) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->where('status', 'successful')->sum('amount'),
@@ -367,7 +372,7 @@ class AffiliateService
         $todayTotal = AffiliatePayout::query()
             ->where('affiliate_id', $affiliate->id)
             ->whereDate('created_at', now()->toDateString())
-            ->whereIn('status', ['pending', 'processing', 'successful'])
+            ->whereIn('status', ['pending', 'pending_review', 'processing', 'successful'])
             ->sum('amount');
         if (($todayTotal + $amount) > (float) ($affiliate->auto_payout_daily_limit ?? 100)) {
             return 'Daily automatic payout limit reached. This withdrawal needs admin review.';
@@ -377,49 +382,74 @@ class AffiliateService
 
     public function createPayout(Affiliate $affiliate, array $payload, ?int $requestedBy = null): AffiliatePayout
     {
-        $amount = (float) ($payload['amount'] ?? 0);
-        $phone = $payload['phone'] ?? $affiliate->payout_phone;
-        $operator = strtolower((string) ($payload['operator'] ?? $affiliate->payout_operator ?? ''));
-        $country = strtolower((string) ($payload['country'] ?? $affiliate->payout_country ?? 'zm'));
+        return DB::transaction(function () use ($affiliate, $payload, $requestedBy) {
+            $affiliate = Affiliate::query()->whereKey($affiliate->id)->lockForUpdate()->firstOrFail();
+            $amount = round((float) ($payload['amount'] ?? 0), 2);
+            $phone = $payload['phone'] ?? $affiliate->payout_phone;
+            $operator = strtolower((string) ($payload['operator'] ?? $affiliate->payout_operator ?? ''));
+            $country = strtolower((string) ($payload['country'] ?? $affiliate->payout_country ?? 'zm'));
+            $currency = strtoupper((string) ($payload['currency'] ?? 'ZMW'));
 
-        if (!is_string($phone) || trim($phone) === '') {
-            throw new \RuntimeException('Affiliate payout phone is required.');
-        }
-        if ($country !== 'zm') {
-            throw new \RuntimeException('Only Zambia mobile money payouts are supported for affiliates.');
-        }
-        if (!in_array($operator, ['airtel', 'mtn', 'zamtel'], true)) {
-            throw new \RuntimeException('Affiliate payout operator must be airtel, mtn, or zamtel.');
-        }
+            if (!is_string($phone) || trim($phone) === '') {
+                throw new \RuntimeException('Affiliate payout phone is required.');
+            }
+            if ($country !== 'zm') {
+                throw new \RuntimeException('Only Zambia mobile money payouts are supported for affiliates.');
+            }
+            if ($currency !== 'ZMW') {
+                throw new \RuntimeException('Only ZMW affiliate payouts are supported.');
+            }
+            if (!in_array($operator, ['airtel', 'mtn', 'zamtel'], true)) {
+                throw new \RuntimeException('Affiliate payout operator must be airtel, mtn, or zamtel.');
+            }
+            if ($amount < 50) {
+                throw new \RuntimeException('Minimum affiliate payout is ZMW 50.');
+            }
 
-        $summary = $this->summaryForAffiliate($affiliate);
-        if ($amount <= 0 || $amount > (float) $summary['availableToWithdraw']) {
-            throw new \RuntimeException('Requested payout exceeds available affiliate balance.');
-        }
+            $available = $this->availableToWithdraw($affiliate);
+            if ($amount > $available) {
+                throw new \RuntimeException('Requested payout exceeds available affiliate balance.');
+            }
 
-        return AffiliatePayout::query()->create([
-            'affiliate_id' => $affiliate->id,
-            'reference' => $payload['reference'] ?? ('AFF-' . strtoupper(Str::random(10))),
-            'amount' => $amount,
-            'fee' => (float) ($payload['fee'] ?? 0),
-            'currency' => strtoupper((string) ($payload['currency'] ?? 'ZMW')),
-            'method' => 'lenco_mobile_money',
-            'phone' => trim($phone),
-            'operator' => $operator,
-            'country' => $country,
-            'status' => 'pending',
-            'requested_by' => $requestedBy,
-            'requested_at' => now(),
-            'lenco_payload' => null,
-        ]);
+            $payout = AffiliatePayout::query()->create([
+                'affiliate_id' => $affiliate->id,
+                'reference' => $this->uniquePayoutReference($payload['reference'] ?? null),
+                'amount' => $amount,
+                'fee' => (float) ($payload['fee'] ?? 0),
+                'currency' => $currency,
+                'method' => 'lenco_mobile_money',
+                'phone' => trim($phone),
+                'operator' => $operator,
+                'country' => $country,
+                'status' => 'pending',
+                'requested_by' => $requestedBy,
+                'requested_at' => now(),
+                'lenco_payload' => null,
+            ]);
+
+            if (Schema::hasTable('affiliate_payout_items')) {
+                $this->reserveEarningsForPayout($affiliate, $payout, $amount);
+            }
+
+            return $payout->fresh() ?? $payout;
+        });
     }
 
     public function sendPayoutToLenco(AffiliatePayout $payout, LencoPaymentService $lenco, ?int $approvedBy = null): AffiliatePayout
     {
+        $payout = $payout->fresh(['affiliate']) ?? $payout;
+        if ($payout->status === 'successful' || ($payout->status === 'processing' && $payout->lenco_reference)) {
+            return $payout;
+        }
+        if (!in_array($payout->status, ['pending', 'pending_review', 'processing'], true)) {
+            return $payout;
+        }
+
         $affiliate = $payout->affiliate;
         $accountId = $affiliate->lenco_account_id ?: config('services.lenco.account_id', env('LENCO_ACCOUNT_ID'));
         if (!$accountId) {
             $payout->update(['status' => 'failed', 'failure_reason' => 'Lenco account id is missing.', 'approved_by' => $approvedBy]);
+            $this->markPayoutItems($payout, 'failed');
             return $payout->fresh();
         }
 
@@ -434,16 +464,26 @@ class AffiliateService
         ]);
 
         $status = strtolower((string) ($response['status'] ?? 'unknown'));
-        $successful = in_array($status, ['successful', 'success', 'paid', 'completed'], true);
+        $successful = (bool) ($response['successful'] ?? false) || in_array($status, self::SUCCESS_TRANSFER_STATUSES, true);
+        $processing = (bool) ($response['processing'] ?? false) || in_array($status, self::PROCESSING_TRANSFER_STATUSES, true);
+        $failed = !$successful && !$processing;
 
         $payout->update([
-            'status' => $successful ? 'successful' : ($status === 'pending' ? 'processing' : 'failed'),
+            'status' => $successful ? 'successful' : ($processing ? 'processing' : 'failed'),
             'approved_by' => $approvedBy,
             'lenco_reference' => (string) ($response['reference'] ?? data_get($response['payload'], 'data.reference') ?? $payout->reference),
             'lenco_payload' => $response['payload'] ?? null,
-            'failure_reason' => $successful ? null : (string) ($response['message'] ?? 'Payout transfer failed.'),
+            'failure_reason' => $failed ? (string) ($response['message'] ?? 'Payout transfer failed.') : null,
             'completed_at' => $successful ? now() : $payout->completed_at,
         ]);
+
+        if ($successful) {
+            $this->markPayoutItems($payout, 'paid');
+        } elseif ($processing) {
+            $this->markPayoutItems($payout, 'processing');
+        } else {
+            $this->markPayoutItems($payout, 'failed');
+        }
 
         return $payout->fresh();
     }
@@ -453,17 +493,172 @@ class AffiliateService
         $reference = $payout->lenco_reference ?: $payout->reference;
         $verification = $lenco->verifyTransfer($reference);
         $payload = $verification['payload'] ?? [];
-        $status = strtolower((string) (data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? $verification['status'] ?? 'unknown'));
+        $status = strtolower((string) (data_get($payload, 'data.transaction.status') ?? data_get($payload, 'data.request.status') ?? data_get($payload, 'data.status') ?? data_get($payload, 'status') ?? $verification['status'] ?? 'unknown'));
 
-        if ($verification['verified'] || in_array($status, ['successful', 'success', 'paid', 'completed'], true)) {
+        if ($verification['verified'] || in_array($status, self::SUCCESS_TRANSFER_STATUSES, true)) {
             $payout->update(['status' => 'successful', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'completed_at' => now(), 'failure_reason' => null]);
-        } elseif ($status === 'pending' || $status === 'processing') {
+            $this->markPayoutItems($payout, 'paid');
+        } elseif (($verification['processing'] ?? false) || in_array($status, self::PROCESSING_TRANSFER_STATUSES, true)) {
             $payout->update(['status' => 'processing', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'failure_reason' => null]);
+            $this->markPayoutItems($payout, 'processing');
+        } elseif (in_array($status, self::FAILED_TRANSFER_STATUSES, true)) {
+            $payout->update(['status' => 'failed', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'failure_reason' => $verification['message'] ?: 'Payout failed.']);
+            $this->markPayoutItems($payout, 'failed');
         } else {
-            $payout->update(['status' => 'failed', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'failure_reason' => $verification['message'] ?: 'Unable to verify payout.']);
+            $payout->update(['status' => 'processing', 'lenco_payload' => $payload ?: $payout->lenco_payload, 'failure_reason' => $verification['message'] ?: 'Payout verification is still pending.']);
+            $this->markPayoutItems($payout, 'processing');
         }
 
         return $payout->fresh();
+    }
+
+    private function availableToWithdraw(Affiliate $affiliate): float
+    {
+        if (!Schema::hasTable('affiliate_payout_items')) {
+            $available = (float) AffiliateEarning::query()->where('affiliate_id', $affiliate->id)->where('status', 'available')->sum('commission_amount');
+            $reserved = (float) AffiliatePayout::query()->where('affiliate_id', $affiliate->id)->whereIn('status', ['pending', 'pending_review', 'processing', 'successful'])->sum('amount');
+            return round(max(0, $available - $reserved), 2);
+        }
+
+        $earned = (float) AffiliateEarning::query()
+            ->where('affiliate_id', $affiliate->id)
+            ->whereNotIn('status', ['cancelled', 'reversed', 'refunded'])
+            ->sum('commission_amount');
+
+        $allocated = (float) DB::table('affiliate_payout_items')
+            ->join('affiliate_payouts', 'affiliate_payouts.id', '=', 'affiliate_payout_items.payout_id')
+            ->where('affiliate_payouts.affiliate_id', $affiliate->id)
+            ->whereIn('affiliate_payout_items.status', self::ACTIVE_ITEM_STATUSES)
+            ->whereNotIn('affiliate_payouts.status', ['failed', 'cancelled'])
+            ->sum('affiliate_payout_items.allocated_amount');
+
+        $legacyReserved = (float) AffiliatePayout::query()
+            ->where('affiliate_id', $affiliate->id)
+            ->whereIn('status', ['pending', 'pending_review', 'processing', 'successful'])
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('affiliate_payout_items')
+                    ->whereColumn('affiliate_payout_items.payout_id', 'affiliate_payouts.id');
+            })
+            ->sum('amount');
+
+        return round(max(0, $earned - $allocated - $legacyReserved), 2);
+    }
+
+    private function reserveEarningsForPayout(Affiliate $affiliate, AffiliatePayout $payout, float $amount): void
+    {
+        $remaining = round($amount, 2);
+        $earnings = AffiliateEarning::query()
+            ->where('affiliate_id', $affiliate->id)
+            ->whereNotIn('status', ['cancelled', 'reversed', 'refunded'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($earnings as $earning) {
+            if ($remaining <= 0.01) {
+                break;
+            }
+
+            $alreadyAllocated = $this->allocatedForEarning((int) $earning->id, self::ACTIVE_ITEM_STATUSES);
+            $available = round(max(0, (float) $earning->commission_amount - $alreadyAllocated), 2);
+            if ($available <= 0) {
+                continue;
+            }
+
+            $take = min($available, $remaining);
+            DB::table('affiliate_payout_items')->insert([
+                'payout_id' => $payout->id,
+                'affiliate_earning_id' => $earning->id,
+                'allocated_amount' => $take,
+                'status' => 'reserved',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->refreshEarningStatus((int) $earning->id);
+            $remaining = round($remaining - $take, 2);
+        }
+
+        if ($remaining > 0.01) {
+            throw new \RuntimeException('Unable to reserve enough affiliate earnings for this payout. Please try again.');
+        }
+    }
+
+    private function markPayoutItems(AffiliatePayout $payout, string $status): void
+    {
+        if (!Schema::hasTable('affiliate_payout_items')) {
+            return;
+        }
+
+        $earningIds = DB::table('affiliate_payout_items')
+            ->where('payout_id', $payout->id)
+            ->pluck('affiliate_earning_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        DB::table('affiliate_payout_items')
+            ->where('payout_id', $payout->id)
+            ->update(['status' => $status, 'updated_at' => now()]);
+
+        foreach ($earningIds as $earningId) {
+            $this->refreshEarningStatus($earningId);
+        }
+    }
+
+    private function refreshEarningStatus(int $earningId): void
+    {
+        if (!Schema::hasTable('affiliate_payout_items')) {
+            return;
+        }
+
+        $earning = AffiliateEarning::query()->find($earningId);
+        if (!$earning) {
+            return;
+        }
+
+        $commission = (float) $earning->commission_amount;
+        $paid = $this->allocatedForEarning($earningId, ['paid']);
+        $active = $this->allocatedForEarning($earningId, self::ACTIVE_ITEM_STATUSES);
+
+        $status = 'available';
+        if ($paid >= ($commission - 0.01)) {
+            $status = 'paid';
+        } elseif ($active > 0) {
+            $status = 'reserved';
+        }
+
+        $earning->forceFill(['status' => $status])->saveQuietly();
+    }
+
+    private function allocatedForEarning(int $earningId, array $statuses): float
+    {
+        if (!Schema::hasTable('affiliate_payout_items')) {
+            return 0;
+        }
+
+        return (float) DB::table('affiliate_payout_items')
+            ->join('affiliate_payouts', 'affiliate_payouts.id', '=', 'affiliate_payout_items.payout_id')
+            ->where('affiliate_payout_items.affiliate_earning_id', $earningId)
+            ->whereIn('affiliate_payout_items.status', $statuses)
+            ->whereNotIn('affiliate_payouts.status', ['failed', 'cancelled'])
+            ->sum('affiliate_payout_items.allocated_amount');
+    }
+
+    private function uniquePayoutReference(?string $reference = null): string
+    {
+        $base = strtoupper(trim(preg_replace('/[^A-Za-z0-9._-]+/', '', (string) $reference) ?? ''));
+        if ($base === '') {
+            $base = 'AFF-' . strtoupper(Str::random(10));
+        }
+
+        $candidate = $base;
+        while (AffiliatePayout::query()->where('reference', $candidate)->exists()) {
+            $candidate = $base . '-' . strtoupper(Str::random(4));
+        }
+
+        return $candidate;
     }
 
     private function rateForAffiliate(Affiliate $affiliate, string $sourceType): float
