@@ -11,39 +11,102 @@ type LoadingEventDetail = {
   label?: string;
   successMessage?: string;
   errorMessage?: string;
+  method?: string;
+  path?: string;
+  loadingMode?: 'silent' | 'inline' | 'blocking';
+  delayMs?: number;
+  timeoutMs?: number;
+};
+
+type PendingLoading = LoadingEventDetail & {
+  id: string;
+  shown: boolean;
+  delayTimer?: ReturnType<typeof setTimeout>;
+  timeoutTimer?: ReturnType<typeof setTimeout>;
 };
 
 const DEFAULT_LABEL = 'Working on your request...';
+const DEFAULT_DELAY_MS = 400;
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+function isReadMethod(method?: string) {
+  return ['GET', 'HEAD', 'OPTIONS'].includes(String(method || 'GET').toUpperCase());
+}
+
+function shouldUseBlockingOverlay(detail: LoadingEventDetail) {
+  if (detail.loadingMode === 'silent' || detail.loadingMode === 'inline') return false;
+  if (detail.loadingMode === 'blocking') return true;
+  if (detail.id === 'route-change') return true;
+  return !isReadMethod(detail.method);
+}
 
 export function GlobalLoadingProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const previousPathname = useRef(pathname);
-  const pending = useRef(new Map<string, LoadingEventDetail>());
-  const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef(new Map<string, PendingLoading>());
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
   useEffect(() => {
     function syncLabel() {
-      const latest = Array.from(pending.current.values()).at(-1);
+      const latest = Array.from(pending.current.values()).filter((item) => item.shown).at(-1);
       setActiveLabel(latest ? latest.label || DEFAULT_LABEL : null);
     }
 
+    function clearTimers(record?: PendingLoading) {
+      if (!record) return;
+      if (record.delayTimer) clearTimeout(record.delayTimer);
+      if (record.timeoutTimer) clearTimeout(record.timeoutTimer);
+    }
+
     function start(detail: LoadingEventDetail) {
+      if (!shouldUseBlockingOverlay(detail)) return;
+
       const id = detail.id || `manual-${Date.now()}`;
-      pending.current.set(id, { ...detail, id });
+      const delayMs = Math.max(0, detail.delayMs ?? DEFAULT_DELAY_MS);
+      const timeoutMs = Math.max(delayMs + 1_000, detail.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+      const existing = pending.current.get(id);
+      clearTimers(existing);
+
+      const record: PendingLoading = { ...detail, id, shown: false };
+      record.delayTimer = setTimeout(() => {
+        const current = pending.current.get(id);
+        if (!current) return;
+        current.shown = true;
+        syncLabel();
+      }, delayMs);
+
+      record.timeoutTimer = setTimeout(() => {
+        const current = pending.current.get(id);
+        if (!current) return;
+        pending.current.delete(id);
+        toast({
+          variant: 'destructive',
+          title: 'Request took too long',
+          description: 'The app stopped the loading screen so you are not locked out. Try again or report the issue if nothing changed.',
+        });
+        syncLabel();
+      }, timeoutMs);
+
+      pending.current.set(id, record);
       syncLabel();
     }
 
     function end(detail: LoadingEventDetail) {
+      const record = detail.id ? pending.current.get(detail.id) : undefined;
       if (detail.id) {
+        clearTimers(record);
         pending.current.delete(detail.id);
       } else {
+        for (const item of pending.current.values()) clearTimers(item);
         pending.current.clear();
       }
 
-      if (detail.errorMessage) {
+      const wasVisible = Boolean(record?.shown);
+      const shouldNotify = wasVisible || !isReadMethod(detail.method);
+
+      if (shouldNotify && detail.errorMessage) {
         toast({ variant: 'destructive', title: 'Action failed', description: detail.errorMessage });
-      } else if (detail.successMessage) {
+      } else if (shouldNotify && detail.successMessage) {
         toast({ title: 'Action completed', description: detail.successMessage });
       }
 
@@ -71,8 +134,9 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
       if (nextUrl.origin !== window.location.origin) return;
       if (`${nextUrl.pathname}${nextUrl.search}` === `${window.location.pathname}${window.location.search}`) return;
 
-      start({ id: 'route-change', label: 'Loading page...' });
+      start({ id: 'route-change', label: 'Loading page...', method: 'NAVIGATION', loadingMode: 'blocking', delayMs: 250, timeoutMs: 10_000 });
     }
+
     window.addEventListener('univai:loading-start', handleStart);
     window.addEventListener('univai:loading-end', handleEnd);
     document.addEventListener('click', handleDocumentClick, true);
@@ -81,14 +145,15 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
       window.removeEventListener('univai:loading-start', handleStart);
       window.removeEventListener('univai:loading-end', handleEnd);
       document.removeEventListener('click', handleDocumentClick, true);
-      if (navigationTimer.current) clearTimeout(navigationTimer.current);
+      for (const item of pending.current.values()) clearTimers(item);
+      pending.current.clear();
     };
   }, []);
 
   useEffect(() => {
     if (previousPathname.current !== pathname) {
       previousPathname.current = pathname;
-      window.dispatchEvent(new CustomEvent('univai:loading-end', { detail: { id: 'route-change' } }));
+      window.dispatchEvent(new CustomEvent('univai:loading-end', { detail: { id: 'route-change', method: 'NAVIGATION' } }));
     }
   }, [pathname]);
 
