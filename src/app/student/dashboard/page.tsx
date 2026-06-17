@@ -99,6 +99,8 @@ export default function DashboardPage() {
   const [academicGate, setAcademicGate] = useState<StudentAcademicGate | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     const loadDashboard = async () => {
       setLoading(true);
       const resolvedRole = session?.user?.role ?? null;
@@ -114,27 +116,39 @@ export default function DashboardPage() {
         return;
       }
 
-      let activeEntitlements: string[] = [];
-      try {
-        const entitlementData = await getStudentEntitlements() as { entitlements?: unknown };
-        activeEntitlements = asStringArray(entitlementData.entitlements);
-        setEntitlements(activeEntitlements);
-      } catch (error) {
-        console.error("Failed to load student entitlements", error);
-        setEntitlements(activeEntitlements);
-      }
+      const entitlementsPromise = getStudentEntitlements()
+        .then((data) => asStringArray((data as { entitlements?: unknown }).entitlements))
+        .catch((error) => {
+          console.error("Failed to load student entitlements", error);
+          return [];
+        });
 
-      const loadedShortCoursesRaw = await getMyShortCourses().catch((error) => {
-        console.error("Failed to load short-course Journeys", error);
-        return [];
+      const shortCoursesPromise = getMyShortCourses()
+        .then((data) => asArray<ShortCourseEnrollmentSummary>(data))
+        .catch((error) => {
+          console.error("Failed to load short-course Journeys", error);
+          return [];
+        });
+
+      const gamificationPromise = getStudentGamification().catch((error) => {
+        console.error("Failed to load gamification", error);
+        return null;
       });
-      const loadedShortCourses = asArray<ShortCourseEnrollmentSummary>(loadedShortCoursesRaw);
+
+      const [activeEntitlements, loadedShortCourses, gamificationData] = await Promise.all([
+        entitlementsPromise,
+        shortCoursesPromise,
+        gamificationPromise,
+      ]);
+
+      if (!mounted) return;
+
+      setEntitlements(activeEntitlements);
       setShortCourses(loadedShortCourses);
 
       const avgProgress = loadedShortCourses.length
         ? Math.round(loadedShortCourses.reduce((sum, item) => sum + Number(item.progress ?? 0), 0) / loadedShortCourses.length)
         : 0;
-      const gamificationData = await getStudentGamification().catch(() => fallbackGamification(avgProgress));
       setGamification(normalizeGamification(gamificationData, avgProgress));
 
       const hasProgrammeAccess = hasStudentEntitlement(
@@ -148,32 +162,41 @@ export default function DashboardPage() {
         return;
       }
 
-      const gate = await getStudentAcademicGate().catch((error) => {
+      const gatePromise = getStudentAcademicGate().catch((error) => {
         console.error("Failed to load academic gate", error);
         return null;
       });
+      const programPromise = getProgram().catch((error) => {
+        console.error("Failed to load student program", error);
+        return null;
+      });
+      const dashboardPromise = getStudentDashboard().catch((error) => {
+        console.error("Failed to load formal dashboard data", error);
+        return null;
+      });
+
+      const [gate, programData, dashboardData] = await Promise.all([gatePromise, programPromise, dashboardPromise]);
+
+      if (!mounted) return;
+
       setAcademicGate(gate);
+      setProgram(programData);
 
-      if (!gate?.permissions?.canViewDashboard) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const [programData, dashboardData] = await Promise.all([getProgram(), getStudentDashboard()]);
+      if (dashboardData) {
         const dashboardRecord = dashboardData as Record<string, unknown>;
-        setProgram(programData);
         setNextActions(asArray<StudentDashboardAction>(dashboardRecord.actions));
         setUpcomingDeadlines(asArray<StudentDashboardDeadline>(dashboardRecord.deadlines));
         setWallet((dashboardRecord.wallet as StudentDashboardWallet | null | undefined) ?? null);
-      } catch (error) {
-        console.error("Failed to load formal dashboard data", error);
-      } finally {
-        setLoading(false);
       }
+
+      setLoading(false);
     };
 
     loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
   }, [session]);
 
   if (loading) {
