@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ArrowRight, UserCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
-import { login } from '@/lib/api';
+import { getAdmissionsSettings, login } from '@/lib/api';
 import { ApiError } from '@/lib/api/client';
 import { useSession } from '@/components/providers/session-provider';
 import { getPostAuthDestination, type RoleKey } from '@/lib/auth-routing';
@@ -62,6 +63,31 @@ export function AuthLoginPage({
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lecturerApplicationsOpen, setLecturerApplicationsOpen] = useState(false);
+  const [lecturerApplicationsMessage, setLecturerApplicationsMessage] = useState('');
+
+  useEffect(() => {
+    if (currentRole !== 'lecturer') return;
+
+    let mounted = true;
+    getAdmissionsSettings()
+      .then((settings) => {
+        if (!mounted) return;
+        setLecturerApplicationsOpen(Boolean(settings.lecturerApplicationsOpen));
+        setLecturerApplicationsMessage(
+          typeof settings.lecturerApplicationsMessage === 'string'
+            ? settings.lecturerApplicationsMessage
+            : ''
+        );
+      })
+      .catch((cause) => {
+        console.error('Failed to load lecturer application status', cause);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [currentRole]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -169,6 +195,25 @@ export function AuthLoginPage({
               </CardHeader>
 
               <CardContent>
+                {currentRole === 'lecturer' && lecturerApplicationsOpen ? (
+                  <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                    <div className="flex gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                        <UserCheck className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="font-semibold text-foreground">Lecturer applications are open</p>
+                        <p className="text-muted-foreground">
+                          {lecturerApplicationsMessage || 'Apply to join UnivAI as a lecturer if you do not already have an account.'}
+                        </p>
+                        <Button asChild size="sm">
+                          <Link href="/lecturer/applications">Apply as Lecturer <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 <form onSubmit={handleLogin} className="space-y-5">
                   {error && (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
