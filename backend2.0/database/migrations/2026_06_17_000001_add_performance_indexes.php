@@ -61,8 +61,12 @@ return new class extends Migration
             return;
         }
 
-        Schema::table($tableName, function (Blueprint $table) use ($indexName) {
-            $table->dropIndex($indexName);
-        });
+        try {
+            Schema::table($tableName, function (Blueprint $table) use ($indexName) {
+                $table->dropIndex($indexName);
+            });
+        } catch (Throwable) {
+            // Some databases may not have received every optional index because the guarded columns were absent.
+        }
     }
 };
