@@ -47,6 +47,26 @@ function GuardFrame({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-screen items-center justify-center bg-background p-6">{children}</div>;
 }
 
+function AccessSkeleton({ label }: { label: string }) {
+  return (
+    <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <div className="space-y-2">
+          <div className="h-8 w-48 animate-pulse rounded-xl bg-muted" />
+          <div className="h-4 w-72 max-w-full animate-pulse rounded bg-muted" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="h-28 animate-pulse rounded-2xl border bg-muted/40" />
+          ))}
+        </div>
+        <div className="h-64 animate-pulse rounded-2xl border bg-muted/30" />
+        <p className="text-sm text-muted-foreground">Verifying {label.toLowerCase()} access...</p>
+      </div>
+    </div>
+  );
+}
+
 export function RoleGuard({
   children,
   allowedRoles,
@@ -67,16 +87,7 @@ export function RoleGuard({
   }, [loading, router, user]);
 
   if (loading) {
-    return (
-      <GuardFrame>
-        <Card className="max-w-lg">
-          <CardHeader>
-            <CardTitle>Loading access</CardTitle>
-            <CardDescription>Verifying your {contextLabel.toLowerCase()} permissions.</CardDescription>
-          </CardHeader>
-        </Card>
-      </GuardFrame>
-    );
+    return <AccessSkeleton label={contextLabel} />;
   }
 
   if (!user) {
