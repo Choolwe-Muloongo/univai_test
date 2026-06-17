@@ -16,10 +16,21 @@ type PageLoadingProps = {
 };
 
 export function PageLoading({ message, label }: PageLoadingProps) {
+  const text = message ?? label ?? 'Loading...';
+
   return (
-    <Card>
-      <CardContent className="p-6 text-sm text-muted-foreground">
-        {message ?? label ?? 'Loading...'}
+    <Card aria-live="polite" role="status">
+      <CardContent className="space-y-4 p-6">
+        <div className="space-y-2">
+          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-64 max-w-full animate-pulse rounded bg-muted/80" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="h-20 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-20 animate-pulse rounded-xl bg-muted/50" />
+          <div className="h-20 animate-pulse rounded-xl bg-muted/50" />
+        </div>
+        <p className="text-sm text-muted-foreground">{text}</p>
       </CardContent>
     </Card>
   );
