@@ -12,10 +12,8 @@ use App\Models\JobPosting;
 use App\Models\Lesson;
 use App\Models\LessonDocument;
 use App\Models\Payment;
-use App\Models\ProgramModule;
 use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
-use App\Models\User;
 use App\Models\Application;
 use App\Support\Notifications\InAppNotifier;
 use Illuminate\Http\Request;
@@ -94,12 +92,18 @@ class DashboardController extends Controller
             ? $assignments->map(fn (CourseLecturerAssignment $assignment) => $assignment->course)->filter()
             : Course::query()->orderBy('title')->take(4)->get();
 
-        $courseIds = $assignments->pluck('course_id')->unique()->filter();
-        $intakeIds = $assignments->pluck('intake_id')->unique()->filter();
+        $courseIds = $assignments->pluck('course_id')->unique()->filter()->values();
+        $intakeIds = $assignments->pluck('intake_id')->unique()->filter()->values();
 
-        $studentsCount = $intakeIds->isNotEmpty()
-            ? Enrollment::query()->whereIn('intake_id', $intakeIds)->distinct('user_id')->count('user_id')
-            : 0;
+        $studentCountsByIntake = $intakeIds->isNotEmpty()
+            ? Enrollment::query()
+                ->whereIn('intake_id', $intakeIds)
+                ->select('intake_id', DB::raw('count(distinct user_id) as total'))
+                ->groupBy('intake_id')
+                ->pluck('total', 'intake_id')
+            : collect();
+
+        $studentsCount = (int) $studentCountsByIntake->sum();
 
         $pendingReviews = 0;
         if ($courseIds->isNotEmpty()) {
@@ -112,27 +116,6 @@ class DashboardController extends Controller
             }
         }
 
-        $metrics = collect([
-            [
-                'key' => 'courses',
-                'label' => 'Courses Taught',
-                'value' => (string) $courseIds->count(),
-                'note' => 'Active this semester',
-            ],
-            [
-                'key' => 'students',
-                'label' => 'Total Students',
-                'value' => (string) $studentsCount,
-                'note' => 'Across assigned intakes',
-            ],
-            [
-                'key' => 'messages',
-                'label' => 'Pending Reviews',
-                'value' => (string) $pendingReviews,
-                'note' => 'Lesson documents awaiting approval',
-            ],
-        ]);
-
         $courseAttemptStats = CourseAttempt::query()
             ->select('program_modules.program_id', DB::raw('avg(course_attempts.final_percentage) as avg_score'))
             ->join('program_modules', 'program_modules.id', '=', 'course_attempts.module_id')
@@ -141,7 +124,7 @@ class DashboardController extends Controller
             ->keyBy('program_id');
 
         $managedCourses = $assignments->isNotEmpty()
-            ? $assignments->map(function (CourseLecturerAssignment $assignment, $index) use ($courseAttemptStats) {
+            ? $assignments->map(function (CourseLecturerAssignment $assignment) use ($courseAttemptStats, $studentCountsByIntake) {
                 $course = $assignment->course;
                 if (!$course) {
                     return null;
@@ -150,13 +133,13 @@ class DashboardController extends Controller
                 return [
                     'id' => $course->id,
                     'title' => $course->title,
-                    'studentCount' => Enrollment::query()->where('intake_id', $assignment->intake_id)->distinct('user_id')->count('user_id'),
+                    'studentCount' => (int) ($studentCountsByIntake[$assignment->intake_id] ?? 0),
                     'avgProgress' => $metric?->avg_score ? round($metric->avg_score) : 0,
                     'intakeId' => $assignment->intake_id,
                     'intakeName' => $assignment->intake?->name,
                 ];
             })->filter()->values()
-            : $courses->map(function ($course, $index) use ($courseAttemptStats) {
+            : $courses->map(function ($course) use ($courseAttemptStats) {
                 $metric = $courseAttemptStats->get($course->id);
                 return [
                     'id' => $course->id,
@@ -169,21 +152,37 @@ class DashboardController extends Controller
             });
 
         return response()->json([
-            'metrics' => $metrics->map(fn ($item) => [
-                'key' => $item->key,
-                'label' => $item->label,
-                'value' => $item->value,
-                'note' => $item->note,
-            ]),
+            'metrics' => [
+                [
+                    'key' => 'courses',
+                    'label' => 'Courses Taught',
+                    'value' => (string) $courseIds->count(),
+                    'note' => 'Active this semester',
+                ],
+                [
+                    'key' => 'students',
+                    'label' => 'Total Students',
+                    'value' => (string) $studentsCount,
+                    'note' => 'Across assigned intakes',
+                ],
+                [
+                    'key' => 'messages',
+                    'label' => 'Pending Reviews',
+                    'value' => (string) $pendingReviews,
+                    'note' => 'Lesson documents awaiting approval',
+                ],
+            ],
             'managedCourses' => $managedCourses,
         ]);
     }
 
     public function employer()
     {
-        $jobs = JobPosting::query()->orderBy('created_at', 'desc')->get();
+        $activeJobs = JobPosting::query()->count();
+        $postedJobs = JobPosting::query()->orderBy('created_at', 'desc')->take(3)->get();
+        $activeResearch = ResearchOpportunity::query()->count();
+        $research = ResearchOpportunity::query()->orderBy('created_at', 'desc')->take(3)->get();
         $jobApplicants = JobApplication::query()->select('job_id', DB::raw('count(*) as total'))->groupBy('job_id')->pluck('total', 'job_id');
-        $research = ResearchOpportunity::query()->orderBy('created_at', 'desc')->get();
         $researchApplicants = ResearchApplication::query()->count();
         $today = now()->toDateString();
         $todayApplicants = JobApplication::query()->whereDate('created_at', $today)->count()
@@ -193,11 +192,11 @@ class DashboardController extends Controller
         return response()->json([
             'stats' => [
                 'activeJobs' => [
-                    'value' => $jobs->count(),
+                    'value' => $activeJobs,
                     'note' => 'Active job listings',
                 ],
                 'activeResearch' => [
-                    'value' => $research->count(),
+                    'value' => $activeResearch,
                     'note' => 'Open research opportunities',
                 ],
                 'totalApplicants' => [
@@ -205,13 +204,13 @@ class DashboardController extends Controller
                     'note' => $todayNote,
                 ],
             ],
-            'postedJobs' => $jobs->take(3)->map(fn ($job) => [
+            'postedJobs' => $postedJobs->map(fn ($job) => [
                 'id' => $job->id,
                 'title' => $job->title,
                 'status' => 'Open',
                 'applicants' => (int) ($jobApplicants[$job->id] ?? 0),
             ]),
-            'research' => $research->take(3)->map(fn ($item) => [
+            'research' => $research->map(fn ($item) => [
                 'id' => $item->id,
                 'title' => $item->title,
                 'field' => $item->field,
