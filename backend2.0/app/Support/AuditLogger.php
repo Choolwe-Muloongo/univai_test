@@ -9,7 +9,11 @@ class AuditLogger
 {
     public static function log(Request $request, string $action, ?string $targetType = null, ?string $targetId = null, array $payload = []): void
     {
-        $sessionUser = $request->session()->get('user');
+        $sessionUser = null;
+        if ($request->hasSession()) {
+            $sessionUser = $request->session()->get('user');
+        }
+
         $actorId = null;
         if (is_array($sessionUser) && isset($sessionUser['id']) && is_numeric($sessionUser['id'])) {
             $actorId = (int) $sessionUser['id'];
