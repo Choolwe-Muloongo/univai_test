@@ -166,8 +166,9 @@ function titleFromPath(path: string) {
     .join(' / ');
 }
 
-export default function AdminWorkspaceFallbackPage({ params }: { params: { workspace?: string[] } }) {
-  const slug = (params.workspace ?? []).join('/');
+export default async function AdminWorkspaceFallbackPage({ params }: { params: Promise<{ workspace?: string[] }> }) {
+  const resolvedParams = await params;
+  const slug = (resolvedParams.workspace ?? []).join('/');
   const config = workspaces[slug] ?? {
     title: titleFromPath(slug) || 'Admin Workspace',
     section: 'Admin',
