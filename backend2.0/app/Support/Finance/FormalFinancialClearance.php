@@ -18,7 +18,7 @@ class FormalFinancialClearance
         'tuition_fee',
     ];
 
-    public function forStudentIntake(int|string $studentId, ?string $intakeId, int $academicYear = 1): array
+    public function forStudentIntake(int|string $studentId, ?string $intakeId, int $academicYear = 1, bool $persistSnapshot = false): array
     {
         if (!$studentId || !$intakeId) {
             return $this->emptyResult($studentId, $intakeId, $academicYear, 'missing_student_or_intake');
@@ -100,7 +100,9 @@ class FormalFinancialClearance
             'status' => $status,
         ];
 
-        $this->persistSnapshot($result);
+        if ($persistSnapshot) {
+            $this->persistSnapshot($result);
+        }
 
         return $result;
     }
