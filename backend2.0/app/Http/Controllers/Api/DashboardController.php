@@ -9,7 +9,6 @@ use App\Models\CourseAttempt;
 use App\Models\Enrollment;
 use App\Models\JobApplication;
 use App\Models\JobPosting;
-use App\Models\Lesson;
 use App\Models\LessonDocument;
 use App\Models\Payment;
 use App\Models\ResearchApplication;
@@ -107,7 +106,10 @@ class DashboardController extends Controller
 
         $pendingReviews = 0;
         if ($courseIds->isNotEmpty()) {
-            $lessonIds = Lesson::query()->whereIn('course_id', $courseIds)->pluck('id');
+            $lessonIds = DB::table('short_course_lessons')
+                ->whereIn('short_course_id', $courseIds)
+                ->pluck('lesson_id');
+
             if ($lessonIds->isNotEmpty()) {
                 $pendingReviews = LessonDocument::query()
                     ->whereIn('lesson_id', $lessonIds)
