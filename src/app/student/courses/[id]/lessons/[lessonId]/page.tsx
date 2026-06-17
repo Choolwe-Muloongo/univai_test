@@ -124,7 +124,7 @@ export default function FocusedLessonPage() {
       await completeShortCourseLesson(params.id, params.lessonId);
       setCompleted(true);
       if (!wasCompleted) {
-        await recordLearningEvent({
+        void recordLearningEvent({
           type: 'mission_completed',
           courseId: params.id,
           lessonId: params.lessonId,
