@@ -36,14 +36,13 @@ class AdminWorkspaceController extends Controller
         $slug = trim((string) $workspace, '/');
         $config = $this->workspaceConfig($slug);
 
-        return response()->json([
-            ...$config,
+        return response()->json(array_merge($config, [
             'metrics' => $this->workspaceMetrics($slug),
             'records' => $this->workspaceRecords($slug),
             'actions' => $this->workspaceActions($slug),
             'endpoints' => $this->workspaceEndpoints($slug),
             'generatedAt' => now()->toISOString(),
-        ]);
+        ]));
     }
 
     public function report(Request $request, string $type)
@@ -237,7 +236,7 @@ class AdminWorkspaceController extends Controller
         ];
 
         $id = DB::table('in_app_notifications')->insertGetId($data);
-        return response()->json(['id' => $id, ...$data], 201);
+        return response()->json(array_merge(['id' => $id], $data), 201);
     }
 
     private function createDeliveryLog(array $payload)
@@ -246,10 +245,18 @@ class AdminWorkspaceController extends Controller
             return response()->json(['message' => 'Message delivery log table does not exist yet.'], 503);
         }
 
-        $payload['created_at'] = now();
-        $payload['updated_at'] = now();
-        $id = DB::table('message_deliveries')->insertGetId($payload);
-        return response()->json(['id' => $id, ...$payload], 201);
+        $data = [
+            'channel' => (string) ($payload['channel'] ?? 'admin'),
+            'recipient' => (string) ($payload['recipient'] ?? 'unknown'),
+            'subject' => $payload['subject'] ?? null,
+            'body' => $payload['body'] ?? null,
+            'status' => (string) ($payload['status'] ?? 'logged'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $id = DB::table('message_deliveries')->insertGetId($data);
+        return response()->json(array_merge(['id' => $id], $data), 201);
     }
 
     private function createSavedReport(array $payload)
@@ -267,13 +274,17 @@ class AdminWorkspaceController extends Controller
             'updated_at' => now(),
         ];
         $id = DB::table('saved_reports')->insertGetId($data);
-        return response()->json(['id' => $id, ...$data], 201);
+        return response()->json(array_merge(['id' => $id], $data), 201);
     }
 
     private function usersByRoles(array $roles, int $limit = 100): array
     {
         if (!Schema::hasTable('users')) return [];
-        return DB::table('users')->whereIn('role', $roles)->latest('updated_at')->limit($limit)->get()->map(fn ($row) => (array) $row)->all();
+        $query = DB::table('users')->whereIn('role', $roles);
+        if (Schema::hasColumn('users', 'updated_at')) {
+            $query->orderByDesc('updated_at');
+        }
+        return $query->limit($limit)->get()->map(fn ($row) => (array) $row)->all();
     }
 
     private function latestRows(string $table, int $limit = 20): array
