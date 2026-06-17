@@ -8,101 +8,61 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('invoices')) {
-            Schema::table('invoices', function (Blueprint $table) {
-                $table->index(['student_id', 'intake_id', 'type', 'status'], 'invoices_student_intake_type_status_idx');
-                $table->index(['student_id', 'status'], 'invoices_student_status_idx');
-            });
-        }
-
-        if (Schema::hasTable('enrollments')) {
-            Schema::table('enrollments', function (Blueprint $table) {
-                $table->index(['user_id', 'intake_id', 'status'], 'enrollments_user_intake_status_idx');
-                $table->index(['intake_id', 'user_id'], 'enrollments_intake_user_idx');
-            });
-        }
-
-        if (Schema::hasTable('course_sessions')) {
-            Schema::table('course_sessions', function (Blueprint $table) {
-                $table->index(['intake_id', 'delivery_mode', 'created_at'], 'course_sessions_intake_mode_created_idx');
-            });
-        }
-
-        if (Schema::hasTable('lesson_documents')) {
-            Schema::table('lesson_documents', function (Blueprint $table) {
-                $table->index(['lesson_id', 'status'], 'lesson_documents_lesson_status_idx');
-                $table->index(['status', 'created_at'], 'lesson_documents_status_created_idx');
-            });
-        }
-
-        if (Schema::hasTable('short_course_lesson_progress')) {
-            Schema::table('short_course_lesson_progress', function (Blueprint $table) {
-                $table->index(['student_id', 'short_course_id'], 'sclp_student_course_idx');
-                $table->index(['short_course_id', 'lesson_id'], 'sclp_course_lesson_idx');
-            });
-        }
-
-        if (Schema::hasTable('short_course_lessons')) {
-            Schema::table('short_course_lessons', function (Blueprint $table) {
-                $table->index(['short_course_id', 'sort_order'], 'short_course_lessons_course_order_idx');
-            });
-        }
-
-        if (Schema::hasTable('exam_questions')) {
-            Schema::table('exam_questions', function (Blueprint $table) {
-                $table->index(['course_id', 'difficulty', 'question_type'], 'exam_questions_course_diff_type_idx');
-                $table->index(['course_id', 'lesson_id'], 'exam_questions_course_lesson_idx');
-            });
-        }
+        $this->indexIfColumnsExist('invoices', ['student_id', 'intake_id', 'type', 'status'], 'invoices_student_intake_type_status_idx');
+        $this->indexIfColumnsExist('invoices', ['student_id', 'status'], 'invoices_student_status_idx');
+        $this->indexIfColumnsExist('enrollments', ['user_id', 'intake_id', 'status'], 'enrollments_user_intake_status_idx');
+        $this->indexIfColumnsExist('enrollments', ['intake_id', 'user_id'], 'enrollments_intake_user_idx');
+        $this->indexIfColumnsExist('course_sessions', ['intake_id', 'delivery_mode', 'created_at'], 'course_sessions_intake_mode_created_idx');
+        $this->indexIfColumnsExist('lesson_documents', ['lesson_id', 'status'], 'lesson_documents_lesson_status_idx');
+        $this->indexIfColumnsExist('lesson_documents', ['status', 'created_at'], 'lesson_documents_status_created_idx');
+        $this->indexIfColumnsExist('short_course_lesson_progress', ['student_id', 'short_course_id'], 'sclp_student_course_idx');
+        $this->indexIfColumnsExist('short_course_lesson_progress', ['short_course_id', 'lesson_id'], 'sclp_course_lesson_idx');
+        $this->indexIfColumnsExist('short_course_lessons', ['short_course_id', 'sort_order'], 'short_course_lessons_course_order_idx');
+        $this->indexIfColumnsExist('exam_questions', ['course_id', 'difficulty', 'question_type'], 'exam_questions_course_diff_type_idx');
+        $this->indexIfColumnsExist('exam_questions', ['course_id', 'lesson_id'], 'exam_questions_course_lesson_idx');
     }
 
     public function down(): void
     {
-        if (Schema::hasTable('exam_questions')) {
-            Schema::table('exam_questions', function (Blueprint $table) {
-                $table->dropIndex('exam_questions_course_diff_type_idx');
-                $table->dropIndex('exam_questions_course_lesson_idx');
-            });
+        $this->dropIndexIfTableExists('exam_questions', 'exam_questions_course_diff_type_idx');
+        $this->dropIndexIfTableExists('exam_questions', 'exam_questions_course_lesson_idx');
+        $this->dropIndexIfTableExists('short_course_lessons', 'short_course_lessons_course_order_idx');
+        $this->dropIndexIfTableExists('short_course_lesson_progress', 'sclp_student_course_idx');
+        $this->dropIndexIfTableExists('short_course_lesson_progress', 'sclp_course_lesson_idx');
+        $this->dropIndexIfTableExists('lesson_documents', 'lesson_documents_lesson_status_idx');
+        $this->dropIndexIfTableExists('lesson_documents', 'lesson_documents_status_created_idx');
+        $this->dropIndexIfTableExists('course_sessions', 'course_sessions_intake_mode_created_idx');
+        $this->dropIndexIfTableExists('enrollments', 'enrollments_user_intake_status_idx');
+        $this->dropIndexIfTableExists('enrollments', 'enrollments_intake_user_idx');
+        $this->dropIndexIfTableExists('invoices', 'invoices_student_intake_type_status_idx');
+        $this->dropIndexIfTableExists('invoices', 'invoices_student_status_idx');
+    }
+
+    private function indexIfColumnsExist(string $tableName, array $columns, string $indexName): void
+    {
+        if (!Schema::hasTable($tableName)) {
+            return;
         }
 
-        if (Schema::hasTable('short_course_lessons')) {
-            Schema::table('short_course_lessons', function (Blueprint $table) {
-                $table->dropIndex('short_course_lessons_course_order_idx');
-            });
+        foreach ($columns as $column) {
+            if (!Schema::hasColumn($tableName, $column)) {
+                return;
+            }
         }
 
-        if (Schema::hasTable('short_course_lesson_progress')) {
-            Schema::table('short_course_lesson_progress', function (Blueprint $table) {
-                $table->dropIndex('sclp_student_course_idx');
-                $table->dropIndex('sclp_course_lesson_idx');
-            });
+        Schema::table($tableName, function (Blueprint $table) use ($columns, $indexName) {
+            $table->index($columns, $indexName);
+        });
+    }
+
+    private function dropIndexIfTableExists(string $tableName, string $indexName): void
+    {
+        if (!Schema::hasTable($tableName)) {
+            return;
         }
 
-        if (Schema::hasTable('lesson_documents')) {
-            Schema::table('lesson_documents', function (Blueprint $table) {
-                $table->dropIndex('lesson_documents_lesson_status_idx');
-                $table->dropIndex('lesson_documents_status_created_idx');
-            });
-        }
-
-        if (Schema::hasTable('course_sessions')) {
-            Schema::table('course_sessions', function (Blueprint $table) {
-                $table->dropIndex('course_sessions_intake_mode_created_idx');
-            });
-        }
-
-        if (Schema::hasTable('enrollments')) {
-            Schema::table('enrollments', function (Blueprint $table) {
-                $table->dropIndex('enrollments_user_intake_status_idx');
-                $table->dropIndex('enrollments_intake_user_idx');
-            });
-        }
-
-        if (Schema::hasTable('invoices')) {
-            Schema::table('invoices', function (Blueprint $table) {
-                $table->dropIndex('invoices_student_intake_type_status_idx');
-                $table->dropIndex('invoices_student_status_idx');
-            });
-        }
+        Schema::table($tableName, function (Blueprint $table) use ($indexName) {
+            $table->dropIndex($indexName);
+        });
     }
 };
