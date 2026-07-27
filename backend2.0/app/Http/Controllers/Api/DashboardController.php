@@ -14,6 +14,9 @@ use App\Models\Payment;
 use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
 use App\Models\ResearcherApplication;
+use App\Models\ResearchGrant;
+use App\Models\ResearchLab;
+use App\Models\ResearchPublication;
 use App\Models\Application;
 use App\Support\Notifications\InAppNotifier;
 use Illuminate\Http\Request;
@@ -183,10 +186,15 @@ class DashboardController extends Controller
     {
         $sessionUser = request()->session()->get('user');
         $email = $sessionUser['email'] ?? null;
+        $ownerId = isset($sessionUser['id']) && is_numeric($sessionUser['id']) ? (int) $sessionUser['id'] : null;
 
         $application = $email
             ? ResearcherApplication::query()->where('email', $email)->where('status', 'approved')->latest('reviewed_at')->first()
             : null;
+
+        $labsCount = $ownerId ? ResearchLab::query()->where('owner_id', $ownerId)->count() : 0;
+        $activeGrantsCount = $ownerId ? ResearchGrant::query()->where('owner_id', $ownerId)->whereIn('status', ['awarded', 'active'])->count() : 0;
+        $publicationsCount = $ownerId ? ResearchPublication::query()->where('owner_id', $ownerId)->count() : 0;
 
         return response()->json([
             'profile' => [
@@ -198,10 +206,22 @@ class DashboardController extends Controller
             ],
             'metrics' => [
                 [
-                    'key' => 'status',
-                    'label' => 'Portal Access',
-                    'value' => 'Active',
-                    'note' => 'Researcher account approved',
+                    'key' => 'labs',
+                    'label' => 'Research Labs',
+                    'value' => (string) $labsCount,
+                    'note' => 'Labs you own',
+                ],
+                [
+                    'key' => 'grants',
+                    'label' => 'Active Grants',
+                    'value' => (string) $activeGrantsCount,
+                    'note' => 'Awarded or active funding',
+                ],
+                [
+                    'key' => 'publications',
+                    'label' => 'Publications',
+                    'value' => (string) $publicationsCount,
+                    'note' => 'Tracked in your portfolio',
                 ],
             ],
         ]);

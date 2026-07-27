@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FlaskConical } from 'lucide-react';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, BookMarked, FlaskConical, Landmark } from 'lucide-react';
 import { getResearcherDashboard } from '@/lib/api';
 
 type ResearcherMetric = {
@@ -115,6 +117,42 @@ export default function ResearcherDashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base"><FlaskConical className="h-4 w-4 text-primary" /> Research Labs</CardTitle>
+                <CardDescription>Manage the labs you lead or collaborate on.</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/researcher/labs">Open Labs <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base"><Landmark className="h-4 w-4 text-primary" /> Grants</CardTitle>
+                <CardDescription>Track funding applications and awards.</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/researcher/grants">Open Grants <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base"><BookMarked className="h-4 w-4 text-primary" /> Publications</CardTitle>
+                <CardDescription>Keep your research output portfolio current.</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/researcher/publications">Open Publications <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
         </>
       )}
     </div>

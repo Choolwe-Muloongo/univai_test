@@ -338,6 +338,9 @@ const groupedLinks: Record<string, NavGroup[]> = {
     {
       links: [
         { href: '/researcher/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+        { href: '/researcher/labs', label: 'Research Labs', icon: FlaskConical, exact: true },
+        { href: '/researcher/grants', label: 'Grants', icon: Landmark, exact: true },
+        { href: '/researcher/publications', label: 'Publications', icon: BookMarked, exact: true },
       ],
     },
   ],

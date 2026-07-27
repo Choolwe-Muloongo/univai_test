@@ -11,6 +11,7 @@ const navLinks = [
   { href: '/programs', label: 'Programs' },
   { href: '/short-courses', label: 'Short Courses' },
   { href: '/for-instructors', label: 'For Instructors' },
+  { href: '/for-researchers', label: 'For Researchers' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];

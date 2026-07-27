@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicEntitlement;
 use App\Models\ResearcherApplication;
 use App\Models\User;
 use App\Support\AuditLogger;
@@ -94,6 +95,11 @@ class ResearcherApplicationsController extends Controller
                 'verification_status' => 'identity',
                 'profile_completed_at' => $user->profile_completed_at ?? now(),
             ]);
+
+            AcademicEntitlement::updateOrCreate(
+                ['user_id' => $user->id, 'code' => 'research_portal', 'scope_type' => 'platform', 'scope_id' => null],
+                ['status' => 'active', 'starts_at' => now(), 'metadata' => ['source' => 'researcher_application_approval']]
+            );
         }
 
         AuditLogger::log($request, 'researcher.application.reviewed', 'researcher_application', (string) $researcherApplication->id, [

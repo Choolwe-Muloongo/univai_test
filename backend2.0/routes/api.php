@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
 use App\Http\Controllers\Api\ResearcherApplicationsController;
+use App\Http\Controllers\Api\ResearcherWorkspaceController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\ShortCourseManualGuideController;
@@ -145,6 +146,18 @@ Route::middleware('api')->group(function () {
 
     Route::prefix('researcher')->middleware(['session.auth', 'access:researcher.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'researcher']);
+        Route::get('/labs', [ResearcherWorkspaceController::class, 'labsIndex']);
+        Route::post('/labs', [ResearcherWorkspaceController::class, 'storeLab']);
+        Route::patch('/labs/{lab}', [ResearcherWorkspaceController::class, 'updateLab']);
+        Route::delete('/labs/{lab}', [ResearcherWorkspaceController::class, 'destroyLab']);
+        Route::get('/grants', [ResearcherWorkspaceController::class, 'grantsIndex']);
+        Route::post('/grants', [ResearcherWorkspaceController::class, 'storeGrant']);
+        Route::patch('/grants/{grant}', [ResearcherWorkspaceController::class, 'updateGrant']);
+        Route::delete('/grants/{grant}', [ResearcherWorkspaceController::class, 'destroyGrant']);
+        Route::get('/publications', [ResearcherWorkspaceController::class, 'publicationsIndex']);
+        Route::post('/publications', [ResearcherWorkspaceController::class, 'storePublication']);
+        Route::patch('/publications/{publication}', [ResearcherWorkspaceController::class, 'updatePublication']);
+        Route::delete('/publications/{publication}', [ResearcherWorkspaceController::class, 'destroyPublication']);
     });
 
     Route::middleware(['session.auth', 'access:student.portal'])->group(function () {

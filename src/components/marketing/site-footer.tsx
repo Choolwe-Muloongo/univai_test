@@ -12,6 +12,7 @@ const studentLinks = [
 const staffLinks = [
   { href: '/login/lecturer', label: 'Lecturer Login' },
   { href: '/login/instructor', label: 'Instructor Login' },
+  { href: '/login/researcher', label: 'Researcher Login' },
   { href: '/login/admin', label: 'Admin Login' },
   { href: '/login/employer', label: 'Employer Login' },
 ];
