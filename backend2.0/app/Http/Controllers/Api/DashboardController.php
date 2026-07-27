@@ -13,6 +13,7 @@ use App\Models\LessonDocument;
 use App\Models\Payment;
 use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
+use App\Models\ResearcherApplication;
 use App\Models\Application;
 use App\Support\Notifications\InAppNotifier;
 use Illuminate\Http\Request;
@@ -175,6 +176,34 @@ class DashboardController extends Controller
                 ],
             ],
             'managedCourses' => $managedCourses,
+        ]);
+    }
+
+    public function researcher()
+    {
+        $sessionUser = request()->session()->get('user');
+        $email = $sessionUser['email'] ?? null;
+
+        $application = $email
+            ? ResearcherApplication::query()->where('email', $email)->where('status', 'approved')->latest('reviewed_at')->first()
+            : null;
+
+        return response()->json([
+            'profile' => [
+                'name' => $sessionUser['name'] ?? null,
+                'email' => $sessionUser['email'] ?? null,
+                'institutionAffiliation' => $application?->institution_affiliation,
+                'researchArea' => $application?->research_area,
+                'orcidId' => $application?->orcid_id,
+            ],
+            'metrics' => [
+                [
+                    'key' => 'status',
+                    'label' => 'Portal Access',
+                    'value' => 'Active',
+                    'note' => 'Researcher account approved',
+                ],
+            ],
         ]);
     }
 

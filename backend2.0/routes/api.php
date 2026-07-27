@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
+use App\Http\Controllers\Api\ResearcherApplicationsController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\ShortCourseManualGuideController;
@@ -139,7 +140,12 @@ Route::middleware('api')->group(function () {
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/admissions/settings', [AdmissionsController::class, 'settings']);
     Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit'])->middleware('throttle:admissions');
+    Route::post('/researcher-applications', [ResearcherApplicationsController::class, 'submit'])->middleware('throttle:admissions');
     Route::post('/payments/lenco/webhook', LencoWebhookController::class);
+
+    Route::prefix('researcher')->middleware(['session.auth', 'access:researcher.portal'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'researcher']);
+    });
 
     Route::middleware(['session.auth', 'access:student.portal'])->group(function () {
         Route::get('/students/me/program', [ProgramController::class, 'program']);
@@ -308,6 +314,9 @@ Route::middleware('api')->group(function () {
         Route::get('/lecturer-applications', [LecturerApplicationsController::class, 'adminIndex']);
         Route::get('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminShow']);
         Route::patch('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminUpdate']);
+        Route::get('/researcher-applications', [ResearcherApplicationsController::class, 'adminIndex']);
+        Route::get('/researcher-applications/{researcherApplication}', [ResearcherApplicationsController::class, 'adminShow']);
+        Route::patch('/researcher-applications/{researcherApplication}', [ResearcherApplicationsController::class, 'adminUpdate']);
         Route::get('/policies', [AcademicPoliciesController::class, 'index']);
         Route::post('/policies', [AcademicPoliciesController::class, 'store']);
         Route::patch('/policies/{policy}', [AcademicPoliciesController::class, 'update']);

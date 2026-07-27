@@ -1,6 +1,7 @@
 export const ROLE = {
   ADMIN: 'admin',
   LECTURER: 'lecturer',
+  RESEARCHER: 'researcher',
   EMPLOYER: 'employer',
   INSTRUCTOR: 'instructor',
   STUDENT: 'student',
@@ -13,6 +14,7 @@ export const ROLE = {
   APPLICANT: 'applicant',
   LECTURER_APPLICANT: 'lecturer-applicant',
   EMPLOYER_APPLICANT: 'employer-applicant',
+  RESEARCHER_APPLICANT: 'researcher-applicant',
   EXAM_OFFICER: 'exam-officer',
   CERTIFICATE_STUDENT: 'certificate-student',
 } as const;
@@ -27,13 +29,14 @@ export type EntitlementCode =
   | 'course_access'
   | 'ai_tutor'
   | 'teaching'
+  | 'research_portal'
   | 'employer_portal'
   | 'admin_portal'
   | 'short-course-access'
   | 'certificate-access'
   | 'premium-access'
   | 'programme-access';
-export type AccessPermission = 'student.portal' | 'student.premium' | 'admissions.applicant' | 'ai.generate' | 'lecturer.portal' | 'instructor.portal' | 'employer.portal' | 'admin.portal';
+export type AccessPermission = 'student.portal' | 'student.premium' | 'admissions.applicant' | 'ai.generate' | 'lecturer.portal' | 'researcher.portal' | 'instructor.portal' | 'employer.portal' | 'admin.portal';
 
 export type AccessContext = {
   role: string | null | undefined;
@@ -79,6 +82,7 @@ export const STUDENT_ROLES: readonly UserRole[] = [
 
 export const ADMIN_ROLES: readonly UserRole[] = [ROLE.ADMIN, ROLE.EXAM_OFFICER];
 export const LECTURER_ROLES: readonly UserRole[] = [ROLE.LECTURER];
+export const RESEARCHER_ROLES: readonly UserRole[] = [ROLE.RESEARCHER];
 export const EMPLOYER_ROLES: readonly UserRole[] = [ROLE.EMPLOYER];
 export const INSTRUCTOR_ROLES: readonly UserRole[] = [ROLE.INSTRUCTOR];
 export const PROGRAMME_STUDENT_ROLES: readonly UserRole[] = [ROLE.PROGRAMME_STUDENT, ROLE.ENROLLED];
@@ -90,11 +94,13 @@ export const PENDING_APPROVAL_ROLES: readonly UserRole[] = [
   ROLE.APPLICANT,
   ROLE.LECTURER_APPLICANT,
   ROLE.EMPLOYER_APPLICANT,
+  ROLE.RESEARCHER_APPLICANT,
 ];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   [ROLE.ADMIN]: 'Admin',
   [ROLE.LECTURER]: 'Lecturer',
+  [ROLE.RESEARCHER]: 'Researcher',
   [ROLE.EMPLOYER]: 'Employer',
   [ROLE.INSTRUCTOR]: 'Instructor',
   [ROLE.STUDENT]: 'Student',
@@ -108,6 +114,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [ROLE.APPLICANT]: 'Applicant',
   [ROLE.LECTURER_APPLICANT]: 'Lecturer Applicant',
   [ROLE.EMPLOYER_APPLICANT]: 'Employer Applicant',
+  [ROLE.RESEARCHER_APPLICANT]: 'Researcher Applicant',
   [ROLE.EXAM_OFFICER]: 'Exam Officer',
 };
 
@@ -152,6 +159,14 @@ export const ACCESS_REQUIREMENTS: Record<AccessPermission, AccessRequirement> = 
     subscriptions: ['none', 'free', 'trialing', 'active'],
     entitlements: ['teaching'],
   },
+  'researcher.portal': {
+    roles: RESEARCHER_ROLES,
+    states: ['active'],
+    verification: 'identity',
+    profile: 'complete',
+    subscriptions: ['none', 'free', 'trialing', 'active'],
+    entitlements: ['research_portal'],
+  },
   'instructor.portal': {
     roles: INSTRUCTOR_ROLES,
     states: ['active', 'probation'],
@@ -189,6 +204,7 @@ const LEGACY_ROLE_PERMISSIONS: Partial<Record<UserRole, AccessPermission>> = {
   [ROLE.ENROLLED]: 'student.portal',
   [ROLE.APPLICANT]: 'admissions.applicant',
   [ROLE.LECTURER]: 'lecturer.portal',
+  [ROLE.RESEARCHER]: 'researcher.portal',
   [ROLE.EMPLOYER]: 'employer.portal',
   [ROLE.INSTRUCTOR]: 'instructor.portal',
   [ROLE.ADMIN]: 'admin.portal',
@@ -376,7 +392,7 @@ function fallbackState(role: UserRole): AccountState {
 }
 
 function fallbackVerification(role: UserRole): VerificationStatus {
-  return ([ROLE.ADMIN, ROLE.LECTURER, ROLE.INSTRUCTOR] as readonly UserRole[]).includes(role) ? 'identity' : 'email';
+  return ([ROLE.ADMIN, ROLE.LECTURER, ROLE.RESEARCHER, ROLE.INSTRUCTOR] as readonly UserRole[]).includes(role) ? 'identity' : 'email';
 }
 
 function fallbackProfileCompleted(role: UserRole): boolean {
@@ -422,6 +438,8 @@ function fallbackEntitlements(role: UserRole): EntitlementCode[] {
       return ['admin_portal'];
     case ROLE.LECTURER:
       return ['teaching'];
+    case ROLE.RESEARCHER:
+      return ['research_portal'];
     case ROLE.INSTRUCTOR:
       return ['teaching'];
     case ROLE.EMPLOYER:
@@ -449,6 +467,7 @@ function hasEntitlement(actual: readonly string[], required: EntitlementCode): b
     course_access: ['course_access', 'short-course-access', 'certificate-access', 'premium-access', 'programme-access'],
     ai_tutor: ['ai_tutor', 'premium-access', 'programme-access'],
     teaching: ['teaching'],
+    research_portal: ['research_portal'],
     employer_portal: ['employer_portal'],
     admin_portal: ['admin_portal'],
     'short-course-access': ['short-course-access'],
