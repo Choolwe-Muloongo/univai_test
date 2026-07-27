@@ -144,6 +144,27 @@ Route::middleware('api')->group(function () {
     Route::post('/researcher-applications', [ResearcherApplicationsController::class, 'submit'])->middleware('throttle:admissions');
     Route::post('/payments/lenco/webhook', LencoWebhookController::class);
 
+    Route::prefix('lecturer')->middleware(['session.auth', 'access:lecturer.portal'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'lecturer']);
+        Route::get('/assignments', [LecturerAssignmentsController::class, 'index']);
+        Route::patch('/assignments/{assignment}/meeting', [LecturerAssignmentsController::class, 'updateMeeting']);
+        Route::get('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'index']);
+        Route::post('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'store']);
+        Route::patch('/lessons/{lessonId}/documents/{document}', [LessonDocumentsController::class, 'review']);
+        Route::get('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerIndex']);
+        Route::post('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerStore']);
+        Route::get('/sessions/{session}/roster', [CourseSessionsController::class, 'roster']);
+        Route::post('/sessions/{session}/attendance', [CourseSessionsController::class, 'markAttendance']);
+        Route::get('/exam-questions', [LecturerExamQuestionsController::class, 'index']);
+        Route::post('/exam-questions', [LecturerExamQuestionsController::class, 'store']);
+        Route::patch('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'update']);
+        Route::delete('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'destroy']);
+        Route::get('/students', [StudentsController::class, 'lecturerStudents']);
+        Route::post('/grades', [GradesController::class, 'recordGrade']);
+        Route::get('/testing', [PlatformExpansionController::class, 'lecturerTesting']);
+        Route::post('/test-announcements', [PlatformExpansionController::class, 'storeTestAnnouncement']);
+    });
+
     Route::prefix('researcher')->middleware(['session.auth', 'access:researcher.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'researcher']);
         Route::get('/labs', [ResearcherWorkspaceController::class, 'labsIndex']);
