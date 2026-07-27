@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicEntitlement;
 use App\Models\AdmissionsSetting;
 use App\Models\LecturerApplication;
 use App\Models\User;
@@ -98,7 +99,15 @@ class LecturerApplicationsController extends Controller
             );
             $user->update([
                 'role' => 'lecturer',
+                'account_state' => 'active',
+                'verification_status' => 'identity',
+                'profile_completed_at' => $user->profile_completed_at ?? now(),
             ]);
+
+            AcademicEntitlement::updateOrCreate(
+                ['user_id' => $user->id, 'code' => 'teaching', 'scope_type' => 'platform', 'scope_id' => null],
+                ['status' => 'active', 'starts_at' => now(), 'metadata' => ['source' => 'lecturer_application_approval']]
+            );
         }
 
         AuditLogger::log($request, 'lecturer.application.reviewed', 'lecturer_application', (string) $lecturerApplication->id, [
