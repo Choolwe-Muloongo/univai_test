@@ -51,8 +51,11 @@ export default function HomePage() {
         });
       }
 
-      if (programsResult.status === 'rejected' || coursesResult.status === 'rejected') {
-        const cause = programsResult.status === 'rejected' ? programsResult.reason : coursesResult.reason;
+      if (programsResult.status === 'rejected') {
+        const cause = programsResult.reason;
+        setError(cause instanceof Error ? cause.message : 'Unable to load content.');
+      } else if (coursesResult.status === 'rejected') {
+        const cause = coursesResult.reason;
         setError(cause instanceof Error ? cause.message : 'Unable to load content.');
       }
 

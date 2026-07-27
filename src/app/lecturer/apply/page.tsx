@@ -32,38 +32,34 @@ export default function LecturerApplyPage() {
       setProgramError(null);
       setSettingsError(null);
 
-      const settingsResult = await getAdmissionsSettings()
-        .then((settings) => ({ ok: true as const, settings }))
-        .catch((error) => ({ ok: false as const, error }));
-
-      const programsResult = await getPrograms()
-        .then((items) => ({ ok: true as const, items }))
-        .catch((error) => ({ ok: false as const, error }));
-
-      if (!isMounted) return;
-
-      if (settingsResult.ok) {
-        setApplicationsOpen(Boolean(settingsResult.settings.lecturerApplicationsOpen));
+      try {
+        const settings = await getAdmissionsSettings();
+        setApplicationsOpen(Boolean(settings.lecturerApplicationsOpen));
         setApplicationsMessage(
-          typeof settingsResult.settings.lecturerApplicationsMessage === 'string'
-            ? settingsResult.settings.lecturerApplicationsMessage
+          typeof settings.lecturerApplicationsMessage === 'string'
+            ? settings.lecturerApplicationsMessage
             : 'Lecturer applications are currently closed.'
         );
-      } else {
-        console.error('Failed to load lecturer application settings', settingsResult.error);
+      } catch (error) {
+        console.error('Failed to load lecturer application settings', error);
         setApplicationsOpen(false);
         setSettingsError('Unable to load lecturer application settings. Please try again later.');
       }
 
-      if (programsResult.ok) {
-        setPrograms(programsResult.items);
-        setProgramInterest(programsResult.items[0]?.id ?? '');
-      } else {
-        console.error('Failed to load programmes for lecturer application', programsResult.error);
+      if (!isMounted) return;
+
+      try {
+        const items = await getPrograms();
+        setPrograms(items);
+        setProgramInterest(items[0]?.id ?? '');
+      } catch (error) {
+        console.error('Failed to load programmes for lecturer application', error);
         setPrograms([]);
         setProgramInterest('');
         setProgramError('Programmes are unavailable. You can still submit your application without a programme preference.');
       }
+
+      if (!isMounted) return;
 
       setLoading(false);
     }
