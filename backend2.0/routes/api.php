@@ -48,6 +48,8 @@ use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\SystemHealthController;
 use App\Http\Controllers\Api\LecturerApplicationsController;
+use App\Http\Controllers\Api\ResearcherApplicationsController;
+use App\Http\Controllers\Api\ResearcherWorkspaceController;
 use App\Http\Controllers\Api\StudentAssignmentsController;
 use App\Http\Controllers\Api\ShortCourseController;
 use App\Http\Controllers\Api\ShortCourseManualGuideController;
@@ -139,7 +141,45 @@ Route::middleware('api')->group(function () {
     Route::get('/leaderboard', [LeaderboardController::class, 'index']);
     Route::get('/admissions/settings', [AdmissionsController::class, 'settings']);
     Route::post('/lecturer-applications', [LecturerApplicationsController::class, 'submit'])->middleware('throttle:admissions');
+    Route::post('/researcher-applications', [ResearcherApplicationsController::class, 'submit'])->middleware('throttle:admissions');
     Route::post('/payments/lenco/webhook', LencoWebhookController::class);
+
+    Route::prefix('lecturer')->middleware(['session.auth', 'access:lecturer.portal'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'lecturer']);
+        Route::get('/assignments', [LecturerAssignmentsController::class, 'index']);
+        Route::patch('/assignments/{assignment}/meeting', [LecturerAssignmentsController::class, 'updateMeeting']);
+        Route::get('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'index']);
+        Route::post('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'store']);
+        Route::patch('/lessons/{lessonId}/documents/{document}', [LessonDocumentsController::class, 'review']);
+        Route::get('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerIndex']);
+        Route::post('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerStore']);
+        Route::get('/sessions/{session}/roster', [CourseSessionsController::class, 'roster']);
+        Route::post('/sessions/{session}/attendance', [CourseSessionsController::class, 'markAttendance']);
+        Route::get('/exam-questions', [LecturerExamQuestionsController::class, 'index']);
+        Route::post('/exam-questions', [LecturerExamQuestionsController::class, 'store']);
+        Route::patch('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'update']);
+        Route::delete('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'destroy']);
+        Route::get('/students', [StudentsController::class, 'lecturerStudents']);
+        Route::post('/grades', [GradesController::class, 'recordGrade']);
+        Route::get('/testing', [PlatformExpansionController::class, 'lecturerTesting']);
+        Route::post('/test-announcements', [PlatformExpansionController::class, 'storeTestAnnouncement']);
+    });
+
+    Route::prefix('researcher')->middleware(['session.auth', 'access:researcher.portal'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'researcher']);
+        Route::get('/labs', [ResearcherWorkspaceController::class, 'labsIndex']);
+        Route::post('/labs', [ResearcherWorkspaceController::class, 'storeLab']);
+        Route::patch('/labs/{lab}', [ResearcherWorkspaceController::class, 'updateLab']);
+        Route::delete('/labs/{lab}', [ResearcherWorkspaceController::class, 'destroyLab']);
+        Route::get('/grants', [ResearcherWorkspaceController::class, 'grantsIndex']);
+        Route::post('/grants', [ResearcherWorkspaceController::class, 'storeGrant']);
+        Route::patch('/grants/{grant}', [ResearcherWorkspaceController::class, 'updateGrant']);
+        Route::delete('/grants/{grant}', [ResearcherWorkspaceController::class, 'destroyGrant']);
+        Route::get('/publications', [ResearcherWorkspaceController::class, 'publicationsIndex']);
+        Route::post('/publications', [ResearcherWorkspaceController::class, 'storePublication']);
+        Route::patch('/publications/{publication}', [ResearcherWorkspaceController::class, 'updatePublication']);
+        Route::delete('/publications/{publication}', [ResearcherWorkspaceController::class, 'destroyPublication']);
+    });
 
     Route::middleware(['session.auth', 'access:student.portal'])->group(function () {
         Route::get('/students/me/program', [ProgramController::class, 'program']);
@@ -308,6 +348,9 @@ Route::middleware('api')->group(function () {
         Route::get('/lecturer-applications', [LecturerApplicationsController::class, 'adminIndex']);
         Route::get('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminShow']);
         Route::patch('/lecturer-applications/{lecturerApplication}', [LecturerApplicationsController::class, 'adminUpdate']);
+        Route::get('/researcher-applications', [ResearcherApplicationsController::class, 'adminIndex']);
+        Route::get('/researcher-applications/{researcherApplication}', [ResearcherApplicationsController::class, 'adminShow']);
+        Route::patch('/researcher-applications/{researcherApplication}', [ResearcherApplicationsController::class, 'adminUpdate']);
         Route::get('/policies', [AcademicPoliciesController::class, 'index']);
         Route::post('/policies', [AcademicPoliciesController::class, 'store']);
         Route::patch('/policies/{policy}', [AcademicPoliciesController::class, 'update']);

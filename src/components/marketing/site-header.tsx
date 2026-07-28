@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const navLinks = [
-  { href: '/', label: 'Home' },
   { href: '/programs', label: 'Programs' },
-  { href: '/short-courses', label: 'Short Courses' },
-  { href: '/for-instructors', label: 'For Instructors' },
+  { href: '/#schools', label: 'Schools' },
+  { href: '/#why-univai', label: 'AI Learning' },
+  { href: '/#research', label: 'Research' },
+  { href: '/#opportunities', label: 'Opportunities' },
+  { href: '/for-employers', label: 'For Employers' },
   { href: '/about', label: 'About' },
-  { href: '/contact', label: 'Contact' },
 ];
 
 export function SiteHeader() {
@@ -52,7 +53,7 @@ export function SiteHeader() {
             </SheetContent>
           </Sheet>
           <Button variant="ghost" asChild size="sm" className="px-3"><Link href="/login">Login</Link></Button>
-          <Button asChild size="sm" className="sm:h-10 sm:px-4"><Link href="/register">Get Started</Link></Button>
+          <Button asChild size="sm" className="sm:h-10 sm:px-4"><Link href="/register">Sign Up</Link></Button>
         </div>
       </div>
     </header>

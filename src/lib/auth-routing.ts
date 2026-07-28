@@ -6,12 +6,13 @@ export type AuthRole =
   | 'programme-student'
   | 'applicant'
   | 'lecturer'
+  | 'researcher'
   | 'instructor'
   | 'admin'
   | 'employer'
   | (string & {});
 
-export type RoleKey = 'student' | 'lecturer' | 'instructor' | 'admin' | 'employer';
+export type RoleKey = 'student' | 'lecturer' | 'researcher' | 'instructor' | 'admin' | 'employer';
 
 export type AuthRouteUser = {
   role?: AuthRole | null;
@@ -58,6 +59,13 @@ const roleIntentOptions: RoleIntentOption[] = [
     recommendedGoal: 'Publish your courses and manage instructor AI tools',
   },
   {
+    key: 'researcher',
+    label: 'Researcher',
+    description: 'Manage research collaborations and applied projects.',
+    loginPath: '/login/researcher',
+    recommendedGoal: 'Track your researcher application and access the research portal',
+  },
+  {
     key: 'employer',
     label: 'Employer',
     description: 'Build your profile and post opportunities.',
@@ -81,6 +89,11 @@ const onboardingByRole: Record<RoleKey, OnboardingChecklist> = {
     role: 'instructor',
     title: 'Instructor onboarding path',
     steps: ['Application', 'Approval status', 'Instructor dashboard'],
+  },
+  researcher: {
+    role: 'researcher',
+    title: 'Researcher onboarding path',
+    steps: ['Application', 'Approval status', 'Research portal'],
   },
   admin: {
     role: 'admin',
@@ -108,6 +121,7 @@ const postAuthRules: Array<{ matches: (user: AuthRouteUser) => boolean; destinat
     destination: '/student/dashboard',
   },
   { matches: (user) => user.role === 'lecturer', destination: '/lecturer/dashboard' },
+  { matches: (user) => user.role === 'researcher', destination: '/researcher/dashboard' },
   { matches: (user) => user.role === 'instructor', destination: '/instructor/dashboard' },
   { matches: (user) => user.role === 'admin', destination: '/admin/dashboard' },
   { matches: (user) => user.role === 'employer', destination: '/employer/dashboard' },

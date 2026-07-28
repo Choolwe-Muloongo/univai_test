@@ -17,6 +17,8 @@ class AccessControl
     public const ROLE_READ_ONLY_ADMIN = 'read-only-admin';
     public const ROLE_EXAM_OFFICER = 'exam-officer';
     public const ROLE_LECTURER = 'lecturer';
+    public const ROLE_RESEARCHER = 'researcher';
+    public const ROLE_RESEARCHER_APPLICANT = 'researcher-applicant';
     public const ROLE_EMPLOYER = 'employer';
     public const ROLE_INSTRUCTOR = 'instructor';
     public const ROLE_INSTRUCTOR_APPLICANT = 'instructor-applicant';
@@ -127,6 +129,14 @@ class AccessControl
             'subscriptions' => ['none', 'free', 'trialing', 'active'],
             'entitlements' => ['teaching'],
         ],
+        'researcher.portal' => [
+            'roles' => [self::ROLE_RESEARCHER],
+            'states' => ['active'],
+            'verification' => 'identity',
+            'profile' => 'complete',
+            'subscriptions' => ['none', 'free', 'trialing', 'active'],
+            'entitlements' => ['research_portal'],
+        ],
         'employer.portal' => [
             'roles' => [self::ROLE_EMPLOYER],
             'states' => ['active'],
@@ -220,6 +230,7 @@ class AccessControl
     public const LEGACY_ROLE_PERMISSIONS = [
         'student' => 'student.portal',
         'lecturer' => 'lecturer.portal',
+        'researcher' => 'researcher.portal',
         'employer' => 'employer.portal',
         'instructor' => 'instructor.portal',
         'admin' => 'admin.portal',
@@ -233,6 +244,7 @@ class AccessControl
         'ai_tutor' => ['ai_tutor', 'premium-access', 'programme-access'],
         'admin_portal' => ['admin_portal'],
         'teaching' => ['teaching'],
+        'research_portal' => ['research_portal'],
         'employer_portal' => ['employer_portal'],
         'instructor_portal' => ['instructor_portal'],
         'instructor_ai' => ['instructor_ai'],
@@ -540,7 +552,7 @@ class AccessControl
     private function fallbackState(?string $role): string
     {
         return match ($role) {
-            self::ROLE_APPLICANT, self::ROLE_LECTURER_APPLICANT, self::ROLE_EMPLOYER_APPLICANT, self::ROLE_INSTRUCTOR_APPLICANT => 'applicant',
+            self::ROLE_APPLICANT, self::ROLE_LECTURER_APPLICANT, self::ROLE_EMPLOYER_APPLICANT, self::ROLE_INSTRUCTOR_APPLICANT, self::ROLE_RESEARCHER_APPLICANT => 'applicant',
             self::ROLE_PROGRAMME_STUDENT, self::ROLE_PROGRAM_STUDENT, self::ROLE_ENROLLED => 'enrolled',
             default => 'active',
         };
@@ -548,12 +560,12 @@ class AccessControl
 
     private function fallbackVerification(?string $role): string
     {
-        return in_array($role, [self::ROLE_LECTURER, self::ROLE_INSTRUCTOR, ...self::ADMIN_ROLES], true) ? 'identity' : 'email';
+        return in_array($role, [self::ROLE_LECTURER, self::ROLE_RESEARCHER, self::ROLE_INSTRUCTOR, ...self::ADMIN_ROLES], true) ? 'identity' : 'email';
     }
 
     private function fallbackProfileCompleted(?string $role): bool
     {
-        return !in_array($role, [self::ROLE_APPLICANT, self::ROLE_LECTURER_APPLICANT, self::ROLE_EMPLOYER_APPLICANT, self::ROLE_INSTRUCTOR_APPLICANT], true);
+        return !in_array($role, [self::ROLE_APPLICANT, self::ROLE_LECTURER_APPLICANT, self::ROLE_EMPLOYER_APPLICANT, self::ROLE_INSTRUCTOR_APPLICANT, self::ROLE_RESEARCHER_APPLICANT], true);
     }
 
     private function fallbackSubscription(?string $role): string
@@ -581,6 +593,7 @@ class AccessControl
         return match ($role) {
             self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN, self::ROLE_NORMAL_ADMIN, self::ROLE_ADMISSIONS_ADMIN, self::ROLE_LECTURER_ADMIN, self::ROLE_EMPLOYER_VERIFICATION_ADMIN, self::ROLE_FINANCE_ADMIN, self::ROLE_READ_ONLY_ADMIN, self::ROLE_EXAM_OFFICER => ['admin_portal'],
             self::ROLE_LECTURER => ['teaching'],
+            self::ROLE_RESEARCHER => ['research_portal'],
             self::ROLE_EMPLOYER => ['employer_portal'],
             self::ROLE_INSTRUCTOR => ['instructor_portal', 'instructor_ai'],
             self::ROLE_PROGRAMME_STUDENT, self::ROLE_PROGRAM_STUDENT, self::ROLE_ENROLLED => ['student_portal', 'course_access', 'ai_tutor', 'programme-access', 'premium-access', 'certificate-access', 'short-course-access'],

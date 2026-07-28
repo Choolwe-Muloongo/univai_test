@@ -13,6 +13,10 @@ use App\Models\LessonDocument;
 use App\Models\Payment;
 use App\Models\ResearchApplication;
 use App\Models\ResearchOpportunity;
+use App\Models\ResearcherApplication;
+use App\Models\ResearchGrant;
+use App\Models\ResearchLab;
+use App\Models\ResearchPublication;
 use App\Models\Application;
 use App\Support\Notifications\InAppNotifier;
 use Illuminate\Http\Request;
@@ -175,6 +179,51 @@ class DashboardController extends Controller
                 ],
             ],
             'managedCourses' => $managedCourses,
+        ]);
+    }
+
+    public function researcher()
+    {
+        $sessionUser = request()->session()->get('user');
+        $email = $sessionUser['email'] ?? null;
+        $ownerId = isset($sessionUser['id']) && is_numeric($sessionUser['id']) ? (int) $sessionUser['id'] : null;
+
+        $application = $email
+            ? ResearcherApplication::query()->where('email', $email)->where('status', 'approved')->latest('reviewed_at')->first()
+            : null;
+
+        $labsCount = $ownerId ? ResearchLab::query()->where('owner_id', $ownerId)->count() : 0;
+        $activeGrantsCount = $ownerId ? ResearchGrant::query()->where('owner_id', $ownerId)->whereIn('status', ['awarded', 'active'])->count() : 0;
+        $publicationsCount = $ownerId ? ResearchPublication::query()->where('owner_id', $ownerId)->count() : 0;
+
+        return response()->json([
+            'profile' => [
+                'name' => $sessionUser['name'] ?? null,
+                'email' => $sessionUser['email'] ?? null,
+                'institutionAffiliation' => $application?->institution_affiliation,
+                'researchArea' => $application?->research_area,
+                'orcidId' => $application?->orcid_id,
+            ],
+            'metrics' => [
+                [
+                    'key' => 'labs',
+                    'label' => 'Research Labs',
+                    'value' => (string) $labsCount,
+                    'note' => 'Labs you own',
+                ],
+                [
+                    'key' => 'grants',
+                    'label' => 'Active Grants',
+                    'value' => (string) $activeGrantsCount,
+                    'note' => 'Awarded or active funding',
+                ],
+                [
+                    'key' => 'publications',
+                    'label' => 'Publications',
+                    'value' => (string) $publicationsCount,
+                    'note' => 'Tracked in your portfolio',
+                ],
+            ],
         ]);
     }
 

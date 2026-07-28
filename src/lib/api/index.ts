@@ -79,6 +79,11 @@ import type {
   AffiliatePayout,
   ResearchApplication,
   LecturerApplication,
+  ResearcherApplication,
+  ResearcherDashboardData,
+  ResearchLab,
+  ResearchGrant,
+  ResearchPublication,
   AiResponse,
   SystemHealthData,
   LaunchReadinessReport,
@@ -242,6 +247,10 @@ export async function createLecturerApplication(payload: Record<string, unknown>
 export async function getLecturerApplications(): Promise<LecturerApplication[]> { return apiFetch('/admin/lecturer-applications'); }
 export async function getLecturerApplication(id: number | string): Promise<LecturerApplication> { return apiFetch(`/admin/lecturer-applications/${id}`); }
 export async function updateLecturerApplication(id: number | string, payload: { status: string; notes?: string | null }): Promise<LecturerApplication> { return apiFetch(`/admin/lecturer-applications/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+export async function createResearcherApplication(payload: Record<string, unknown>) { return apiFetch('/researcher-applications', { method: 'POST', body: JSON.stringify(payload) }); }
+export async function getResearcherApplications(): Promise<ResearcherApplication[]> { return apiFetch('/admin/researcher-applications'); }
+export async function getResearcherApplication(id: number | string): Promise<ResearcherApplication> { return apiFetch(`/admin/researcher-applications/${id}`); }
+export async function updateResearcherApplication(id: number | string, payload: { status: string; notes?: string | null }): Promise<ResearcherApplication> { return apiFetch(`/admin/researcher-applications/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
 export async function getLecturerAssignments(): Promise<LecturerAssignment[]> { return apiFetch('/lecturer/assignments'); }
 export async function getLessonDocuments(lessonId: string, intakeId?: string | null): Promise<LessonDocument[]> { const query = intakeId ? `?intakeId=${encodeURIComponent(intakeId)}` : ''; return apiFetch(`/lecturer/lessons/${lessonId}/documents${query}`); }
 export async function reviewLessonDocument(lessonId: string, documentId: number, status: 'approved' | 'rejected', reviewNotes?: string): Promise<LessonDocument> { return apiFetch(`/lecturer/lessons/${lessonId}/documents/${documentId}`, { method: 'PATCH', body: JSON.stringify({ status, reviewNotes }) }); }
@@ -345,6 +354,19 @@ export async function submitStudentAssignment(id: number | string, payload: { co
 export async function getStudentAssignmentSubmissions(): Promise<StudentAssignmentSubmission[]> { return apiFetch('/students/me/assignments/submissions'); }
 
 export async function getLecturerDashboard(): Promise<LecturerDashboardData> { return apiFetch('/lecturer/dashboard'); }
+export async function getResearcherDashboard(): Promise<ResearcherDashboardData> { return apiFetch('/researcher/dashboard'); }
+export async function getResearchLabs(): Promise<ResearchLab[]> { return apiFetch('/researcher/labs'); }
+export async function createResearchLab(payload: Record<string, unknown>): Promise<ResearchLab> { return apiFetch('/researcher/labs', { method: 'POST', body: JSON.stringify(payload) }); }
+export async function updateResearchLab(id: number | string, payload: Record<string, unknown>): Promise<ResearchLab> { return apiFetch(`/researcher/labs/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+export async function deleteResearchLab(id: number | string): Promise<void> { await apiFetch(`/researcher/labs/${id}`, { method: 'DELETE', parseJson: false }); }
+export async function getResearchGrants(): Promise<ResearchGrant[]> { return apiFetch('/researcher/grants'); }
+export async function createResearchGrant(payload: Record<string, unknown>): Promise<ResearchGrant> { return apiFetch('/researcher/grants', { method: 'POST', body: JSON.stringify(payload) }); }
+export async function updateResearchGrant(id: number | string, payload: Record<string, unknown>): Promise<ResearchGrant> { return apiFetch(`/researcher/grants/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+export async function deleteResearchGrant(id: number | string): Promise<void> { await apiFetch(`/researcher/grants/${id}`, { method: 'DELETE', parseJson: false }); }
+export async function getResearchPublications(): Promise<ResearchPublication[]> { return apiFetch('/researcher/publications'); }
+export async function createResearchPublication(payload: Record<string, unknown>): Promise<ResearchPublication> { return apiFetch('/researcher/publications', { method: 'POST', body: JSON.stringify(payload) }); }
+export async function updateResearchPublication(id: number | string, payload: Record<string, unknown>): Promise<ResearchPublication> { return apiFetch(`/researcher/publications/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+export async function deleteResearchPublication(id: number | string): Promise<void> { await apiFetch(`/researcher/publications/${id}`, { method: 'DELETE', parseJson: false }); }
 export async function getLecturerStudents(intakeId: string): Promise<LecturerStudent[]> { return apiFetch(`/lecturer/students?intakeId=${encodeURIComponent(intakeId)}`); }
 export async function recordGrade(payload: { student_id: number; module_id: string; final_percentage: number; exam_score?: number | null; result_status?: string }) { return apiFetch('/lecturer/grades', { method: 'POST', body: JSON.stringify(payload) }); }
 

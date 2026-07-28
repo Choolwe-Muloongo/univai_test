@@ -211,6 +211,7 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/admin/short-courses/learners', label: 'Short Course Learners', icon: BookOpen, exact: true },
         { href: '/admin/lecturers', label: 'Lecturers', icon: UserCheck, exact: true },
         { href: '/admin/lecturer-applications', label: 'Lecturer Applications', icon: UserCheck, exact: true },
+        { href: '/admin/researcher-applications', label: 'Researcher Applications', icon: UserCheck, exact: true },
         { href: '/admin/instructors', label: 'External Instructors', icon: User, exact: true },
         { href: '/admin/instructor-applications', label: 'Instructor Applications', icon: ClipboardCheck, exact: true },
         { href: '/admin/instructor-courses', label: 'Instructor Courses', icon: BookOpen, exact: true },
@@ -330,6 +331,16 @@ const groupedLinks: Record<string, NavGroup[]> = {
         { href: '/lecturer/community', label: 'Community', icon: Users, exact: true },
         { href: '/lecturer/research', label: 'Research Hub', icon: FlaskConical },
         { href: '/lecturer/profile', label: 'Profile', icon: User, exact: true },
+      ],
+    },
+  ],
+  researcher: [
+    {
+      links: [
+        { href: '/researcher/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+        { href: '/researcher/labs', label: 'Research Labs', icon: FlaskConical, exact: true },
+        { href: '/researcher/grants', label: 'Grants', icon: Landmark, exact: true },
+        { href: '/researcher/publications', label: 'Publications', icon: BookMarked, exact: true },
       ],
     },
   ],
