@@ -52,7 +52,14 @@ export default function HomePage() {
       }
 
       if (programsResult.status === 'rejected' || coursesResult.status === 'rejected') {
-        const cause = programsResult.status === 'rejected' ? programsResult.reason : coursesResult.reason;
+        let cause: unknown;
+
+        if (programsResult.status === 'rejected') {
+          cause = programsResult.reason;
+        } else if (coursesResult.status === 'rejected') {
+          cause = coursesResult.reason;
+        }
+
         setError(cause instanceof Error ? cause.message : 'Unable to load content.');
       }
 
