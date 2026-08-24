@@ -111,133 +111,121 @@ export default function LecturerApplyPage() {
         },
       });
       setStatus('success');
-    } catch (error) {
-      console.error('Failed to submit lecturer application', error);
+      event.currentTarget.reset();
+      setProgramInterest(programs[0]?.id ?? '');
+    } catch (err) {
+      console.error('Failed to submit lecturer application', err);
       setStatus('error');
-      setSubmitError('Unable to submit your application. Please try again later.');
+      setSubmitError(err instanceof Error ? err.message : 'Unable to submit your lecturer application. Please try again.');
     }
   }
 
-  if (loading) {
-    return <PageLoading message="Loading lecturer applications..." />;
-  }
-
-  if (settingsError) {
-    return <PageError title="Unable to load applications" message={settingsError} />;
-  }
-
-  if (!applicationsOpen) {
-    return (
-      <main className="container mx-auto max-w-3xl px-4 py-10">
-        <Card>
-          <CardHeader>
-            <CardTitle>Lecturer Applications</CardTitle>
-            <CardDescription>{applicationsMessage}</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button asChild variant="outline">
-              <Link href="/">Return home</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </main>
-    );
-  }
+  const isSubmitting = status === 'submitting';
+  const formDisabled = isSubmitting || !applicationsOpen || loading || Boolean(settingsError);
 
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Apply as a Lecturer</CardTitle>
-          <CardDescription>Complete the form below to submit your lecturer application.</CardDescription>
+          <CardTitle>Lecturer Applications Portal</CardTitle>
+          <CardDescription>
+            Apply to join UnivAI as a lecturer. Our academic team will review your profile and contact you after review.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          {programError && (
-            <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              {programError}
+        <CardContent className="space-y-4">
+          {loading ? <PageLoading message="Loading lecturer application portal..." /> : null}
+          {settingsError ? <PageError message={settingsError} /> : null}
+          {programError ? <PageError message={programError} /> : null}
+          {!loading && !settingsError && !applicationsOpen ? (
+            <PageError message={applicationsMessage || 'Lecturer applications are currently closed. Please check back after admin opens applications.'} />
+          ) : null}
+          {!loading && applicationsOpen ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+              Lecturer applications are open. Complete the form below to submit your profile.
             </div>
-          )}
+          ) : null}
 
-          {status === 'success' ? (
-            <div className="space-y-4">
-              <p className="text-sm text-green-700">Your lecturer application has been submitted successfully.</p>
-              <Button asChild>
-                <Link href="/">Return home</Link>
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full name</Label>
-                  <Input id="fullName" name="fullName" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" name="phone" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input id="department" name="department" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="specialization">Specialization</Label>
-                  <Input id="specialization" name="specialization" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="highestQualification">Highest qualification</Label>
-                  <Input id="highestQualification" name="highestQualification" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="yearsExperience">Years of experience</Label>
-                  <Input id="yearsExperience" name="yearsExperience" type="number" min="0" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="programInterest">Programme of interest</Label>
-                  <Select value={programInterest} onValueChange={setProgramInterest}>
-                    <SelectTrigger id="programInterest">
-                      <SelectValue placeholder="Select a programme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {programs.map((program) => (
-                        <SelectItem key={program.id} value={program.id}>
-                          {program.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="cvLink">CV link</Label>
-                  <Input id="cvLink" name="cvLink" type="url" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="certLink">Certificates link</Label>
-                  <Input id="certLink" name="certLink" type="url" />
-                </div>
-              </div>
-
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="bio">Short bio</Label>
-                <Textarea id="bio" name="bio" rows={5} />
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input id="fullName" name="fullName" disabled={formDisabled} required />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" name="email" type="email" disabled={formDisabled} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input id="phone" name="phone" disabled={formDisabled} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Input id="department" name="department" placeholder="School of ICT" disabled={formDisabled} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="specialization">Specialization</Label>
+                <Input id="specialization" name="specialization" placeholder="Software Engineering" disabled={formDisabled} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="highestQualification">Highest Qualification</Label>
+                <Input id="highestQualification" name="highestQualification" placeholder="MSc / PhD" disabled={formDisabled} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="yearsExperience">Years Experience</Label>
+                <Input id="yearsExperience" name="yearsExperience" type="number" min="0" defaultValue="0" disabled={formDisabled} />
+              </div>
+              <div className="space-y-2">
+                <Label>Program of Interest</Label>
+                <Select value={programInterest} onValueChange={setProgramInterest} disabled={formDisabled || programs.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={programs.length ? 'Select program' : 'No programme preference'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programs.map((program) => (
+                      <SelectItem key={program.id} value={program.id}>
+                        {program.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-              {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio / Teaching Summary</Label>
+              <Textarea id="bio" name="bio" placeholder="Your teaching background and focus." disabled={formDisabled} />
+            </div>
 
-              <Button type="submit" disabled={status === 'submitting'}>
-                {status === 'submitting' ? 'Submitting...' : 'Submit application'}
-              </Button>
-            </form>
-          )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="cvLink">CV Link</Label>
+                <Input id="cvLink" name="cvLink" placeholder="https://..." disabled={formDisabled} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="certLink">Certificates Link</Label>
+                <Input id="certLink" name="certLink" placeholder="https://..." disabled={formDisabled} />
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={formDisabled}>
+              {isSubmitting ? 'Submitting...' : 'Submit Lecturer Application'}
+            </Button>
+            {status === 'success' ? (
+              <p className="text-sm text-emerald-600">Application submitted. The academic team will review your profile.</p>
+            ) : null}
+            {status === 'error' && submitError ? (
+              <p className="text-sm text-destructive">{submitError}</p>
+            ) : null}
+          </form>
         </CardContent>
+        <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+          <span>Already approved?</span>
+          <Button variant="outline" asChild>
+            <Link href="/login/lecturer">Lecturer Login</Link>
+          </Button>
+        </CardFooter>
       </Card>
-    </main>
+    </div>
   );
 }
