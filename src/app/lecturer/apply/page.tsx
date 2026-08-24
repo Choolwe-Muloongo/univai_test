@@ -49,7 +49,7 @@ export default function LecturerApplyPage() {
             ? settingsResult.settings.lecturerApplicationsMessage
             : 'Lecturer applications are currently closed.'
         );
-      } else {
+      } else if ('error' in settingsResult) {
         console.error('Failed to load lecturer application settings', settingsResult.error);
         setApplicationsOpen(false);
         setSettingsError('Unable to load lecturer application settings. Please try again later.');
@@ -58,7 +58,7 @@ export default function LecturerApplyPage() {
       if (programsResult.ok) {
         setPrograms(programsResult.items);
         setProgramInterest(programsResult.items[0]?.id ?? '');
-      } else {
+      } else if ('error' in programsResult) {
         console.error('Failed to load programmes for lecturer application', programsResult.error);
         setPrograms([]);
         setProgramInterest('');
@@ -138,43 +138,43 @@ export default function LecturerApplyPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input id="fullName" name="fullName" disabled={formDisabled} required />
+                <Label htmlFor="fullName">Full name</Label>
+                <Input id="fullName" name="fullName" required disabled={formDisabled} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" disabled={formDisabled} required />
+                <Input id="email" name="email" type="email" required disabled={formDisabled} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" name="phone" disabled={formDisabled} />
+                <Input id="phone" name="phone" required disabled={formDisabled} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="department">Department</Label>
-                <Input id="department" name="department" placeholder="School of ICT" disabled={formDisabled} />
+                <Input id="department" name="department" required disabled={formDisabled} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="specialization">Specialization</Label>
-                <Input id="specialization" name="specialization" placeholder="Software Engineering" disabled={formDisabled} />
+                <Input id="specialization" name="specialization" required disabled={formDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="highestQualification">Highest Qualification</Label>
-                <Input id="highestQualification" name="highestQualification" placeholder="MSc / PhD" disabled={formDisabled} />
+                <Label htmlFor="highestQualification">Highest qualification</Label>
+                <Input id="highestQualification" name="highestQualification" required disabled={formDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="yearsExperience">Years Experience</Label>
-                <Input id="yearsExperience" name="yearsExperience" type="number" min="0" defaultValue="0" disabled={formDisabled} />
+                <Label htmlFor="yearsExperience">Years of experience</Label>
+                <Input id="yearsExperience" name="yearsExperience" type="number" min="0" required disabled={formDisabled} />
               </div>
               <div className="space-y-2">
-                <Label>Program of Interest</Label>
-                <Select value={programInterest} onValueChange={setProgramInterest} disabled={formDisabled || programs.length === 0}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={programs.length ? 'Select program' : 'No programme preference'} />
+                <Label htmlFor="programInterest">Programme interest</Label>
+                <Select value={programInterest} onValueChange={setProgramInterest} disabled={formDisabled}>
+                  <SelectTrigger id="programInterest">
+                    <SelectValue placeholder="Select a programme" />
                   </SelectTrigger>
                   <SelectContent>
                     {programs.map((program) => (
                       <SelectItem key={program.id} value={program.id}>
-                        {program.title}
+                        {program.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -183,39 +183,32 @@ export default function LecturerApplyPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio / Teaching Summary</Label>
-              <Textarea id="bio" name="bio" placeholder="Your teaching background and focus." disabled={formDisabled} />
+              <Label htmlFor="cvLink">CV link</Label>
+              <Input id="cvLink" name="cvLink" type="url" disabled={formDisabled} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="certLink">Certificates link</Label>
+              <Input id="certLink" name="certLink" type="url" disabled={formDisabled} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Professional bio</Label>
+              <Textarea id="bio" name="bio" rows={5} required disabled={formDisabled} />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="cvLink">CV Link</Label>
-                <Input id="cvLink" name="cvLink" placeholder="https://..." disabled={formDisabled} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="certLink">Certificates Link</Label>
-                <Input id="certLink" name="certLink" placeholder="https://..." disabled={formDisabled} />
-              </div>
-            </div>
+            {submitError ? <PageError message={submitError} /> : null}
 
-            <Button type="submit" className="w-full" disabled={formDisabled}>
-              {isSubmitting ? 'Submitting...' : 'Submit Lecturer Application'}
-            </Button>
-            {status === 'success' ? (
-              <p className="text-sm text-emerald-600">Application submitted. The academic team will review your profile.</p>
-            ) : null}
-            {status === 'error' && submitError ? (
-              <p className="text-sm text-destructive">{submitError}</p>
-            ) : null}
+            <CardFooter className="px-0">
+              <Button type="submit" disabled={formDisabled}>
+                {isSubmitting ? 'Submitting...' : 'Submit application'}
+              </Button>
+            </CardFooter>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-          <span>Already approved?</span>
-          <Button variant="outline" asChild>
-            <Link href="/login/lecturer">Lecturer Login</Link>
-          </Button>
-        </CardFooter>
       </Card>
+
+      <div className="mt-4 text-center text-sm text-muted-foreground">
+        <Link href="/">Return to UnivAI</Link>
+      </div>
     </div>
   );
 }
