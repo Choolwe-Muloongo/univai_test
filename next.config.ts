@@ -48,6 +48,10 @@ const nextConfig: NextConfig = {
     },
   },
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev', '172.23.128.1'],
+  webpack: (config) => {
+    config.resolve.alias['plotly.js/dist/plotly'] = 'plotly.js-dist-min';
+    return config;
+  },
 };
 
 export default nextConfig;
