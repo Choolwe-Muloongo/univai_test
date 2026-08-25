@@ -1,5 +1,4 @@
 import { apiFetch } from '@/lib/api/client';
-
 export type ResearchProfile={userId:string;researchInterests:string[];researchScore:number;publications:number;projects:number;grants:number;patents:number;startups:number;currentRole:string};
 export type ResearchProject={projectId:string;title:string;abstract:string;category:string;status:string;principalInvestigator:string;researchAssistants:string[];budget:number;fundingSource:string;startDate:string;endDate:string;milestones:string[];deliverables:string[];partners:string[]};
 export type FundingOpportunity={id:string;title:string;organization:string;category:string;deadline:string;amount:string;description:string;eligibility:string;applicationUrl:string};
@@ -8,22 +7,22 @@ export type LivingLab={labId:string;name:string;manager:string;description:strin
 export type InnovationChallenge={challengeId:string;title:string;description:string;deadline:string;prizePool:string;participants:string[]};
 export type Startup={startupId:string;name:string;founders:string[];industry:string;stage:string;valuation:number;fundingRaised:number};
 export type ResearchPortalData={profile:ResearchProfile;projects:ResearchProject[];funding:FundingOpportunity[];publications:Publication[];labs:LivingLab[];challenges:InnovationChallenge[];startups:Startup[]};
-
-type Entity={id:string;type:string;title:string;status:string;ownerId:string;data:Record<string,any>;createdAt:string;updatedAt:string};
+type Entity={id:string;type:string;title:string;status:string;ownerId:string|null;data:Record<string,any>;createdAt:string;updatedAt};
 const arr=(v:any)=>Array.isArray(v)?v:[];
-const entity=(e:Entity)=>e.data||{};
-
+const data=(e:Entity)=>e.data||{};
 export async function getResearchPortalData(userId:string):Promise<ResearchPortalData>{
-  const raw=await apiFetch<any>('/research/dashboard');
-  const map=(e:Entity)=>entity(e);
-  const projects=arr(raw.projects).map((e:Entity)=>{const d=map(e);return {projectId:e.id,title:e.title,abstract:d.abstract||'',category:d.category||'',status:e.status,principalInvestigator:d.principalInvestigator||'',researchAssistants:arr(d.researchAssistants),budget:Number(d.budget||0),fundingSource:d.fundingSource||'',startDate:d.startDate||'',endDate:d.endDate||'',milestones:arr(d.milestones),deliverables:arr(d.deliverables),partners:arr(d.partners)};});
-  const funding=arr(raw.funding).map((e:Entity)=>{const d=map(e);return {id:e.id,title:e.title,organization:d.organization||'',category:d.category||'',deadline:d.deadline||'',amount:d.amount||'',description:d.description||'',eligibility:d.eligibility||'',applicationUrl:d.applicationUrl||''};});
-  const challenges=arr(raw.challenges).map((e:Entity)=>{const d=map(e);return {challengeId:e.id,title:e.title,description:d.description||'',deadline:d.deadline||'',prizePool:d.prizePool||'',participants:arr(d.participants)};});
-  return {profile:{userId:userId||raw.profile?.userId||'',researchInterests:arr(raw.profile?.researchInterests),researchScore:Number(raw.profile?.researchScore||0),publications:Number(raw.profile?.publications||0),projects:Number(raw.profile?.projects||projects.length),grants:Number(raw.profile?.grants||0),patents:Number(raw.profile?.patents||0),startups:Number(raw.profile?.startups||0),currentRole:raw.profile?.currentRole||'Research Participant'},projects,funding,publications:[],labs:[],challenges,startups:[]};
+ const raw=await apiFetch<any>('/research/dashboard');
+ const projects=arr(raw.projects).map((e:Entity)=>{const d=data(e);return {projectId:e.id,title:e.title,abstract:d.abstract||'',category:d.category||'',status:e.status,principalInvestigator:d.principalInvestigator||'',researchAssistants:arr(d.researchAssistants),budget:Number(d.budget||0),fundingSource:d.fundingSource||'',startDate:d.startDate||'',endDate:d.endDate||'',milestones:arr(d.milestones),deliverables:arr(d.deliverables),partners:arr(d.partners)};});
+ const funding=arr(raw.funding).map((e:Entity)=>{const d=data(e);return {id:e.id,title:e.title,organization:d.organization||'',category:d.category||'',deadline:d.deadline||'',amount:d.amount||'',description:d.description||'',eligibility:d.eligibility||'',applicationUrl:d.applicationUrl||''};});
+ const publications=arr(raw.publications).map((e:Entity)=>{const d=data(e);return {publicationId:e.id,title:e.title,authors:arr(d.authors),abstract:d.abstract||'',keywords:arr(d.keywords),doi:d.doi||'',publicationDate:d.publicationDate||'',downloads:Number(d.downloads||0),citations:Number(d.citations||0)};});
+ const labs=arr(raw.labs).map((e:Entity)=>{const d=data(e);return {labId:e.id,name:e.title,manager:d.manager||'',description:d.description||'',projects:arr(d.projects),participants:arr(d.participants)};});
+ const challenges=arr(raw.challenges).map((e:Entity)=>{const d=data(e);return {challengeId:e.id,title:e.title,description:d.description||'',deadline:d.deadline||'',prizePool:d.prizePool||'',participants:arr(d.participants)};});
+ const startups=arr(raw.startups).map((e:Entity)=>{const d=data(e);return {startupId:e.id,name:e.title,founders:arr(d.founders),industry:d.industry||'',stage:d.stage||e.status,valuation:Number(d.valuation||0),fundingRaised:Number(d.fundingRaised||0)};});
+ return {profile:{userId:userId||raw.profile?.userId||'',researchInterests:arr(raw.profile?.researchInterests),researchScore:Number(raw.profile?.researchScore||0),publications:Number(raw.profile?.publications||publications.length),projects:Number(raw.profile?.projects||projects.length),grants:Number(raw.profile?.grants||0),patents:Number(raw.profile?.patents||0),startups:Number(raw.profile?.startups||startups.length),currentRole:raw.profile?.currentRole||'Research Participant'},projects,funding,publications,labs,challenges,startups};
 }
-
 export async function createResearchEntity(type:string,title:string,data:Record<string,any>={},status?:string){return apiFetch<Entity>('/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,title,data,status})});}
 export async function updateResearchEntity(id:string,data:Record<string,any>){return apiFetch<Entity>(`/research/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({data})});}
+export async function deleteResearchEntity(id:string){return apiFetch(`/research/${id}`,{method:'DELETE'});}
 export async function transitionResearchEntity(id:string,status:string,comment?:string){return apiFetch<Entity>(`/research/${id}/transition`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,comment})});}
 export async function applyToResearch(id:string,payload:Record<string,any>){return apiFetch(`/research/${id}/apply`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
 export async function getResearchApplications(id:string){return apiFetch<any[]>(`/research/${id}/applications`);}
