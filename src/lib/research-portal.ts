@@ -18,6 +18,8 @@ export async function applyToResearch(id:string,payload:Record<string,any>){retu
 export async function getResearchApplications(id:string){return apiFetch<any[]>(`/research/${id}/applications`);}
 export async function updateResearchApplication(id:string,application:string,status:string){return apiFetch(`/research/${id}/applications/${application}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});}
 export async function awardResearchScore(action:string,entityId?:string,entityType?:string,description?:string){return apiFetch('/research/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,entityId,entityType,description})});}
+export async function getResearchRewards(){return apiFetch('/research/rewards');}
+export async function awardResearchReward(action:string,entityId?:string,entityType?:string,badge?:string){return apiFetch('/research/rewards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,entityId,entityType,badge})});}
 export async function getResearchWallet(type='grant'){return apiFetch(`/research/wallet?type=${encodeURIComponent(type)}`);}
 export async function recordResearchWalletTransaction(payload:Record<string,any>){return apiFetch('/research/wallet/transactions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
 export async function getResearchNotifications(){return apiFetch('/research/notifications');}
