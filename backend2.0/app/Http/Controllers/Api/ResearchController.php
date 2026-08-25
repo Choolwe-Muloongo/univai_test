@@ -3,129 +3,40 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ResearchApplication;
-use App\Models\ResearchOpportunity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ResearchController extends Controller
 {
-    public function index()
-    {
-        return ResearchOpportunity::query()
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(fn (ResearchOpportunity $opp) => $this->mapOpportunity($opp));
-    }
+    private const TYPES=['project','funding','community','living_lab','fellowship','publication','challenge','startup','partnership','event','grant'];
+    private const PROJECT=['Draft','Proposal','Approved','Funded','Active','Completed','Archived'];
+    private const FELLOWSHIP=['Submitted','Screened','Reviewed','Approved','Awarded','Completed'];
+    private const GRANT=['Opportunity','Concept Note','Proposal','Review','Submission','Award','Implementation','Reporting','Closure'];
+    private const SCORE=['publication'=>50,'project'=>20,'fellowship'=>100,'grant'=>200,'patent'=>500,'startup'=>300,'participation'=>10,'challenge'=>25];
 
-    public function show(string $id)
-    {
-        $opp = ResearchOpportunity::find($id);
-        if (!$opp) {
-            return response()->json(null, 404);
-        }
-
-        return $this->mapOpportunity($opp);
-    }
-
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'title' => 'required|string|max:255',
-            'company' => 'required|string|max:255',
-            'field' => 'required|string|max:255',
-            'description' => 'required|string',
-        ]);
-
-        $opp = ResearchOpportunity::create([
-            'id' => (string) Str::uuid(),
-            'title' => $data['title'],
-            'company' => $data['company'],
-            'field' => $data['field'],
-            'description' => $data['description'],
-        ]);
-
-        return $this->mapOpportunity($opp);
-    }
-
-    public function apply(string $id, Request $request)
-    {
-        $opp = ResearchOpportunity::find($id);
-        if (!$opp) {
-            return response()->json(null, 404);
-        }
-
-        $data = $request->validate([
-            'fullName' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'experience' => 'nullable|string',
-            'availability' => 'nullable|string|max:255',
-        ]);
-
-        $application = ResearchApplication::create([
-            'research_id' => $opp->id,
-            'full_name' => $data['fullName'],
-            'email' => $data['email'],
-            'experience' => $data['experience'] ?? null,
-            'availability' => $data['availability'] ?? null,
-            'status' => 'submitted',
-        ]);
-
-        return response()->json([
-            'status' => 'submitted',
-            'id' => $application->id,
-        ]);
-    }
-
-    public function applications(string $id)
-    {
-        $opp = ResearchOpportunity::find($id);
-        if (!$opp) {
-            return response()->json([], 404);
-        }
-
-        return ResearchApplication::query()
-            ->where('research_id', $opp->id)
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (ResearchApplication $app) => [
-                'id' => $app->id,
-                'fullName' => $app->full_name,
-                'email' => $app->email,
-                'experience' => $app->experience,
-                'availability' => $app->availability,
-                'status' => $app->status,
-                'createdAt' => $app->created_at?->toISOString(),
-            ]);
-    }
-
-    public function updateApplication(string $id, ResearchApplication $application, Request $request)
-    {
-        $opp = ResearchOpportunity::find($id);
-        if (!$opp || $application->research_id !== $opp->id) {
-            return response()->json(null, 404);
-        }
-
-        $payload = $request->validate([
-            'status' => ['required', 'string'],
-        ]);
-
-        $application->update(['status' => $payload['status']]);
-
-        return response()->json([
-            'id' => $application->id,
-            'status' => $application->status,
-        ]);
-    }
-
-    private function mapOpportunity(ResearchOpportunity $opp): array
-    {
-        return [
-            'id' => $opp->id,
-            'title' => $opp->title,
-            'company' => $opp->company,
-            'description' => $opp->description,
-            'field' => $opp->field,
-        ];
-    }
+    public function index(Request $request){$q=DB::table('research_entities');if($request->filled('type'))$q->where('entity_type',$request->string('type'));if($request->filled('status'))$q->where('status',$request->string('status'));if($request->filled('search'))$q->where('title','like','%'.$request->string('search').'%');return $q->latest()->get()->map(fn($r)=>$this->map($r));}
+    public function dashboard(){ $uid=$this->userId();$count=fn($t)=>DB::table('research_entities')->where(['entity_type'=>$t,'owner_id'=>$uid])->count();return response()->json(['profile'=>['userId'=>$uid,'researchScore'=>(int)DB::table('research_score_transactions')->where('user_id',$uid)->sum('points'),'projects'=>$count('project'),'publications'=>$count('publication'),'grants'=>$count('grant'),'startups'=>$count('startup')],'projects'=>$this->listType('project'),'funding'=>$this->listType('funding'),'challenges'=>$this->listType('challenge')]);}
+    public function show(string $id){$r=DB::table('research_entities')->where('id',$id)->first();return $r?response()->json($this->map($r)):response()->json(['message'=>'Research record not found'],404);}
+    public function store(Request $request){$d=$request->validate(['type'=>'required|string|in:'.implode(',',self::TYPES),'title'=>'required|string|max:255','status'=>'nullable|string|max:50','data'=>'nullable|array']);$s=$d['status']??match($d['type']){'project'=>'Draft','fellowship'=>'Submitted','grant'=>'Opportunity',default=>'Active'};$this->validState($d['type'],$s);$id=(string)Str::uuid();DB::table('research_entities')->insert(['id'=>$id,'entity_type'=>$d['type'],'title'=>$d['title'],'status'=>$s,'owner_id'=>$this->userId(),'data'=>json_encode($d['data']??[]),'created_at'=>now(),'updated_at'=>now()]);$this->event($id,$d['type'],null,$s,$request->input('comment'));return $this->show($id)->setStatusCode(201);}
+    public function update(string $id,Request $request){$r=DB::table('research_entities')->where('id',$id)->first();if(!$r)return response()->json(['message'=>'Not found'],404);$d=$request->validate(['title'=>'sometimes|string|max:255','data'=>'sometimes|array','status'=>'sometimes|string|max:50','comment'=>'nullable|string|max:2000']);if(isset($d['status'])){$this->validState($r->entity_type,$d['status']);$this->move($r,$d['status'],$d['comment']??null);unset($d['status'],$d['comment']);}if(array_key_exists('data',$d))$d['data']=json_encode($d['data']);if($d)DB::table('research_entities')->where('id',$id)->update([...$d,'updated_at'=>now()]);return $this->show($id);}
+    public function destroy(string $id){if(!DB::table('research_entities')->where('id',$id)->exists())return response()->json(['message'=>'Not found'],404);DB::transaction(function()use($id){DB::table('research_workflow_events')->where('entity_id',$id)->delete();DB::table('research_entities')->where('id',$id)->delete();});return response()->json(['deleted'=>true]);}
+    public function apply(string $id,Request $request){$r=DB::table('research_entities')->where('id',$id)->first();if(!$r)return response()->json(['message'=>'Not found'],404);$d=$request->validate(['fullName'=>'required|string|max:255','email'=>'required|email|max:255','experience'=>'nullable|string','availability'=>'nullable|string|max:255','proposal'=>'nullable|string']);$p=json_decode($r->data?:'{}',true)?:[];$a=$p['applications']??[];$application=['id'=>(string)Str::uuid(),'userId'=>$this->userId(),...$d,'status'=>'submitted','createdAt'=>now()->toISOString()];$a[]=$application;$p['applications']=$a;DB::table('research_entities')->where('id',$id)->update(['data'=>json_encode($p),'updated_at'=>now()]);$this->notify($r->owner_id,'research_application','New research application','A new application was submitted.',['entityId'=>$id]);$this->addScore($this->userId(),'participation',null,'Research participation');return response()->json(['status'=>'submitted','applicationId'=>$application['id']],201);}
+    public function applications(string $id){$r=DB::table('research_entities')->where('id',$id)->first();return $r?response()->json(json_decode($r->data?:'{}',true)['applications']??[]):response()->json([],404);}
+    public function updateApplication(string $id,string $application,Request $request){$r=DB::table('research_entities')->where('id',$id)->first();if(!$r)return response()->json(['message'=>'Not found'],404);$s=$request->validate(['status'=>'required|string|max:50'])['status'];$p=json_decode($r->data?:'{}',true)?:[];$found=false;foreach($p['applications']??[] as &$a){if(($a['id']??'')===$application){$a['status']=$s;$found=true;}}if(!$found)return response()->json(['message'=>'Application not found'],404);DB::table('research_entities')->where('id',$id)->update(['data'=>json_encode($p),'updated_at'=>now()]);return response()->json(['id'=>$application,'status'=>$s]);}
+    public function transition(string $id,Request $request){$r=DB::table('research_entities')->where('id',$id)->first();if(!$r)return response()->json(['message'=>'Not found'],404);$d=$request->validate(['status'=>'required|string|max:50','comment'=>'nullable|string|max:2000']);$this->validState($r->entity_type,$d['status']);$this->move($r,$d['status'],$d['comment']??null);return $this->show($id);}
+    public function score(Request $request){$d=$request->validate(['action'=>'required|string','points'=>'nullable|integer|min:1','entityId'=>'nullable|uuid','entityType'=>'nullable|string','description'=>'nullable|string']);$p=$d['points']??(self::SCORE[$d['action']]??0);if(!$p)return response()->json(['message'=>'Unknown score action'],422);$this->addScore($this->userId(),$d['action'],$d['entityId']??null,$d['description']??null,$p,$d['entityType']??null);return response()->json(['points'=>$p,'total'=>(int)DB::table('research_score_transactions')->where('user_id',$this->userId())->sum('points')]);}
+    public function scoreHistory(){return response()->json(DB::table('research_score_transactions')->where('user_id',$this->userId())->latest()->get());}
+    public function wallet(Request $request){$uid=$this->userId();$type=$request->query('type','grant');$w=DB::table('research_wallets')->where(['owner_id'=>$uid,'wallet_type'=>$type])->first();if(!$w){$id=(string)Str::uuid();DB::table('research_wallets')->insert(['id'=>$id,'owner_id'=>$uid,'wallet_type'=>$type,'balance'=>0,'currency'=>'ZMW','created_at'=>now(),'updated_at'=>now()]);$w=DB::table('research_wallets')->where('id',$id)->first();}return response()->json(['wallet'=>$w,'transactions'=>DB::table('research_wallet_transactions')->where('wallet_id',$w->id)->latest()->get()]);}
+    public function walletTransaction(Request $request){$d=$request->validate(['walletType'=>'required|string|in:grant,fellowship,startup','type'=>'required|string|in:funding_received,disbursement,expense,refund','amount'=>'required|numeric|min:0.01','description'=>'nullable|string','reference'=>'nullable|string|max:100']);return DB::transaction(function()use($d){$uid=$this->userId();$w=DB::table('research_wallets')->where(['owner_id'=>$uid,'wallet_type'=>$d['walletType']])->lockForUpdate()->first();if(!$w){$id=(string)Str::uuid();DB::table('research_wallets')->insert(['id'=>$id,'owner_id'=>$uid,'wallet_type'=>$d['walletType'],'balance'=>0,'currency'=>'ZMW','created_at'=>now(),'updated_at'=>now()]);$w=DB::table('research_wallets')->where('id',$id)->lockForUpdate()->first();}$credit=in_array($d['type'],['funding_received','refund'],true);$balance=(float)$w->balance+($credit?1:-1)*(float)$d['amount'];if($balance<0)return response()->json(['message'=>'Insufficient wallet balance'],422);DB::table('research_wallets')->where('id',$w->id)->update(['balance'=>$balance,'updated_at'=>now()]);$tx=DB::table('research_wallet_transactions')->insertGetId(['wallet_id'=>$w->id,'type'=>$d['type'],'amount'=>$d['amount'],'reference'=>$d['reference']??null,'description'=>$d['description']??null,'actor_id'=>$uid,'created_at'=>now(),'updated_at'=>now()]);return response()->json(['transactionId'=>$tx,'balance'=>$balance],201);});}
+    public function notifications(){return response()->json(DB::table('research_notifications')->where('user_id',$this->userId())->latest()->get());}
+    public function markNotification(string $id){DB::table('research_notifications')->where('id',$id)->where('user_id',$this->userId())->update(['read_at'=>now(),'updated_at'=>now()]);return response()->json(['read'=>true]);}
+    private function listType($type){return DB::table('research_entities')->where('entity_type',$type)->latest()->get()->map(fn($r)=>$this->map($r));}
+    private function map($r){return ['id'=>$r->id,'type'=>$r->entity_type,'title'=>$r->title,'status'=>$r->status,'ownerId'=>$r->owner_id,'data'=>json_decode($r->data?:'{}',true)?:[],'createdAt'=>$r->created_at,'updatedAt'=>$r->updated_at];}
+    private function validState($type,$s){$states=match($type){'project'=>self::PROJECT,'fellowship'=>self::FELLOWSHIP,'grant'=>self::GRANT,default=>null};if($states&&!in_array($s,$states,true))abort(422,'Invalid workflow state for '.$type);}
+    private function move($r,$to,$comment){if($r->status===$to)return;DB::transaction(function()use($r,$to,$comment){DB::table('research_entities')->where('id',$r->id)->update(['status'=>$to,'updated_at'=>now()]);$this->event($r->id,$r->entity_type,$r->status,$to,$comment);$this->notify($r->owner_id,'research_workflow','Research status updated',$r->title.' moved to '.$to,['entityId'=>$r->id,'status'=>$to]);$action=match($r->entity_type){'publication'=>'publication','project'=>'project','fellowship'=>'fellowship','grant'=>'grant','startup'=>'startup',default=>null};if($action&&in_array($to,['Completed','Awarded','Active','Award'],true))$this->addScore($r->owner_id,$action,$r->id,'Research milestone');});}
+    private function event($id,$type,$from,$to,$comment){DB::table('research_workflow_events')->insert(['entity_id'=>$id,'entity_type'=>$type,'from_status'=>$from,'to_status'=>$to,'actor_id'=>$this->userId(),'comment'=>$comment,'created_at'=>now(),'updated_at'=>now()]);}
+    private function addScore($uid,$action,$entityId=null,$description=null,$points=null,$entityType=null){$points=$points??(self::SCORE[$action]??0);if(!$points)return;DB::table('research_score_transactions')->insert(['user_id'=>$uid,'action'=>$action,'points'=>$points,'entity_id'=>$entityId,'entity_type'=>$entityType,'description'=>$description,'created_at'=>now(),'updated_at'=>now()]);}
+    private function notify($uid,$type,$title,$message,$data=[]){if(!$uid)return;DB::table('research_notifications')->insert(['user_id'=>$uid,'type'=>$type,'title'=>$title,'message'=>$message,'data'=>json_encode($data),'created_at'=>now(),'updated_at'=>now()]);}
+    private function userId(){return (string)(session('user.id')??session('user')['id']??session('user_id')??'');}
 }
