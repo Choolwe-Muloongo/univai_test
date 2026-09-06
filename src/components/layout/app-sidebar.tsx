@@ -26,6 +26,7 @@ type NavLink = { href: string; label: string; icon: ElementType; key?: string; e
 type NavGroup = { label?: string; links: NavLink[] };
 
 const NOVA_CHAT_HREF = '/student/ai/chat';
+const RESEARCH_PORTAL_LINK: NavLink = { href: '/research', label: 'Research Portal', icon: FlaskConical };
 const STUDENT_FEEDBACK_LINK: NavLink = { href: '/student/suggestions', label: 'Ideas & Feedback', icon: Lightbulb };
 
 function safeEntitlements(value: unknown): string[] {
@@ -35,6 +36,7 @@ function safeEntitlements(value: unknown): string[] {
 
 const formalStudentLinks: NavLink[] = [
   { href: '/student/dashboard', label: 'Dashboard', icon: Home, exact: true },
+  RESEARCH_PORTAL_LINK,
   { href: '/student/formal-dashboard', label: 'Formal Dashboard', icon: GraduationCap, exact: true },
   { href: '/student/academic-command', label: 'Academic Command', icon: Workflow, exact: true },
   { href: '/student/program', label: 'My Program', icon: GraduationCap },
@@ -68,12 +70,13 @@ const studentCoreLinks: NavLink[] = [
   { href: '/student/wallet', label: 'My Wallet', icon: Wallet },
   { href: '/student/community', label: 'Community', icon: Users },
   { href: '/student/jobs', label: 'Job Board', icon: Briefcase },
-  { href: '/research', label: 'Research Portal', icon: FlaskConical },
+  RESEARCH_PORTAL_LINK,
   { href: '/student/payments', label: 'Billing', icon: Landmark },
 ];
 
 const shortCourseOnlyStudentLinks: NavLink[] = [
   { href: '/student/dashboard', label: 'Mission Home', icon: Home, exact: true },
+  RESEARCH_PORTAL_LINK,
   { href: '/student/courses', label: 'My Journeys', icon: BookOpen },
   { href: '/student/training-arena', label: 'Training Arena', icon: ClipboardCheck, key: 'student-short-training-arena' },
   { href: '/student/affiliate', label: 'Affiliate Dashboard', icon: Link2 },
