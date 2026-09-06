@@ -47,12 +47,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    // Do not treat the browser cache as proof that the backend session still exists.
+    // A cached user may otherwise remain visible after the Laravel session expires,
+    // causing protected actions such as payments to be sent as an apparent login.
     const cached = readCachedSession();
-    if (cached?.user) {
-      setSession(cached);
-      setLoading(false);
-    } else {
-      setLoading(true);
+    setLoading(true);
+    if (!cached?.user) {
+      setSession(null);
     }
 
     try {
