@@ -67,21 +67,6 @@ class ProgramsController extends Controller
 
     private function mapQualificationLevel(QualificationLevel $level): array
     {
-        return [
-            'id' => $level->id,
-            'name' => $level->name,
-            'category' => $level->category,
-            'defaultCredits' => $level->default_credits,
-            'minimumCredits' => $level->minimum_credits,
-            'maximumCredits' => $level->maximum_credits,
-            'durationMonths' => $level->duration_months,
-            'admissionRequirements' => $level->admission_requirements,
-            'allowedDeliveryModes' => $level->allowed_delivery_modes ?? [],
-            'requiresExamClinic' => (bool) $level->requires_exam_clinic,
-            'requiresAccreditationApproval' => (bool) $level->requires_accreditation_approval,
-            'minimumSubjectCount' => $level->minimum_subject_count,
-            'minimumTotalPoints' => $level->minimum_total_points,
-            'requiredPriorQualification' => $level->required_prior_qualification,
-        ];
+        return $level->toApiArray();
     }
 }

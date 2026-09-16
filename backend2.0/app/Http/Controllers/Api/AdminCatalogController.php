@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\QualificationLevel;
 use App\Models\Course;
 use App\Models\LearningObject;
 use App\Models\Lesson;
@@ -603,6 +604,22 @@ class AdminCatalogController extends Controller
             'reviewStatus' => $course->review_status,
             'lessonCount' => $course->lessons_count ?? $course->lessons?->count() ?? 0,
         ];
+    }
+
+    /**
+     * GET /api/admin/qualification-levels — the route existed but this method did not, so
+     * the admin catalogue and lecturer-application screens failed with a 500.
+     */
+    public function qualificationLevels()
+    {
+        return response()->json(
+            QualificationLevel::query()
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (QualificationLevel $level) => $level->toApiArray())
+                ->values()
+        );
     }
 
     private function mapQualificationLevel($level): array

@@ -38,4 +38,28 @@ class QualificationLevel extends Model
     {
         return $this->hasMany(Program::class);
     }
+
+    /**
+     * The camelCase shape the API exposes for a qualification level. Kept on the model so
+     * the programme payload and the admin catalogue cannot drift apart.
+     */
+    public function toApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'category' => $this->category,
+            'defaultCredits' => $this->default_credits,
+            'minimumCredits' => $this->minimum_credits,
+            'maximumCredits' => $this->maximum_credits,
+            'durationMonths' => $this->duration_months,
+            'admissionRequirements' => $this->admission_requirements,
+            'allowedDeliveryModes' => $this->allowed_delivery_modes ?? [],
+            'requiresExamClinic' => (bool) $this->requires_exam_clinic,
+            'requiresAccreditationApproval' => (bool) $this->requires_accreditation_approval,
+            'minimumSubjectCount' => $this->minimum_subject_count,
+            'minimumTotalPoints' => $this->minimum_total_points,
+            'requiredPriorQualification' => $this->required_prior_qualification,
+        ];
+    }
 }

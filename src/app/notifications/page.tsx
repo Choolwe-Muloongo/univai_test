@@ -7,21 +7,7 @@ import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/student/page-header';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api/client';
-
-type InAppNotification = {
-  id: number;
-  type: string;
-  title: string;
-  body?: string | null;
-  href?: string | null;
-  readAt?: string | null;
-  createdAt?: string | null;
-};
-
-type NotificationsResponse = {
-  items: InAppNotification[];
-  unreadCount: number;
-};
+import { normalizeNotificationsResponse, type InAppNotification } from '@/lib/notifications';
 
 const typeLabels: Record<string, string> = {
   feedback: 'Feedback',
@@ -50,7 +36,7 @@ export default function NotificationsPage() {
   async function loadNotifications() {
     setLoading(true);
     try {
-      const data = await apiFetch<NotificationsResponse>('/notifications');
+      const data = normalizeNotificationsResponse(await apiFetch<unknown>('/notifications'));
       setItems(data.items);
       setUnreadCount(data.unreadCount);
     } finally {
