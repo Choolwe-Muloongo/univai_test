@@ -218,6 +218,34 @@ Route::middleware('api')->group(function () {
         Route::post('/exam-clinic/results-sync', [ExamClinicController::class, 'syncResults']);
     });
 
+    Route::prefix('lecturer')->middleware(['session.auth', 'access:lecturer.portal'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'lecturer']);
+        Route::get('/students', [StudentsController::class, 'lecturerStudents']);
+
+        Route::get('/assignments', [LecturerAssignmentsController::class, 'index']);
+        Route::patch('/assignments/{assignment}/meeting', [LecturerAssignmentsController::class, 'updateMeeting']);
+
+        Route::get('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'index']);
+        Route::post('/lessons/{lessonId}/documents', [LessonDocumentsController::class, 'store']);
+        Route::patch('/lessons/{lessonId}/documents/{document}', [LessonDocumentsController::class, 'review']);
+
+        Route::get('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerIndex']);
+        Route::post('/courses/{courseId}/sessions', [CourseSessionsController::class, 'lecturerStore']);
+        Route::get('/sessions/{session}/roster', [CourseSessionsController::class, 'roster']);
+        Route::post('/sessions/{session}/attendance', [CourseSessionsController::class, 'markAttendance']);
+
+        Route::get('/exam-questions', [LecturerExamQuestionsController::class, 'index']);
+        Route::post('/exam-questions', [LecturerExamQuestionsController::class, 'store']);
+        Route::patch('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'update']);
+        Route::delete('/exam-questions/{examQuestion}', [LecturerExamQuestionsController::class, 'destroy']);
+
+        Route::post('/grades', [GradesController::class, 'recordGrade']);
+    });
+
+    Route::prefix('employer')->middleware(['session.auth', 'access:employer.portal'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'employer']);
+    });
+
     Route::prefix('admin')->middleware(['session.auth', 'access:admin.portal'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'admin']);
         Route::get('/today', [AdminWorkspaceController::class, 'today']);
@@ -311,6 +339,17 @@ Route::middleware('api')->group(function () {
         Route::patch('/policies/{policy}', [AcademicPoliciesController::class, 'update']);
         Route::post('/policies/assign/program', [AcademicPoliciesController::class, 'assignProgram']);
         Route::post('/policies/assign/curriculum', [AcademicPoliciesController::class, 'assignCurriculum']);
+        Route::get('/exam-clinic', [ExamClinicController::class, 'adminOverview']);
+        Route::post('/exam-clinic/centres', [ExamClinicController::class, 'storeCentre']);
+        Route::patch('/exam-clinic/centres/{centre}/approval', [ExamClinicController::class, 'updateCentreApproval']);
+        Route::post('/exam-clinic/rooms', [ExamClinicController::class, 'storeRoom']);
+        Route::post('/exam-clinic/invigilators', [ExamClinicController::class, 'storeInvigilator']);
+        Route::post('/exam-clinic/sessions', [ExamClinicController::class, 'storeSession']);
+        Route::patch('/exam-clinic/sessions/{session}', [ExamClinicController::class, 'updateSession']);
+        Route::post('/exam-clinic/sessions/{session}/incidents', [ExamClinicController::class, 'storeIncident']);
+        Route::post('/exam-clinic/bookings/{booking}/attendance', [ExamClinicController::class, 'markAttendance']);
+        Route::post('/exam-clinic/results-sync', [ExamClinicController::class, 'syncResults']);
+
         Route::get('/exam-questions', [AdminExamQuestionsController::class, 'index']);
         Route::post('/exam-questions', [AdminExamQuestionsController::class, 'store']);
         Route::patch('/exam-questions/{examQuestion}', [AdminExamQuestionsController::class, 'update']);

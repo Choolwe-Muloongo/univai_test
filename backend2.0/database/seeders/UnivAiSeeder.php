@@ -2,6 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Intake;
+use App\Models\Program;
+use App\Support\Pricing\LaunchFeeSchedule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -163,7 +166,10 @@ class UnivAiSeeder extends Seeder
             'lecturer.a@univai.edu' => ['teaching'],
             'lecturer.b@univai.edu' => ['teaching'],
             'employer@univai.edu' => ['employer_portal'],
-            'student.premium@univai.edu' => ['student_portal', 'course_access', 'ai_tutor'],
+            // This student is seeded with an active intake enrollment below, and the enrollment
+            // flow (StudentsController::confirmEnrollment) grants programme access, so the seed
+            // grants it too. Without it the seeded student cannot open their own programme.
+            'student.premium@univai.edu' => ['student_portal', 'course_access', 'ai_tutor', 'programme-access'],
             'student.freemium@univai.edu' => ['student_portal'],
         ] as $email => $entitlements) {
             $seedUser = $accessUsers->get($email);
@@ -1934,20 +1940,33 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['id'], ['status', 'updated_at']);
 
+        // Price the seeded tuition invoice through the same schedule the enrollment flow uses
+        // (ApplicationObserver). A flat amount ignores the intake's delivery-mode multiplier,
+        // and financial clearance bills on the scheduled tuition, so the seeded student would
+        // owe more than any invoice they could pay and could never complete registration.
+        $cs101Intake = Intake::find('cs101-2026-jan');
+        $semesterTuition = LaunchFeeSchedule::programTuitionFee(
+            Program::find('cs101'),
+            null,
+            $cs101Intake?->delivery_mode
+        );
+
         DB::table('invoices')->upsert([
             [
                 'id' => 1,
                 'student_id' => $studentId,
                 'intake_id' => 'cs101-2026-jan',
                 'title' => 'Semester 1 Tuition',
-                'amount' => 650,
+                'type' => 'tuition_fee',
+                'amount' => $semesterTuition['amount'],
+                'currency' => $semesterTuition['currency'],
                 'paid_amount' => 0,
                 'status' => 'unpaid',
                 'due_date' => now()->addDays(20)->toDateString(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['id'], ['status', 'paid_amount', 'updated_at']);
+        ], ['id'], ['type', 'amount', 'currency', 'status', 'paid_amount', 'updated_at']);
 
         DB::table('dashboard_metrics')->upsert([
             ['role' => 'admin', 'key' => 'revenue', 'label' => 'Total Revenue', 'value' => '$45,231.89', 'note' => '+20.1% from last month', 'created_at' => now(), 'updated_at' => now()],

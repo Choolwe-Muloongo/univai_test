@@ -371,7 +371,7 @@ class AuthController extends Controller
 
     private function demoUser(string $role): array
     {
-        return match ($role) {
+        $user = match ($role) {
             'applicant' => [
                 'id' => 'applicant-1',
                 'name' => 'Applicant',
@@ -380,10 +380,8 @@ class AuthController extends Controller
                 'profileCompleted' => false,
                 'profileStarted' => false,
                 'accountState' => 'applicant',
-                'verificationStatus' => 'email',
                 'subscriptionStatus' => 'pending',
                 'subscriptionTier' => 'free',
-                'entitlements' => [],
             ],
             'employer' => [
                 'id' => 'employer-1',
@@ -393,10 +391,8 @@ class AuthController extends Controller
                 'profileCompleted' => true,
                 'profileStarted' => true,
                 'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'employer',
-                'entitlements' => ['employer_portal'],
             ],
             'instructor' => [
                 'id' => 'instructor-1',
@@ -406,10 +402,8 @@ class AuthController extends Controller
                 'profileCompleted' => true,
                 'profileStarted' => true,
                 'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'instructor',
-                'entitlements' => ['instructor_portal', 'instructor_ai'],
             ],
             'lecturer' => [
                 'id' => 'lecturer-1',
@@ -419,10 +413,8 @@ class AuthController extends Controller
                 'profileCompleted' => true,
                 'profileStarted' => true,
                 'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'staff',
-                'entitlements' => ['lecturer_portal'],
             ],
             'admin' => [
                 'id' => 'admin-1',
@@ -432,10 +424,8 @@ class AuthController extends Controller
                 'profileCompleted' => true,
                 'profileStarted' => true,
                 'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => 'staff',
-                'entitlements' => ['admin_portal', 'admin_academic', 'admin_users_manage', 'admin_finance'],
             ],
             default => [
                 'id' => 'student-1',
@@ -445,11 +435,18 @@ class AuthController extends Controller
                 'profileCompleted' => true,
                 'profileStarted' => true,
                 'accountState' => 'active',
-                'verificationStatus' => 'verified',
                 'subscriptionStatus' => 'active',
                 'subscriptionTier' => str_contains($role, 'free') ? 'free' : 'premium',
-                'entitlements' => str_contains($role, 'programme') ? ['programme_access'] : ['certificate_access'],
             ],
         };
+
+        // Verification and entitlements come from the access policy rather than being spelled
+        // out per branch: these payloads had drifted to values no policy recognises
+        // ('verified', 'programme_access'), which locked demo accounts out of their own portals.
+        $access = app(AccessControl::class);
+        $user['verificationStatus'] = $access->fallbackVerification($role);
+        $user['entitlements'] = $access->fallbackEntitlements($role);
+
+        return $user;
     }
 }

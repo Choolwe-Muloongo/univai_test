@@ -546,7 +546,11 @@ class AccessControl
         };
     }
 
-    private function fallbackVerification(?string $role): string
+    /**
+     * Public so callers that build a session payload without a database user (demo logins)
+     * speak the same vocabulary as the policy above, instead of maintaining their own list.
+     */
+    public function fallbackVerification(?string $role): string
     {
         return in_array($role, [self::ROLE_LECTURER, self::ROLE_INSTRUCTOR, ...self::ADMIN_ROLES], true) ? 'identity' : 'email';
     }
@@ -576,7 +580,7 @@ class AccessControl
         };
     }
 
-    private function fallbackEntitlements(?string $role): array
+    public function fallbackEntitlements(?string $role): array
     {
         return match ($role) {
             self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN, self::ROLE_NORMAL_ADMIN, self::ROLE_ADMISSIONS_ADMIN, self::ROLE_LECTURER_ADMIN, self::ROLE_EMPLOYER_VERIFICATION_ADMIN, self::ROLE_FINANCE_ADMIN, self::ROLE_READ_ONLY_ADMIN, self::ROLE_EXAM_OFFICER => ['admin_portal'],
