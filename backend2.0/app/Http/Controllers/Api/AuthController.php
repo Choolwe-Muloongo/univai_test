@@ -61,6 +61,9 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:6'],
             'role' => ['nullable', 'in:applicant,free-student,employer,instructor-applicant'],
+            // Employer registration collects an organization profile; keep it rather than
+            // discarding what the applicant typed.
+            'profile' => ['nullable', 'string', 'max:2000'],
         ]);
 
         if (User::where('email', $payload['email'])->exists()) {
@@ -81,6 +84,14 @@ class AuthController extends Controller
             'profile_completed_at' => $profileCompletedAt,
             'referred_by_affiliate_code' => $affiliates->captureReferralCode($request),
         ]);
+
+        $profileText = trim((string) ($payload['profile'] ?? ''));
+        if ($profileText !== '') {
+            UserProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                ['bio' => $profileText, 'display_name' => $payload['name']]
+            );
+        }
 
         if ($role === 'applicant') {
             StudentAccess::syncUserEntitlements($user, StudentAccess::TIER_FREE, 'registration');

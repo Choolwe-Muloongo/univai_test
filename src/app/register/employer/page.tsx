@@ -33,6 +33,7 @@ export default function EmployerRegisterPage() {
     const contactName = String(formData.get('contactName') || '').trim();
     const email = String(formData.get('email') || '').trim();
     const password = String(formData.get('password') || '');
+    const profile = String(formData.get('profile') || '').trim();
 
     try {
       if (!joinedChannel) {
@@ -45,6 +46,7 @@ export default function EmployerRegisterPage() {
         password,
         role: 'employer',
         acceptedWhatsappChannel: joinedChannel,
+        ...(profile ? { profile } : {}),
       } as any);
       // The employer dashboard is behind a RoleGuard that reads the session provider, which
       // does not remount on a client navigation. Without this the new account lands on the

@@ -7,17 +7,10 @@ import { ArrowRight, Award, BrainCircuit, BriefcaseBusiness, Check, ChevronRight
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { Button } from '@/components/ui/button';
-import { getAdmissionsSettings, getCourses, getPrograms } from '@/lib/api';
+import { getAdmissionsSettings, getCourses, getPrograms, getSchools } from '@/lib/api';
 import type { Course, Program } from '@/lib/api/types';
+import { countLabel, describeSchool, schoolsWithPrograms, type SchoolWithPrograms } from '@/lib/schools';
 
-const schools = [
-  ['School of Artificial Intelligence', 'AI, Data Science, Machine Learning', BrainCircuit, '/schools/ai'],
-  ['School of Business & Entrepreneurship', 'Business, Leadership, Innovation', BriefcaseBusiness, '/schools/business'],
-  ['School of ICT', 'Software Development, Cybersecurity, Cloud', Globe2, '/schools/ict'],
-  ['School of Engineering', 'Civil, Electrical, Mechanical', Rocket, '/schools/engineering'],
-  ['School of Health Sciences', 'Public Health, Nursing, Healthcare', Award, '/schools/health'],
-  ['School of Education', 'Teaching, Learning Technologies', GraduationCap, '/schools/education'],
-] as const;
 
 const benefits = [
   ['Learn with AI', '24/7 AI tutors and study assistants.', BrainCircuit],
@@ -33,15 +26,17 @@ const stats = [['10,000+', 'Learners'], ['500+', 'Courses'], ['100+', 'Instructo
 export default function HomePage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [schools, setSchools] = useState<SchoolWithPrograms[]>([]);
   const [lecturerOpen, setLecturerOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([getPrograms(), getCourses(), getAdmissionsSettings()]).then(([p, c, s]) => {
+    Promise.all([getPrograms(), getCourses(), getAdmissionsSettings(), getSchools()]).then(([p, c, s, sc]) => {
       if (!mounted) return;
       setPrograms(p);
       setCourses(c);
       setLecturerOpen(Boolean(s.lecturerApplicationsOpen));
+      setSchools(schoolsWithPrograms(sc, p));
     }).catch(() => undefined);
     return () => { mounted = false; };
   }, []);
@@ -87,7 +82,7 @@ export default function HomePage() {
 
         <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8"><div className="text-center"><p className="font-semibold text-violet-700">THE UNIVAI ECOSYSTEM</p><h2 className="mt-3 text-4xl font-extrabold">Learn. Earn. Build. Work. Launch.</h2></div><div className="mt-14 grid gap-4 md:grid-cols-5">{[['Learn','Courses and programs',GraduationCap],['Earn','Scholarships and rewards',Award],['Build','Research and innovation',Lightbulb],['Work','Jobs and internships',BriefcaseBusiness],['Launch','Startup incubation',Rocket]].map(([t,d,I],i)=><div key={t as string} className="relative rounded-3xl border bg-white p-6 shadow-sm"><div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-blue-700"><I /></div><p className="text-xs font-bold text-blue-700">0{i+1}</p><h3 className="mt-1 text-xl font-bold">{t as string}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{d as string}</p>{i<4 && <ChevronRight className="absolute -right-3 top-1/2 hidden h-6 w-6 text-slate-300 md:block" />}</div>)}</div></section>
 
-        <section className="bg-slate-100 py-24"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="font-semibold text-blue-700">EXPLORE OUR SCHOOLS</p><h2 className="mt-2 text-4xl font-extrabold">Find your field.</h2></div><Link href="/schools" className="font-semibold text-blue-700">View all schools <ArrowRight className="ml-1 inline h-4 w-4" /></Link></div><div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{schools.map(([title,desc,Icon,href])=><Link href={href} key={title} className="group rounded-3xl bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"><div className="flex items-center justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><Icon /></div><ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-700" /></div><h3 className="mt-6 text-xl font-bold">{title}</h3><p className="mt-2 text-slate-600">{desc}</p></Link>)}</div></div></section>
+        <section className="bg-slate-100 py-24"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="font-semibold text-blue-700">EXPLORE OUR SCHOOLS</p><h2 className="mt-2 text-4xl font-extrabold">Find your field.</h2></div><Link href="/schools" className="font-semibold text-blue-700">View all schools <ArrowRight className="ml-1 inline h-4 w-4" /></Link></div><div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{schools.map((school)=>{const Icon=school.icon;return <Link href={`/schools/${school.id}`} key={school.id} className="group flex flex-col rounded-3xl bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"><div className="flex items-center justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><Icon /></div><ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-700" /></div><h3 className="mt-6 text-xl font-bold">{school.name}</h3><p className="mt-2 flex-1 text-slate-600">{describeSchool(school)}</p><span className="mt-4 text-sm font-semibold text-blue-700">{countLabel(school.programs.length, 'programme')}</span></Link>;})}</div></div></section>
 
         <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8"><div className="grid overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 to-violet-700 lg:grid-cols-2"><div className="p-10 text-white sm:p-14"><p className="font-semibold text-blue-200">RESEARCH & INNOVATION HUB</p><h2 className="mt-3 text-4xl font-extrabold">Research That Solves Africa's Challenges.</h2><p className="mt-5 leading-7 text-blue-50">Collaborate on applied research across AI, fintech, agriculture, energy, climate innovation and digital transformation.</p><div className="mt-8 flex flex-wrap gap-2">{['Artificial Intelligence','Fintech','Agriculture','Energy','Climate Innovation','Digital Transformation'].map(x=><span key={x} className="rounded-full bg-white/10 px-3 py-2 text-sm">{x}</span>)}</div><Button asChild className="mt-8 rounded-full bg-white text-blue-700 hover:bg-blue-50"><Link href="/research">Join Research Projects <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></div><div className="hidden items-center justify-center p-10 lg:flex"><div className="w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-8 backdrop-blur"><Search className="h-10 w-10 text-emerald-300" /><p className="mt-8 text-2xl font-bold text-white">Ideas into impact.</p><p className="mt-3 text-blue-100">Connect learners, lecturers, employers and researchers around problems that matter.</p></div></div></div></section>
 
