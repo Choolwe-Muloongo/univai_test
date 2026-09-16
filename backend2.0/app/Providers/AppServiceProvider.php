@@ -45,13 +45,16 @@ class AppServiceProvider extends ServiceProvider
         $researchAuth->patch('/api/research/notifications/{id}/read',[ResearchController::class,'markNotification']);
         $researchAuth->post('/api/research/ai',[ResearchController::class,'ai'])->middleware('throttle:ai');
 
-        $research->get('/api/research/{id}',[ResearchController::class,'show']);
-        $researchAuth->patch('/api/research/{id}',[ResearchController::class,'update']);
-        $researchAuth->delete('/api/research/{id}',[ResearchController::class,'destroy']);
-        $researchAuth->post('/api/research/{id}/transition',[ResearchController::class,'transition']);
-        $researchAuth->get('/api/research/{id}/applications',[ResearchController::class,'applications']);
-        $researchAuth->patch('/api/research/{id}/applications/{application}',[ResearchController::class,'updateApplication']);
-        $researchAuth->post('/api/research/{id}/apply',[ResearchController::class,'apply'])->middleware('access:student.portal');
+        // research_entities.id is a uuid column, so a non-uuid id reaches Postgres as a cast
+        // error and surfaces as a 500 rather than a missing record. Constraining the parameter
+        // makes an unknown id a clean 404 on every driver.
+        $research->get('/api/research/{id}',[ResearchController::class,'show'])->whereUuid('id');
+        $researchAuth->patch('/api/research/{id}',[ResearchController::class,'update'])->whereUuid('id');
+        $researchAuth->delete('/api/research/{id}',[ResearchController::class,'destroy'])->whereUuid('id');
+        $researchAuth->post('/api/research/{id}/transition',[ResearchController::class,'transition'])->whereUuid('id');
+        $researchAuth->get('/api/research/{id}/applications',[ResearchController::class,'applications'])->whereUuid('id');
+        $researchAuth->patch('/api/research/{id}/applications/{application}',[ResearchController::class,'updateApplication'])->whereUuid('id');
+        $researchAuth->post('/api/research/{id}/apply',[ResearchController::class,'apply'])->middleware('access:student.portal')->whereUuid('id');
 
         Route::middleware(['api','session.auth','access:admin.portal'])->get('/api/admin/research/dashboard',[ResearchController::class,'adminDashboard']);
         RateLimiter::for('login',function(Request $request){$email=strtolower((string)$request->input('email',''));$key=$email!==''?"{$request->ip()}|{$email}":$request->ip();return Limit::perMinute(10)->by($key);});
