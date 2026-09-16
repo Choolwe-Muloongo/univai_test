@@ -1581,7 +1581,6 @@ class UnivAiSeeder extends Seeder
                 'subject_count' => 7,
                 'total_points' => 42,
                 'delivery_mode' => 'hybrid',
-                'learning_style' => 'traditional',
                 'study_pace' => 'standard',
                 'country' => 'Zambia',
                 'notes' => 'Strong STEM profile. Recommend admission.',
@@ -1612,7 +1611,6 @@ class UnivAiSeeder extends Seeder
                 'subject_count' => 6,
                 'total_points' => 34,
                 'delivery_mode' => 'software_only',
-                'learning_style' => 'personalized',
                 'study_pace' => 'flex',
                 'country' => 'Zambia',
                 'notes' => 'Meets minimum criteria. Awaiting fee payment.',
@@ -1763,7 +1761,10 @@ class UnivAiSeeder extends Seeder
             ],
         ], ['user_id', 'intake_id'], ['status', 'enrolled_at', 'updated_at']);
 
-        DB::table('course_lecturer_assignments')->upsert([
+        // course_lecturer_assignments has no unique index on (course_id, lecturer_id, intake_id):
+        // a lecturer may legitimately hold several module assignments on the same course and
+        // intake, so seed rows are matched explicitly instead of relying on an upsert conflict key.
+        $lecturerAssignments = [
             [
                 'course_id' => 'cs101',
                 'module_id' => 'cs101-sem1-1',
@@ -1820,7 +1821,19 @@ class UnivAiSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ], ['course_id', 'lecturer_id', 'intake_id'], ['module_id', 'role', 'assigned_by', 'meeting_provider', 'meeting_url', 'meeting_schedule', 'meeting_notes', 'updated_at']);
+        ];
+
+        foreach ($lecturerAssignments as $assignment) {
+            DB::table('course_lecturer_assignments')->updateOrInsert(
+                [
+                    'course_id' => $assignment['course_id'],
+                    'lecturer_id' => $assignment['lecturer_id'],
+                    'intake_id' => $assignment['intake_id'],
+                    'module_id' => $assignment['module_id'],
+                ],
+                $assignment
+            );
+        }
 
         DB::table('course_sessions')->upsert([
             [

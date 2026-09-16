@@ -338,11 +338,17 @@ class ShortCourseController extends Controller
     public function submitExam(Request $request, string $courseId)
     {
         $studentId = $this->studentId($request);
-        $payload = $request->validate([
+        $request->validate([
             'answers' => ['required', 'array'],
             'answers.*.questionId' => ['nullable'],
             'answers.*.answer' => ['nullable', 'string'],
         ]);
+
+        // Answers arrive either as objects ({questionId, answer}) or as a positional list of
+        // plain strings. validate() returns only the keys its wildcard rules matched, so the
+        // positional form comes back empty; read the input directly to support both shapes.
+        $answers = $request->input('answers', []);
+
         $course = Course::with('lessons')->findOrFail($courseId);
         $enrollment = ShortCourseEnrollment::firstOrCreate(['student_id' => $studentId, 'short_course_id' => $course->id]);
         $enrollment = $this->ensureFreeAccessIfEligible($enrollment, $course);
@@ -363,7 +369,7 @@ class ShortCourseController extends Controller
             return response()->json(['message' => 'This lesson/course needs at least 25 assessment questions before exam submission is enabled.'], 422);
         }
 
-        $answerRows = collect($payload['answers']);
+        $answerRows = collect($answers);
         $usesQuestionIds = $answerRows->contains(fn ($answer) => is_array($answer) && array_key_exists('questionId', $answer));
 
         if ($usesQuestionIds) {
@@ -386,7 +392,7 @@ class ShortCourseController extends Controller
             $total = max(1, $answerRows->count());
         } else {
             $selectedQuestions = $allQuestions->take(25)->values();
-            $correct = $selectedQuestions->filter(fn ($q, $index) => $this->normalizeAnswer($payload['answers'][$index] ?? null) === $this->normalizeAnswer($q->answer))->count();
+            $correct = $selectedQuestions->filter(fn ($q, $index) => $this->normalizeAnswer($answers[$index] ?? null) === $this->normalizeAnswer($q->answer))->count();
             $total = $selectedQuestions->count();
         }
 
@@ -634,6 +640,10 @@ class ShortCourseController extends Controller
 
     private function normalizeAnswer(mixed $answer): string
     {
+        if (is_array($answer) || is_object($answer)) {
+            return '';
+        }
+
         return mb_strtolower(trim((string) $answer));
     }
 }
