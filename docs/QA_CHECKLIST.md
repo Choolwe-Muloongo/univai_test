@@ -46,3 +46,24 @@
 ## API Health
 - GET `/api/health` returns `{ status: "ok" }`.
 - Rate limits trigger after repeated login/AI calls.
+
+## Known gaps
+
+These endpoints are called by the frontend but have no backend
+implementation — no controller and no route, only database tables. The
+pages that call them fail with a 404. They are features that were never
+finished rather than regressions, so they need building, not wiring up:
+
+| Endpoint | Caller | Tables that exist |
+| --- | --- | --- |
+| `GET /instructor/portal` | `getInstructorPortalOverview` | `instructors`, `instructor_documents`, `instructor_earnings` |
+| `POST /instructor/course-sources` | `createInstructorCourseSource` | `instructor_course_sources` |
+| `POST /instructor/ai-generations` | `createInstructorAiGeneration` | `instructor_ai_generations` |
+| `POST /instructor-applications` | `submitInstructorApplication` | `instructor_applications` |
+| `GET /lecturer/testing` | `getLecturerTestingOverview` | — |
+| `POST /lecturer/test-announcements` | `createTestAnnouncement` | `test_announcements` |
+| `GET /students/me/learning` | `getStudentLearningOverview` | — |
+| `POST /students/me/ai-study-sessions` | `createAiStudySession` | `ai_study_sessions`, `ai_generated_study_materials` |
+
+To re-check this list, compare each `apiFetch` path in `src/` against
+`php artisan route:list` in `backend2.0/`.
