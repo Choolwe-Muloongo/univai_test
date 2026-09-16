@@ -21,15 +21,20 @@ class AppServiceProvider extends ServiceProvider
         Application::observe(ApplicationObserver::class);
         Route::middleware(['api','session.auth','access:admissions.applicant'])->get('/api/admissions/admission-letter',[AdmissionsLettersController::class,'downloadAdmissionLetter']);
 
-        // Research is browseable without authentication. Actions that create, apply,
+        // Research records are browseable without authentication. Actions that create, apply,
         // manage records, or expose personal data remain protected below.
+        //
+        // Route order matters here: /api/research/{id} matches any single segment, so every
+        // literal path below it must be registered first or the wildcard answers it with
+        // "Research record not found". Keep the {id} routes last in this block.
         $research=Route::middleware(['api']);
-        $research->get('/api/research',[ResearchController::class,'index']);
-        $research->get('/api/research/dashboard',[ResearchController::class,'dashboard']);
-        $research->get('/api/research/{id}',[ResearchController::class,'show']);
-
         $researchAuth=Route::middleware(['api','session.auth']);
+
+        $research->get('/api/research',[ResearchController::class,'index']);
         $researchAuth->post('/api/research',[ResearchController::class,'store']);
+        // The portal dashboard is keyed on the signed-in user (score, owned records), so it
+        // is not part of public browsing; anonymously it rendered the portal with an empty id.
+        $researchAuth->get('/api/research/dashboard',[ResearchController::class,'dashboard']);
         $researchAuth->get('/api/research/score',[ResearchController::class,'scoreHistory']);
         $researchAuth->post('/api/research/score',[ResearchController::class,'score']);
         $researchAuth->get('/api/research/rewards',[ResearchRewardsController::class,'index']);
@@ -39,6 +44,8 @@ class AppServiceProvider extends ServiceProvider
         $researchAuth->get('/api/research/notifications',[ResearchController::class,'notifications']);
         $researchAuth->patch('/api/research/notifications/{id}/read',[ResearchController::class,'markNotification']);
         $researchAuth->post('/api/research/ai',[ResearchController::class,'ai'])->middleware('throttle:ai');
+
+        $research->get('/api/research/{id}',[ResearchController::class,'show']);
         $researchAuth->patch('/api/research/{id}',[ResearchController::class,'update']);
         $researchAuth->delete('/api/research/{id}',[ResearchController::class,'destroy']);
         $researchAuth->post('/api/research/{id}/transition',[ResearchController::class,'transition']);

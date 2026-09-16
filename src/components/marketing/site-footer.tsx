@@ -17,7 +17,7 @@ export function SiteFooter() {
           <div>
             <div className="flex items-center gap-2.5"><Logo className="size-10 rounded-xl" /><span className="text-2xl font-extrabold">Univ<span className="text-blue-400">AI</span></span></div>
             <p className="mt-5 max-w-md leading-7 text-slate-400">World-Class Education, Career Opportunities, and AI-Powered Learning for Every African.</p>
-            <div className="mt-6 flex flex-wrap gap-3"><a href="mailto:support@univai.aftacoin.biz" className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white"><Mail className="h-4 w-4" />support@univai.aftacoin.biz</a><span className="inline-flex items-center gap-2 text-sm text-slate-400"><MessageCircle className="h-4 w-4" />African learner community</span></div>
+            <div className="mt-6 flex flex-wrap gap-3"><a href="mailto:support@aftacoin.biz" className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white"><Mail className="h-4 w-4" />support@aftacoin.biz</a><span className="inline-flex items-center gap-2 text-sm text-slate-400"><MessageCircle className="h-4 w-4" />African learner community</span></div>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">{columns.map(column => <div key={column.title}><h3 className="font-semibold text-white">{column.title}</h3><div className="mt-4 space-y-3">{column.links.map(([href,label]) => <Link key={href} href={href} className="block text-sm text-slate-400 transition hover:text-white">{label}</Link>)}</div></div>)}</div>
         </div>

@@ -7,6 +7,7 @@ import { BriefcaseBusiness, Loader2 } from 'lucide-react';
 
 import { WhatsAppChannelRequirement } from '@/components/auth/whatsapp-channel-requirement';
 import { Logo } from '@/components/icons/logo';
+import { useSession } from '@/components/providers/session-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import { registerAccount } from '@/lib/api';
 
 export default function EmployerRegisterPage() {
   const router = useRouter();
+  const { refresh } = useSession();
   const [loading, setLoading] = useState(false);
   const [joinedChannel, setJoinedChannel] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,10 @@ export default function EmployerRegisterPage() {
         role: 'employer',
         acceptedWhatsappChannel: joinedChannel,
       } as any);
+      // The employer dashboard is behind a RoleGuard that reads the session provider, which
+      // does not remount on a client navigation. Without this the new account lands on the
+      // guard with a stale empty session and is bounced straight back to the login page.
+      await refresh();
       router.push('/employer/dashboard');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to register employer account.');
